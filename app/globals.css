@@ -1,0 +1,62 @@
+@import 'tailwindcss';
+
+/*
+  I.R.I.S — Design tokens (cf. context.md section 10)
+  Dark mode is the default. Toggle via `data-theme="light"` on <html>.
+*/
+
+@theme {
+  /* Surfaces */
+  --color-bg: #111110;
+  --color-surface: #161614;
+  --color-surface-2: #1c1b19;
+  --color-surface-off: #222120;
+  --color-border: #333230;
+
+  /* Text */
+  --color-text: #e8e6e3;
+  --color-text-muted: #8a8885;
+  --color-text-faint: #55524f;
+
+  /* Accent — Pokéball Red */
+  --color-red: #e05252;
+  --color-red-bg: #3a2020;
+
+  /* Rarity badges */
+  --color-rarity-sar: #e05252;
+  --color-rarity-ar: #e8942a;
+  --color-rarity-sr: #e8af34;
+  --color-rarity-chr: #a86fdf;
+  --color-rarity-rr: #5591c7;
+  --color-rarity-r-holo: #4f98a3;
+  --color-rarity-r: #6daa45;
+  --color-rarity-uc: #8a8885;
+  --color-rarity-c: #55524f;
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Light mode overrides — opt-in via data-theme="light" */
+[data-theme='light'] {
+  --color-bg: #fafaf9;
+  --color-surface: #f4f3f1;
+  --color-surface-2: #eceae6;
+  --color-surface-off: #e5e3df;
+  --color-border: #d4d2cd;
+  --color-text: #1a1917;
+  --color-text-muted: #6a6862;
+  --color-text-faint: #95938e;
+  --color-red-bg: #fde8e8;
+}
+
+html {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+body {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
