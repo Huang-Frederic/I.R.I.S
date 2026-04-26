@@ -11,7 +11,12 @@ import type {
   EnrichResult,
   OcrResult,
 } from '@/lib/types';
+import {
+  actionToStatus,
+  type SuggestionResult,
+} from '@/lib/utils/pokedex-suggestion';
 import { resizeImage } from '@/lib/utils/resize-image';
+import ScanSuggestion from '@/components/cards/ScanSuggestion';
 
 const LANGUAGES: CardLanguage[] = ['JP', 'EN', 'FR', 'DE', 'IT', 'ES', 'KO', 'PT', 'ZH'];
 const CONDITIONS: CardCondition[] = ['NM', 'EX', 'GD', 'PL', 'PO'];
@@ -81,6 +86,7 @@ export default function MobileSubmit() {
   const [form, setForm] = useState<FormFields>(EMPTY);
   const [confidence, setConfidence] = useState<number>(1);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<SuggestionResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function reset() {
@@ -90,6 +96,7 @@ export default function MobileSubmit() {
     setForm(EMPTY);
     setConfidence(1);
     setErrorMsg(null);
+    setSuggestion(null);
     setPhase('idle');
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
@@ -130,7 +137,7 @@ export default function MobileSubmit() {
       // Prefill the form from the best match (if any), and detect language from OCR.
       const language = detectLanguage(ocr.text);
       const match = enrich.bestMatch;
-      setForm({
+      const prefill: FormFields = {
         ...EMPTY,
         language,
         pokemon_name: match?.pokemon_name ?? '',
@@ -142,7 +149,34 @@ export default function MobileSubmit() {
         set_number: match?.set_number ?? '',
         tcg_image_url: match?.tcg_image_url ?? '',
         rarity: match?.rarity ?? 'OTHER',
-      });
+      };
+
+      // Ask the suggestion engine where this card should land. Failure is non-fatal —
+      // the user can still pick the destination manually if the endpoint errors.
+      let nextSuggestion: SuggestionResult | null = null;
+      if (match?.pokemon_number) {
+        try {
+          const suggestRes = await fetch('/api/pokedex/suggest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              pokemon_number: match.pokemon_number,
+              pokemon_name: match.pokemon_name,
+              rarity: prefill.rarity,
+              language: prefill.language,
+            }),
+          });
+          if (suggestRes.ok) {
+            nextSuggestion = (await suggestRes.json()) as SuggestionResult;
+            prefill.status = actionToStatus(nextSuggestion.primaryAction);
+          }
+        } catch {
+          // ignore — suggestion stays null and the user picks status themselves.
+        }
+      }
+
+      setForm(prefill);
+      setSuggestion(nextSuggestion);
       setPhase('reviewing');
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -155,18 +189,47 @@ export default function MobileSubmit() {
     setPhase('saving');
     setErrorMsg(null);
     try {
+      // If the user wants to take over the Pokédex slot AND a card is already there,
+      // we can't insert directly with status='pokedex' — the partial unique index
+      // would block it. Insert with status='for_sale' first, then call the atomic
+      // RPC to swap the existing card out and the new one in.
+      const wantsToReplace =
+        form.status === 'pokedex' && suggestion?.type === 'can_replace' && !!suggestion.existingCard;
+      const insertStatus: CardStatus = wantsToReplace ? 'for_sale' : form.status;
+
       const data = new FormData();
       if (photoBlob) data.append('image', photoBlob, 'card.jpg');
       for (const [key, value] of Object.entries(form)) {
+        if (key === 'status') continue;
         if (value !== '' && value !== null && value !== undefined) {
           data.append(key, String(value));
         }
       }
+      data.append('status', insertStatus);
+
       const res = await fetch('/api/cards', { method: 'POST', body: data });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(body.error ?? `Enregistrement a échoué (${res.status})`);
       }
+
+      if (wantsToReplace && suggestion?.existingCard) {
+        const inserted = (await res.json()) as { card: { id: string } };
+        const swap = await fetch('/api/pokedex/replace', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            old_card_id: suggestion.existingCard.id,
+            old_new_status: 'for_sale',
+            new_card_id: inserted.card.id,
+          }),
+        });
+        if (!swap.ok) {
+          const body = (await swap.json().catch(() => ({}))) as { error?: string };
+          throw new Error(body.error ?? `Remplacement Pokédex a échoué (${swap.status})`);
+        }
+      }
+
       setPhase('success');
       setTimeout(reset, 1800);
     } catch (err) {
@@ -224,6 +287,8 @@ export default function MobileSubmit() {
 
       {(phase === 'reviewing' || phase === 'saving' || phase === 'success') && previewUrl && (
         <form onSubmit={handleSave} className="flex flex-col gap-5">
+          {suggestion && <ScanSuggestion result={suggestion} />}
+
           <div className="flex gap-4">
             <div className="bg-surface-2 relative h-44 w-32 shrink-0 overflow-hidden rounded">
               <Image src={previewUrl} alt="Preview" fill className="object-cover" unoptimized />
