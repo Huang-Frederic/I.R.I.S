@@ -89,6 +89,8 @@ export default function MobileSubmit() {
   const [suggestion, setSuggestion] = useState<SuggestionResult | null>(null);
   const [ocrText, setOcrText] = useState<string>('');
   const [enrichFound, setEnrichFound] = useState<boolean>(true);
+  const [researching, setResearching] = useState(false);
+  const [researchMsg, setResearchMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function reset() {
@@ -101,8 +103,101 @@ export default function MobileSubmit() {
     setSuggestion(null);
     setOcrText('');
     setEnrichFound(true);
+    setResearching(false);
+    setResearchMsg(null);
     setPhase('idle');
     if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  /**
+   * Pull the suggestion engine's verdict for a given pokemon. Used after the
+   * initial enrichment AND after a manual re-search so the displayed
+   * recommendation always matches the current form values.
+   */
+  async function fetchSuggestion(input: {
+    pokemon_number: number;
+    pokemon_name: string;
+    rarity: CardRarity;
+    language: CardLanguage;
+  }): Promise<SuggestionResult | null> {
+    try {
+      const res = await fetch('/api/pokedex/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as SuggestionResult;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Re-trigger the TCG enrichment using whatever the user has typed so far.
+   * Useful when OCR mangled the set_number or the user edited it by hand.
+   * On match, we overwrite identity fields but keep the user's language /
+   * condition (they may know better than the API for a multilang printing).
+   */
+  async function handleResearch() {
+    const text = form.set_number.trim() || form.card_name.trim();
+    if (!text) {
+      setResearchMsg('Renseigne un numéro de set (ex. 116/086) avant de relancer.');
+      return;
+    }
+    setResearching(true);
+    setResearchMsg(null);
+    try {
+      const res = await fetch('/api/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) {
+        throw new Error(`Recherche TCG échouée (${res.status})`);
+      }
+      const enrich = (await res.json()) as EnrichResult;
+      const match = enrich.bestMatch;
+
+      if (!match) {
+        setEnrichFound(false);
+        setResearchMsg('Aucune carte trouvée dans la TCG API. Continue à la main.');
+        return;
+      }
+
+      setEnrichFound(true);
+      setResearchMsg('Champs mis à jour depuis la TCG API.');
+      setForm((prev) => ({
+        ...prev,
+        pokemon_name: match.pokemon_name,
+        pokemon_number: match.pokemon_number?.toString() ?? prev.pokemon_number,
+        card_name: match.card_name,
+        card_id_tcg: match.card_id_tcg,
+        set_name: match.set_name,
+        set_code: match.set_code,
+        set_number: match.set_number,
+        tcg_image_url: match.tcg_image_url,
+        rarity: match.rarity,
+        // Keep prev.language / prev.condition — user knows their printing better.
+      }));
+
+      if (match.pokemon_number) {
+        const next = await fetchSuggestion({
+          pokemon_number: match.pokemon_number,
+          pokemon_name: match.pokemon_name,
+          rarity: match.rarity,
+          language: form.language,
+        });
+        setSuggestion(next);
+        if (next) {
+          setForm((prev) => ({ ...prev, status: actionToStatus(next.primaryAction) }));
+        }
+      }
+    } catch (err) {
+      setResearchMsg(err instanceof Error ? err.message : 'Erreur inconnue');
+    } finally {
+      setResearching(false);
+    }
   }
 
   function update<K extends keyof FormFields>(key: K, value: FormFields[K]) {
@@ -161,23 +256,14 @@ export default function MobileSubmit() {
       // the user can still pick the destination manually if the endpoint errors.
       let nextSuggestion: SuggestionResult | null = null;
       if (match?.pokemon_number) {
-        try {
-          const suggestRes = await fetch('/api/pokedex/suggest', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              pokemon_number: match.pokemon_number,
-              pokemon_name: match.pokemon_name,
-              rarity: prefill.rarity,
-              language: prefill.language,
-            }),
-          });
-          if (suggestRes.ok) {
-            nextSuggestion = (await suggestRes.json()) as SuggestionResult;
-            prefill.status = actionToStatus(nextSuggestion.primaryAction);
-          }
-        } catch {
-          // ignore — suggestion stays null and the user picks status themselves.
+        nextSuggestion = await fetchSuggestion({
+          pokemon_number: match.pokemon_number,
+          pokemon_name: match.pokemon_name,
+          rarity: prefill.rarity,
+          language: prefill.language,
+        });
+        if (nextSuggestion) {
+          prefill.status = actionToStatus(nextSuggestion.primaryAction);
         }
       }
 
@@ -379,11 +465,26 @@ export default function MobileSubmit() {
           </div>
 
           <Field label="N° dans le set">
-            <Input
-              value={form.set_number}
-              onChange={(v) => update('set_number', v)}
-              placeholder="ex. 200/165"
-            />
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Input
+                  value={form.set_number}
+                  onChange={(v) => update('set_number', v)}
+                  placeholder="ex. 200/165"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleResearch}
+                disabled={researching}
+                className="border-border text-text-muted hover:bg-surface-2 hover:text-text shrink-0 rounded border px-3 text-xs font-medium disabled:opacity-50"
+              >
+                {researching ? '…' : 'Re-rechercher TCG'}
+              </button>
+            </div>
+            {researchMsg && (
+              <span className="text-text-faint mt-1 text-[11px]">{researchMsg}</span>
+            )}
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
