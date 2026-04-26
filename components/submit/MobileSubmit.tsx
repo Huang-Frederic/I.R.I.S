@@ -87,6 +87,8 @@ export default function MobileSubmit() {
   const [confidence, setConfidence] = useState<number>(1);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<SuggestionResult | null>(null);
+  const [ocrText, setOcrText] = useState<string>('');
+  const [enrichFound, setEnrichFound] = useState<boolean>(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function reset() {
@@ -97,6 +99,8 @@ export default function MobileSubmit() {
     setConfidence(1);
     setErrorMsg(null);
     setSuggestion(null);
+    setOcrText('');
+    setEnrichFound(true);
     setPhase('idle');
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
@@ -123,6 +127,7 @@ export default function MobileSubmit() {
       }
       const ocr = (await ocrRes.json()) as OcrResult;
       setConfidence(ocr.confidence);
+      setOcrText(ocr.text);
 
       const enrichRes = await fetch('/api/enrich', {
         method: 'POST',
@@ -133,6 +138,7 @@ export default function MobileSubmit() {
         throw new Error(`Enrichissement a échoué (${enrichRes.status})`);
       }
       const enrich = (await enrichRes.json()) as EnrichResult;
+      setEnrichFound(enrich.bestMatch !== null);
 
       // Prefill the form from the best match (if any), and detect language from OCR.
       const language = detectLanguage(ocr.text);
@@ -288,6 +294,25 @@ export default function MobileSubmit() {
       {(phase === 'reviewing' || phase === 'saving' || phase === 'success') && previewUrl && (
         <form onSubmit={handleSave} className="flex flex-col gap-5">
           {suggestion && <ScanSuggestion result={suggestion} />}
+
+          {!enrichFound && (
+            <div className="border-rarity-ar bg-rarity-ar/10 text-rarity-ar rounded-lg border p-3 text-xs">
+              Aucun match TCG API — soit le numéro de set n&apos;a pas été lu, soit la carte n&apos;est
+              pas indexée (sets JP récents notamment). Le texte OCR ci-dessous t&apos;aidera à
+              compléter manuellement.
+            </div>
+          )}
+
+          {ocrText && (
+            <details className="bg-surface-2 border-border rounded border text-xs">
+              <summary className="text-text-muted cursor-pointer select-none px-3 py-2">
+                Texte OCR détecté ({ocrText.length} caractères)
+              </summary>
+              <pre className="text-text border-border max-h-48 overflow-auto whitespace-pre-wrap border-t px-3 py-2 font-mono">
+                {ocrText}
+              </pre>
+            </details>
+          )}
 
           <div className="flex gap-4">
             <div className="bg-surface-2 relative h-44 w-32 shrink-0 overflow-hidden rounded">
