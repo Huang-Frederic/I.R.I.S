@@ -61,3 +61,30 @@ export interface RarityRank {
   rank: number;
   label: string;
 }
+
+/* ----- OCR / enrichment payloads exchanged with the /api routes ----- */
+
+export interface OcrResult {
+  text: string;
+  /** Page-level confidence from Google Vision, 0..1 */
+  confidence: number;
+  words: string[];
+}
+
+export interface EnrichedCard {
+  card_id_tcg: string;
+  card_name: string;
+  pokemon_name: string;
+  pokemon_number: number | null;
+  set_name: string;
+  set_code: string;
+  set_number: string;
+  rarity: CardRarity;
+  tcg_image_url: string;
+}
+
+export interface EnrichResult {
+  bestMatch: EnrichedCard | null;
+  /** Up to 10 alternatives the user can pick if the best match is wrong. */
+  candidates: EnrichedCard[];
+}
