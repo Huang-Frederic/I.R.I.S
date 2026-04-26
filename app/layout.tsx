@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { cookies } from 'next/headers';
 import './globals.css';
 
 const geistSans = Geist({
@@ -25,15 +26,18 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const theme = cookieStore.get('theme')?.value === 'light' ? 'light' : 'dark';
+
   return (
     <html
       lang="fr"
-      data-theme="dark"
+      data-theme={theme}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="bg-bg text-text min-h-full">{children}</body>
