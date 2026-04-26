@@ -1,15 +1,45 @@
+import { createClient } from '@/lib/supabase/server';
+import PokedexGrid from '@/components/pokedex/PokedexGrid';
+import type { Card } from '@/lib/types';
+
 export const metadata = {
   title: 'Pokédex — I.R.I.S',
 };
 
-export default function PokedexPage() {
+export default async function PokedexPage() {
+  const supabase = await createClient();
+  // Pull every card the user owns that could appear on this page — the grid needs
+  // 'pokedex' to know which slots are filled, plus 'for_sale' / 'collection' to feed
+  // the drawer's "Replace by..." picker.
+  const { data, error } = await supabase
+    .from('cards')
+    .select('*')
+    .in('status', ['pokedex', 'for_sale', 'collection']);
+
+  if (error) {
+    return (
+      <section>
+        <h1 className="text-2xl font-semibold tracking-tight">Pokédex</h1>
+        <p className="text-red mt-4 text-sm">Erreur de chargement : {error.message}</p>
+      </section>
+    );
+  }
+
+  const cards = (data ?? []) as Card[];
+  const completed = cards.filter((c) => c.status === 'pokedex').length;
+
   return (
     <section>
-      <h1 className="text-2xl font-semibold tracking-tight">Pokédex</h1>
-      <p className="text-text-muted mt-1 text-sm">1025 Pokémon, une seule meilleure carte par entrée.</p>
-
-      <div className="bg-surface border-border mt-6 rounded-lg border p-6">
-        <p className="text-text-faint font-mono text-xs">Grille à venir en Phase 1.9.</p>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Pokédex</h1>
+          <p className="text-text-muted mt-1 text-sm">
+            {completed} / 1025 enregistrés ({Math.round((completed / 1025) * 100)}%)
+          </p>
+        </div>
+      </div>
+      <div className="mt-6">
+        <PokedexGrid cards={cards} />
       </div>
     </section>
   );
