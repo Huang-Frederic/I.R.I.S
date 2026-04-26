@@ -1,0 +1,134 @@
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import type { CardCondition, CardLanguage, CardRarity, CardStatus } from '@/lib/types';
+
+export const runtime = 'nodejs';
+
+const LANGUAGES: ReadonlySet<CardLanguage> = new Set([
+  'JP',
+  'EN',
+  'FR',
+  'DE',
+  'IT',
+  'ES',
+  'KO',
+  'PT',
+  'ZH',
+]);
+const CONDITIONS: ReadonlySet<CardCondition> = new Set(['NM', 'EX', 'GD', 'PL', 'PO']);
+const STATUSES: ReadonlySet<CardStatus> = new Set(['pokedex', 'for_sale', 'collection', 'sold']);
+const RARITIES: ReadonlySet<CardRarity> = new Set([
+  'SAR',
+  'AR',
+  'SR',
+  'CHR',
+  'RR',
+  'R_HOLO',
+  'R',
+  'UC',
+  'C',
+  'OTHER',
+]);
+
+function str(form: FormData, key: string): string | null {
+  const value = form.get(key);
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export async function POST(request: Request) {
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json({ error: 'Invalid form data' }, { status: 400 });
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const pokemon_name = str(formData, 'pokemon_name');
+  const pokemon_number_raw = str(formData, 'pokemon_number');
+  const card_name = str(formData, 'card_name');
+  const language = str(formData, 'language') as CardLanguage | null;
+  const rarity = str(formData, 'rarity') as CardRarity | null;
+  const condition = (str(formData, 'condition') as CardCondition | null) ?? 'NM';
+  const status = (str(formData, 'status') as CardStatus | null) ?? 'for_sale';
+
+  if (!pokemon_name || !card_name) {
+    return NextResponse.json(
+      { error: 'pokemon_name et card_name sont requis' },
+      { status: 400 },
+    );
+  }
+  const pokemon_number = Number(pokemon_number_raw);
+  if (!Number.isFinite(pokemon_number) || pokemon_number < 1 || pokemon_number > 1025) {
+    return NextResponse.json({ error: 'pokemon_number doit être entre 1 et 1025' }, { status: 400 });
+  }
+  if (!language || !LANGUAGES.has(language)) {
+    return NextResponse.json({ error: 'language invalide' }, { status: 400 });
+  }
+  if (!rarity || !RARITIES.has(rarity)) {
+    return NextResponse.json({ error: 'rarity invalide' }, { status: 400 });
+  }
+  if (!CONDITIONS.has(condition)) {
+    return NextResponse.json({ error: 'condition invalide' }, { status: 400 });
+  }
+  if (!STATUSES.has(status) || status === 'sold') {
+    return NextResponse.json({ error: 'status invalide' }, { status: 400 });
+  }
+
+  const cardId = crypto.randomUUID();
+
+  // Upload the photo first (if present) so the row carries its image_url from the start.
+  let image_url: string | null = null;
+  const image = formData.get('image');
+  if (image instanceof File && image.size > 0) {
+    const buffer = Buffer.from(await image.arrayBuffer());
+    const path = `${cardId}.jpg`;
+    const { error: uploadError } = await supabase.storage
+      .from('card-photos')
+      .upload(path, buffer, { contentType: 'image/jpeg', upsert: true });
+    if (uploadError) {
+      console.error('Photo upload failed:', uploadError);
+      // Spec section 12: insert anyway, user can re-upload via the drawer later.
+    } else {
+      image_url = supabase.storage.from('card-photos').getPublicUrl(path).data.publicUrl;
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('cards')
+    .insert({
+      id: cardId,
+      pokemon_name,
+      pokemon_number,
+      card_name,
+      card_id_tcg: str(formData, 'card_id_tcg'),
+      set_name: str(formData, 'set_name'),
+      set_code: str(formData, 'set_code'),
+      set_number: str(formData, 'set_number'),
+      language,
+      rarity,
+      condition,
+      status,
+      image_url,
+      tcg_image_url: str(formData, 'tcg_image_url'),
+      notes: str(formData, 'notes'),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Card insert failed:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ card: data });
+}

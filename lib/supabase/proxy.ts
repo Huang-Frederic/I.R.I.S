@@ -37,8 +37,13 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isLoginPage = path.startsWith('/login');
+  const isApiRoute = path.startsWith('/api/');
 
   if (!user && !isLoginPage) {
+    // API consumers expect a 401 — redirecting them to /login leaks HTML into fetch().
+    if (isApiRoute) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
