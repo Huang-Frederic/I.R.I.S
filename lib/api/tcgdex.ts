@@ -170,3 +170,75 @@ export async function lookupById(
   }
   return (await response.json()) as TCGdexCard;
 }
+
+/* ===== Set catalog cache + total-based card resolution =====
+ *
+ * The OCR can't reliably read the set code on a stylized Pokémon card (we've
+ * seen "sv1W" come back as "Miyanose", "wilw", etc). But the set total in
+ * "<card>/<setSize>" is short, printed in plain digits, and Vision usually
+ * gets it right.
+ *
+ * Idea: cache TCGdex's full set list per language, then "given total = 86,
+ * which set is this?" narrows ~150 sets down to a handful. We try
+ * `<setId>-<localId>` for each candidate; the first 200 OK is our match.
+ *
+ * In-memory cache survives the lifetime of the server process. 6 h TTL is
+ * comfortable since the set catalog only changes when a new set ships.
+ */
+
+interface TCGdexSetSummary {
+  id: string;
+  name: string;
+  cardCount?: { total?: number; official?: number };
+}
+
+const SETS_CACHE = new Map<TCGdexLang, { fetchedAt: number; sets: TCGdexSetSummary[] }>();
+const SETS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+export async function listSets(lang: TCGdexLang): Promise<TCGdexSetSummary[]> {
+  const cached = SETS_CACHE.get(lang);
+  if (cached && Date.now() - cached.fetchedAt < SETS_CACHE_TTL_MS) {
+    return cached.sets;
+  }
+  const url = `${BASE}/${lang}/sets`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`TCGdex sets ${response.status}: ${await response.text()}`);
+  }
+  const sets = (await response.json()) as TCGdexSetSummary[];
+  SETS_CACHE.set(lang, { fetchedAt: Date.now(), sets });
+  return sets;
+}
+
+/**
+ * Find a card knowing only the printed denominator (set total) and the local
+ * id within the set. Robust to set-code OCR errors.
+ *
+ * Returns the first set whose lookup succeeds. In the rare event two sets in
+ * the same language have the same total AND the same localId, this is a
+ * coin-flip — but the alternative is asking the user, which we already do via
+ * the manual "Re-rechercher" button if they need to override.
+ */
+export async function findCardByTotalAndLocalId(
+  total: number,
+  localId: string,
+  lang: TCGdexLang,
+): Promise<TCGdexCard | null> {
+  const sets = await listSets(lang);
+  const candidates = sets.filter(
+    (s) => s.cardCount?.official === total || s.cardCount?.total === total,
+  );
+  if (candidates.length === 0) return null;
+
+  // Race the lookups in parallel — this is bounded by candidates.length, which
+  // is rarely above ~10 even for popular totals.
+  const results = await Promise.all(
+    candidates.map((s) => lookupById(s.id, localId, lang).catch(() => null)),
+  );
+  return results.find((c): c is TCGdexCard => c !== null) ?? null;
+}
+
+/** Test-only: drop the in-memory cache so unit tests get a deterministic state. */
+export function _clearSetsCache(): void {
+  SETS_CACHE.clear();
+}

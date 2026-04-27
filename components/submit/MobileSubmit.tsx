@@ -149,28 +149,28 @@ export default function MobileSubmit() {
   /**
    * Re-trigger enrichment using what the user has typed.
    *
-   * Two paths inside /api/enrich:
-   *   - If both set_code and set_number are filled, we send {setCode, localId,
-   *     language} → TCGdex direct lookup (covers JP, includes Cardmarket prices).
-   *   - Otherwise we send {text} → pokemontcg.io text-based search.
-   *
-   * On match, identity fields are overwritten but language/condition are kept —
-   * the user knows the actual printing better than the API does.
+   * The server is smart now: it will use setCode for a direct lookup if both
+   * setCode AND localId are present, otherwise it falls back to scanning all
+   * sets with the matching total. So even with just "111/086" and no set_code,
+   * we send the structured body and let the server figure it out.
    */
   async function handleResearch() {
     const setCode = form.set_code.trim();
     const setNumber = form.set_number.trim();
-    const fallbackText = setNumber || form.card_name.trim();
+    const [localId, totalStr] = setNumber.split('/').map((s) => s.trim());
 
-    if (!setCode && !fallbackText) {
-      setResearchMsg('Renseigne au moins un n° de set (ex. 136/174) avant de relancer.');
+    if (!localId) {
+      setResearchMsg('Renseigne au moins un n° de set (ex. 111/086) avant de relancer.');
       return;
     }
 
-    const useDirect = setCode.length > 0 && setNumber.length > 0;
-    const body = useDirect
-      ? { setCode, localId: setNumber, language: form.language }
-      : { text: fallbackText };
+    const total = totalStr ? Number(totalStr) : undefined;
+    const body = {
+      setCode: setCode || undefined,
+      localId,
+      total,
+      language: form.language,
+    };
 
     setResearching(true);
     setResearchMsg(null);
@@ -189,9 +189,9 @@ export default function MobileSubmit() {
       if (!match) {
         setEnrichFound(false);
         setResearchMsg(
-          useDirect
-            ? `Carte ${setCode}-${setNumber} introuvable dans TCGdex (${form.language}). Continue à la main.`
-            : 'Aucune carte trouvée. Continue à la main.',
+          total
+            ? `Aucune carte ${localId} trouvée dans un set de ${total} cartes (${form.language}). Continue à la main.`
+            : `Carte introuvable dans TCGdex (${form.language}). Renseigne le total du set (ex. 111/086) ou continue à la main.`,
         );
         return;
       }
@@ -201,7 +201,7 @@ export default function MobileSubmit() {
         match.cm_price_trend != null
           ? ` Prix CM trend : ${match.cm_price_trend.toFixed(2)} €.`
           : '';
-      setResearchMsg(`Champs mis à jour depuis ${useDirect ? 'TCGdex' : 'TCG API'}.${priceNote}`);
+      setResearchMsg(`Champs mis à jour depuis TCGdex.${priceNote}`);
       setForm((prev) => ({
         ...prev,
         pokemon_name: match.pokemon_name,
@@ -266,17 +266,22 @@ export default function MobileSubmit() {
       setExtractedSetNumber(ocr.setNumberCandidate?.raw ?? null);
 
       // Smart extraction: if Vision pinned the set number / set code in the
-      // bottom-left footer, pre-fill them and prefer a TCGdex direct lookup over
-      // the noisy text-based path. Direct lookup needs both candidates AND a
-      // language guess.
+      // bottom-left footer, pre-fill them and let the server resolve the card.
+      // Server uses setCode if provided, otherwise falls back to scanning sets
+      // with matching `total`.
       const language = detectLanguage(ocr.text);
-      const setNumber = ocr.setNumberCandidate?.raw ?? '';
+      const setNumberParsed = ocr.setNumberCandidate;
       const setCode = ocr.setCodeCandidate ?? '';
+      const setNumber = setNumberParsed?.raw ?? '';
 
-      const enrichBody =
-        setCode && setNumber
-          ? { setCode, localId: ocr.setNumberCandidate!.card, language }
-          : { text: ocr.text };
+      const enrichBody = setNumberParsed
+        ? {
+            setCode: setCode || undefined,
+            localId: setNumberParsed.card,
+            total: Number(setNumberParsed.total),
+            language,
+          }
+        : { text: ocr.text };
 
       const enrichRes = await fetch('/api/enrich', {
         method: 'POST',

@@ -106,6 +106,28 @@ describe('findSetCodeCandidate', () => {
     expect(findSetCodeCandidate(words, null)).toBeNull();
   });
 
+  it('rejects illustrator names like "Miyanose" (letters but no digits)', () => {
+    // Real-world bug: this 8-letter word geographically near the set number
+    // was beating "sv1W" before we required both letters AND digits.
+    const words: WordAnnotation[] = [
+      w('Miyanose', 0.1, 0.85),
+      w('111/086', 0.5, 0.92),
+    ];
+    expect(findSetCodeCandidate(words, '111/086')).toBeNull();
+  });
+
+  it('rejects all-letter tokens like "Pokemon"', () => {
+    const words: WordAnnotation[] = [w('Pokemon', 0.4, 0.97)];
+    expect(findSetCodeCandidate(words, null)).toBeNull();
+  });
+
+  it('accepts mixed letter+digit codes', () => {
+    expect(findSetCodeCandidate([w('sv1W', 0.05, 0.92)], null)).toBe('sv1W');
+    expect(findSetCodeCandidate([w('SV11W', 0.05, 0.92)], null)).toBe('SV11W');
+    expect(findSetCodeCandidate([w('sv1a', 0.05, 0.92)], null)).toBe('sv1a');
+    expect(findSetCodeCandidate([w('swsh4', 0.05, 0.92)], null)).toBe('swsh4');
+  });
+
   it('skips the set number itself', () => {
     const words: WordAnnotation[] = [w('136/174', 0.15, 0.92)];
     expect(findSetCodeCandidate(words, '136/174')).toBeNull();

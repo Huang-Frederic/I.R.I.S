@@ -8,10 +8,18 @@ import type { WordAnnotation } from '@/lib/types';
 const SET_NUMBER_RE = /^(\d{1,3})\s*\/\s*(\d{1,3})$/;
 
 /**
- * Set codes are short alphanumerics: "sv1a", "SV11W", "swsh4", "PAL".
- * 2–8 chars, must contain at least one letter (excludes pure numbers).
+ * Set codes look like "sv1a", "SV11W", "swsh4", "sm12a" — short alphanumerics
+ * that ALWAYS mix letters and digits in modern Pokémon TCG. Requiring both
+ * shapes filters out illustrator names ("Miyanose" — 8 letters), pure damage
+ * numbers, and other footer noise that earlier passed a looser regex.
+ *
+ * Trade-off: drops the rare all-letter promo codes (PAL, SVE) — acceptable
+ * because those are uncommon and the user can type them manually.
  */
-const SET_CODE_RE = /^[A-Za-z0-9]{2,8}$/;
+function looksLikeSetCode(text: string): boolean {
+  if (!/^[A-Za-z0-9]{2,8}$/.test(text)) return false;
+  return /[A-Za-z]/.test(text) && /\d/.test(text);
+}
 
 /**
  * Punctuation Vision sometimes glues to alphanumeric tokens (brackets from a
@@ -107,12 +115,11 @@ export function findSetCodeCandidate(
   const minConfidence = options.minConfidence ?? 0;
 
   // Strip surrounding punctuation, then test against the code shape. Words
-  // that are pure digits, the set number itself, or a single letter fail.
+  // that are pure digits, illustrator names, or the set number itself fail.
   const candidates = words
     .filter((w) => w.confidence >= minConfidence)
     .map((w) => ({ word: w, cleaned: w.text.replace(STRIP_PUNCT_RE, '') }))
-    .filter((c) => SET_CODE_RE.test(c.cleaned))
-    .filter((c) => /[A-Za-z]/.test(c.cleaned))
+    .filter((c) => looksLikeSetCode(c.cleaned))
     .filter((c) => c.cleaned !== setNumberRaw);
 
   if (candidates.length === 0) return null;
