@@ -13,11 +13,14 @@ const SET_NUMBER_RE = /^(\d{1,3})\s*\/\s*(\d{1,3})$/;
  * shapes filters out illustrator names ("Miyanose" — 8 letters), pure damage
  * numbers, and other footer noise that earlier passed a looser regex.
  *
+ * Length 3–8: shorter than 3 catches the "x2" weakness multiplier and
+ * single-energy-cost glyphs. No real Pokémon set code is 2 chars.
+ *
  * Trade-off: drops the rare all-letter promo codes (PAL, SVE) — acceptable
  * because those are uncommon and the user can type them manually.
  */
 function looksLikeSetCode(text: string): boolean {
-  if (!/^[A-Za-z0-9]{2,8}$/.test(text)) return false;
+  if (!/^[A-Za-z0-9]{3,8}$/.test(text)) return false;
   return /[A-Za-z]/.test(text) && /\d/.test(text);
 }
 
