@@ -2,12 +2,13 @@
 
 import { useRef, useState } from 'react';
 import Image from 'next/image';
-import { ScanLine, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import { ScanLine, AlertTriangle, CheckCircle2, XCircle, X } from 'lucide-react';
 import type {
   CardCondition,
   CardLanguage,
   CardRarity,
   CardStatus,
+  EnrichedCard,
   EnrichResult,
   OcrResult,
 } from '@/lib/types';
@@ -102,6 +103,7 @@ export default function MobileSubmit() {
   const [enrichFound, setEnrichFound] = useState<boolean>(true);
   const [researching, setResearching] = useState(false);
   const [researchMsg, setResearchMsg] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<EnrichedCard[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function reset() {
@@ -118,6 +120,7 @@ export default function MobileSubmit() {
     setEnrichFound(true);
     setResearching(false);
     setResearchMsg(null);
+    setCandidates([]);
     setPhase('idle');
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
@@ -184,9 +187,8 @@ export default function MobileSubmit() {
         throw new Error(`Recherche TCG échouée (${res.status})`);
       }
       const enrich = (await res.json()) as EnrichResult;
-      const match = enrich.bestMatch;
 
-      if (!match) {
+      if (!enrich.bestMatch) {
         setEnrichFound(false);
         setResearchMsg(
           total
@@ -196,46 +198,51 @@ export default function MobileSubmit() {
         return;
       }
 
-      setEnrichFound(true);
-      const priceNote =
-        match.cm_price_trend != null
-          ? ` Prix CM trend : ${match.cm_price_trend.toFixed(2)} €.`
-          : '';
-      setResearchMsg(`Champs mis à jour depuis TCGdex.${priceNote}`);
-      setForm((prev) => ({
-        ...prev,
-        pokemon_name: match.pokemon_name,
-        pokemon_number: match.pokemon_number?.toString() ?? prev.pokemon_number,
-        card_name: match.card_name,
-        card_id_tcg: match.card_id_tcg,
-        set_name: match.set_name,
-        set_code: match.set_code,
-        set_number: match.set_number,
-        tcg_image_url: match.tcg_image_url,
-        rarity: match.rarity,
-        cardmarket_id: match.cardmarket_id ?? '',
-        cm_price_low: match.cm_price_low != null ? String(match.cm_price_low) : '',
-        cm_price_trend: match.cm_price_trend != null ? String(match.cm_price_trend) : '',
-        cm_price_avg: match.cm_price_avg != null ? String(match.cm_price_avg) : '',
-        // Keep prev.language / prev.condition — user knows their printing better.
-      }));
-
-      if (match.pokemon_number) {
-        const next = await fetchSuggestion({
-          pokemon_number: match.pokemon_number,
-          pokemon_name: match.pokemon_name,
-          rarity: match.rarity,
-          language: form.language,
-        });
-        setSuggestion(next);
-        if (next) {
-          setForm((prev) => ({ ...prev, status: actionToStatus(next.primaryAction) }));
-        }
+      if (enrich.candidates.length > 1) {
+        setCandidates(enrich.candidates);
+        setResearchMsg(`${enrich.candidates.length} cartes trouvées — choisis la bonne.`);
+        return;
       }
+
+      void applyCandidate(enrich.bestMatch);
     } catch (err) {
       setResearchMsg(err instanceof Error ? err.message : 'Erreur inconnue');
     } finally {
       setResearching(false);
+    }
+  }
+
+  async function applyCandidate(match: EnrichedCard) {
+    setCandidates([]);
+    setEnrichFound(true);
+    setResearchMsg(null);
+    setForm((prev) => ({
+      ...prev,
+      pokemon_name: match.pokemon_name,
+      pokemon_number: match.pokemon_number?.toString() ?? '',
+      card_name: match.card_name,
+      card_id_tcg: match.card_id_tcg,
+      set_name: match.set_name,
+      set_code: match.set_code,
+      set_number: match.set_number,
+      tcg_image_url: match.tcg_image_url,
+      rarity: match.rarity,
+      cardmarket_id: match.cardmarket_id ?? '',
+      cm_price_low: match.cm_price_low != null ? String(match.cm_price_low) : '',
+      cm_price_trend: match.cm_price_trend != null ? String(match.cm_price_trend) : '',
+      cm_price_avg: match.cm_price_avg != null ? String(match.cm_price_avg) : '',
+    }));
+    if (match.pokemon_number) {
+      const next = await fetchSuggestion({
+        pokemon_number: match.pokemon_number,
+        pokemon_name: match.pokemon_name,
+        rarity: match.rarity,
+        language: form.language,
+      });
+      setSuggestion(next);
+      if (next) {
+        setForm((prev) => ({ ...prev, status: actionToStatus(next.primaryAction) }));
+      }
     }
   }
 
@@ -280,6 +287,7 @@ export default function MobileSubmit() {
             localId: setNumberParsed.card,
             total: Number(setNumberParsed.total),
             language,
+            text: ocr.text,
           }
         : { text: ocr.text };
 
@@ -294,8 +302,20 @@ export default function MobileSubmit() {
       const enrich = (await enrichRes.json()) as EnrichResult;
       setEnrichFound(enrich.bestMatch !== null);
 
-      // If TCGdex / TCG API found something, prefer its data (authoritative).
-      // Otherwise keep what the OCR extracted so the user has a starting point.
+      // Multiple candidates → show picker, don't auto-fill yet.
+      if (enrich.candidates.length > 1) {
+        setCandidates(enrich.candidates);
+        setForm({
+          ...EMPTY,
+          language,
+          set_code: setCode,
+          set_number: setNumber,
+        });
+        setPhase('reviewing');
+        return;
+      }
+
+      // Single match or none → auto-fill as before.
       const match = enrich.bestMatch;
       const prefill: FormFields = {
         ...EMPTY,
@@ -315,8 +335,6 @@ export default function MobileSubmit() {
         cm_price_avg: match?.cm_price_avg != null ? String(match.cm_price_avg) : '',
       };
 
-      // Ask the suggestion engine where this card should land. Failure is non-fatal —
-      // the user can still pick the destination manually if the endpoint errors.
       let nextSuggestion: SuggestionResult | null = null;
       if (match?.pokemon_number) {
         nextSuggestion = await fetchSuggestion({
@@ -438,6 +456,14 @@ export default function MobileSubmit() {
             Recommencer
           </button>
         </div>
+      )}
+
+      {candidates.length > 1 && (
+        <CandidatePicker
+          candidates={candidates}
+          onSelect={(c) => void applyCandidate(c)}
+          onDismiss={() => setCandidates([])}
+        />
       )}
 
       {(phase === 'reviewing' || phase === 'saving' || phase === 'success') && previewUrl && (
@@ -683,5 +709,70 @@ function Select(props: {
         </option>
       ))}
     </select>
+  );
+}
+
+function CandidatePicker(props: {
+  candidates: EnrichedCard[];
+  onSelect: (card: EnrichedCard) => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="bg-background/80 fixed inset-0 z-50 flex items-end justify-center backdrop-blur-sm sm:items-center">
+      <div className="bg-surface border-border flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-2xl border sm:rounded-2xl">
+        <div className="border-border flex items-center justify-between border-b px-4 py-3">
+          <h2 className="text-sm font-semibold">
+            Plusieurs cartes correspondent ({props.candidates.length})
+          </h2>
+          <button
+            type="button"
+            onClick={props.onDismiss}
+            className="text-text-muted hover:text-text"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 overflow-y-auto p-4 sm:grid-cols-3">
+          {props.candidates.map((c) => (
+            <button
+              key={c.card_id_tcg}
+              type="button"
+              onClick={() => props.onSelect(c)}
+              className="border-border hover:border-red group flex flex-col items-center gap-2 rounded-lg border p-2 transition-colors"
+            >
+              {c.tcg_image_url ? (
+                <div className="relative h-40 w-28 overflow-hidden rounded">
+                  <Image
+                    src={c.tcg_image_url}
+                    alt={c.card_name}
+                    fill
+                    className="object-contain"
+                    unoptimized
+                  />
+                </div>
+              ) : (
+                <div className="bg-surface-2 flex h-40 w-28 items-center justify-center rounded text-xs">
+                  Pas d&apos;image
+                </div>
+              )}
+              <span className="text-text line-clamp-1 text-xs font-medium">{c.card_name}</span>
+              <span className="text-text-muted line-clamp-1 text-[11px]">{c.set_name}</span>
+              <span className="text-text-faint text-[10px]">{c.set_code} · {c.rarity}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="border-border border-t px-4 py-3">
+          <button
+            type="button"
+            onClick={props.onDismiss}
+            className="border-border text-text-muted hover:bg-surface-2 w-full rounded border py-2 text-sm font-medium"
+          >
+            Aucune — remplir à la main
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

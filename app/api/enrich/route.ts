@@ -13,7 +13,7 @@ import type { CardLanguage, EnrichResult } from '@/lib/types';
 export const runtime = 'nodejs';
 
 interface EnrichBody {
-  /** Raw OCR text — only used when no structured fields are provided. */
+  /** Raw OCR text — used as fallback for parsing AND to disambiguate candidates by name. */
   text?: string;
   /** Set code as printed on the card, e.g. "SV11W". Optional — total+localId can resolve without it. */
   setCode?: string;
@@ -74,6 +74,14 @@ export async function POST(request: Request) {
     // Strategy 2: total + localId → narrow by set total, try each candidate
     if (!card && total != null && localId) {
       allCards = await findCardsByTotalAndLocalId(total, localId, lang);
+      if (allCards.length > 1 && body.text) {
+        const ocrText = body.text;
+        allCards.sort((a, b) => {
+          const aMatch = ocrText.includes(a.name) ? 1 : 0;
+          const bMatch = ocrText.includes(b.name) ? 1 : 0;
+          return bMatch - aMatch;
+        });
+      }
       card = allCards[0] ?? null;
     }
 
