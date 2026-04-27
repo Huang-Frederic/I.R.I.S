@@ -37,6 +37,15 @@ function str(form: FormData, key: string): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function num(form: FormData, key: string): number | null {
+  const raw = str(form, key);
+  if (raw === null) return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+const PRICE_COEFFICIENT = 0.85;
+
 export async function POST(request: Request) {
   let formData: FormData;
   try {
@@ -103,6 +112,22 @@ export async function POST(request: Request) {
     }
   }
 
+  // Pricing — populated upstream (e.g. by TCGdex when re-research succeeds).
+  // suggested_price is normally derived by the cron job; we mirror the same
+  // formula here so the form-saved row already carries it.
+  const cardmarket_id = str(formData, 'cardmarket_id');
+  const cm_price_low = num(formData, 'cm_price_low');
+  const cm_price_trend = num(formData, 'cm_price_trend');
+  const cm_price_avg = num(formData, 'cm_price_avg');
+  const suggested_price =
+    cm_price_trend !== null
+      ? Math.round(cm_price_trend * PRICE_COEFFICIENT * 100) / 100
+      : null;
+  const cm_updated_at =
+    cm_price_low !== null || cm_price_trend !== null || cm_price_avg !== null
+      ? new Date().toISOString()
+      : null;
+
   const { data, error } = await supabase
     .from('cards')
     .insert({
@@ -121,6 +146,12 @@ export async function POST(request: Request) {
       image_url,
       tcg_image_url: str(formData, 'tcg_image_url'),
       notes: str(formData, 'notes'),
+      cardmarket_id,
+      cm_price_low,
+      cm_price_trend,
+      cm_price_avg,
+      suggested_price,
+      cm_updated_at,
     })
     .select()
     .single();

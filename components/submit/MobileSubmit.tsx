@@ -54,6 +54,11 @@ interface FormFields {
   condition: CardCondition;
   status: CardStatus;
   notes: string;
+  /* Pricing — hidden from the user, populated by enrichment when available. */
+  cardmarket_id: string;
+  cm_price_low: string;
+  cm_price_trend: string;
+  cm_price_avg: string;
 }
 
 const EMPTY: FormFields = {
@@ -70,6 +75,10 @@ const EMPTY: FormFields = {
   condition: 'NM',
   status: 'for_sale',
   notes: '',
+  cardmarket_id: '',
+  cm_price_low: '',
+  cm_price_trend: '',
+  cm_price_avg: '',
 };
 
 const CONFIDENCE_THRESHOLD = 0.8;
@@ -134,24 +143,38 @@ export default function MobileSubmit() {
   }
 
   /**
-   * Re-trigger the TCG enrichment using whatever the user has typed so far.
-   * Useful when OCR mangled the set_number or the user edited it by hand.
-   * On match, we overwrite identity fields but keep the user's language /
-   * condition (they may know better than the API for a multilang printing).
+   * Re-trigger enrichment using what the user has typed.
+   *
+   * Two paths inside /api/enrich:
+   *   - If both set_code and set_number are filled, we send {setCode, localId,
+   *     language} → TCGdex direct lookup (covers JP, includes Cardmarket prices).
+   *   - Otherwise we send {text} → pokemontcg.io text-based search.
+   *
+   * On match, identity fields are overwritten but language/condition are kept —
+   * the user knows the actual printing better than the API does.
    */
   async function handleResearch() {
-    const text = form.set_number.trim() || form.card_name.trim();
-    if (!text) {
-      setResearchMsg('Renseigne un numéro de set (ex. 116/086) avant de relancer.');
+    const setCode = form.set_code.trim();
+    const setNumber = form.set_number.trim();
+    const fallbackText = setNumber || form.card_name.trim();
+
+    if (!setCode && !fallbackText) {
+      setResearchMsg('Renseigne au moins un n° de set (ex. 136/174) avant de relancer.');
       return;
     }
+
+    const useDirect = setCode.length > 0 && setNumber.length > 0;
+    const body = useDirect
+      ? { setCode, localId: setNumber, language: form.language }
+      : { text: fallbackText };
+
     setResearching(true);
     setResearchMsg(null);
     try {
       const res = await fetch('/api/enrich', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         throw new Error(`Recherche TCG échouée (${res.status})`);
@@ -161,12 +184,20 @@ export default function MobileSubmit() {
 
       if (!match) {
         setEnrichFound(false);
-        setResearchMsg('Aucune carte trouvée dans la TCG API. Continue à la main.');
+        setResearchMsg(
+          useDirect
+            ? `Carte ${setCode}-${setNumber} introuvable dans TCGdex (${form.language}). Continue à la main.`
+            : 'Aucune carte trouvée. Continue à la main.',
+        );
         return;
       }
 
       setEnrichFound(true);
-      setResearchMsg('Champs mis à jour depuis la TCG API.');
+      const priceNote =
+        match.cm_price_trend != null
+          ? ` Prix CM trend : ${match.cm_price_trend.toFixed(2)} €.`
+          : '';
+      setResearchMsg(`Champs mis à jour depuis ${useDirect ? 'TCGdex' : 'TCG API'}.${priceNote}`);
       setForm((prev) => ({
         ...prev,
         pokemon_name: match.pokemon_name,
@@ -178,6 +209,10 @@ export default function MobileSubmit() {
         set_number: match.set_number,
         tcg_image_url: match.tcg_image_url,
         rarity: match.rarity,
+        cardmarket_id: match.cardmarket_id ?? '',
+        cm_price_low: match.cm_price_low != null ? String(match.cm_price_low) : '',
+        cm_price_trend: match.cm_price_trend != null ? String(match.cm_price_trend) : '',
+        cm_price_avg: match.cm_price_avg != null ? String(match.cm_price_avg) : '',
         // Keep prev.language / prev.condition — user knows their printing better.
       }));
 
@@ -250,6 +285,10 @@ export default function MobileSubmit() {
         set_number: match?.set_number ?? '',
         tcg_image_url: match?.tcg_image_url ?? '',
         rarity: match?.rarity ?? 'OTHER',
+        cardmarket_id: match?.cardmarket_id ?? '',
+        cm_price_low: match?.cm_price_low != null ? String(match.cm_price_low) : '',
+        cm_price_trend: match?.cm_price_trend != null ? String(match.cm_price_trend) : '',
+        cm_price_avg: match?.cm_price_avg != null ? String(match.cm_price_avg) : '',
       };
 
       // Ask the suggestion engine where this card should land. Failure is non-fatal —
