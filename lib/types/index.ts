@@ -64,11 +64,29 @@ export interface RarityRank {
 
 /* ----- OCR / enrichment payloads exchanged with the /api routes ----- */
 
+/**
+ * One word detected by Vision, with its position normalized to the page.
+ * Coordinates are in [0, 1] where (0, 0) is the top-left corner of the image.
+ */
+export interface WordAnnotation {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  confidence: number;
+}
+
 export interface OcrResult {
   text: string;
   /** Page-level confidence from Google Vision, 0..1 */
   confidence: number;
-  words: string[];
+  /** Per-word boxes — used by the smart extractors below. */
+  words: WordAnnotation[];
+  /** "<card>/<setSize>" pulled from the bottom-left region (where it's printed on a Pokémon card). */
+  setNumberCandidate: { card: string; total: string; raw: string } | null;
+  /** Set code (e.g. "SV11W") detected near the set number. */
+  setCodeCandidate: string | null;
 }
 
 export interface EnrichedCard {
