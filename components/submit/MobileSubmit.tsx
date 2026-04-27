@@ -97,6 +97,8 @@ export default function MobileSubmit() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<SuggestionResult | null>(null);
   const [ocrText, setOcrText] = useState<string>('');
+  const [extractedSetCode, setExtractedSetCode] = useState<string | null>(null);
+  const [extractedSetNumber, setExtractedSetNumber] = useState<string | null>(null);
   const [enrichFound, setEnrichFound] = useState<boolean>(true);
   const [researching, setResearching] = useState(false);
   const [researchMsg, setResearchMsg] = useState<string | null>(null);
@@ -111,6 +113,8 @@ export default function MobileSubmit() {
     setErrorMsg(null);
     setSuggestion(null);
     setOcrText('');
+    setExtractedSetCode(null);
+    setExtractedSetNumber(null);
     setEnrichFound(true);
     setResearching(false);
     setResearchMsg(null);
@@ -258,6 +262,8 @@ export default function MobileSubmit() {
       const ocr = (await ocrRes.json()) as OcrResult;
       setConfidence(ocr.confidence);
       setOcrText(ocr.text);
+      setExtractedSetCode(ocr.setCodeCandidate);
+      setExtractedSetNumber(ocr.setNumberCandidate?.raw ?? null);
 
       // Smart extraction: if Vision pinned the set number / set code in the
       // bottom-left footer, pre-fill them and prefer a TCGdex direct lookup over
@@ -446,9 +452,21 @@ export default function MobileSubmit() {
               <summary className="text-text-muted cursor-pointer select-none px-3 py-2">
                 Texte OCR détecté ({ocrText.length} caractères)
               </summary>
-              <pre className="text-text border-border max-h-48 overflow-auto whitespace-pre-wrap border-t px-3 py-2 font-mono">
-                {ocrText}
-              </pre>
+              <div className="border-border border-t px-3 py-2">
+                <p className="text-text-faint mb-2 font-mono text-[11px]">
+                  Extraits :{' '}
+                  <span className={extractedSetCode ? 'text-text' : 'text-text-faint'}>
+                    set_code = {extractedSetCode ?? 'aucun'}
+                  </span>{' '}
+                  ·{' '}
+                  <span className={extractedSetNumber ? 'text-text' : 'text-text-faint'}>
+                    set_number = {extractedSetNumber ?? 'aucun'}
+                  </span>
+                </p>
+                <pre className="text-text max-h-48 overflow-auto whitespace-pre-wrap font-mono">
+                  {ocrText}
+                </pre>
+              </div>
             </details>
           )}
 
