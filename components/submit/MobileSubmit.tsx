@@ -259,10 +259,23 @@ export default function MobileSubmit() {
       setConfidence(ocr.confidence);
       setOcrText(ocr.text);
 
+      // Smart extraction: if Vision pinned the set number / set code in the
+      // bottom-left footer, pre-fill them and prefer a TCGdex direct lookup over
+      // the noisy text-based path. Direct lookup needs both candidates AND a
+      // language guess.
+      const language = detectLanguage(ocr.text);
+      const setNumber = ocr.setNumberCandidate?.raw ?? '';
+      const setCode = ocr.setCodeCandidate ?? '';
+
+      const enrichBody =
+        setCode && setNumber
+          ? { setCode, localId: ocr.setNumberCandidate!.card, language }
+          : { text: ocr.text };
+
       const enrichRes = await fetch('/api/enrich', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: ocr.text }),
+        body: JSON.stringify(enrichBody),
       });
       if (!enrichRes.ok) {
         throw new Error(`Enrichissement a échoué (${enrichRes.status})`);
@@ -270,8 +283,8 @@ export default function MobileSubmit() {
       const enrich = (await enrichRes.json()) as EnrichResult;
       setEnrichFound(enrich.bestMatch !== null);
 
-      // Prefill the form from the best match (if any), and detect language from OCR.
-      const language = detectLanguage(ocr.text);
+      // If TCGdex / TCG API found something, prefer its data (authoritative).
+      // Otherwise keep what the OCR extracted so the user has a starting point.
       const match = enrich.bestMatch;
       const prefill: FormFields = {
         ...EMPTY,
@@ -281,8 +294,8 @@ export default function MobileSubmit() {
         card_name: match?.card_name ?? '',
         card_id_tcg: match?.card_id_tcg ?? '',
         set_name: match?.set_name ?? '',
-        set_code: match?.set_code ?? '',
-        set_number: match?.set_number ?? '',
+        set_code: match?.set_code ?? setCode,
+        set_number: match?.set_number ?? setNumber,
         tcg_image_url: match?.tcg_image_url ?? '',
         rarity: match?.rarity ?? 'OTHER',
         cardmarket_id: match?.cardmarket_id ?? '',
