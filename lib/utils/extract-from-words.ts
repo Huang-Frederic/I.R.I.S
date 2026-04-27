@@ -1,18 +1,6 @@
 import type { WordAnnotation } from '@/lib/types';
 
 /**
- * Where on the card we expect the bottom-left "footer" — set code, set number,
- * regulation mark, copyright. Coordinates are normalized to the photo, not the
- * card itself, so they're tolerant of the card not filling the whole frame.
- *
- * Tightened y/x ranges than gut feeling because:
- *   - x: footer is left half of the card; allow up to .55 to cover wider crops.
- *   - y: footer is bottom ~20% of the card; .80–1.0 captures it even if there's
- *     a stand or some background visible above the card edge.
- */
-const FOOTER_REGION = { xMin: 0, xMax: 0.55, yMin: 0.8, yMax: 1 };
-
-/**
  * Match "<card>/<total>" — same regex as parse-set-number but applied per-word
  * + as concatenations of adjacent words (Vision sometimes splits "136/174" into
  * three tokens "136", "/", "174").
@@ -25,115 +13,128 @@ const SET_NUMBER_RE = /^(\d{1,3})\s*\/\s*(\d{1,3})$/;
  */
 const SET_CODE_RE = /^[A-Za-z0-9]{2,8}$/;
 
+/**
+ * Punctuation Vision sometimes glues to alphanumeric tokens (brackets from a
+ * stylized set-code box, dots from copyright lines, etc.). We strip these
+ * before testing against SET_CODE_RE.
+ */
+const STRIP_PUNCT_RE = /[\s.,;:!?\[\](){}<>«»"'`*\\\/_-]/g;
+
 export interface ExtractOptions {
-  /** Override the default footer region (mostly for tests). */
-  region?: { xMin: number; xMax: number; yMin: number; yMax: number };
   /** Drop words below this Vision confidence. Defaults to 0 (keep everything). */
   minConfidence?: number;
 }
 
-function inRegion(
-  word: WordAnnotation,
-  region: { xMin: number; xMax: number; yMin: number; yMax: number },
-): boolean {
-  // Use the word's centroid so a word straddling the region boundary still counts
-  // when the bulk of it is inside.
+/**
+ * Score how "footer-like" a word is. Higher = better fit for a Pokémon card
+ * footer item (set code, set number). Used as a tie-breaker, NOT as a hard
+ * filter — that earlier design broke when the user uploaded a pre-cropped
+ * footer (the whole image is the footer, so y wasn't ≥ 0.8).
+ *
+ * Rewards bottom (high y) and left (low x); a footer-bottom-left word like
+ * "111/086" at (.05, .92) scores ~0.91, while attack damage "30/30" at
+ * (.5, .4) scores ~0.30.
+ */
+function footerScore(word: WordAnnotation): number {
   const cx = word.x + word.width / 2;
   const cy = word.y + word.height / 2;
-  return cx >= region.xMin && cx <= region.xMax && cy >= region.yMin && cy <= region.yMax;
+  return cy - cx * 0.2;
 }
 
 /**
- * Find the "<card>/<total>" set number printed in the bottom-left of the card.
+ * Find the "<card>/<total>" set number printed near the bottom-left of the card.
  *
- * Strategy:
- *   1. Filter words to the footer region.
- *   2. First pass: any single word matching the regex outright (most common
- *      when Vision keeps "136/174" as one token).
- *   3. Second pass: scan triples of adjacent words for the split form
- *      ("136", "/", "174") to handle the cases where Vision tokenized aggressively.
+ * Strategy (no hard region filter — works on full cards AND on user-supplied
+ * footer crops):
+ *   1. Collect every word that matches SET_NUMBER_RE on its own.
+ *   2. Also scan adjacent triples ("136", "/", "174") which Vision sometimes
+ *      tokenizes when the slash is wide / on its own.
+ *   3. Sort all candidates by footerScore and return the best one.
+ *
+ * Trade-off: a card with two slash-numbers (set number + something like
+ * "30/30" attack damage) will pick the one closest to bottom-left, which is
+ * the desired behavior on real Pokémon cards.
  */
 export function findSetNumberCandidate(
   words: WordAnnotation[],
   options: ExtractOptions = {},
 ): { card: string; total: string; raw: string } | null {
-  const region = options.region ?? FOOTER_REGION;
   const minConfidence = options.minConfidence ?? 0;
-  const footer = words.filter(
-    (w) => w.confidence >= minConfidence && inRegion(w, region),
-  );
+  const filtered = words.filter((w) => w.confidence >= minConfidence);
 
-  for (const word of footer) {
+  type Match = { word: WordAnnotation; card: string; total: string };
+  const matches: Match[] = [];
+
+  for (const word of filtered) {
     const m = word.text.match(SET_NUMBER_RE);
-    if (m) {
-      return { card: m[1], total: m[2], raw: `${m[1]}/${m[2]}` };
+    if (m) matches.push({ word, card: m[1], total: m[2] });
+  }
+
+  if (matches.length === 0) {
+    // Triplet scan as fallback for Vision's aggressive tokenization.
+    const ordered = [...filtered].sort((a, b) => (a.y === b.y ? a.x - b.x : a.y - b.y));
+    for (let i = 0; i < ordered.length - 2; i++) {
+      const left = ordered[i];
+      const mid = ordered[i + 1];
+      const right = ordered[i + 2];
+      const ld = left.text.match(/^(\d{1,3})$/)?.[1];
+      const rd = right.text.match(/^(\d{1,3})$/)?.[1];
+      if (ld && rd && /^\/$/.test(mid.text)) {
+        matches.push({ word: left, card: ld, total: rd });
+      }
     }
   }
 
-  // Sort by reading order (top-to-bottom, then left-to-right) so adjacency is
-  // meaningful. Footer is mostly one or two lines so a simple sort is enough.
-  const ordered = [...footer].sort((a, b) => (a.y === b.y ? a.x - b.x : a.y - b.y));
-  for (let i = 0; i < ordered.length - 2; i++) {
-    const left = ordered[i];
-    const mid = ordered[i + 1];
-    const right = ordered[i + 2];
-    const leftDigits = left.text.match(/^(\d{1,3})$/)?.[1];
-    const rightDigits = right.text.match(/^(\d{1,3})$/)?.[1];
-    if (leftDigits && rightDigits && (mid.text === '/' || /^\/$/.test(mid.text))) {
-      return { card: leftDigits, total: rightDigits, raw: `${leftDigits}/${rightDigits}` };
-    }
-  }
+  if (matches.length === 0) return null;
 
-  return null;
+  matches.sort((a, b) => footerScore(b.word) - footerScore(a.word));
+  const best = matches[0];
+  return { card: best.card, total: best.total, raw: `${best.card}/${best.total}` };
 }
 
 /**
- * Find the set code (e.g. "SV11W") next to the set number. We look in the same
- * footer region for a short alphanumeric token that:
- *   - matches SET_CODE_RE (mixed letters/digits, no slash)
- *   - isn't itself the set number we already found
- *   - prefers tokens to the LEFT of the set number (typical layout: "<code> <number>")
+ * Find the set code (e.g. "SV11W") near the set number.
  *
- * Returns null if nothing convincing is in the region.
+ * Same loose-everywhere approach as findSetNumberCandidate: search the whole
+ * image, then prefer footer-y tokens, with a strong nudge toward whichever is
+ * closest to the previously-found set number.
  */
 export function findSetCodeCandidate(
   words: WordAnnotation[],
   setNumberRaw: string | null,
   options: ExtractOptions = {},
 ): string | null {
-  const region = options.region ?? FOOTER_REGION;
   const minConfidence = options.minConfidence ?? 0;
-  const footer = words.filter(
-    (w) => w.confidence >= minConfidence && inRegion(w, region),
-  );
 
-  // Only words that have at least one letter, the right shape, and aren't the
-  // set number itself. Strip simple punctuation Vision might attach.
-  const candidates = footer
-    .map((w) => ({ ...w, cleaned: w.text.replace(/[.,;:]/g, '') }))
-    .filter((w) => SET_CODE_RE.test(w.cleaned))
-    .filter((w) => /[A-Za-z]/.test(w.cleaned))
-    .filter((w) => w.cleaned !== setNumberRaw);
+  // Strip surrounding punctuation, then test against the code shape. Words
+  // that are pure digits, the set number itself, or a single letter fail.
+  const candidates = words
+    .filter((w) => w.confidence >= minConfidence)
+    .map((w) => ({ word: w, cleaned: w.text.replace(STRIP_PUNCT_RE, '') }))
+    .filter((c) => SET_CODE_RE.test(c.cleaned))
+    .filter((c) => /[A-Za-z]/.test(c.cleaned))
+    .filter((c) => c.cleaned !== setNumberRaw);
 
   if (candidates.length === 0) return null;
 
-  // Find the set-number word's center (if we have one) so we can prefer the
-  // closest code-shaped neighbor. Without a number, return the first hit.
   const numberWord = setNumberRaw
-    ? footer.find((w) => w.text.replace(/\s/g, '') === setNumberRaw)
+    ? words.find((w) => w.text.replace(STRIP_PUNCT_RE, '') === setNumberRaw.replace(STRIP_PUNCT_RE, ''))
     : null;
 
-  if (!numberWord) {
-    return candidates[0].cleaned;
+  if (numberWord) {
+    // Prefer the closest neighbor of the set number — this picks "sv1W" over
+    // some random alphanumeric in the artwork.
+    const cx = numberWord.x + numberWord.width / 2;
+    const cy = numberWord.y + numberWord.height / 2;
+    candidates.sort((a, b) => {
+      const da = Math.hypot(a.word.x + a.word.width / 2 - cx, a.word.y + a.word.height / 2 - cy);
+      const db = Math.hypot(b.word.x + b.word.width / 2 - cx, b.word.y + b.word.height / 2 - cy);
+      return da - db;
+    });
+  } else {
+    // No set number to anchor against — fall back to footer-iest.
+    candidates.sort((a, b) => footerScore(b.word) - footerScore(a.word));
   }
-
-  const numberCx = numberWord.x + numberWord.width / 2;
-  const numberCy = numberWord.y + numberWord.height / 2;
-  candidates.sort((a, b) => {
-    const da = Math.hypot(a.x + a.width / 2 - numberCx, a.y + a.height / 2 - numberCy);
-    const db = Math.hypot(b.x + b.width / 2 - numberCx, b.y + b.height / 2 - numberCy);
-    return da - db;
-  });
 
   return candidates[0].cleaned;
 }
