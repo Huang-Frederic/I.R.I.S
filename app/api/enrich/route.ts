@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { searchBySetNumber } from '@/lib/api/tcgapi';
 import {
+  enrichWithFrenchNames,
   findCardsByTotalAndLocalId,
   lookupById,
   toEnrichedCard,
@@ -84,9 +85,10 @@ export async function POST(request: Request) {
     }
 
     if (card) {
-      const enriched = toEnrichedCard(card);
+      const addFr = (c: TCGdexCard) => enrichWithFrenchNames(toEnrichedCard(c), lang);
+      const enriched = await addFr(card);
       const candidates = allCards.length > 1
-        ? allCards.map(toEnrichedCard)
+        ? await Promise.all(allCards.map(addFr))
         : [enriched];
       return NextResponse.json({
         bestMatch: enriched,

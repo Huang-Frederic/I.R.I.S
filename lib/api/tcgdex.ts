@@ -112,7 +112,7 @@ export function mapRarity(rarity: string | undefined): CardRarity {
  */
 export function extractPokemonName(cardName: string): string {
   return cardName
-    .replace(/\s*(ex|EX|GX|V|VMAX|VSTAR|V-?UNION|BREAK|LEGEND)\s*$/i, '')
+    .replace(/[-\s]*(ex|EX|GX|V|VMAX|VSTAR|V-?UNION|BREAK|LEGEND)\s*$/i, '')
     .trim();
 }
 
@@ -149,6 +149,55 @@ export function toEnrichedCard(card: TCGdexCard): EnrichedCard {
     cm_price_low: cm?.low ?? null,
     cm_price_trend: cm?.trend ?? null,
     cm_price_avg: cm?.avg ?? null,
+  };
+}
+
+/* ===== French name resolution =====
+ *
+ * The user sells JP cards on a French platform (Vinted FR). The form should
+ * display French names so they can be copy-pasted into listings. We look up
+ * the FR Pokémon name via dexId (the national Pokédex number) and format as
+ * "NomFR (NomOriginal)" when the card language isn't already French.
+ *
+ * Cache keyed by dexId survives the server process. Miss cost is ~500ms
+ * (one TCGdex cards-by-dexId query), but each dexId is only fetched once.
+ */
+
+const FR_NAME_CACHE = new Map<number, string | null>();
+
+async function lookupFrenchPokemonName(dexId: number): Promise<string | null> {
+  if (FR_NAME_CACHE.has(dexId)) return FR_NAME_CACHE.get(dexId)!;
+  try {
+    const res = await fetch(`${BASE}/fr/cards?dexId=${dexId}`);
+    if (!res.ok) { FR_NAME_CACHE.set(dexId, null); return null; }
+    const cards = (await res.json()) as { name: string }[];
+    const cleaned = [...new Set(cards.map((c) => extractPokemonName(c.name)))];
+    // Pick the shortest cleaned name — "Staross" over "Méga-Staross"
+    cleaned.sort((a, b) => a.length - b.length);
+    const name = cleaned[0] || null;
+    FR_NAME_CACHE.set(dexId, name);
+    return name;
+  } catch {
+    FR_NAME_CACHE.set(dexId, null);
+    return null;
+  }
+}
+
+/**
+ * Add French Pokémon name to an EnrichedCard when the source language isn't FR.
+ * Formats as "NomFR (NomOriginal)" for pokemon_name and card_name.
+ */
+export async function enrichWithFrenchNames(
+  card: EnrichedCard,
+  sourceLang: TCGdexLang,
+): Promise<EnrichedCard> {
+  if (sourceLang === 'fr' || !card.pokemon_number) return card;
+  const frName = await lookupFrenchPokemonName(card.pokemon_number);
+  if (!frName || frName === card.pokemon_name) return card;
+  return {
+    ...card,
+    pokemon_name: `${frName} (${card.pokemon_name})`,
+    card_name: `${frName} (${card.card_name})`,
   };
 }
 
