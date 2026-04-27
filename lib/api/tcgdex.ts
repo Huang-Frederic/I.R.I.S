@@ -219,23 +219,41 @@ export async function listSets(lang: TCGdexLang): Promise<TCGdexSetSummary[]> {
  * coin-flip — but the alternative is asking the user, which we already do via
  * the manual "Re-rechercher" button if they need to override.
  */
-export async function findCardByTotalAndLocalId(
+export async function findCardsByTotalAndLocalId(
   total: number,
   localId: string,
   lang: TCGdexLang,
-): Promise<TCGdexCard | null> {
+): Promise<TCGdexCard[]> {
   const sets = await listSets(lang);
-  const candidates = sets.filter(
+
+  const lookupAll = async (candidates: TCGdexSetSummary[]): Promise<TCGdexCard[]> => {
+    const results = await Promise.all(
+      candidates.map((s) => lookupById(s.id, localId, lang).catch(() => null)),
+    );
+    return results.filter((c): c is TCGdexCard => c !== null);
+  };
+
+  // Strict: printed denominator matches official or total exactly.
+  const strict = sets.filter(
     (s) => s.cardCount?.official === total || s.cardCount?.total === total,
   );
-  if (candidates.length === 0) return null;
+  const strictHits = strict.length > 0 ? await lookupAll(strict) : [];
+  if (strictHits.length > 0) return strictHits;
 
-  // Race the lookups in parallel — this is bounded by candidates.length, which
-  // is rarely above ~10 even for popular totals.
-  const results = await Promise.all(
-    candidates.map((s) => lookupById(s.id, localId, lang).catch(() => null)),
-  );
-  return results.find((c): c is TCGdexCard => c !== null) ?? null;
+  // Loose: JP cards print the base-set size as denominator (e.g. "111/086")
+  // while TCGdex reports the full count including secret rares (e.g. 174).
+  // Use the localId as a lower bound — the set must have at least that many
+  // cards. TCGdex returns sets chronologically, so reversing tries newer
+  // (more likely) sets first.
+  const localIdNum = Number(localId);
+  const minCards = Number.isFinite(localIdNum) ? Math.max(localIdNum, total + 1) : total + 1;
+  const loose = sets
+    .filter((s) => (s.cardCount?.official ?? 0) >= minCards)
+    .reverse();
+
+  if (loose.length === 0) return [];
+
+  return lookupAll(loose.slice(0, 20));
 }
 
 /** Test-only: drop the in-memory cache so unit tests get a deterministic state. */

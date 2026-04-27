@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { searchBySetNumber } from '@/lib/api/tcgapi';
 import {
-  findCardByTotalAndLocalId,
+  findCardsByTotalAndLocalId,
   lookupById,
   toEnrichedCard,
   toTCGdexLang,
@@ -64,6 +64,7 @@ export async function POST(request: Request) {
 
   try {
     let card: TCGdexCard | null = null;
+    let allCards: TCGdexCard[] = [];
 
     // Strategy 1: setCode + localId → direct lookup
     if (setCode && localId) {
@@ -72,14 +73,18 @@ export async function POST(request: Request) {
 
     // Strategy 2: total + localId → narrow by set total, try each candidate
     if (!card && total != null && localId) {
-      card = await findCardByTotalAndLocalId(total, localId, lang);
+      allCards = await findCardsByTotalAndLocalId(total, localId, lang);
+      card = allCards[0] ?? null;
     }
 
     if (card) {
       const enriched = toEnrichedCard(card);
+      const candidates = allCards.length > 1
+        ? allCards.map(toEnrichedCard)
+        : [enriched];
       return NextResponse.json({
         bestMatch: enriched,
-        candidates: [enriched],
+        candidates,
       } satisfies EnrichResult);
     }
 

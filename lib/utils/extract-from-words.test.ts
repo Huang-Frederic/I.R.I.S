@@ -121,6 +121,11 @@ describe('findSetCodeCandidate', () => {
     expect(findSetCodeCandidate(words, null)).toBeNull();
   });
 
+  it('rejects 2-char tokens like "x2" (weakness multiplier)', () => {
+    const words: WordAnnotation[] = [w('x2', 0.8, 0.6)];
+    expect(findSetCodeCandidate(words, null)).toBeNull();
+  });
+
   it('accepts mixed letter+digit codes', () => {
     expect(findSetCodeCandidate([w('sv1W', 0.05, 0.92)], null)).toBe('sv1W');
     expect(findSetCodeCandidate([w('SV11W', 0.05, 0.92)], null)).toBe('SV11W');
