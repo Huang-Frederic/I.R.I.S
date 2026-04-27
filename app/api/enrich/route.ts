@@ -75,14 +75,12 @@ export async function POST(request: Request) {
     if (!card && total != null && localId) {
       allCards = await findCardsByTotalAndLocalId(total, localId, lang);
       if (allCards.length > 1 && body.text) {
-        const ocrText = body.text;
-        allCards.sort((a, b) => {
-          const aMatch = ocrText.includes(a.name) ? 1 : 0;
-          const bMatch = ocrText.includes(b.name) ? 1 : 0;
-          return bMatch - aMatch;
-        });
+        const result = disambiguateByName(allCards, body.text);
+        card = result.best;
+        allCards = result.candidates;
+      } else {
+        card = allCards[0] ?? null;
       }
-      card = allCards[0] ?? null;
     }
 
     if (card) {
@@ -161,4 +159,26 @@ function normalize(body: EnrichBody): {
   }
 
   return { setCode, localId, total, language: body.language };
+}
+
+/**
+ * Use the OCR text to narrow multiple card hits.
+ *
+ * - Exactly 1 card whose name appears in the OCR → auto-select, candidates=[just that one]
+ * - Multiple name matches → best = first match, candidates = only the matches
+ * - Zero name matches → best = first card, candidates = all (picker will ask)
+ */
+function disambiguateByName(
+  cards: TCGdexCard[],
+  ocrText: string,
+): { best: TCGdexCard; candidates: TCGdexCard[] } {
+  const nameMatches = cards.filter((c) => ocrText.includes(c.name));
+
+  if (nameMatches.length === 1) {
+    return { best: nameMatches[0], candidates: [nameMatches[0]] };
+  }
+  if (nameMatches.length > 1) {
+    return { best: nameMatches[0], candidates: nameMatches };
+  }
+  return { best: cards[0], candidates: cards };
 }
