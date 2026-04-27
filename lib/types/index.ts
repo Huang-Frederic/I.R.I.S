@@ -81,6 +81,11 @@ export interface EnrichedCard {
   set_number: string;
   rarity: CardRarity;
   tcg_image_url: string;
+  /* Optional pricing — populated when the source (e.g. TCGdex) returns Cardmarket data. */
+  cardmarket_id?: string | null;
+  cm_price_low?: number | null;
+  cm_price_trend?: number | null;
+  cm_price_avg?: number | null;
 }
 
 export interface EnrichResult {
