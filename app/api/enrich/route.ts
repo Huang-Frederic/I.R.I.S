@@ -1,49 +1,52 @@
+// app/api/enrich/route.ts
 import { NextResponse } from 'next/server';
-import { searchBySetNumber } from '@/lib/api/tcgapi';
+import { createClient } from '@/lib/supabase/server';
+import {
+  disambiguateByName,
+  lookupByCode,
+  lookupByTotal,
+  rowToEnrichedCard,
+} from '@/lib/api/tcg-catalog';
 import {
   enrichWithFrenchNames,
   findCardsByTotalAndLocalId,
   listSets,
-  lookupById,
-  toEnrichedCard,
+  lookupById as tcgdexLookupById,
+  toEnrichedCard as tcgdexToEnrichedCard,
   toTCGdexLang,
   type TCGdexCard,
 } from '@/lib/api/tcgdex';
 import { findKnownSetCodeInText } from '@/lib/utils/extract-from-words';
 import { parseSetNumber } from '@/lib/utils/parse-set-number';
-import type { CardLanguage, EnrichResult } from '@/lib/types';
+import type { CardLanguage, EnrichResult, EnrichedCard } from '@/lib/types';
 
 export const runtime = 'nodejs';
 
 interface EnrichBody {
-  /** Raw OCR text — used as fallback for parsing AND to disambiguate candidates by name. */
   text?: string;
-  /** Set code as printed on the card, e.g. "SV11W". Optional — total+localId can resolve without it. */
   setCode?: string;
-  /** Local id within the set, e.g. "111" (or "111/086", we keep just the left half). */
   localId?: string;
-  /** Set total — number of base cards in the set, e.g. 86 (or "086"). */
   total?: string | number;
-  /** Card language hint — drives which TCGdex catalog we query. */
   language?: CardLanguage;
 }
 
+/** Helper: race a promise against a timeout, returning null instead of rejecting on timeout. */
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T | null> {
+  const timeout = new Promise<null>((resolve) =>
+    setTimeout(() => {
+      console.warn(`enrich: ${label} timed out after ${ms}ms`);
+      resolve(null);
+    }, ms),
+  );
+  return Promise.race([promise, timeout]);
+}
+
 /**
- * Resolution strategy (TCGdex-first, with progressive fallbacks):
- *
- *   1. {setCode, localId, language}  → direct `/cards/<setCode>-<localId>` lookup.
- *      Most precise; works if the user (or smart extraction) has both pieces.
- *
- *   2. {total, localId, language}    → list TCGdex sets, narrow to those whose
- *      cardCount.official matches `total`, try `<set.id>-<localId>` against
- *      each. Robust to OCR errors on the set code (the killer feature for JP
- *      cards where Vision routinely reads "sv1W" as "Miyanose" or worse).
- *
- *   3. {text}                        → parse the raw OCR text for "<X>/<Y>",
- *      then run strategy 2 with the parsed total + localId. Falls back to
- *      pokemontcg.io if TCGdex misses (kept for English / older catalogs).
- *
- * Any strategy returning a hit is wrapped as { bestMatch, candidates: [match] }.
+ * Resolution strategy:
+ *   1. tcg_catalog direct lookup (set_code + set_number + language)
+ *   2. tcg_catalog fallback by printed total + localId, OCR-name disambiguation
+ *   3. TCGdex live (filet de secours: cards too new to be in our catalog)
+ *   4. Return null + extracted fields → user fills the form by hand
  */
 export async function POST(request: Request) {
   let body: EnrichBody;
@@ -54,8 +57,6 @@ export async function POST(request: Request) {
   }
 
   const { setCode, localId, total, language } = normalize(body);
-
-  // Nothing usable at all
   if (!localId && !body.text) {
     return NextResponse.json(
       { error: 'Provide either "text" or "localId" (with optional setCode/total).' },
@@ -63,71 +64,83 @@ export async function POST(request: Request) {
     );
   }
 
-  const lang = toTCGdexLang(language ?? 'EN');
+  const cardLang: CardLanguage = language ?? 'EN';
+  const supabase = await createClient();
 
-  try {
-    let card: TCGdexCard | null = null;
-    let allCards: TCGdexCard[] = [];
-
-    // Strategy 1a: fuzzy-match the OCR text against the known TCGdex set IDs.
-    // The most reliable signal — uses both the OCR text AND the catalog as a
-    // vocabulary. Catches "BWS"→bw5, "SvllW"→sv11w, and disambiguates "sv3"
-    // vs "sv3a" when both lookups would 200 OK.
-    if (localId && body.text) {
-      const sets = await listSets(lang);
-      const fuzzyCode = findKnownSetCodeInText(
-        body.text,
-        sets.map((s) => s.id),
+  // Strategy 1: catalog direct lookup (soft dependency — fall through on error)
+  if (setCode && localId) {
+    try {
+      const row = await withTimeout(
+        lookupByCode(supabase, setCode, localId, cardLang),
+        2000,
+        'catalog lookupByCode',
       );
-      if (fuzzyCode) {
-        card = await lookupById(fuzzyCode, localId, lang);
+      if (row) {
+        return NextResponse.json({
+          bestMatch: rowToEnrichedCard(row),
+          candidates: [rowToEnrichedCard(row)],
+        } satisfies EnrichResult);
       }
+    } catch (e) {
+      console.error('Strategy 1 (catalog by code) failed, falling through:', e);
     }
+  }
 
-    // Strategy 1b: heuristic-detected setCode + localId → direct lookup.
-    // Falls back to the bottom-left footer scan when fuzzy matching missed.
-    if (!card && setCode && localId) {
-      card = await lookupById(setCode, localId, lang);
-    }
-
-    // Strategy 2: total + localId → narrow by set total, try each candidate
-    if (!card && total != null && localId) {
-      allCards = await findCardsByTotalAndLocalId(total, localId, lang);
-      if (allCards.length > 1 && body.text) {
-        const result = disambiguateByName(allCards, body.text);
-        card = result.best;
-        allCards = result.candidates;
-      } else {
-        card = allCards[0] ?? null;
-      }
-    }
-
-    if (card) {
-      const addFr = (c: TCGdexCard) => enrichWithFrenchNames(toEnrichedCard(c), lang);
-      const enriched = await addFr(card);
-      const candidates = allCards.length > 1
-        ? await Promise.all(allCards.map(addFr))
-        : [enriched];
-      return NextResponse.json({
-        bestMatch: enriched,
-        candidates,
-      } satisfies EnrichResult);
-    }
-
-    // Strategy 3 fallback: pokemontcg.io text search
-    if (body.text) {
-      const parsed = parseSetNumber(body.text);
-      if (parsed) {
-        const result = await searchBySetNumber({
-          cardNumber: parsed.card,
-          setSize: parsed.total,
-        });
-        if (result.bestMatch) {
-          return NextResponse.json(result);
+  // Strategy 2: catalog fallback by total (requires `total` — without it we go to TCGdex)
+  if (total != null && localId) {
+    try {
+      const rows = await withTimeout(
+        lookupByTotal(supabase, total, localId, cardLang),
+        2000,
+        'catalog lookupByTotal',
+      );
+      if (rows && rows.length > 0) {
+        const result = body.text && rows.length > 1
+          ? disambiguateByName(rows, body.text)
+          : { best: rows[0]!, candidates: rows };
+        if (result.best) {
+          return NextResponse.json({
+            bestMatch: rowToEnrichedCard(result.best),
+            candidates: result.candidates.map(rowToEnrichedCard),
+          } satisfies EnrichResult);
         }
       }
+    } catch (e) {
+      console.error('Strategy 2 (catalog by total) failed, falling through:', e);
+    }
+  }
+
+  try {
+    // Strategy 3: TCGdex live fallback (newest cards not yet scraped)
+    const tcgdexLang = toTCGdexLang(cardLang);
+    let tcgdexCard: TCGdexCard | null = null;
+    if (body.text && localId) {
+      const sets = await listSets(tcgdexLang);
+      const fuzzyCode = findKnownSetCodeInText(body.text, sets.map((s) => s.id));
+      if (fuzzyCode) tcgdexCard = await tcgdexLookupById(fuzzyCode, localId, tcgdexLang);
+    }
+    if (!tcgdexCard && setCode && localId) {
+      tcgdexCard = await tcgdexLookupById(setCode, localId, tcgdexLang);
+    }
+    let tcgdexCandidates: TCGdexCard[] = [];
+    if (!tcgdexCard && total != null && localId) {
+      tcgdexCandidates = await findCardsByTotalAndLocalId(total, localId, tcgdexLang);
+      tcgdexCard = tcgdexCandidates[0] ?? null;
+    }
+    if (tcgdexCard) {
+      const enriched = await enrichWithFrenchNames(tcgdexToEnrichedCard(tcgdexCard), tcgdexLang);
+      const candidates: EnrichedCard[] =
+        tcgdexCandidates.length > 1
+          ? await Promise.all(
+              tcgdexCandidates.map((c) =>
+                enrichWithFrenchNames(tcgdexToEnrichedCard(c), tcgdexLang),
+              ),
+            )
+          : [enriched];
+      return NextResponse.json({ bestMatch: enriched, candidates } satisfies EnrichResult);
     }
 
+    // Strategy 4: nothing found
     return NextResponse.json({ bestMatch: null, candidates: [] } satisfies EnrichResult);
   } catch (error) {
     console.error('Enrich failed:', error);
@@ -138,15 +151,6 @@ export async function POST(request: Request) {
   }
 }
 
-/**
- * Pull the structured fields out of the request body, accepting either:
- *   - explicit { setCode, localId, total, language }
- *   - implicit: localId="111/086" with `/` → split to localId + total
- *   - text-only: parse "<X>/<Y>" out of the OCR string
- *
- * After this, the handler can branch on (setCode?, localId?, total?) without
- * re-parsing.
- */
 function normalize(body: EnrichBody): {
   setCode: string | null;
   localId: string | null;
@@ -179,26 +183,4 @@ function normalize(body: EnrichBody): {
   }
 
   return { setCode, localId, total, language: body.language };
-}
-
-/**
- * Use the OCR text to narrow multiple card hits.
- *
- * - Exactly 1 card whose name appears in the OCR → auto-select, candidates=[just that one]
- * - Multiple name matches → best = first match, candidates = only the matches
- * - Zero name matches → best = first card, candidates = all (picker will ask)
- */
-function disambiguateByName(
-  cards: TCGdexCard[],
-  ocrText: string,
-): { best: TCGdexCard; candidates: TCGdexCard[] } {
-  const nameMatches = cards.filter((c) => ocrText.includes(c.name));
-
-  if (nameMatches.length === 1) {
-    return { best: nameMatches[0], candidates: [nameMatches[0]] };
-  }
-  if (nameMatches.length > 1) {
-    return { best: nameMatches[0], candidates: nameMatches };
-  }
-  return { best: cards[0], candidates: cards };
 }
