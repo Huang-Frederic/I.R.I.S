@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  findKnownSetCodeInText,
   findSetCodeCandidate,
   findSetNumberCandidate,
 } from './extract-from-words';
@@ -76,6 +77,26 @@ describe('findSetNumberCandidate', () => {
   it('drops words below minConfidence', () => {
     const words: WordAnnotation[] = [w('136/174', 0.15, 0.92, 0.05, 0.02, 0.4)];
     expect(findSetNumberCandidate(words, { minConfidence: 0.7 })).toBeNull();
+  });
+
+  it('extracts the number even when Vision glues a rarity glyph onto it', () => {
+    // Real-world case: "098/150RR" comes back as one token because the small
+    // rarity letters touch the number. Strict ^XXX/YYY$ misses it.
+    const words: WordAnnotation[] = [w('098/150RR', 0.7, 0.92)];
+    expect(findSetNumberCandidate(words)).toEqual({
+      card: '098',
+      total: '150',
+      raw: '098/150',
+    });
+  });
+
+  it('extracts from "034/054RR XYm" (number + rarity + set code as one OCR line)', () => {
+    const words: WordAnnotation[] = [w('034/054RR', 0.5, 0.93)];
+    expect(findSetNumberCandidate(words)).toEqual({
+      card: '034',
+      total: '054',
+      raw: '034/054',
+    });
   });
 });
 
@@ -158,5 +179,70 @@ describe('findSetCodeCandidate', () => {
       w('Pokémon.', 0.4, 0.97),
     ];
     expect(findSetCodeCandidate(words, null)).toBe('sv1W');
+  });
+
+  it('rejects "NO0499" (Pokédex number "全国図鑑NO.0499")', () => {
+    const words: WordAnnotation[] = [w('NO0499', 0.4, 0.3)];
+    expect(findSetCodeCandidate(words, null)).toBeNull();
+  });
+
+  it('rejects "Wx2" (weakness multiplier)', () => {
+    const words: WordAnnotation[] = [w('Wx2', 0.5, 0.85)];
+    expect(findSetCodeCandidate(words, null)).toBeNull();
+  });
+
+  it('rejects "C2021" / "P2018" (copyright year prefixes)', () => {
+    expect(findSetCodeCandidate([w('C2021', 0.4, 0.95)], null)).toBeNull();
+    expect(findSetCodeCandidate([w('P2018', 0.4, 0.95)], null)).toBeNull();
+  });
+
+  it('rejects "5ban" (5ban Graphics watermark)', () => {
+    const words: WordAnnotation[] = [w('5ban', 0.4, 0.92)];
+    expect(findSetCodeCandidate(words, null)).toBeNull();
+  });
+
+  it('rejects "HP160" (HP indicator glued together)', () => {
+    const words: WordAnnotation[] = [w('HP160', 0.5, 0.1)];
+    expect(findSetCodeCandidate(words, null)).toBeNull();
+  });
+});
+
+describe('findKnownSetCodeInText', () => {
+  const knownIds = ['sv11w', 'sv11b', 'sv8a', 'sv8', 'sv5a', 'bw5', 'bw8', 'sm8b', 'xym', 'm3', 's12a'];
+
+  it('returns null for empty text', () => {
+    expect(findKnownSetCodeInText('', knownIds)).toBeNull();
+  });
+
+  it('finds an exact match in OCR text', () => {
+    const text = 'Illus. Tecziro SV8a 069/187';
+    expect(findKnownSetCodeInText(text, knownIds)).toBe('sv8a');
+  });
+
+  it('finds a match through OCR confusion (BWS → bw5, S↔5)', () => {
+    const text = 'Illus. Eske Yoshinob 009/050 BWS';
+    expect(findKnownSetCodeInText(text, knownIds)).toBe('bw5');
+  });
+
+  it('finds a match through OCR confusion (SvllW → sv11w, l↔1)', () => {
+    const text = 'SvllW 012/086 C 2025 Pokémon';
+    expect(findKnownSetCodeInText(text, knownIds)).toBe('sv11w');
+  });
+
+  it('finds the longer canonical match when both fit', () => {
+    // "sv8" and "sv8a" are both in the list — the OCR text "SV8a" should
+    // resolve to sv8a (longer = more specific).
+    const text = 'SV8a 055/187';
+    expect(findKnownSetCodeInText(text, knownIds)).toBe('sv8a');
+  });
+
+  it('returns null when nothing in the text matches', () => {
+    const text = 'Pokemon Trainer Card Energy';
+    expect(findKnownSetCodeInText(text, knownIds)).toBeNull();
+  });
+
+  it('handles punctuation around the token', () => {
+    const text = 'Illus. (sm8b) 098/150RR';
+    expect(findKnownSetCodeInText(text, knownIds)).toBe('sm8b');
   });
 });

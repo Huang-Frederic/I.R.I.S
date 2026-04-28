@@ -3,11 +3,13 @@ import { searchBySetNumber } from '@/lib/api/tcgapi';
 import {
   enrichWithFrenchNames,
   findCardsByTotalAndLocalId,
+  listSets,
   lookupById,
   toEnrichedCard,
   toTCGdexLang,
   type TCGdexCard,
 } from '@/lib/api/tcgdex';
+import { findKnownSetCodeInText } from '@/lib/utils/extract-from-words';
 import { parseSetNumber } from '@/lib/utils/parse-set-number';
 import type { CardLanguage, EnrichResult } from '@/lib/types';
 
@@ -67,8 +69,24 @@ export async function POST(request: Request) {
     let card: TCGdexCard | null = null;
     let allCards: TCGdexCard[] = [];
 
-    // Strategy 1: setCode + localId → direct lookup
-    if (setCode && localId) {
+    // Strategy 1a: fuzzy-match the OCR text against the known TCGdex set IDs.
+    // The most reliable signal — uses both the OCR text AND the catalog as a
+    // vocabulary. Catches "BWS"→bw5, "SvllW"→sv11w, and disambiguates "sv3"
+    // vs "sv3a" when both lookups would 200 OK.
+    if (localId && body.text) {
+      const sets = await listSets(lang);
+      const fuzzyCode = findKnownSetCodeInText(
+        body.text,
+        sets.map((s) => s.id),
+      );
+      if (fuzzyCode) {
+        card = await lookupById(fuzzyCode, localId, lang);
+      }
+    }
+
+    // Strategy 1b: heuristic-detected setCode + localId → direct lookup.
+    // Falls back to the bottom-left footer scan when fuzzy matching missed.
+    if (!card && setCode && localId) {
       card = await lookupById(setCode, localId, lang);
     }
 
