@@ -51,6 +51,83 @@ if (INSECURE_HTTPS) {
 
 async function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
+// ---------------------------------------------------------------------------
+// Mappings — LimitlessTCG vocabulary → our enums
+// ---------------------------------------------------------------------------
+
+/** LimitlessTCG path codes → our card_language enum. */
+const LANG_MAP: Record<string, string> = {
+  jp: 'JP',
+  en: 'EN',
+  fr: 'FR',
+  de: 'DE',
+  it: 'IT',
+  es: 'ES',
+  pt: 'PT',
+  // ko / zh not catalogued on LimitlessTCG (verified — both 404)
+};
+
+/** LimitlessTCG rarity strings → our card_rarity enum.
+ * Built from observed values + best-effort guesses for vintage / promo terms.
+ * Anything not in this map falls through to OTHER and is logged at end of run. */
+const RARITY_MAP: Record<string, string> = {
+  // Modern (SV-era observed)
+  'Common': 'C',
+  'Uncommon': 'UC',
+  'Rare': 'R',
+  'Double Rare': 'RR',
+  'Ultra Rare': 'SR',
+  'Art Rare': 'AR',
+  'Special Art Rare': 'SAR',
+  'Secret Rare': 'SAR',
+  'Hyper Rare': 'SAR',
+  // Older eras
+  'Rare Holo': 'R_HOLO',
+  'Holo Rare': 'R_HOLO',
+  'Trainer Gallery Rare Holo': 'CHR',
+  'Trainer Gallery Holo Rare': 'CHR',
+  'Character Rare': 'CHR',
+  'Character Super Rare': 'CHR',
+  // Promo / one-offs
+  'Promo': 'OTHER',
+  'Black Star Promo': 'OTHER',
+  'Shiny Rare': 'SR',
+  'Shiny Ultra Rare': 'SAR',
+};
+
+export function mapLanguage(limitlessLang: string): string | null {
+  return LANG_MAP[limitlessLang] ?? null;
+}
+
+export function mapRarity(limitlessRarity: string | null): string {
+  if (!limitlessRarity) return 'OTHER';
+  return RARITY_MAP[limitlessRarity] ?? 'OTHER';
+}
+
+/**
+ * Parse the per-language set index page (e.g. /cards/jp) and return all
+ * set codes found. The set list page contains <a href="/cards/{lang}/{SET}">
+ * anchors for each set in that language.
+ */
+export function parseSetIndex(html: string, language: string): string[] {
+  const re = new RegExp(`href="/cards/${language}/([A-Za-z0-9.\\-]+)"`, 'g');
+  const codes = new Set<string>();
+  for (const match of html.matchAll(re)) {
+    codes.add(match[1]);
+  }
+  return [...codes].sort();
+}
+
+/** Fetch + parse the set index for a given language. */
+export async function fetchSetIndex(language: string): Promise<string[]> {
+  const url = `${BASE_URL}/cards/${language}`;
+  const res = await httpRequest(url, 'GET');
+  if (res.status !== 200) {
+    throw new Error(`Set index ${url} returned HTTP ${res.status}`);
+  }
+  return parseSetIndex(res.body, language);
+}
+
 /** Parsed card row from a set listing page. */
 interface ScrapedCard {
   setCode: string;
@@ -199,6 +276,23 @@ async function probe() {
   await sleep(RATE_LIMIT_MS);
   const imgRes = await httpRequest(firstImageUrl, 'HEAD');
   console.log(`  HTTP ${imgRes.status} ${imgRes.contentType}`);
+
+  console.log(`\n=== Set index for /cards/${PROBE_LANG} ===`);
+  await sleep(RATE_LIMIT_MS);
+  const allSets = await fetchSetIndex(PROBE_LANG);
+  console.log(`Total sets in /cards/${PROBE_LANG}: ${allSets.length}`);
+  console.log(`First 5: ${allSets.slice(0, 5).join(', ')}`);
+  console.log(`Last 5: ${allSets.slice(-5).join(', ')}`);
+
+  // Stat: how many of this set's cards have a rarity that maps to OTHER?
+  const unmappedRarities = new Set<string>();
+  for (const c of cards) {
+    if (c.rarity && !RARITY_MAP[c.rarity]) unmappedRarities.add(c.rarity);
+  }
+  if (unmappedRarities.size > 0) {
+    console.log(`\nUnmapped rarities in ${PROBE_SET} (would default to OTHER):`);
+    for (const r of unmappedRarities) console.log(`  - "${r}"`);
+  }
 }
 
 async function full() {
