@@ -68,11 +68,11 @@ describe('disambiguateByName', () => {
     expect(result.best).toBe(a);
   });
 
-  it('returns all candidates when no name matches OCR text', () => {
+  it('returns null best (and all candidates) when no name matches OCR text', () => {
     const ocr = '... ピカチュウ ...';
     const result = disambiguateByName([a, b, c], ocr);
+    expect(result.best).toBeNull();
     expect(result.candidates).toEqual([a, b, c]);
-    expect(result.best).toBe(a);
   });
 
   it('returns null/empty when given no candidates', () => {

@@ -89,14 +89,40 @@ export async function lookupByTotal(
   setNumber: string,
   language: CardLanguage,
 ): Promise<CatalogRow[]> {
-  const { data, error } = await supabase
+  const normNum = normalizeSetNumber(setNumber);
+
+  // Strict: catalog set_total exactly matches printed denominator.
+  // Works when LimitlessTCG's listed count equals the printed total
+  // (most modern non-JP sets without many secret rares).
+  const { data: strict, error: strictErr } = await supabase
     .from('tcg_catalog')
     .select('*')
     .eq('set_total', setTotal)
-    .eq('set_number', normalizeSetNumber(setNumber))
+    .eq('set_number', normNum)
     .eq('language', language);
-  if (error) throw new Error(`tcg_catalog lookupByTotal: ${error.message}`);
-  return (data as CatalogRow[] | null) ?? [];
+  if (strictErr) throw new Error(`tcg_catalog lookupByTotal strict: ${strictErr.message}`);
+  if (strict && strict.length > 0) return strict as CatalogRow[];
+
+  // Loose: JP cards print "036/190" but the listed total includes secret
+  // rares (e.g. S4a is 326). Find sets whose listed total is greater than
+  // the printed denominator AND whose card list is at least localId long.
+  // Mirrors the same loose-matching trick used by TCGdex (see
+  // findCardsByTotalAndLocalId in lib/api/tcgdex.ts).
+  const localIdNum = Number(normNum);
+  const minTotal = Math.max(
+    Number.isFinite(localIdNum) ? localIdNum : 0,
+    setTotal + 1,
+  );
+  const { data: loose, error: looseErr } = await supabase
+    .from('tcg_catalog')
+    .select('*')
+    .eq('set_number', normNum)
+    .eq('language', language)
+    .gte('set_total', minTotal)
+    .order('set_total', { ascending: true })
+    .limit(20);
+  if (looseErr) throw new Error(`tcg_catalog lookupByTotal loose: ${looseErr.message}`);
+  return (loose as CatalogRow[]) ?? [];
 }
 
 /**
@@ -104,7 +130,7 @@ export async function lookupByTotal(
  * name). Same 3-way logic as the TCGdex disambiguator:
  *   - 1 name match → auto-select
  *   - >1 name matches → return only those (picker shows them)
- *   - 0 name matches → return all (picker shows everything)
+ *   - 0 name matches → return null (fall through to next strategy)
  */
 export function disambiguateByName(
   cards: CatalogRow[],
@@ -122,5 +148,9 @@ export function disambiguateByName(
   );
   if (matches.length === 1) return { best: matches[0], candidates: [matches[0]] };
   if (matches.length > 1) return { best: matches[0], candidates: matches };
-  return { best: cards[0], candidates: cards };
+  // Zero name matches — none of the candidates are plausibly the right card.
+  // Return null so the caller can fall through to the next strategy (e.g.
+  // TCGdex live). Previous behaviour picked cards[0] arbitrarily, which
+  // surfaced the wrong card to the user.
+  return { best: null, candidates: cards };
 }
