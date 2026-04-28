@@ -268,35 +268,21 @@ async function catalogLookupByTotal(
   language: string,
 ): Promise<CatalogRow[]> {
   const normNum = normalizeSetNumber(setNumber);
-
-  // Strict: catalog set_total exactly matches printed denominator.
-  const { data: strict, error: strictErr } = await supabase
-    .from('tcg_catalog')
-    .select('*')
-    .eq('set_total', setTotal)
-    .eq('set_number', normNum)
-    .eq('language', language);
-  if (strictErr) throw new Error(`tcg_catalog lookupByTotal strict: ${strictErr.message}`);
-  if (strict && strict.length > 0) return strict as CatalogRow[];
-
-  // Loose: JP cards print "036/190" but the listed total includes secret
-  // rares (e.g. S4a is 326). Find sets whose listed total is greater than
-  // the printed denominator AND whose card list is at least localId long.
-  const localIdNum = Number(normNum);
-  const minTotal = Math.max(
-    Number.isFinite(localIdNum) ? localIdNum : 0,
-    setTotal + 1,
-  );
-  const { data: loose, error: looseErr } = await supabase
+  // Combined strict + loose: any set whose listed total is at least the printed
+  // denominator. Catches both exact matches (set_total = setTotal) and JP cases
+  // where the listed total is inflated by secret rares (e.g. S4a printed 190
+  // but listed 326). Sorted ascending so disambiguation considers tighter
+  // matches first.
+  const { data, error } = await supabase
     .from('tcg_catalog')
     .select('*')
     .eq('set_number', normNum)
     .eq('language', language)
-    .gte('set_total', minTotal)
+    .gte('set_total', setTotal)
     .order('set_total', { ascending: true })
-    .limit(20);
-  if (looseErr) throw new Error(`tcg_catalog lookupByTotal loose: ${looseErr.message}`);
-  return (loose as CatalogRow[]) ?? [];
+    .limit(30);
+  if (error) throw new Error(`tcg_catalog lookupByTotal: ${error.message}`);
+  return (data as CatalogRow[]) ?? [];
 }
 
 /**
