@@ -295,9 +295,148 @@ async function probe() {
   }
 }
 
+/** Strip card name suffixes (ex/V/VMAX/etc) to recover the bare species name.
+ * Mirrors the implementation in lib/api/tcgdex.ts. */
+function extractPokemonName(cardName: string): string {
+  return cardName
+    .replace(/[-\s]*(ex|EX|GX|V|VMAX|VSTAR|V-?UNION|BREAK|LEGEND)\s*$/i, '')
+    .trim();
+}
+
 async function full() {
-  console.log('FULL mode not yet implemented — see Task 9 (full-crawl).');
-  process.exit(1);
+  // Dynamic import of Supabase — circumvents 'server-only' pkg restriction
+  const { createClient } = await import('@supabase/supabase-js');
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
+  }
+  const supabase = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  // Languages to crawl. Driven by the LANG_MAP keys (already validated to
+  // exist on LimitlessTCG). Default crawls all 7; can be narrowed via
+  // LANGUAGES=jp,en env var.
+  const allLangs = Object.keys(LANG_MAP);
+  const langsEnv = process.env.LANGUAGES;
+  const languages = langsEnv ? langsEnv.split(',').map((s) => s.trim()).filter(Boolean) : allLangs;
+
+  // Optional ONLY_SETS env var to test on a subset (comma-separated set codes).
+  const onlySetsEnv = process.env.ONLY_SETS;
+  const onlySets = onlySetsEnv ? new Set(onlySetsEnv.split(',').map((s) => s.trim())) : null;
+
+  console.log(`Starting full crawl of LimitlessTCG.`);
+  console.log(`Languages: ${languages.join(', ')}${onlySets ? ` (filtered to sets: ${[...onlySets].join(',')})` : ''}`);
+  console.log(`Rate limit: ${RATE_LIMIT_MS}ms between requests.\n`);
+
+  const stats = {
+    setsAttempted: 0,
+    setsSucceeded: 0,
+    setsFailed: 0,
+    cardsUpserted: 0,
+    upsertErrors: 0,
+  };
+  const unmappedRarities = new Set<string>();
+  const failedSets: { lang: string; set: string; error: string }[] = [];
+
+  for (const lang of languages) {
+    const ourLang = mapLanguage(lang);
+    if (!ourLang) {
+      console.log(`SKIP language "${lang}" — no mapping to our enum.`);
+      continue;
+    }
+
+    console.log(`\n=== Language: ${lang} (→ ${ourLang}) ===`);
+    let setCodes: string[];
+    try {
+      await sleep(RATE_LIMIT_MS);
+      setCodes = await fetchSetIndex(lang);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`Failed to fetch set index for ${lang}: ${msg}`);
+      continue;
+    }
+    if (onlySets) setCodes = setCodes.filter((s) => onlySets.has(s));
+    console.log(`Found ${setCodes.length} sets to crawl.`);
+
+    for (let i = 0; i < setCodes.length; i++) {
+      const setCode = setCodes[i];
+      const tag = `[${i + 1}/${setCodes.length}] ${lang}/${setCode}`;
+      stats.setsAttempted++;
+
+      try {
+        await sleep(RATE_LIMIT_MS);
+        const url = `${BASE_URL}/cards/${lang}/${encodeURIComponent(setCode)}?display=list`;
+        const res = await httpRequest(url, 'GET');
+        if (res.status !== 200) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const cards = parseSetPage(res.body, setCode, lang);
+        if (cards.length === 0) {
+          console.log(`${tag} — 0 cards parsed (set may be empty/index-only)`);
+          stats.setsSucceeded++;
+          continue;
+        }
+
+        // Build catalog rows (denormalize set_total = count of cards in this set)
+        const setTotal = cards.length;
+        const rows = cards.map((c) => {
+          if (c.rarity && !RARITY_MAP[c.rarity]) unmappedRarities.add(c.rarity);
+          return {
+            cardmarket_id: '',  // empty for LimitlessTCG-sourced rows; future: backfill
+            set_code: c.setCode,
+            set_number: c.setNumber,
+            set_total: setTotal,
+            language: ourLang,
+            card_name: c.cardName,
+            pokemon_name: extractPokemonName(c.cardName),
+            pokemon_number: null,  // not exposed by LimitlessTCG list view
+            set_name: c.setName,
+            rarity: mapRarity(c.rarity),
+            image_url: c.imageUrl,
+          };
+        });
+
+        // Upsert in batches of 100
+        for (let j = 0; j < rows.length; j += 100) {
+          const batch = rows.slice(j, j + 100);
+          const { error } = await supabase
+            .from('tcg_catalog')
+            .upsert(batch, { onConflict: 'set_code,set_number,language' });
+          if (error) {
+            console.error(`${tag} batch ${j}-${j + batch.length} failed: ${error.message}`);
+            stats.upsertErrors++;
+          } else {
+            stats.cardsUpserted += batch.length;
+          }
+        }
+        console.log(`${tag} — ${rows.length} cards upserted (running total: ${stats.cardsUpserted})`);
+        stats.setsSucceeded++;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(`${tag} FAILED: ${msg}`);
+        failedSets.push({ lang, set: setCode, error: msg });
+        stats.setsFailed++;
+      }
+    }
+  }
+
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`Crawl complete:`);
+  console.log(`  Sets attempted:  ${stats.setsAttempted}`);
+  console.log(`  Sets succeeded:  ${stats.setsSucceeded}`);
+  console.log(`  Sets failed:     ${stats.setsFailed}`);
+  console.log(`  Cards upserted:  ${stats.cardsUpserted}`);
+  console.log(`  Upsert errors:   ${stats.upsertErrors}`);
+  if (failedSets.length > 0) {
+    console.log(`\nFailed sets (review and re-run if needed):`);
+    for (const f of failedSets) console.log(`  ${f.lang}/${f.set}: ${f.error}`);
+  }
+  if (unmappedRarities.size > 0) {
+    console.log(`\nUnmapped rarities (added to RARITY_MAP after this run):`);
+    for (const r of unmappedRarities) console.log(`  - "${r}"`);
+  }
 }
 
 const action = MODE === 'full' ? full : probe;
