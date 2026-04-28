@@ -1,11 +1,11 @@
 import type { WordAnnotation } from '@/lib/types';
 
 /**
- * Match "<card>/<total>" — same regex as parse-set-number but applied per-word
- * + as concatenations of adjacent words (Vision sometimes splits "136/174" into
- * three tokens "136", "/", "174").
+ * Match "<card>/<total>" — exact-token form. Also matched as a substring later
+ * to handle Vision merging the rarity glyph onto the number ("098/150RR").
  */
 const SET_NUMBER_RE = /^(\d{1,3})\s*\/\s*(\d{1,3})$/;
+const SET_NUMBER_SUBSTRING_RE = /(\d{1,3})\s*\/\s*(\d{1,3})/;
 
 /**
  * Set codes look like "sv1a", "SV11W", "swsh4", "sm12a" — short alphanumerics
@@ -21,7 +21,32 @@ const SET_NUMBER_RE = /^(\d{1,3})\s*\/\s*(\d{1,3})$/;
  */
 function looksLikeSetCode(text: string): boolean {
   if (!/^[A-Za-z0-9]{3,8}$/.test(text)) return false;
-  return /[A-Za-z]/.test(text) && /\d/.test(text);
+  if (!/[A-Za-z]/.test(text) || !/\d/.test(text)) return false;
+  // Real Pokémon set codes start with letters (SV11W, sm8b, bw5...). Tokens
+  // starting with digits are usually heights ("10m" from "1.0m"), weights,
+  // or attack damage glued to a glyph ("620W").
+  if (!/^[A-Za-z]/.test(text)) return false;
+  return !isCommonFalsePositive(text);
+}
+
+/**
+ * Real-world OCR junk that passes the letters+digits shape but never
+ * corresponds to a real set code:
+ *   - "NO0499", "NO382"     → printed Pokédex number ("全国図鑑NO.0499")
+ *   - "x2", "x4", "Wx2"     → weakness/resistance multipliers (Wx2 = "弱点 ×2")
+ *   - "C2021", "P2018"      → © year prefixes Vision sometimes glues together
+ *   - "5ban"                → 5ban Graphics watermark in card art
+ *   - "HP160"                → HP indicator, not a set
+ *   - 4-digit pure-numeric  → years
+ */
+function isCommonFalsePositive(text: string): boolean {
+  const t = text.toUpperCase();
+  if (/^NO\d+$/.test(t)) return true;
+  if (/^W?X\d+$/.test(t)) return true;
+  if (/^[A-Z]\d{4}$/.test(t)) return true;
+  if (/^HP\d+$/.test(t)) return true;
+  if (t === '5BAN') return true;
+  return false;
 }
 
 /**
@@ -82,7 +107,16 @@ export function findSetNumberCandidate(
   }
 
   if (matches.length === 0) {
-    // Triplet scan as fallback for Vision's aggressive tokenization.
+    // Substring scan — Vision often glues the rarity glyph onto the number
+    // ("098/150RR", "034/054RR XYm"). Same regex but as a substring.
+    for (const word of filtered) {
+      const m = word.text.match(SET_NUMBER_SUBSTRING_RE);
+      if (m) matches.push({ word, card: m[1], total: m[2] });
+    }
+  }
+
+  if (matches.length === 0) {
+    // Triplet scan as last resort for Vision's aggressive tokenization.
     const ordered = [...filtered].sort((a, b) => (a.y === b.y ? a.x - b.x : a.y - b.y));
     for (let i = 0; i < ordered.length - 2; i++) {
       const left = ordered[i];
@@ -147,4 +181,82 @@ export function findSetCodeCandidate(
   }
 
   return candidates[0].cleaned;
+}
+
+/**
+ * Match an OCR token against a list of known set IDs, tolerating common
+ * Vision misreads (l↔1, S↔5, o↔0, B↔8). The OCR text often contains the
+ * actual set code as a separate word — e.g. "BWS" (= "BW5"), "SvllW" (= "SV11W"),
+ * "XYm" (= "xym"). When we have the cached TCGdex set list available we can
+ * just look the token up against it instead of relying on shape heuristics.
+ *
+ * Returns the canonical set ID (lowercased), or null if no token in `text`
+ * fuzzy-matches any known ID.
+ */
+export function findKnownSetCodeInText(text: string, knownIds: string[]): string | null {
+  if (!text) return null;
+  const tokens = new Set<string>();
+  for (const raw of text.split(/[\s\n]+/)) {
+    const cleaned = raw.replace(STRIP_PUNCT_RE, '');
+    if (cleaned.length >= 2 && cleaned.length <= 8) tokens.add(cleaned);
+  }
+  if (tokens.size === 0) return null;
+
+  const normIds = new Map<string, string>();
+  for (const id of knownIds) normIds.set(ocrNormalize(id), id);
+
+  let bestId: string | null = null;
+  let bestScore = -1;
+
+  for (const token of tokens) {
+    const nt = ocrNormalize(token);
+
+    // Exact-after-normalization match wins outright.
+    const exact = normIds.get(nt);
+    if (exact) {
+      const score = 100 + exact.length;
+      if (score > bestScore) { bestScore = score; bestId = exact; }
+      continue;
+    }
+
+    // Levenshtein 1 on normalized form, length ≥ 4 (avoids spurious 3-char matches).
+    if (nt.length < 4) continue;
+    for (const [normId, canonical] of normIds) {
+      if (Math.abs(normId.length - nt.length) > 1) continue;
+      if (levenshtein(nt, normId) <= 1) {
+        const score = 50 + canonical.length;
+        if (score > bestScore) { bestScore = score; bestId = canonical; }
+      }
+    }
+  }
+  return bestId;
+}
+
+/**
+ * Normalize a string for OCR comparison by collapsing the most common Vision
+ * misreads to a canonical form. Lowercase + l→1 + s→5 + o→0 + b→8 reverses
+ * the typography errors we see in the field on Pokémon set codes.
+ */
+function ocrNormalize(s: string): string {
+  return s.toLowerCase().replace(/l/g, '1').replace(/s/g, '5').replace(/o/g, '0').replace(/b/g, '8');
+}
+
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  let curr = new Array<number>(b.length + 1);
+  for (let i = 1; i <= a.length; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      curr[j] = Math.min(
+        prev[j] + 1,
+        curr[j - 1] + 1,
+        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[b.length];
 }
