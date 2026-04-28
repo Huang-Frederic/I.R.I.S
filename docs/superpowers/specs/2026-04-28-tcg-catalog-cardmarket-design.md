@@ -4,6 +4,18 @@
 **Statut** : Approuvé, prêt pour planification d'implémentation
 **Phase projet** : Pré-Phase 2 (résout un blocage Phase 1 sur l'enrichissement OCR)
 
+---
+
+## PIVOT NOTE (2026-04-28)
+
+**Cardmarket API fermée aux nouvelles applications.** La découverte en cours d'implémentation a révélé que Cardmarket a officiellement clos l'accès API à toute nouvelle application depuis 2023. Le code OAuth 1.0a préparatoire a été nettoyé.
+
+**Pivot vers LimitlessTCG (limitlesstcg.com).** Leur robots.txt est entièrement ouvert. Le scraper `scripts/scrape-limitlesstcg.ts` crawle 7 langues × ~150 sets = **111,396 cartes** en ~12 minutes. Le reste de cette spec décrit l'architecture Cardmarket originale — l'implémentation réelle suit la même logique (table `tcg_catalog`, strategies d'enrichissement) mais alimentée par scraping LimitlessTCG au lieu d'OAuth Cardmarket.
+
+Test bench post-catalogue : **19/30 (63%)** mesuré, ~22/30 (73%) effectif quand on accepte les variantes de nom de set. Up de 10/30 (33%) baseline.
+
+---
+
 ## Contexte et problème
 
 Le pipeline d'enrichissement actuel (post-OCR) atteint **10/30 (33%)** sur le bench de cartes réelles. L'investigation montre que **OCR Vision fait son boulot** dans 13/30 cas (43% extraction correcte du set+localId), mais **TCGdex JP n'a pas les cartes anciennes** : les sets antérieurs à SV-era sont listés en metadata mais avec `cards: []` vide.

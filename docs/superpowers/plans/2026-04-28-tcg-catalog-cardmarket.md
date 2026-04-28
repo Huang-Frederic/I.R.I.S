@@ -2,7 +2,19 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a local Pokémon TCG catalog (Supabase table `tcg_catalog`) populated via Cardmarket's Personal App OAuth API, replacing TCGdex as the primary runtime source for post-OCR enrichment.
+---
+
+## PIVOT NOTE (2026-04-28)
+
+**Cardmarket API is closed to new apps.** Mid-implementation discovery: Cardmarket shut down API access for new applications in 2023. Dead OAuth code was cleaned up.
+
+**Pivoted to scraping LimitlessTCG** (limitlesstcg.com, robots.txt fully open). Script `scripts/scrape-limitlesstcg.ts` crawls 7 languages × ~150 sets = **111,396 cards** in ~12 minutes. This plan originally described Cardmarket OAuth workflow — actual implementation follows the same architecture (`tcg_catalog` table, enrichment strategies) but fed by LimitlessTCG scraping instead of Cardmarket OAuth.
+
+Result: test bench went from 10/30 (33%) to **19/30 (63%)** measured, ~22/30 (73%) effective when accounting for set-variant naming.
+
+---
+
+**Goal:** Build a local Pokémon TCG catalog (Supabase table `tcg_catalog`) populated via ~~Cardmarket's Personal App OAuth API~~ **LimitlessTCG scraping**, replacing TCGdex as the primary runtime source for post-OCR enrichment.
 
 **Architecture:** A one-shot Node script crawls ~200 Cardmarket Pokémon expansion endpoints, upserts cards into `tcg_catalog`. The enrich route looks up locally first (`set_code+set_number+language`), falls back to TCGdex for cards not yet scraped. TCGdex's existing wrapper stays as Strategy 3. pokemontcg.io fallback is removed (obsolete).
 

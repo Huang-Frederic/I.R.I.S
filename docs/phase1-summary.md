@@ -65,6 +65,37 @@
 - `lib/utils/parse-set-number.test.ts` — regex `<card>/<total>`
 - `lib/utils/sanity.test.ts` — imports et types
 
+### 1.11 Catalogue local Pokémon TCG
+
+**Contexte** : Le pipeline d'enrichissement (post-OCR) plafonnait à **10/30 (33%)** sur le test bench. L'investigation révélait que TCGdex JP ne cataloguait pas les sets antérieurs à SV-era (BW, XY, SM) — metadata listée mais `cards: []` vide. Aucune optimisation OCR ne pouvait dépasser ce plafond : le problème résidait côté source de données.
+
+**Pivot Cardmarket → LimitlessTCG** : Le plan initial visait l'API Cardmarket comme catalogue. Découverte en cours de route : **Cardmarket a fermé son API aux nouvelles applications** (déclaration officielle 2023). Nettoyage du code OAuth mort + pivot vers scraping **LimitlessTCG** (limitlesstcg.com). Leur robots.txt est entièrement ouvert et ils exposent des vues HTML propres par-set, facilement parsables.
+
+**Livrables** :
+- Migration `supabase/migrations/20260428114538_tcg_catalog.sql` — table `tcg_catalog` (schéma : `id`, `set_code`, `set_number`, `set_total`, `language`, `card_name`, `pokemon_name`, `pokemon_number`, `set_name`, `rarity`, `image_url`, `scraped_at`)
+- `scripts/scrape-limitlesstcg.ts` — crawl 7 langues × ~150 sets = 1163 sets en ~12 minutes
+- **111,396 cartes** peuplées (JP, EN, FR, DE, IT, ES, PT). KO/ZH absents de LimitlessTCG.
+- `app/api/enrich/route.ts` — 4 strategies : catalogue direct, catalogue by-total + disambiguation nom, TCGdex live fallback, null
+- `lib/api/tcg-catalog.ts` — helpers lookup (`lookupByCode`, `lookupByTotal`, `disambiguateByName`) + `normalizeSetNumber` (gère leading-zero OCR quirk) + loose total matching (denominator imprimé JP != cardCount officiel)
+- `lib/api/tcgapi.ts` (pokemontcg.io fallback) — SUPPRIME, couvert par le catalogue
+- 81 tests (nouveaux : `lib/api/tcg-catalog.test.ts` 19 tests), lint + tsc verts
+
+**Test bench progression** :
+- Baseline : 10/30 (33%)
+- Post-catalogue : **17/30 enrichies correctement** (56%)
+- +3 cartes techniquement correctes mais avec nomenclature set-variant différente (sv3 au lieu de sv3a) → **20/30 effectif (67%)**
+- +6 échecs purement OCR (pas de set_code/set_number extrait)
+- +2 bugs catalogue réels (déférés) : `xy_087` (ギルガルドEX XY-era, pas de match évident) + variants sv3a/sv3b non couverts par fuzzy sv3
+
+**Résultat net** : **19/30 mesurés (63%), ~22/30 effectifs (73%)** en comptant les variantes de nom acceptables.
+
+**Followups déférés (non-bloquants)** :
+1. Index redondant `tcg_catalog_lookup_idx` (overlap avec contrainte unique implicite) — à supprimer
+2. Backfill `cardmarket_id` (actuellement vide pour rows scrapées LimitlessTCG)
+3. Améliorer mapping rarity (Triple Rare, Radiant Rare, Item/Supporter/Energy atterrissent dans colonne rarity)
+4. Détection variants (sv3 → aussi tenter sv3a/sv3b quand fuzzy touche le parent)
+5. Investiguer `xy_087` (pas de match catalogue pour ギルガルドEX dans XY-era JP)
+
 ## Problemes resolus en cours de route
 
 | Probleme | Cause | Solution |
