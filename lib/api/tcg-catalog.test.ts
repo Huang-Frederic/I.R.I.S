@@ -1,6 +1,6 @@
 // lib/api/tcg-catalog.test.ts
 import { describe, expect, it } from 'vitest';
-import { rowToEnrichedCard, disambiguateByName, type CatalogRow } from './tcg-catalog';
+import { rowToEnrichedCard, disambiguateByName, normalizeSetNumber, type CatalogRow } from './tcg-catalog';
 
 const baseRow: CatalogRow = {
   id: '00000000-0000-0000-0000-000000000001',
@@ -97,5 +97,33 @@ describe('disambiguateByName', () => {
     const result = disambiguateByName([charizardEx, pikachu], ocr);
     expect(result.best).toBe(charizardEx);
     expect(result.candidates).toEqual([charizardEx]);
+  });
+});
+
+describe('normalizeSetNumber', () => {
+  it('strips leading zeros from numeric set_number ("012" → "12")', () => {
+    expect(normalizeSetNumber('012')).toBe('12');
+    expect(normalizeSetNumber('009')).toBe('9');
+    expect(normalizeSetNumber('001')).toBe('1');
+  });
+
+  it('leaves single-digit numbers unchanged', () => {
+    expect(normalizeSetNumber('1')).toBe('1');
+    expect(normalizeSetNumber('9')).toBe('9');
+  });
+
+  it('preserves multi-digit numbers without leading zeros', () => {
+    expect(normalizeSetNumber('111')).toBe('111');
+    expect(normalizeSetNumber('254')).toBe('254');
+  });
+
+  it('handles "0" without dropping to empty string', () => {
+    expect(normalizeSetNumber('0')).toBe('0');
+    expect(normalizeSetNumber('00')).toBe('0');
+  });
+
+  it('passes alphanumeric set_numbers through unchanged (defensive)', () => {
+    expect(normalizeSetNumber('TG01')).toBe('TG01');
+    expect(normalizeSetNumber('SR-12')).toBe('SR-12');
   });
 });
