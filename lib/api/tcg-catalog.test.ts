@@ -74,4 +74,28 @@ describe('disambiguateByName', () => {
     expect(result.candidates).toEqual([a, b, c]);
     expect(result.best).toBe(a);
   });
+
+  it('returns null/empty when given no candidates', () => {
+    expect(disambiguateByName([], 'any text')).toEqual({ best: null, candidates: [] });
+  });
+
+  it('matches by pokemon_name when card_name has a suffix the OCR misses', () => {
+    // Cardmarket card_name "Charizard ex" but OCR may only have read "Charizard"
+    const charizardEx: CatalogRow = {
+      ...baseRow,
+      set_code: 'SVI',
+      card_name: 'Charizard ex',
+      pokemon_name: 'Charizard',
+    };
+    const pikachu: CatalogRow = {
+      ...baseRow,
+      set_code: 'SVI',
+      card_name: 'Pikachu V',
+      pokemon_name: 'Pikachu',
+    };
+    const ocr = '... Charizard HP 330 ...';
+    const result = disambiguateByName([charizardEx, pikachu], ocr);
+    expect(result.best).toBe(charizardEx);
+    expect(result.candidates).toEqual([charizardEx]);
+  });
 });
