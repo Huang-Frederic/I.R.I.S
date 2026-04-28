@@ -192,6 +192,111 @@ function extractWords(page: VisionPage): WordAnnotation[] {
 }
 
 // ---------------------------------------------------------------------------
+// Catalog helpers (inlined from lib/api/tcg-catalog.ts to avoid server-only)
+// ---------------------------------------------------------------------------
+
+/** Database row shape — matches the tcg_catalog table 1:1. */
+interface CatalogRow {
+  id: string;
+  cardmarket_id: string;
+  set_code: string;
+  set_number: string;
+  set_total: number | null;
+  language: string;
+  card_name: string;
+  pokemon_name: string | null;
+  pokemon_number: number | null;
+  set_name: string;
+  rarity: string | null;
+  image_url: string | null;
+  scraped_at: string;
+}
+
+/**
+ * Strip leading zeros from an OCR-extracted set number ("012" → "12").
+ */
+function normalizeSetNumber(setNumber: string): string {
+  if (!/^\d+$/.test(setNumber)) return setNumber;
+  return setNumber.replace(/^0+/, '') || '0';
+}
+
+/**
+ * Map a catalog row into the EnrichHit shape for test bench comparison.
+ */
+function catalogRowToEnrichHit(row: CatalogRow): EnrichHit {
+  const setNumber = row.set_total != null ? `${row.set_number}/${row.set_total}` : row.set_number;
+  return {
+    card_id_tcg: `${row.set_code}-${row.set_number}`,
+    card_name: row.card_name,
+    set_name: row.set_name,
+    set_code: row.set_code,
+    set_number: setNumber,
+    rarity: row.rarity ?? 'OTHER',
+  };
+}
+
+/**
+ * Direct lookup by (set_code, set_number, language). The fast path.
+ */
+async function catalogLookupByCode(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  setCode: string,
+  setNumber: string,
+  language: string,
+): Promise<CatalogRow | null> {
+  const { data, error } = await supabase
+    .from('tcg_catalog')
+    .select('*')
+    .eq('set_code', setCode)
+    .eq('set_number', normalizeSetNumber(setNumber))
+    .eq('language', language)
+    .maybeSingle();
+  if (error) throw new Error(`tcg_catalog lookupByCode: ${error.message}`);
+  return (data as CatalogRow | null) ?? null;
+}
+
+/**
+ * Fallback lookup when set_code OCR was unreliable: find every row matching
+ * the printed denominator + localId in the requested language.
+ */
+async function catalogLookupByTotal(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  setTotal: number,
+  setNumber: string,
+  language: string,
+): Promise<CatalogRow[]> {
+  const { data, error } = await supabase
+    .from('tcg_catalog')
+    .select('*')
+    .eq('set_total', setTotal)
+    .eq('set_number', normalizeSetNumber(setNumber))
+    .eq('language', language);
+  if (error) throw new Error(`tcg_catalog lookupByTotal: ${error.message}`);
+  return (data as CatalogRow[] | null) ?? [];
+}
+
+/**
+ * Narrow a candidate list using the OCR text (which contains the Pokémon name).
+ */
+function catalogDisambiguateByName(
+  cards: CatalogRow[],
+  ocrText: string,
+): { best: CatalogRow | null; candidates: CatalogRow[] } {
+  if (cards.length === 0) return { best: null, candidates: [] };
+
+  const matches = cards.filter(
+    (c) =>
+      ocrText.includes(c.card_name) ||
+      (c.pokemon_name !== null && ocrText.includes(c.pokemon_name)),
+  );
+  if (matches.length === 1) return { best: matches[0], candidates: [matches[0]] };
+  if (matches.length > 1) return { best: matches[0], candidates: matches };
+  return { best: cards[0], candidates: cards };
+}
+
+// ---------------------------------------------------------------------------
 // Enrichment (calls TCGdex directly, mirrors enrich/route.ts logic)
 // ---------------------------------------------------------------------------
 
@@ -210,37 +315,102 @@ async function tryEnrich(
 ): Promise<{ best: EnrichHit | null; candidateCount: number; usedStrategy: string }> {
   const setCode = ocr.setCodeCandidate;
   const localId = ocr.setNumberCandidate?.card ?? null;
-  const total = ocr.setNumberCandidate?.total
-    ? Number(ocr.setNumberCandidate.total)
-    : null;
+  const total = ocr.setNumberCandidate?.total ? Number(ocr.setNumberCandidate.total) : null;
+  // Test bench uses TCGdex's "ja" lang code; map to our card_language enum.
+  const cardLang = lang === 'ja' ? 'JP' : (lang.toUpperCase() as 'JP' | 'EN' | 'FR' | 'DE' | 'IT' | 'ES' | 'PT');
 
-  // Strategy 1a: fuzzy-match OCR text against known set IDs (most reliable).
+  // Lazy-load Supabase (avoids server-only blast radius).
+  const { createClient } = await import('@supabase/supabase-js');
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Supabase env vars not set');
+  const supabase = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  // Pre-compute fuzzy set code (used by multiple strategies below)
+  let fuzzySetCode: string | null = null;
   if (localId && ocr.text) {
     const sets = await listSets(lang);
     const { findKnownSetCodeInText } = await import('../lib/utils/extract-from-words');
-    const fuzzyCode = findKnownSetCodeInText(ocr.text, sets.map((s) => s.id));
-    if (fuzzyCode) {
-      const card = await tcgdexLookup(fuzzyCode, localId, lang);
-      if (card) return { best: card, candidateCount: 1, usedStrategy: `fuzzy:${fuzzyCode}` };
+    fuzzySetCode = findKnownSetCodeInText(ocr.text, sets.map((s) => s.id));
+  }
+
+  // Strategy 1: catalog lookup with fuzzy-matched set code (most reliable)
+  if (fuzzySetCode && localId) {
+    try {
+      const row = await catalogLookupByCode(supabase, fuzzySetCode, localId, cardLang);
+      if (row) {
+        return {
+          best: catalogRowToEnrichHit(row),
+          candidateCount: 1,
+          usedStrategy: `catalog:fuzzy:${fuzzySetCode}`,
+        };
+      }
+    } catch (err) {
+      console.warn('catalog:fuzzy failed, falling through:', err instanceof Error ? err.message : err);
     }
   }
 
-  // Strategy 1b: heuristic setCode + localId → direct lookup.
+  // Strategy 2: catalog lookup with heuristic set code
   if (setCode && localId) {
-    const card = await tcgdexLookup(setCode, localId, lang);
-    if (card) return { best: card, candidateCount: 1, usedStrategy: 'direct' };
+    try {
+      const row = await catalogLookupByCode(supabase, setCode, localId, cardLang);
+      if (row) {
+        return {
+          best: catalogRowToEnrichHit(row),
+          candidateCount: 1,
+          usedStrategy: 'catalog:direct',
+        };
+      }
+    } catch (err) {
+      console.warn('catalog:direct failed, falling through:', err instanceof Error ? err.message : err);
+    }
   }
 
-  // Strategy 2: total + localId → narrow by set total
+  // Strategy 3: catalog by total (prone to collisions, use as fallback only)
+  if (total != null && localId) {
+    try {
+      const rows = await catalogLookupByTotal(supabase, total, localId, cardLang);
+      if (rows.length > 0) {
+        const result = rows.length > 1
+          ? catalogDisambiguateByName(rows, ocr.text)
+          : { best: rows[0], candidates: rows };
+        if (result.best) {
+          return {
+            best: catalogRowToEnrichHit(result.best),
+            candidateCount: rows.length,
+            usedStrategy: rows.length > 1 ? 'catalog:total+name' : 'catalog:total',
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('catalog:total failed, falling through:', err instanceof Error ? err.message : err);
+    }
+  }
+
+  // Strategy 4: TCGdex live fallback (fuzzy by OCR text → known set IDs)
+  if (fuzzySetCode && localId) {
+    const card = await tcgdexLookup(fuzzySetCode, localId, lang);
+    if (card) return { best: card, candidateCount: 1, usedStrategy: `tcgdex:fuzzy:${fuzzySetCode}` };
+  }
+
+  // Strategy 5: TCGdex direct (heuristic set code)
+  if (setCode && localId) {
+    const card = await tcgdexLookup(setCode, localId, lang);
+    if (card) return { best: card, candidateCount: 1, usedStrategy: 'tcgdex:direct' };
+  }
+
+  // Strategy 6: TCGdex by total
   if (total != null && localId) {
     const cards = await findByTotal(total, localId, lang);
     if (cards.length > 0) {
       const nameMatches = cards.filter((c) => ocr.text.includes(c.card_name));
       if (nameMatches.length === 1)
-        return { best: nameMatches[0], candidateCount: cards.length, usedStrategy: 'total+name1' };
+        return { best: nameMatches[0], candidateCount: cards.length, usedStrategy: 'tcgdex:total+name1' };
       if (nameMatches.length > 1)
-        return { best: nameMatches[0], candidateCount: nameMatches.length, usedStrategy: 'total+nameN' };
-      return { best: cards[0], candidateCount: cards.length, usedStrategy: 'total-noname' };
+        return { best: nameMatches[0], candidateCount: nameMatches.length, usedStrategy: 'tcgdex:total+nameN' };
+      return { best: cards[0], candidateCount: cards.length, usedStrategy: 'tcgdex:total-noname' };
     }
   }
 
@@ -419,7 +589,8 @@ async function main() {
         enrichedSetCode.toLowerCase() === gt.set.toLowerCase() ? 'YES' : 'NO';
       const enrichedSetNumber = best?.set_number ?? '';
       const enrichedLocalId = enrichedSetNumber.split('/')[0] ?? '';
-      const localIdMatch = enrichedLocalId === gt.localId ? 'YES' : 'NO';
+      // Normalize both sides for comparison (catalog stores "27", filename is "027")
+      const localIdMatch = normalizeSetNumber(enrichedLocalId) === normalizeSetNumber(gt.localId) ? 'YES' : 'NO';
 
       if (setMatch === 'YES' && localIdMatch === 'YES') correct++;
 
