@@ -87,8 +87,8 @@ describe('signRequest (HMAC-SHA1 + Authorization header)', () => {
     expect(header).toContain('oauth_timestamp="1700000000"');
     expect(header).toContain('oauth_nonce="fixedNonce"');
     expect(header).toContain('oauth_version="1.0"');
-    // Match a 28-char base64 SHA1 signature, allowing /, +, = chars
-    expect(header).toMatch(/oauth_signature="[A-Za-z0-9+/=]{28}"/);
+    // Base64 SHA1 is 28 chars; percent-encoded grows up to ~34 (=→%3D, +→%2B, /→%2F)
+    expect(header).toMatch(/oauth_signature="[A-Za-z0-9%]{28,40}"/);
   });
 
   it('different secrets produce different signatures', () => {
