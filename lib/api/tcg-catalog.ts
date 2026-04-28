@@ -3,6 +3,18 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CardLanguage, EnrichedCard } from '@/lib/types';
 
+/**
+ * Strip leading zeros from an OCR-extracted set number ("012" → "12").
+ * Catalog stores plain digits without padding; OCR commonly returns the
+ * card's printed form which IS padded. Returns the original string when
+ * non-numeric (defensive — current data has no alphanumerics, but future
+ * cards like "TG01" should pass through unchanged).
+ */
+export function normalizeSetNumber(setNumber: string): string {
+  if (!/^\d+$/.test(setNumber)) return setNumber;
+  return setNumber.replace(/^0+/, '') || '0';
+}
+
 /** Database row shape — matches the tcg_catalog table 1:1. */
 export interface CatalogRow {
   id: string;
@@ -58,7 +70,7 @@ export async function lookupByCode(
     .from('tcg_catalog')
     .select('*')
     .eq('set_code', setCode)
-    .eq('set_number', setNumber)
+    .eq('set_number', normalizeSetNumber(setNumber))
     .eq('language', language)
     .maybeSingle();
   if (error) throw new Error(`tcg_catalog lookupByCode: ${error.message}`);
@@ -81,7 +93,7 @@ export async function lookupByTotal(
     .from('tcg_catalog')
     .select('*')
     .eq('set_total', setTotal)
-    .eq('set_number', setNumber)
+    .eq('set_number', normalizeSetNumber(setNumber))
     .eq('language', language);
   if (error) throw new Error(`tcg_catalog lookupByTotal: ${error.message}`);
   return (data as CatalogRow[] | null) ?? [];
