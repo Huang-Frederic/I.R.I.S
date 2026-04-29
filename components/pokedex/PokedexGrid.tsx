@@ -5,7 +5,8 @@ import type { Card } from '@/lib/types';
 import { GENERATIONS } from '@/lib/utils/pokemon-generations';
 import PokedexCell from './PokedexCell';
 import PokedexDrawer from './PokedexDrawer';
-import PokedexFilters, { type FilterState } from './PokedexFilters';
+import PokedexFilters, { type FilterState, type ViewMode } from './PokedexFilters';
+import PokedexListItem from './PokedexListItem';
 
 interface PokedexGridProps {
   cards: Card[];
@@ -14,6 +15,17 @@ interface PokedexGridProps {
 const TOTAL_POKEMON = 1025;
 const ALL_NUMBERS = Array.from({ length: TOTAL_POKEMON }, (_, i) => i + 1);
 
+const VIEW_MODE_KEY = 'iris.pokedex.viewMode';
+
+function getInitialViewMode(): ViewMode {
+  if (typeof window === 'undefined') return 'grid-5';
+  const stored = localStorage.getItem(VIEW_MODE_KEY);
+  if (stored === 'grid-3' || stored === 'grid-5' || stored === 'list') {
+    return stored;
+  }
+  return 'grid-5';
+}
+
 export default function PokedexGrid({ cards }: PokedexGridProps) {
   const [selectedPokemon, setSelectedPokemon] = useState<number | null>(null);
   const [filters, setFilters] = useState<FilterState>({
@@ -21,6 +33,13 @@ export default function PokedexGrid({ cards }: PokedexGridProps) {
     status: 'all',
     search: '',
   });
+  const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode);
+
+  // Persist view mode to localStorage
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem(VIEW_MODE_KEY, mode);
+  };
 
   // pokedexMap: one card per pokemon (status='pokedex' enforced by the partial unique index)
   // availableMap: every other card the user owns, grouped by pokemon — feeds the
@@ -49,6 +68,12 @@ export default function PokedexGrid({ cards }: PokedexGridProps) {
   const selectedAvailable =
     selectedPokemon !== null ? (availableMap.get(selectedPokemon) ?? []) : [];
 
+  const gridClasses = {
+    'grid-3': 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3',
+    'grid-5': 'grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2',
+    'list': 'flex flex-col gap-1',
+  }[viewMode];
+
   return (
     <>
       <PokedexFilters
@@ -56,6 +81,8 @@ export default function PokedexGrid({ cards }: PokedexGridProps) {
         onChange={setFilters}
         total={TOTAL_POKEMON}
         visible={visibleNumbers.length}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
       />
 
       {visibleNumbers.length === 0 ? (
@@ -63,15 +90,25 @@ export default function PokedexGrid({ cards }: PokedexGridProps) {
           Aucun Pokémon ne correspond aux filtres.
         </p>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2">
-          {visibleNumbers.map((n) => (
-            <PokedexCell
-              key={n}
-              number={n}
-              card={pokedexMap.get(n) ?? null}
-              onClick={() => setSelectedPokemon(n)}
-            />
-          ))}
+        <div className={`${gridClasses} transition-all duration-200`}>
+          {visibleNumbers.map((n) => {
+            const card = pokedexMap.get(n) ?? null;
+            return viewMode === 'list' ? (
+              <PokedexListItem
+                key={n}
+                number={n}
+                card={card}
+                onClick={() => setSelectedPokemon(n)}
+              />
+            ) : (
+              <PokedexCell
+                key={n}
+                number={n}
+                card={card}
+                onClick={() => setSelectedPokemon(n)}
+              />
+            );
+          })}
         </div>
       )}
 
