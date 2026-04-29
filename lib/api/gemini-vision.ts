@@ -54,8 +54,11 @@ const SCHEMA = {
 
 /**
  * Send a card image to Gemini 3 Flash Preview and extract structured fields.
- * Returns null on API error, timeout, or low-confidence response — caller
- * should fall back to Google Vision in that case.
+ * Returns null on API error, timeout, missing API key, or incomplete response.
+ *
+ * Low-confidence responses are returned as-is — the UI surfaces a warning
+ * via the confidence threshold check, but data still flows. We do NOT fall
+ * back to Vision on low confidence (Gemini-low > Vision-anything per bench).
  */
 export async function extractCardFromImage(
   imageBuffer: Buffer,
