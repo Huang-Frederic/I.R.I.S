@@ -173,6 +173,8 @@ export default function MobileSubmit() {
       localId,
       total,
       language: form.language,
+      // Note: handleResearch doesn't have access to OCR Gemini fields, so they're undefined here
+      // That's fine — enrichment will work with catalog data only
     };
 
     setResearching(true);
@@ -288,8 +290,20 @@ export default function MobileSubmit() {
             total: Number(setNumberParsed.total),
             language,
             text: ocr.text,
+            // NEW — from Gemini extraction (Chunk 1)
+            pokemonNumber: ocr.pokemonNumber,
+            pokemonNameFr: ocr.pokemonNameFr,
+            setName: ocr.setName,
+            setNameFr: ocr.setNameFr,
           }
-        : { text: ocr.text };
+        : {
+            text: ocr.text,
+            // NEW — from Gemini extraction (Chunk 1)
+            pokemonNumber: ocr.pokemonNumber,
+            pokemonNameFr: ocr.pokemonNameFr,
+            setName: ocr.setName,
+            setNameFr: ocr.setNameFr,
+          };
 
       const enrichRes = await fetch('/api/enrich', {
         method: 'POST',

@@ -6,6 +6,8 @@ import {
   lookupByCode,
   lookupByTotal,
   rowToEnrichedCard,
+  formatBilingualName,
+  deriveCardNameFr,
 } from '@/lib/api/tcg-catalog';
 import {
   enrichWithFrenchNames,
@@ -28,6 +30,12 @@ interface EnrichBody {
   localId?: string;
   total?: string | number;
   language?: CardLanguage;
+
+  // NEW — from Gemini extraction (Chunk 1)
+  pokemonNumber?: number | null;
+  pokemonNameFr?: string | null;
+  setName?: string | null;
+  setNameFr?: string | null;
 }
 
 /** Helper: race a promise against a timeout, returning null instead of rejecting on timeout. */
@@ -39,6 +47,25 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
     }, ms),
   );
   return Promise.race([promise, timeout]);
+}
+
+/**
+ * Enrich an EnrichedCard with Gemini-extracted data (bilingual names + pokemon_number).
+ * Formats names as "FR (Original)" when scanned card is non-FR and Gemini provided FR.
+ */
+function applyGeminiEnrichments(
+  enriched: EnrichedCard,
+  body: EnrichBody,
+  language: CardLanguage,
+): EnrichedCard {
+  const cardNameFr = deriveCardNameFr(enriched.card_name, body.pokemonNameFr);
+  return {
+    ...enriched,
+    card_name: formatBilingualName(enriched.card_name, cardNameFr, language),
+    pokemon_name: formatBilingualName(enriched.pokemon_name, body.pokemonNameFr, language),
+    set_name: formatBilingualName(enriched.set_name, body.setNameFr, language),
+    pokemon_number: enriched.pokemon_number ?? body.pokemonNumber ?? null,
+  };
 }
 
 /**
@@ -76,9 +103,10 @@ export async function POST(request: Request) {
         'catalog lookupByCode',
       );
       if (row) {
+        const enriched = applyGeminiEnrichments(rowToEnrichedCard(row), body, cardLang);
         return NextResponse.json({
-          bestMatch: rowToEnrichedCard(row),
-          candidates: [rowToEnrichedCard(row)],
+          bestMatch: enriched,
+          candidates: [enriched],
         } satisfies EnrichResult);
       }
     } catch (e) {
@@ -100,8 +128,8 @@ export async function POST(request: Request) {
           : { best: rows[0]!, candidates: rows };
         if (result.best) {
           return NextResponse.json({
-            bestMatch: rowToEnrichedCard(result.best),
-            candidates: result.candidates.map(rowToEnrichedCard),
+            bestMatch: applyGeminiEnrichments(rowToEnrichedCard(result.best), body, cardLang),
+            candidates: result.candidates.map((r) => applyGeminiEnrichments(rowToEnrichedCard(r), body, cardLang)),
           } satisfies EnrichResult);
         }
       }
@@ -137,7 +165,15 @@ export async function POST(request: Request) {
               ),
             )
           : [enriched];
-      return NextResponse.json({ bestMatch: enriched, candidates } satisfies EnrichResult);
+      // TCGdex already formats bilingual names, so only add pokemon_number from Gemini if catalog had null
+      const withPokemonNumber = (card: EnrichedCard): EnrichedCard => ({
+        ...card,
+        pokemon_number: card.pokemon_number ?? body.pokemonNumber ?? null,
+      });
+      return NextResponse.json({
+        bestMatch: withPokemonNumber(enriched),
+        candidates: candidates.map(withPokemonNumber),
+      } satisfies EnrichResult);
     }
 
     // Strategy 4: nothing found
