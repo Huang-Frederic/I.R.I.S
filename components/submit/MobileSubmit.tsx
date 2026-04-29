@@ -104,6 +104,12 @@ export default function MobileSubmit() {
   const [researching, setResearching] = useState(false);
   const [researchMsg, setResearchMsg] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<EnrichedCard[]>([]);
+  const [ocrGemini, setOcrGemini] = useState<{
+    pokemonNumber?: number | null;
+    pokemonNameFr?: string | null;
+    setName?: string | null;
+    setNameFr?: string | null;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [zoomPos, setZoomPos] = useState<{ x: number; y: number } | null>(null);
   const [imageDimensions, setImageDimensions] = useState({ w: 0, h: 0 });
@@ -124,6 +130,7 @@ export default function MobileSubmit() {
     setResearching(false);
     setResearchMsg(null);
     setCandidates([]);
+    setOcrGemini(null);
     setPhase('idle');
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
@@ -172,12 +179,16 @@ export default function MobileSubmit() {
 
     const total = totalStr ? Number(totalStr) : undefined;
     const body = {
+      text: ocrText || undefined,
       setCode: setCode || undefined,
       localId,
       total,
       language: form.language,
-      // Note: handleResearch doesn't have access to OCR Gemini fields, so they're undefined here
-      // That's fine — enrichment will work with catalog data only
+      // Include OCR Gemini fields if available (preserves FR translations)
+      pokemonNumber: ocrGemini?.pokemonNumber ?? undefined,
+      pokemonNameFr: ocrGemini?.pokemonNameFr ?? undefined,
+      setName: ocrGemini?.setName ?? undefined,
+      setNameFr: ocrGemini?.setNameFr ?? undefined,
     };
 
     setResearching(true);
@@ -276,6 +287,12 @@ export default function MobileSubmit() {
       setOcrText(ocr.text);
       setExtractedSetCode(ocr.setCodeCandidate);
       setExtractedSetNumber(ocr.setNumberCandidate?.raw ?? null);
+      setOcrGemini({
+        pokemonNumber: ocr.pokemonNumber,
+        pokemonNameFr: ocr.pokemonNameFr,
+        setName: ocr.setName,
+        setNameFr: ocr.setNameFr,
+      });
 
       // Smart extraction: if Vision pinned the set number / set code in the
       // bottom-left footer, pre-fill them and let the server resolve the card.
