@@ -1,9 +1,10 @@
 'use client';
 
-import { Search } from 'lucide-react';
+import { Search, Grid2x2, Grid3x3, List } from 'lucide-react';
 import { GENERATIONS } from '@/lib/utils/pokemon-generations';
 
 export type StatusFilter = 'all' | 'completed' | 'missing';
+export type ViewMode = 'grid-3' | 'grid-5' | 'list';
 
 export interface FilterState {
   gen: string;
@@ -16,6 +17,8 @@ interface PokedexFiltersProps {
   onChange: (next: FilterState) => void;
   total: number;
   visible: number;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }
 
 export default function PokedexFilters({
@@ -23,10 +26,37 @@ export default function PokedexFilters({
   onChange,
   total,
   visible,
+  viewMode,
+  onViewModeChange,
 }: PokedexFiltersProps) {
   return (
     <div className="bg-bg sticky top-0 z-10 -mx-4 mb-4 flex flex-col gap-3 px-4 py-3 md:mx-0 md:px-0">
       <div className="flex flex-wrap items-center gap-3">
+        <div className="border-border flex overflow-hidden rounded border text-sm" role="group" aria-label="Mode d'affichage">
+          {([
+            { mode: 'grid-3' as ViewMode, icon: Grid3x3, label: 'Grille large' },
+            { mode: 'grid-5' as ViewMode, icon: Grid2x2, label: 'Grille compacte' },
+            { mode: 'list' as ViewMode, icon: List, label: 'Liste' },
+          ]).map(({ mode, icon: Icon, label }) => {
+            const active = viewMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => onViewModeChange(mode)}
+                aria-label={label}
+                aria-pressed={active}
+                className={`p-2 transition-colors ${
+                  active
+                    ? 'bg-red-bg text-red'
+                    : 'bg-surface-2 text-text-muted hover:text-text'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+              </button>
+            );
+          })}
+        </div>
         <select
           value={value.gen}
           onChange={(e) => onChange({ ...value, gen: e.target.value })}
