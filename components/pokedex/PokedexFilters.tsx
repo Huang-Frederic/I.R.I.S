@@ -4,7 +4,7 @@ import { Search, Grid2x2, Grid3x3, List } from 'lucide-react';
 import { GENERATIONS } from '@/lib/utils/pokemon-generations';
 
 export type StatusFilter = 'all' | 'completed' | 'missing';
-export type ViewMode = 'grid-3' | 'grid-5' | 'list';
+export type ViewMode = 'grid-large' | 'grid-compact' | 'list';
 
 export interface FilterState {
   gen: string;
@@ -34,8 +34,8 @@ export default function PokedexFilters({
       <div className="flex flex-wrap items-center gap-3">
         <div className="border-border flex overflow-hidden rounded border text-sm" role="group" aria-label="Mode d'affichage">
           {([
-            { mode: 'grid-3' as ViewMode, icon: Grid3x3, label: 'Grille large' },
-            { mode: 'grid-5' as ViewMode, icon: Grid2x2, label: 'Grille compacte' },
+            { mode: 'grid-large' as ViewMode, icon: Grid2x2, label: 'Grille large' },
+            { mode: 'grid-compact' as ViewMode, icon: Grid3x3, label: 'Grille compacte' },
             { mode: 'list' as ViewMode, icon: List, label: 'Liste' },
           ]).map(({ mode, icon: Icon, label }) => {
             const active = viewMode === mode;

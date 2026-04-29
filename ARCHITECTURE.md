@@ -244,7 +244,7 @@ Toutes les routes API sont **protégées par authentification** sauf `/api/price
 ### components/pokedex/ — Module Pokédex
 
 - `components/pokedex/.gitkeep` (0 lignes) — Placeholder.
-- `components/pokedex/PokedexGrid.tsx` (144 lignes) — **Grille 1025 Pokémon**. Client Component. Props : `cards: Card[]`. Construit 2 maps : `pokedexMap` (1 carte par pokemon_number avec `status='pokedex'`), `availableMap` (toutes les autres cartes for_sale/collection groupées par pokemon_number). Gère 3 modes d'affichage (`grid-3` large, `grid-5` compact, `list`) persistés en `localStorage` (clé `iris.pokedex.viewMode`). Filtres via `<PokedexFilters />`. Cellule rendue selon mode : `<PokedexCell />` pour grid-* / `<PokedexListItem />` pour list. Clic → ouvre `<PokedexDrawer />` avec la carte Pokédex + cartes disponibles pour remplacement.
+- `components/pokedex/PokedexGrid.tsx` (144 lignes) — **Grille 1025 Pokémon**. Client Component. Props : `cards: Card[]`. Construit 2 maps : `pokedexMap` (1 carte par pokemon_number avec `status='pokedex'`), `availableMap` (toutes les autres cartes for_sale/collection groupées par pokemon_number). Gère 3 modes d'affichage (`grid-large` 3-6 colonnes, `grid-compact` 5-10 colonnes, `list`) persistés en `localStorage` (clé `iris.pokedex.viewMode`). Filtres via `<PokedexFilters />`. Cellule rendue selon mode : `<PokedexCell />` pour grid-* / `<PokedexListItem />` pour list. Clic → ouvre `<PokedexDrawer />` avec la carte Pokédex + cartes disponibles pour remplacement.
 
 - `components/pokedex/PokedexCell.tsx` (66 lignes) — **Cellule grille Pokédex** : sprite PokeAPI (URL GitHub raw `sprites/pokemon/{number}.png`). Si carte possédée → couleur, sinon → silhouette (`filter: brightness(0) opacity(0.25)`). Affiche numéro + nom Pokémon ou "???" si manquant. Lazy loading image.
 
@@ -252,7 +252,7 @@ Toutes les routes API sont **protégées par authentification** sauf `/api/price
 
 - `components/pokedex/PokedexDrawer.tsx` (192 lignes) — **Drawer détail Pokédex** : bottom sheet mobile, sidebar desktop. Affiche photo user + image TCG côte à côte, nom complet, set, rareté, langue, condition, prix Cardmarket (low/trend/avg/suggested), date d'ajout. Si carte manquante → message + bouton "Scanner". Bouton "Remplacer" → modal liste des cartes disponibles (`availableCards`) triées par rarity_rank DESC. Sélection → appelle `/api/pokedex/replace`.
 
-- `components/pokedex/PokedexFilters.tsx` (113 lignes) — **Barre de filtres Pokédex** : sticky top. Toggle de mode d'affichage (3 boutons : `Grid3x3` "Grille large", `Grid2x2` "Grille compacte", `List` "Liste") avec labels visibles ≥ sm. 3 filtres data : (1) Génération (dropdown Gen 1-9 + Tous), (2) Statut (Tous/Complétés/Manquants), (3) Recherche (input texte). Affiche compteur "X affiché(s) · Y dans le filtre". Export types `FilterState { gen, status, search }`, `ViewMode = 'grid-3' | 'grid-5' | 'list'`, `StatusFilter` + interface `PokedexFiltersProps` (incl. `viewMode` + `onViewModeChange`).
+- `components/pokedex/PokedexFilters.tsx` (113 lignes) — **Barre de filtres Pokédex** : sticky top. Toggle de mode d'affichage (3 boutons : `Grid2x2` "Grille large", `Grid3x3` "Grille compacte", `List` "Liste") avec labels visibles ≥ sm. 3 filtres data : (1) Génération (dropdown Gen 1-9 + Tous), (2) Statut (Tous/Complétés/Manquants), (3) Recherche (input texte). Affiche compteur "X affiché(s) · Y dans le filtre". Export types `FilterState { gen, status, search }`, `ViewMode = 'grid-large' | 'grid-compact' | 'list'`, `StatusFilter` + interface `PokedexFiltersProps` (incl. `viewMode` + `onViewModeChange`).
 
 ### components/ui/ — (vide pour l'instant)
 
@@ -679,7 +679,7 @@ Ces fichiers existent localement mais ne sont jamais committés :
 - **Names bilingues** : `lib/api/tcg-catalog.ts` exporte `formatBilingualName` + `deriveCardNameFr` ; `app/api/enrich/route.ts` applique `applyGeminiEnrichments` après chaque hit catalogue → `card_name = "Gruikui ex (チャオブーex)"`, `set_name = "Combat de Maîtres (ホワイトフレア)"`.
 - **Variant dropdown** : nouvelle migration `20260429142350_add_cards_variant.sql` (colonne `variant text` sur `cards`) ; `MobileSubmit.tsx` propose Standard / Poké Ball / Master Ball / Reverse Holo / Promo.
 - **UI scanner** : layout 2 colonnes desktop (photo sticky + form), loupe magnifier 1.5× sur hover, formulaire en grille plus dense, bouton "Re-rechercher" préserve les champs OCR Gemini.
-- **Pokédex view modes** : 3 modes (`grid-3` large 3-6 colonnes, `grid-5` compact 5-10 colonnes, `list` ligne sprite + nom + carte + rareté + prix) persistés dans `localStorage` (clé `iris.pokedex.viewMode`). Nouveau composant `PokedexListItem.tsx`.
+- **Pokédex view modes** : 3 modes (`grid-large` 3-6 colonnes, `grid-compact` 5-10 colonnes, `list` ligne sprite + nom + carte + rareté + prix) persistés dans `localStorage` (clé `iris.pokedex.viewMode`). Nouveau composant `PokedexListItem.tsx`.
 - **Renommage UX** : "TCG match" → "Match catalogue" dans le bandeau.
 - 116 tests (+19), 0 lint warning.
 
@@ -773,11 +773,11 @@ Ces fichiers existent localement mais ne sont jamais committés :
 
 | Fichier | Lignes | Description |
 |---------|--------|-------------|
-| `components/pokedex/PokedexGrid.tsx` | 144 | Grille 1025 Pokémon : maps pokedex/available, filtres, 3 modes d'affichage (grid-3 / grid-5 / list) persistés en localStorage, render conditionnel cell vs list-item, drawer. |
+| `components/pokedex/PokedexGrid.tsx` | 144 | Grille 1025 Pokémon : maps pokedex/available, filtres, 3 modes d'affichage (grid-large / grid-compact / list) persistés en localStorage, render conditionnel cell vs list-item, drawer. |
 | `components/pokedex/PokedexCell.tsx` | 66 | Cellule sprite PokeAPI : couleur si possédée, silhouette sinon. Lazy loading. |
 | `components/pokedex/PokedexListItem.tsx` | 97 | Ligne mode liste : sprite 48px + n° + nom Pokémon + carte + badge rareté + prix Cardmarket trend (ou suggested fallback). Badge ✓/— pour état possédé/manquant. |
 | `components/pokedex/PokedexDrawer.tsx` | 192 | Drawer détail : photo + image TCG, infos, prix, bouton Remplacer, modal liste cartes disponibles. |
-| `components/pokedex/PokedexFilters.tsx` | 113 | Filtres : toggle mode d'affichage (3 boutons + labels visibles ≥ sm), génération, statut, recherche. Export `ViewMode = 'grid-3' | 'grid-5' | 'list'`. |
+| `components/pokedex/PokedexFilters.tsx` | 113 | Filtres : toggle mode d'affichage (3 boutons + labels visibles ≥ sm), génération, statut, recherche. Export `ViewMode = 'grid-large' | 'grid-compact' | 'list'`. |
 | `lib/utils/pokedex-suggestion.ts` | 112 | Logique suggestion : `computePokedexSuggestion` (pure function), 4 outcomes, price tie-breaker. |
 | `lib/utils/pokedex-suggestion.test.ts` | 128 | Tests suggestion : 4 outcomes, price breaker. 9 tests. |
 | `lib/utils/pokemon-generations.ts` | 17 | Config générations 1-9 avec plages numéros. |
