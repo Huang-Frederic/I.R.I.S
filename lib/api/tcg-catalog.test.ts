@@ -1,6 +1,12 @@
 // lib/api/tcg-catalog.test.ts
 import { describe, expect, it } from 'vitest';
-import { rowToEnrichedCard, disambiguateByName, normalizeSetNumber, type CatalogRow } from './tcg-catalog';
+import {
+  rowToEnrichedCard,
+  disambiguateByName,
+  normalizeSetNumber,
+  normalizeSetCode,
+  type CatalogRow,
+} from './tcg-catalog';
 
 const baseRow: CatalogRow = {
   id: '00000000-0000-0000-0000-000000000001',
@@ -125,5 +131,33 @@ describe('normalizeSetNumber', () => {
   it('passes alphanumeric set_numbers through unchanged (defensive)', () => {
     expect(normalizeSetNumber('TG01')).toBe('TG01');
     expect(normalizeSetNumber('SR-12')).toBe('SR-12');
+  });
+});
+
+describe('normalizeSetCode', () => {
+  it('strips dashes and lowercases for promo sets ("SM-P" → "smp")', () => {
+    expect(normalizeSetCode('SM-P')).toBe('smp');
+    expect(normalizeSetCode('XY-P')).toBe('xyp');
+  });
+
+  it('lowercases mixed-case codes ("SV11W" → "sv11w")', () => {
+    expect(normalizeSetCode('SV11W')).toBe('sv11w');
+    expect(normalizeSetCode('sv11w')).toBe('sv11w');
+  });
+
+  it('preserves alphanumerics and lowercases ("BW5n" → "bw5n")', () => {
+    expect(normalizeSetCode('BW5n')).toBe('bw5n');
+    expect(normalizeSetCode('sm8b')).toBe('sm8b');
+  });
+
+  it('handles codes that are already normalized', () => {
+    expect(normalizeSetCode('smp')).toBe('smp');
+    expect(normalizeSetCode('xyp')).toBe('xyp');
+  });
+
+  it('strips all non-alphanumeric characters', () => {
+    expect(normalizeSetCode('S4-a')).toBe('s4a');
+    expect(normalizeSetCode('BW_5')).toBe('bw5');
+    expect(normalizeSetCode('XY/P')).toBe('xyp');
   });
 });

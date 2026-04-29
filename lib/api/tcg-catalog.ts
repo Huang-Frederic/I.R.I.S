@@ -15,6 +15,15 @@ export function normalizeSetNumber(setNumber: string): string {
   return setNumber.replace(/^0+/, '') || '0';
 }
 
+/**
+ * Normalize a set_code by stripping non-alphanumerics and lowercasing.
+ * Catalog stores "smp"/"xyp" but OCR may return "SM-P"/"XY-P"/"SV11W".
+ * Treats them as equivalent.
+ */
+export function normalizeSetCode(code: string): string {
+  return code.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+}
+
 /** Database row shape — matches the tcg_catalog table 1:1. */
 export interface CatalogRow {
   id: string;
@@ -59,6 +68,9 @@ export function rowToEnrichedCard(row: CatalogRow): EnrichedCard {
 /**
  * Direct lookup by (set_code, set_number, language). The fast path —
  * hits the unique index, returns 0 or 1 rows.
+ *
+ * Now uses normalized set_code comparison (strip dashes, lowercase) to handle
+ * OCR variants like "SM-P" vs "smp", "XY-P" vs "xyp".
  */
 export async function lookupByCode(
   supabase: SupabaseClient,
@@ -66,15 +78,23 @@ export async function lookupByCode(
   setNumber: string,
   language: CardLanguage,
 ): Promise<CatalogRow | null> {
+  const normCode = normalizeSetCode(setCode);
+  const normNum = normalizeSetNumber(setNumber);
+
+  // Fetch all matching number+language, then filter by normalized set_code in JS.
+  // This pulls ~5-20 rows max (set_number + language is narrow), filters in JS.
+  // Fast enough and handles SM-P/smp, XY-P/xyp, sv11W/sv11w variants.
   const { data, error } = await supabase
     .from('tcg_catalog')
     .select('*')
-    .eq('set_code', setCode)
-    .eq('set_number', normalizeSetNumber(setNumber))
-    .eq('language', language)
-    .maybeSingle();
+    .eq('set_number', normNum)
+    .eq('language', language);
   if (error) throw new Error(`tcg_catalog lookupByCode: ${error.message}`);
-  return (data as CatalogRow | null) ?? null;
+
+  const filtered = (data as CatalogRow[])?.filter(
+    (r) => normalizeSetCode(r.set_code) === normCode,
+  );
+  return filtered?.[0] ?? null;
 }
 
 /**
