@@ -34,8 +34,8 @@ export default function PokedexFilters({
       <div className="flex flex-wrap items-center gap-3">
         <div className="border-border flex overflow-hidden rounded border text-sm" role="group" aria-label="Mode d'affichage">
           {([
-            { mode: 'grid-3' as ViewMode, icon: Grid3x3, label: 'Grille large' },
-            { mode: 'grid-5' as ViewMode, icon: Grid2x2, label: 'Grille compacte' },
+            { mode: 'grid-3' as ViewMode, icon: Grid2x2, label: 'Grille large' },
+            { mode: 'grid-5' as ViewMode, icon: Grid3x3, label: 'Grille compacte' },
             { mode: 'list' as ViewMode, icon: List, label: 'Liste' },
           ]).map(({ mode, icon: Icon, label }) => {
             const active = viewMode === mode;
