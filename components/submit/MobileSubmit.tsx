@@ -486,7 +486,7 @@ export default function MobileSubmit() {
 
           {!enrichFound && (
             <div className="border-rarity-ar bg-rarity-ar/10 text-rarity-ar rounded-lg border p-3 text-xs">
-              Aucun match TCG API — soit le numéro de set n&apos;a pas été lu, soit la carte n&apos;est
+              Aucun match catalogue — soit le numéro de set n&apos;a pas été lu, soit la carte n&apos;est
               pas indexée (sets JP récents notamment). Le texte OCR ci-dessous t&apos;aidera à
               compléter manuellement.
             </div>
@@ -536,7 +536,7 @@ export default function MobileSubmit() {
               )}
               {form.tcg_image_url && (
                 <p className="text-text-faint text-xs font-mono">
-                  TCG match : <span className="text-text-muted">{form.card_id_tcg}</span>
+                  Match catalogue : <span className="text-text-muted">{form.card_id_tcg}</span>
                 </p>
               )}
             </div>
@@ -594,7 +594,7 @@ export default function MobileSubmit() {
                 disabled={researching}
                 className="border-border text-text-muted hover:bg-surface-2 hover:text-text shrink-0 rounded border px-3 text-xs font-medium disabled:opacity-50"
               >
-                {researching ? '…' : 'Re-rechercher TCG'}
+                {researching ? '…' : 'Re-rechercher catalogue'}
               </button>
             </div>
             {researchMsg && (
