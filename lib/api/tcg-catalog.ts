@@ -168,3 +168,48 @@ export function disambiguateByName(
   // surfaced the wrong card to the user.
   return { best: null, candidates: cards };
 }
+
+/**
+ * Format a name with French translation in front of the original:
+ *   formatBilingualName('チャオブー', 'Gruikui', 'JP') → 'Gruikui (チャオブー)'
+ *   formatBilingualName('チャオブー', null, 'JP')     → 'チャオブー'
+ *   formatBilingualName('Gruikui', 'Gruikui', 'FR')   → 'Gruikui'  (already FR, no parens)
+ *   formatBilingualName('Pikachu', 'Pikachu', 'EN')   → 'Pikachu'  (same name, no parens)
+ *
+ * Skips formatting when:
+ * - frenchName is null/empty
+ * - frenchName equals original (already in French or same in both languages)
+ * - language is already 'FR'
+ */
+export function formatBilingualName(
+  original: string,
+  frenchName: string | null | undefined,
+  language: CardLanguage,
+): string {
+  if (!frenchName || !frenchName.trim()) return original;
+  if (language === 'FR') return original; // Already French, no need
+  if (frenchName.trim().toLowerCase() === original.trim().toLowerCase()) return original;
+  return `${frenchName} (${original})`;
+}
+
+/**
+ * Derive a French card name by extracting suffixes (ex, EX, V, VMAX, etc.)
+ * from the original card name and appending them to the French Pokémon species name.
+ *
+ * Examples:
+ *   deriveCardNameFr('チャオブー', 'Gruikui')       → 'Gruikui'
+ *   deriveCardNameFr('チャオブーex', 'Gruikui')     → 'Gruikui ex'
+ *   deriveCardNameFr('ホウオウEX', 'Ho-Oh')        → 'Ho-Oh EX'
+ *   deriveCardNameFr('リザードンVMAX', 'Charizard') → 'Charizard VMAX'
+ *   deriveCardNameFr('ピカチュウV', null)          → null
+ */
+export function deriveCardNameFr(
+  originalCardName: string,
+  pokemonNameFr: string | null | undefined,
+): string | null {
+  if (!pokemonNameFr) return null;
+  // Extract suffix like "ex", "EX", "V", "VMAX", "VSTAR", "GX", etc. from end of original
+  const suffixMatch = originalCardName.match(/[\s-]*(ex|EX|GX|V|VMAX|VSTAR|V-?UNION|BREAK|LEGEND)\s*$/i);
+  const suffix = suffixMatch ? ` ${suffixMatch[1]}` : '';
+  return `${pokemonNameFr}${suffix}`;
+}

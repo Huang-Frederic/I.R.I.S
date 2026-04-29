@@ -7,6 +7,8 @@ import {
   normalizeSetNumber,
   normalizeSetCode,
   lookupByCode,
+  formatBilingualName,
+  deriveCardNameFr,
   type CatalogRow,
 } from './tcg-catalog';
 
@@ -177,5 +179,78 @@ describe('lookupByCode', () => {
 
     const result = await lookupByCode(mockSupabase, '---', '12', 'JP');
     expect(result).toBeNull();
+  });
+});
+
+describe('formatBilingualName', () => {
+  it('formats as "FR (Original)" when original is JP and FR is provided', () => {
+    expect(formatBilingualName('チャオブー', 'Gruikui', 'JP')).toBe('Gruikui (チャオブー)');
+  });
+
+  it('returns original when frenchName is null', () => {
+    expect(formatBilingualName('チャオブー', null, 'JP')).toBe('チャオブー');
+  });
+
+  it('returns original when frenchName is empty string', () => {
+    expect(formatBilingualName('チャオブー', '', 'JP')).toBe('チャオブー');
+  });
+
+  it('returns original when language is already FR', () => {
+    expect(formatBilingualName('Gruikui', 'Gruikui', 'FR')).toBe('Gruikui');
+  });
+
+  it('returns original when frenchName equals original (case-insensitive)', () => {
+    expect(formatBilingualName('Pikachu', 'Pikachu', 'EN')).toBe('Pikachu');
+    expect(formatBilingualName('pikachu', 'Pikachu', 'EN')).toBe('pikachu');
+  });
+
+  it('formats EN cards with FR translation', () => {
+    expect(formatBilingualName('Charizard', 'Dracaufeu', 'EN')).toBe('Dracaufeu (Charizard)');
+  });
+
+  it('handles whitespace in frenchName', () => {
+    expect(formatBilingualName('ホウオウ', '  Ho-Oh  ', 'JP')).toBe('  Ho-Oh   (ホウオウ)');
+  });
+});
+
+describe('deriveCardNameFr', () => {
+  it('returns just pokemon name when no suffix', () => {
+    expect(deriveCardNameFr('チャオブー', 'Gruikui')).toBe('Gruikui');
+  });
+
+  it('appends "ex" suffix when present', () => {
+    expect(deriveCardNameFr('チャオブーex', 'Gruikui')).toBe('Gruikui ex');
+  });
+
+  it('appends "EX" suffix when present (uppercase)', () => {
+    expect(deriveCardNameFr('ホウオウEX', 'Ho-Oh')).toBe('Ho-Oh EX');
+  });
+
+  it('appends "VMAX" suffix', () => {
+    expect(deriveCardNameFr('リザードンVMAX', 'Charizard')).toBe('Charizard VMAX');
+  });
+
+  it('appends "V" suffix', () => {
+    expect(deriveCardNameFr('ピカチュウV', 'Pikachu')).toBe('Pikachu V');
+  });
+
+  it('appends "GX" suffix', () => {
+    expect(deriveCardNameFr('ルガルガンGX', 'Lycanroc')).toBe('Lycanroc GX');
+  });
+
+  it('appends "VSTAR" suffix', () => {
+    expect(deriveCardNameFr('アルセウスVSTAR', 'Arceus')).toBe('Arceus VSTAR');
+  });
+
+  it('returns null when pokemonNameFr is null', () => {
+    expect(deriveCardNameFr('ピカチュウV', null)).toBeNull();
+  });
+
+  it('returns null when pokemonNameFr is empty', () => {
+    expect(deriveCardNameFr('ピカチュウV', '')).toBeNull();
+  });
+
+  it('handles suffix with spaces/dashes', () => {
+    expect(deriveCardNameFr('Charizard ex', 'Dracaufeu')).toBe('Dracaufeu ex');
   });
 });
