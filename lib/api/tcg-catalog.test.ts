@@ -1,10 +1,12 @@
 // lib/api/tcg-catalog.test.ts
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   rowToEnrichedCard,
   disambiguateByName,
   normalizeSetNumber,
   normalizeSetCode,
+  lookupByCode,
   type CatalogRow,
 } from './tcg-catalog';
 
@@ -159,5 +161,21 @@ describe('normalizeSetCode', () => {
     expect(normalizeSetCode('S4-a')).toBe('s4a');
     expect(normalizeSetCode('BW_5')).toBe('bw5');
     expect(normalizeSetCode('XY/P')).toBe('xyp');
+  });
+});
+
+describe('lookupByCode', () => {
+  it('returns null when normalized set_code is empty', async () => {
+    // Mock the supabase client to verify lookupByCode short-circuits on empty normalized code
+    const mockSupabase = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+    } as unknown as SupabaseClient;
+
+    const result = await lookupByCode(mockSupabase, '---', '12', 'JP');
+    expect(result).toBeNull();
   });
 });

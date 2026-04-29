@@ -66,11 +66,12 @@ export function rowToEnrichedCard(row: CatalogRow): EnrichedCard {
 }
 
 /**
- * Direct lookup by (set_code, set_number, language). The fast path —
- * hits the unique index, returns 0 or 1 rows.
- *
- * Now uses normalized set_code comparison (strip dashes, lowercase) to handle
- * OCR variants like "SM-P" vs "smp", "XY-P" vs "xyp".
+ * Direct lookup by (set_code, set_number, language). Two paths:
+ *   1. Fast path — exact match on the unique index. Sub-ms when Gemini returns
+ *      the canonical set_code (most common case).
+ *   2. Slow path — fall back to a (set_number, language) query + JS filtering
+ *      by normalized set_code, to handle OCR variants like "SM-P" vs "smp".
+ *      ~5-20 candidate rows, fast enough for our ~100 scans/month volume.
  */
 export async function lookupByCode(
   supabase: SupabaseClient,
@@ -78,23 +79,34 @@ export async function lookupByCode(
   setNumber: string,
   language: CardLanguage,
 ): Promise<CatalogRow | null> {
-  const normCode = normalizeSetCode(setCode);
   const normNum = normalizeSetNumber(setNumber);
 
-  // Fetch all matching number+language, then filter by normalized set_code in JS.
-  // This pulls ~5-20 rows max (set_number + language is narrow), filters in JS.
-  // Fast enough and handles SM-P/smp, XY-P/xyp, sv11W/sv11w variants.
-  const { data, error } = await supabase
+  // Fast path: strict equality on the unique index (set_code, set_number, language).
+  // Hits on ~95% of cases when Gemini returns the canonical set code.
+  const { data: strict, error: strictErr } = await supabase
+    .from('tcg_catalog')
+    .select('*')
+    .eq('set_code', setCode)
+    .eq('set_number', normNum)
+    .eq('language', language)
+    .maybeSingle();
+  if (strictErr) throw new Error(`tcg_catalog lookupByCode strict: ${strictErr.message}`);
+  if (strict) return strict as CatalogRow;
+
+  // Slow path: OCR sometimes returns variant naming (SM-P vs smp, XY-P vs xyp).
+  // Fetch all candidates for this set_number+language (~5-20 rows max),
+  // filter by normalized set_code in JS.
+  const normCode = normalizeSetCode(setCode);
+  if (!normCode) return null; // defensive: empty after normalization (e.g. '---')
+
+  const { data: candidates, error: candErr } = await supabase
     .from('tcg_catalog')
     .select('*')
     .eq('set_number', normNum)
     .eq('language', language);
-  if (error) throw new Error(`tcg_catalog lookupByCode: ${error.message}`);
+  if (candErr) throw new Error(`tcg_catalog lookupByCode loose: ${candErr.message}`);
 
-  const filtered = (data as CatalogRow[])?.filter(
-    (r) => normalizeSetCode(r.set_code) === normCode,
-  );
-  return filtered?.[0] ?? null;
+  return (candidates ?? []).find((r) => normalizeSetCode(r.set_code) === normCode) ?? null;
 }
 
 /**
