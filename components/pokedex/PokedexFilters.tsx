@@ -34,8 +34,8 @@ export default function PokedexFilters({
       <div className="flex flex-wrap items-center gap-3">
         <div className="border-border flex overflow-hidden rounded border text-sm" role="group" aria-label="Mode d'affichage">
           {([
-            { mode: 'grid-3' as ViewMode, icon: Grid2x2, label: 'Grille large' },
-            { mode: 'grid-5' as ViewMode, icon: Grid3x3, label: 'Grille compacte' },
+            { mode: 'grid-3' as ViewMode, icon: Grid3x3, label: 'Grille large' },
+            { mode: 'grid-5' as ViewMode, icon: Grid2x2, label: 'Grille compacte' },
             { mode: 'list' as ViewMode, icon: List, label: 'Liste' },
           ]).map(({ mode, icon: Icon, label }) => {
             const active = viewMode === mode;
@@ -46,13 +46,14 @@ export default function PokedexFilters({
                 onClick={() => onViewModeChange(mode)}
                 aria-label={label}
                 aria-pressed={active}
-                className={`p-2 transition-colors ${
+                className={`px-3 py-2 flex items-center gap-2 transition-colors ${
                   active
                     ? 'bg-red-bg text-red'
                     : 'bg-surface-2 text-text-muted hover:text-text'
                 }`}
               >
                 <Icon className="h-4 w-4" />
+                <span className="hidden sm:inline text-xs">{label}</span>
               </button>
             );
           })}
