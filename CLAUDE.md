@@ -10,6 +10,7 @@ Spec complète : [context.md](context.md). Plan d'implémentation en 4 phases : 
 
 - **Phase 1** — TERMINEE. Auth, layout, OCR, enrichissement TCGdex, scan mobile, suggestion Pokédex, grille Pokédex, candidate picker. 52 tests, 0 lint warning.
 - **Phase 1.11** — TERMINEE. Catalogue local Pokémon TCG via scraping LimitlessTCG. 111K cartes JP/EN/FR/DE/IT/ES/PT. Enrichissement post-scan passe de 33% à 63-73% (test bench). 81 tests, 0 lint warning.
+- **Phase 1.12** — TERMINEE. Gemini 3 Flash Preview comme moteur OCR primaire. Extraction structurée JSON (`card_name`, `set_code`, `set_number`, `language`, `confidence`). Bench : 28/30 (93%), fallback Google Vision. Cost : 6¢/mois pour 100 scans. 97 tests, 0 lint warning.
 - **Phase 2** — A FAIRE. Module Vinted (liste FIFO, générateur d'annonce, action "vendu").
 - **Phase 3** — A FAIRE. Cardmarket OAuth, cron prix, mode lot, script Python CLI.
 - **Phase 4** — A FAIRE. Dashboard, bulk vendu, polish PWA.
@@ -23,14 +24,14 @@ Bilan détaillé : [docs/phase1-summary.md](docs/phase1-summary.md).
 - **Supabase** — via `@supabase/ssr` (helpers dans `lib/supabase/`).
 - **TCGdex** — Fallback API live pour sets non scrapés. Cardmarket pricing inclus.
 - **LimitlessTCG** — Source du catalogue local (111K cartes, scraping robots.txt OK).
-- **Google Vision** — `DOCUMENT_TEXT_DETECTION` + `languageHints: ['ja', 'en']`.
+- **Gemini 3 Flash Preview** — Moteur OCR primaire via `lib/api/gemini-vision.ts` (JSON structuré). Google Vision (fallback si Gemini erreur ou absent).
 - **Tests** — Vitest + happy-dom. Lancer : `npm test`.
 
 ## Architecture clé
 
 | Module | Fichiers |
 |---|---|
-| OCR | `lib/api/vision.ts`, `app/api/ocr/route.ts` |
+| OCR | `lib/api/gemini-vision.ts` (primaire), `lib/api/vision.ts` (fallback), `app/api/ocr/route.ts` |
 | Catalogue local | `lib/api/tcg-catalog.ts`, table `tcg_catalog` (111K cartes) |
 | Scraper LimitlessTCG | `scripts/scrape-limitlesstcg.ts` (~12 min, 7 langues, 1163 sets) |
 | Enrichissement | `app/api/enrich/route.ts` (catalogue → TCGdex fallback) |
@@ -41,8 +42,8 @@ Bilan détaillé : [docs/phase1-summary.md](docs/phase1-summary.md).
 
 ## Pipeline d'enrichissement
 
-1. OCR (Vision) → texte + bounding boxes → extraction smart set_number + set_code
-2. Enrich Strategy 1 : `setCode + setNumber` → lookup direct table `tcg_catalog`
+1. OCR (Gemini 3 Flash Preview) → JSON structuré `{ card_name, set_code, set_number, language, confidence }`. Fallback Google Vision si Gemini timeout/erreur/clé absente.
+2. Enrich Strategy 1 : `setCode + setNumber` → lookup direct table `tcg_catalog` (normalisation SM-P/XY-P via `normalizeSetCode`)
 3. Enrich Strategy 2 : `total + setNumber` → lookup loose dans `tcg_catalog` (gère JP où denominator imprimé != cardCount officiel) + disambiguation par nom OCR
 4. Enrich Strategy 3 : TCGdex live fallback (nouveaux sets pas encore dans le catalogue)
 5. Strategy 4 : null (OCR extractions conservées pour pré-remplir le form, user complète à la main)
@@ -58,7 +59,11 @@ Bilan détaillé : [docs/phase1-summary.md](docs/phase1-summary.md).
 
 ## Setup local
 
-Lire [docs/setup.md](docs/setup.md) pour la creation des comptes externes (Supabase, Google Vision).
+Lire [docs/setup.md](docs/setup.md) pour la creation des comptes externes (Supabase, Google Vision, Gemini API).
+
+**Gemini API Key** : `GEMINI_API_KEY` requis dans `.env.local`. Activer la facturation sur le projet GCP (Tier 1 quotas : inclus dans free tier si < $0.50/mois).
+
+**Google Vision** : toujours requis comme fallback si Gemini timeout/erreur ou clé manquante.
 
 **Note pour scripts locaux** : si erreur `UNABLE_TO_VERIFY_LEAF_SIGNATURE` lors du scraping LimitlessTCG, lancer `export INSECURE_HTTPS=1` avant le script (contournement temporaire pour certificats strictement valides mais rejetés par Node 22 sur WSL).
 

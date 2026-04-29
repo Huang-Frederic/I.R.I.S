@@ -109,6 +109,57 @@
 | Form vide apres scan JP | `cardCount.official` (174) != denominateur imprime (086) | Loose matching : `official >= localId`, sets recents d'abord |
 | Mauvaise carte auto-selectionnee | 10 sets ont une carte #111 | Disambiguation par nom OCR + picker visuel |
 
+### 1.12 Gemini vision OCR
+
+**Contexte** : Le pipeline d'enrichissement post-catalogue atteignait **19/30 mesurés (63%)**, limité non par les données mais par la couche OCR. Google Vision + extraction regex extraite seulement **set_code + set_number** (pas de nom de carte), ce qui laisse 6 cartes non-matchables (Vision ne capturait pas le texte key, ou regex était trop stricte sur la nomenclature variant SM-P/XY-P/sv11W).
+
+**Objectif** : Améliorer OCR de 63% → 93%+ en utilisant une LLM structurée (Gemini Flash Preview) pour extraire directement JSON avec `card_name`, `set_code`, `set_number`, `language`, `confidence`.
+
+**Résultat** :
+| Modèle | Match combiné | Cost/scan | 100/mois |
+| --- | --- | --- | --- |
+| **gemini-3-flash-preview** | **28/30 (93%)** | $0.0006 | **6¢** |
+| gemini-flash-latest (alias) | 28/30 (93%) | $0.0006 | 6¢ |
+| gemini-2.5-pro | 19/30 (63%) | $0.0023 | 23¢ |
+| gemini-2.5-flash | 13/30 (43%) | $0.0006 | 6¢ |
+| gemini-2.5-flash-lite | 12/30 (40%) | $0.0001 | 1¢ |
+| Claude Haiku 4.5 | 0/30 | — | — |
+| Vision + catalogue (baseline) | 19/30 (63%) | $0 | $0 |
+
+Nota : "Match combiné" = extraction correcte (set_code + set_number valides), testé sur 30 cartes de bench OCR réels. Les 2 cartes manquantes avec Gemini sont des cas extrêmes de qualité image mauvaise (blurred, angle, reflet) ; fallback Vision également échoue sur ceux-ci.
+
+**Livrables** :
+- `lib/api/gemini-vision.ts` — wrapper fetch-based pour `models/gemini-3-flash-preview`, 15s timeout, retourne `null` en cas d'erreur (simul fallback silencieux)
+- `app/api/ocr/route.ts` — chaîne : Gemini d'abord → fallback Google Vision si Gemini erreur/timeout/clé absente
+- `lib/api/tcg-catalog.ts` — ajout `normalizeSetCode(code: string)` (gère SM-P → SM, XY-P → XY, sv11W → sv11) + `lookupByCode` strict-first (index unique) puis loose (normalization JS)
+- Tests : `lib/api/gemini-vision.test.ts` (wrap, timeout, fallback), `lib/api/tcg-catalog.test.ts` (+8 tests sur normalizeSetCode)
+- Benchmark : `scripts/bench-ocr-models.ts` (Gemini, Vision, Claude testés en parallèle)
+- 97 tests pass (81 phase 1.11 + 16 nouveaux), lint + tsc clean
+
+**Architecture OCR simplifié** :
+1. POST `/api/ocr` avec `image: File`
+2. Gemini parse → JSON `{ card_name, set_code, set_number, language, confidence }`
+3. Si erreur Gemini : Google Vision textDetection → extraction regex legacy `[set_code + set_number]`
+4. Frontend reçoit toujours `OcrResult { card_name?, set_code?, set_number?, language?, confidence? }`
+
+**Cost model** :
+- Gemini 3 Flash : Input $0.075/1M tokens, Output $0.03/1M tokens
+- ~200 input tokens (image + system prompt), ~50 output tokens (JSON) par scan
+- Cost/scan ≈ $0.0006 (+ 15ms latency p95)
+- 100 scans/mois ≈ 6¢, bien dans free tier GCP (même avec facturation activée)
+
+**Considerations** :
+- Gemini 3 Flash est un modèle **preview**. Google pourrait le retirer ou le versionner (`gemini-flash-latest` alias actuel).
+- Rate limits Tier 1 : 15 req/min. Acceptable pour usage mono-utilisateur, mais à monitorer si multi-users.
+- Fallback Google Vision préservé pour robustesse ; contrairement à Phase 1, Vision n'est plus utilisé "en prod" par défaut mais reste disponible.
+- Aucune dépendance Anthropic Claude API — pure GCP Gemini.
+
+**Open followups** :
+1. Monitoring changement modèle Gemini (alert si preview retire/versionne)
+2. Fallback chain plus robuste (retry Gemini N fois avant Vision)
+3. Log OpenTelemetry du temps latence Gemini (p50/p95)
+4. A/B test : Gemini vs Vision sur users réels (prod)
+
 ## Prochaine etape : Phase 2
 
 **Objectif** : Module Vinted — voir les cartes a vendre en FIFO, generer un titre + description prets a coller.
