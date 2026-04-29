@@ -146,6 +146,7 @@ export async function POST(request: Request) {
       image_url,
       tcg_image_url: str(formData, 'tcg_image_url'),
       notes: str(formData, 'notes'),
+      variant: str(formData, 'variant') || null,
       cardmarket_id,
       cm_price_low,
       cm_price_trend,

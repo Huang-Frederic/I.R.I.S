@@ -38,6 +38,13 @@ const RARITIES: { value: CardRarity; label: string }[] = [
   { value: 'C', label: 'C — Common' },
   { value: 'OTHER', label: 'Autre / inconnue' },
 ];
+const VARIANTS: { value: string; label: string }[] = [
+  { value: '', label: 'Standard' },
+  { value: 'pokeball', label: 'Poké Ball' },
+  { value: 'masterball', label: 'Master Ball' },
+  { value: 'reverse_holo', label: 'Reverse Holo' },
+  { value: 'promo', label: 'Promo' },
+];
 
 type Phase = 'idle' | 'scanning' | 'reviewing' | 'saving' | 'success' | 'error';
 
@@ -55,6 +62,7 @@ interface FormFields {
   condition: CardCondition;
   status: CardStatus;
   notes: string;
+  variant: string;
   /* Pricing — hidden from the user, populated by enrichment when available. */
   cardmarket_id: string;
   cm_price_low: string;
@@ -76,6 +84,7 @@ const EMPTY: FormFields = {
   condition: 'NM',
   status: 'for_sale',
   notes: '',
+  variant: '',
   cardmarket_id: '',
   cm_price_low: '',
   cm_price_trend: '',
@@ -724,9 +733,18 @@ export default function MobileSubmit() {
               </div>
             </div>
 
-            <Field label="Nom du set (optionnel)">
-              <Input value={form.set_name} onChange={(v) => update('set_name', v)} placeholder="Stellar Miracle" />
-            </Field>
+            <div className="grid grid-cols-[1fr_auto] gap-3">
+              <Field label="Nom du set (optionnel)">
+                <Input value={form.set_name} onChange={(v) => update('set_name', v)} placeholder="Stellar Miracle" />
+              </Field>
+              <Field label="Variante">
+                <Select
+                  value={form.variant}
+                  onChange={(v) => update('variant', v)}
+                  options={VARIANTS}
+                />
+              </Field>
+            </div>
 
             <div className="flex flex-col gap-2">
               <button

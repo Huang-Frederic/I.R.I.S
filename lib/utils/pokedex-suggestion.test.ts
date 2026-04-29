@@ -34,6 +34,7 @@ function makeCard(overrides: Partial<Card> = {}): Card {
     date_sold: null,
     sold_price: null,
     notes: null,
+    variant: null,
     ...overrides,
   };
 }
