@@ -48,6 +48,7 @@ export interface Card {
   date_sold: string | null;
   sold_price: number | null;
   notes: string | null;
+  variant: string | null;
 }
 
 export interface Lot {
