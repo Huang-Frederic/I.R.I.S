@@ -160,6 +160,32 @@ Nota : "Match combiné" = extraction correcte (set_code + set_number valides), t
 3. Log OpenTelemetry du temps latence Gemini (p50/p95)
 4. A/B test : Gemini vs Vision sur users réels (prod)
 
+### 1.13 Translations FR + UX polish
+
+**Contexte** : Le pipeline OCR + enrichissement fonctionne (93% bench), mais l'UX reste rugueuse :
+- Les noms japonais (`チャオブー`) sont illisibles pour le user, qui doit chercher la traduction à la main avant de générer une annonce Vinted.
+- Le formulaire scanner a un layout vertical qui force du scroll sur desktop ; l'image preview est trop petite pour zoomer sur la rareté/illustrateur.
+- La grille Pokédex à 1025 cellules est compacte mais inadaptée à la lecture détaillée d'une carte précise (rareté + prix).
+- La table `cards` n'a pas de colonne pour distinguer les variantes (Poké Ball / Master Ball / Reverse Holo / Promo) qui valent souvent 1.5-2× le standard sur Vinted.
+- Bug : le fix Gemini `pokemon_number` flow ne descendait pas jusqu'au formulaire (`pokemon_number` resté vide).
+
+**Livrables** :
+- **Gemini OCR enrichi** (commit `dabaff2`) : `lib/api/gemini-vision.ts` retourne 4 nouveaux champs depuis le training data du modèle — `pokemon_number` (national dex 1-1025), `pokemon_name_fr` (`"Gruikui"` pour `チャオブー`), `set_name`, `set_name_fr` (`"Combat de Maîtres"` pour `ホワイトフレア`). Le prompt liste explicitement ces champs et leur fallback `null`.
+- **Reformatage bilingue** (commit `87370f2`) : `lib/api/tcg-catalog.ts` exporte `formatBilingualName(original, frenchName, language)` (`"Gruikui (チャオブー)"`) + `deriveCardNameFr` (extrait suffixe `ex`/`EX`/`V`/`VMAX`/`VSTAR`/`GX`/`BREAK`/`LEGEND` du nom original et le concatène au nom FR du Pokémon). `app/api/enrich/route.ts` applique `applyGeminiEnrichments` sur tous les hits catalogue.
+- **Renommage UX** (commit `e964369`) : "TCG match" → "Match catalogue" dans le bandeau de scan ; vérification du wiring Pokédex auto-suggestion.
+- **Scanner UI 2-col + loupe** (commits `6c6d043`, `bc16bc3`) : layout 2 colonnes desktop (photo+loupe sticky à gauche, formulaire à droite), grille interne du form plus dense (Pokémon # + nom Pokémon + nom carte sur 3 colonnes), loupe magnifier 1.5× sur hover de l'image (clamp pour rester dans les bounds). Re-rechercher passe les champs OCR Gemini (commit `6ae7351`) pour préserver les FR translations entre essais.
+- **Pokédex view modes** (commits `3eda84c`, `86b9376`, `7cf9443`) : 3 modes — `grid-3` (3-6 cols, large), `grid-5` (5-10 cols, compact), `list` (sprite + nom + carte + rareté + prix). Préférence persistée dans `localStorage` (`iris.pokedex.viewMode`). Nouveau composant `PokedexListItem.tsx` (97 lignes). Toggle avec icônes Lucide (`Grid3x3`, `Grid2x2`, `List`) + labels visibles ≥ sm.
+- **Variant dropdown** (commit `e155a50`) : nouvelle migration `20260429142350_add_cards_variant.sql` (colonne `variant text` sur `cards`, NULL = standard). `MobileSubmit.tsx` propose Standard / Poké Ball / Master Ball / Reverse Holo / Promo. `app/api/cards/route.ts` accepte `notes` et `variant` dans le POST.
+- 116 tests (+19 vs Phase 1.12), 0 lint warning, tsc clean.
+
+**Note de validation** : pas encore testé end-to-end en conditions réelles (vraies sessions de scan utilisateur). Les tests unitaires couvrent les helpers (formatBilingualName, deriveCardNameFr, mapping Gemini), mais aucun test E2E sur les view modes / variant dropdown / loupe.
+
+**Followups différés** :
+1. Pricing Cardmarket par variant — le scraper LimitlessTCG ne distingue pas Poké Ball / standard ; Phase 3 devra splitter cette donnée pour calculer un suggested_price correct.
+2. Dashboard Vinted (Phase 4) avec filtres par variant et par rareté.
+3. Bug latent : si Gemini retourne `pokemon_number` mais le catalogue retourne une carte avec un `pokemon_number` différent (cas rare des cartes Trainers avec un Pokémon en illustration), le catalogue gagne. À investiguer si on voit des mismatches en prod.
+4. Tests E2E (Playwright) sur les view modes Pokédex et le flow scan complet.
+
 ## Prochaine etape : Phase 2
 
 **Objectif** : Module Vinted — voir les cartes a vendre en FIFO, generer un titre + description prets a coller.
