@@ -107,6 +107,7 @@ export default function MobileSubmit() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [zoomPos, setZoomPos] = useState<{ x: number; y: number } | null>(null);
   const [imageDimensions, setImageDimensions] = useState({ w: 0, h: 0 });
+  const imageRef = useRef<HTMLImageElement>(null);
 
   function reset() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -324,6 +325,7 @@ export default function MobileSubmit() {
         setForm({
           ...EMPTY,
           language,
+          pokemon_number: ocr.pokemonNumber ? String(ocr.pokemonNumber) : '',
           set_code: setCode,
           set_number: setNumber,
         });
@@ -337,7 +339,7 @@ export default function MobileSubmit() {
         ...EMPTY,
         language,
         pokemon_name: match?.pokemon_name ?? '',
-        pokemon_number: match?.pokemon_number?.toString() ?? '',
+        pokemon_number: match?.pokemon_number?.toString() ?? (ocr.pokemonNumber ? String(ocr.pokemonNumber) : ''),
         card_name: match?.card_name ?? '',
         card_id_tcg: match?.card_id_tcg ?? '',
         set_name: match?.set_name ?? '',
@@ -483,143 +485,160 @@ export default function MobileSubmit() {
       )}
 
       {(phase === 'reviewing' || phase === 'saving' || phase === 'success') && previewUrl && (
-        <form onSubmit={handleSave} className="flex flex-col gap-6">
-          {/* Photo section with loupe */}
-          <div className="flex flex-col gap-3">
-            <h3 className="text-text-muted flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
-              <Camera className="h-3.5 w-3.5" aria-hidden />
-              Photo
-            </h3>
+        <form onSubmit={handleSave} className="grid gap-6 lg:grid-cols-[minmax(0,28rem)_1fr] lg:items-start">
+          {/* Left column: Photo section with loupe (sticky on desktop) */}
+          <div className="lg:sticky lg:top-6">
             <div className="flex flex-col gap-3">
-              <div
-                className="relative mx-auto w-full max-w-md select-none overflow-hidden rounded-xl border-2 border-border shadow-lg"
-                onMouseMove={(e) => {
-                  const target = e.currentTarget.getBoundingClientRect();
-                  const x = e.clientX - target.left;
-                  const y = e.clientY - target.top;
-                  setZoomPos({ x, y });
-                }}
-                onMouseLeave={() => setZoomPos(null)}
-                onTouchMove={(e) => {
-                  const target = e.currentTarget.getBoundingClientRect();
-                  const touch = e.touches[0];
-                  if (touch) {
-                    const x = touch.clientX - target.left;
-                    const y = touch.clientY - target.top;
+              <h3 className="text-text-muted flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
+                <Camera className="h-3.5 w-3.5" aria-hidden />
+                Photo
+              </h3>
+              <div className="flex flex-col gap-3">
+                <div
+                  className="relative mx-auto w-full max-w-md select-none overflow-hidden rounded-xl border-2 border-border shadow-lg lg:max-w-none"
+                  onMouseMove={(e) => {
+                    const target = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - target.left;
+                    const y = e.clientY - target.top;
                     setZoomPos({ x, y });
-                  }
-                }}
-                onTouchEnd={() => setZoomPos(null)}
-              >
-                <Image
-                  src={previewUrl}
-                  alt="Aperçu de la carte"
-                  width={600}
-                  height={840}
-                  className="w-full object-contain"
-                  unoptimized
-                  onLoad={(e) => {
-                    const img = e.currentTarget;
-                    setImageDimensions({ w: img.naturalWidth, h: img.naturalHeight });
                   }}
-                />
-                {zoomPos && imageDimensions.w > 0 && (
-                  <div
-                    className="pointer-events-none absolute rounded-full border-2 border-white shadow-2xl"
-                    style={{
-                      width: 140,
-                      height: 140,
-                      left: zoomPos.x - 70,
-                      top: zoomPos.y - 70,
-                      backgroundImage: `url(${previewUrl})`,
-                      backgroundSize: `${imageDimensions.w * 2.5}px ${imageDimensions.h * 2.5}px`,
-                      backgroundPosition: `-${zoomPos.x * 2.5 - 70}px -${zoomPos.y * 2.5 - 70}px`,
+                  onMouseLeave={() => setZoomPos(null)}
+                  onTouchMove={(e) => {
+                    const target = e.currentTarget.getBoundingClientRect();
+                    const touch = e.touches[0];
+                    if (touch) {
+                      const x = touch.clientX - target.left;
+                      const y = touch.clientY - target.top;
+                      setZoomPos({ x, y });
+                    }
+                  }}
+                  onTouchEnd={() => setZoomPos(null)}
+                >
+                  <Image
+                    ref={imageRef}
+                    src={previewUrl}
+                    alt="Aperçu de la carte"
+                    width={600}
+                    height={840}
+                    className="w-full object-contain"
+                    unoptimized
+                    onLoad={(e) => {
+                      const img = e.currentTarget;
+                      setImageDimensions({ w: img.naturalWidth, h: img.naturalHeight });
                     }}
                   />
-                )}
+                  {zoomPos && imageDimensions.w > 0 && imageRef.current && (() => {
+                    const LOUPE_SIZE = 140;
+                    const ZOOM = 1.5;
+                    const imgRect = imageRef.current.getBoundingClientRect();
+                    const displayedW = imgRect.width;
+                    const displayedH = imgRect.height;
+
+                    // Clamp cursor position to keep loupe inside image bounds
+                    const clampedX = Math.min(Math.max(zoomPos.x, LOUPE_SIZE / 2), displayedW - LOUPE_SIZE / 2);
+                    const clampedY = Math.min(Math.max(zoomPos.y, LOUPE_SIZE / 2), displayedH - LOUPE_SIZE / 2);
+
+                    return (
+                      <div
+                        className="pointer-events-none absolute rounded-full border-2 border-white shadow-2xl"
+                        style={{
+                          width: LOUPE_SIZE,
+                          height: LOUPE_SIZE,
+                          left: clampedX - LOUPE_SIZE / 2,
+                          top: clampedY - LOUPE_SIZE / 2,
+                          backgroundImage: `url(${previewUrl})`,
+                          backgroundSize: `${displayedW * ZOOM}px ${displayedH * ZOOM}px`,
+                          backgroundPosition: `-${zoomPos.x * ZOOM - LOUPE_SIZE / 2}px -${zoomPos.y * ZOOM - LOUPE_SIZE / 2}px`,
+                        }}
+                      />
+                    );
+                  })()}
+                </div>
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="border-border text-text-muted hover:border-red hover:text-text mx-auto flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-medium transition-colors"
+                >
+                  <Camera className="h-3.5 w-3.5" aria-hidden />
+                  Reprendre
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={reset}
-                className="border-border text-text-muted hover:border-red hover:text-text mx-auto flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-medium transition-colors"
-              >
-                <Camera className="h-3.5 w-3.5" aria-hidden />
-                Reprendre
-              </button>
             </div>
           </div>
 
-          {/* Status block */}
-          <div className={`flex flex-col gap-2 rounded-xl border p-4 ${
-            confidence >= CONFIDENCE_THRESHOLD
-              ? 'bg-rarity-r/10 border-rarity-r/30'
-              : 'bg-rarity-ar/10 border-rarity-ar/30'
-          }`}>
-            <div className="flex items-start gap-2">
-              {confidence >= CONFIDENCE_THRESHOLD ? (
-                <CheckCircle2 className="text-rarity-r mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              ) : (
-                <AlertTriangle className="text-rarity-ar mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              )}
-              <div className="flex flex-1 flex-col gap-1">
-                <p className={`text-sm font-medium ${
-                  confidence >= CONFIDENCE_THRESHOLD ? 'text-rarity-r' : 'text-rarity-ar'
-                }`}>
-                  {confidence >= CONFIDENCE_THRESHOLD ? 'OCR fiable' : 'OCR à vérifier'}
-                  <span className="ml-1.5 font-normal opacity-80">
-                    ({Math.round(confidence * 100)}%)
-                  </span>
-                </p>
-                {form.tcg_image_url && (
-                  <p className="text-text-muted font-mono text-xs">
-                    Match catalogue : <span className="text-text">{form.card_id_tcg}</span>
+          {/* Right column: All info + form fields */}
+          <div className="space-y-6">
+            {/* Status block */}
+            <div className={`flex flex-col gap-2 rounded-xl border p-4 ${
+              confidence >= CONFIDENCE_THRESHOLD
+                ? 'bg-rarity-r/10 border-rarity-r/30'
+                : 'bg-rarity-ar/10 border-rarity-ar/30'
+            }`}>
+              <div className="flex items-start gap-2">
+                {confidence >= CONFIDENCE_THRESHOLD ? (
+                  <CheckCircle2 className="text-rarity-r mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                ) : (
+                  <AlertTriangle className="text-rarity-ar mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                )}
+                <div className="flex flex-1 flex-col gap-1">
+                  <p className={`text-sm font-medium ${
+                    confidence >= CONFIDENCE_THRESHOLD ? 'text-rarity-r' : 'text-rarity-ar'
+                  }`}>
+                    {confidence >= CONFIDENCE_THRESHOLD ? 'OCR fiable' : 'OCR à vérifier'}
+                    <span className="ml-1.5 font-normal opacity-80">
+                      ({Math.round(confidence * 100)}%)
+                    </span>
                   </p>
-                )}
+                  {form.tcg_image_url && (
+                    <p className="text-text-muted font-mono text-xs">
+                      Match catalogue : <span className="text-text">{form.card_id_tcg}</span>
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Pokédex suggestion banner */}
-          {suggestion && <ScanSuggestion result={suggestion} />}
+            {/* Pokédex suggestion banner */}
+            {suggestion && <ScanSuggestion result={suggestion} />}
 
-          {/* Alert if no catalog match */}
-          {!enrichFound && (
-            <div className="border-rarity-ar bg-rarity-ar/10 text-rarity-ar rounded-lg border p-3 text-xs">
-              Aucun match catalogue — soit le numéro de set n&apos;a pas été lu, soit la carte n&apos;est
-              pas indexée (sets JP récents notamment). Le texte OCR ci-dessous t&apos;aidera à
-              compléter manuellement.
-            </div>
-          )}
-
-          {/* OCR text details (collapsed) */}
-          {ocrText && (
-            <details className="bg-surface-2 border-border rounded-lg border text-xs">
-              <summary className="text-text-muted cursor-pointer select-none px-3 py-2">
-                Texte OCR détecté ({ocrText.length} caractères)
-              </summary>
-              <div className="border-border border-t px-3 py-2">
-                <p className="text-text-faint mb-2 font-mono text-[11px]">
-                  Extraits :{' '}
-                  <span className={extractedSetCode ? 'text-text' : 'text-text-faint'}>
-                    set_code = {extractedSetCode ?? 'aucun'}
-                  </span>{' '}
-                  ·{' '}
-                  <span className={extractedSetNumber ? 'text-text' : 'text-text-faint'}>
-                    set_number = {extractedSetNumber ?? 'aucun'}
-                  </span>
-                </p>
-                <pre className="text-text max-h-48 overflow-auto whitespace-pre-wrap font-mono">
-                  {ocrText}
-                </pre>
+            {/* Alert if no catalog match */}
+            {!enrichFound && (
+              <div className="border-rarity-ar bg-rarity-ar/10 text-rarity-ar rounded-lg border p-3 text-xs">
+                Aucun match catalogue — soit le numéro de set n&apos;a pas été lu, soit la carte n&apos;est
+                pas indexée (sets JP récents notamment). Le texte OCR ci-dessous t&apos;aidera à
+                compléter manuellement.
               </div>
-            </details>
-          )}
+            )}
 
-          {/* Form fields section */}
-          <div className="flex flex-col gap-4">
-            <h3 className="text-text-muted text-xs font-semibold uppercase tracking-wide">
-              Informations de la carte
-            </h3>
+            {/* OCR text details (collapsed) */}
+            {ocrText && (
+              <details className="bg-surface-2 border-border rounded-lg border text-xs">
+                <summary className="text-text-muted cursor-pointer select-none px-3 py-2">
+                  Texte OCR détecté ({ocrText.length} caractères)
+                </summary>
+                <div className="border-border border-t px-3 py-2">
+                  <p className="text-text-faint mb-2 font-mono text-[11px]">
+                    Extraits :{' '}
+                    <span className={extractedSetCode ? 'text-text' : 'text-text-faint'}>
+                      set_code = {extractedSetCode ?? 'aucun'}
+                    </span>{' '}
+                    ·{' '}
+                    <span className={extractedSetNumber ? 'text-text' : 'text-text-faint'}>
+                      set_number = {extractedSetNumber ?? 'aucun'}
+                    </span>
+                  </p>
+                  <pre className="text-text max-h-48 overflow-auto whitespace-pre-wrap font-mono">
+                    {ocrText}
+                  </pre>
+                </div>
+              </details>
+            )}
+
+              {/* Form fields section */}
+            <div className="flex flex-col gap-4">
+              <h3 className="text-text-muted text-xs font-semibold uppercase tracking-wide">
+                Informations de la carte
+              </h3>
 
             <Field label="Nom de la carte">
               <Input value={form.card_name} onChange={(v) => update('card_name', v)} required />
@@ -705,13 +724,13 @@ export default function MobileSubmit() {
                 <span className="text-text-faint text-[11px]">{researchMsg}</span>
               )}
             </div>
-          </div>
+            </div>
 
-          {/* Destination section */}
-          <div className="flex flex-col gap-4">
-            <h3 className="text-text-muted text-xs font-semibold uppercase tracking-wide">
-              Destination
-            </h3>
+            {/* Destination section */}
+            <div className="flex flex-col gap-4">
+              <h3 className="text-text-muted text-xs font-semibold uppercase tracking-wide">
+                Destination
+              </h3>
             <div className="grid grid-cols-3 gap-2">
               {STATUSES.map(({ value, label }) => (
                 <button
@@ -728,49 +747,50 @@ export default function MobileSubmit() {
                 </button>
               ))}
             </div>
-          </div>
+            </div>
 
-          {/* Notes */}
-          <Field label="Notes (optionnel)">
+            {/* Notes */}
+            <Field label="Notes (optionnel)">
             <textarea
               value={form.notes}
               onChange={(e) => update('notes', e.target.value)}
               rows={2}
               className="bg-surface-2 border-border focus:border-red w-full rounded-lg border px-3 py-2 text-sm outline-none"
             />
-          </Field>
+            </Field>
 
-          {/* Success/error messages */}
-          {phase === 'success' && (
-            <div className="text-rarity-r bg-surface-2 flex items-center gap-2 rounded-lg p-3 text-sm">
-              <CheckCircle2 className="h-4 w-4" aria-hidden />
-              Carte enregistrée.
-            </div>
-          )}
-          {phase !== 'success' && errorMsg && (
-            <div className="bg-red-bg text-red flex items-center gap-2 rounded-lg p-3 text-sm">
-              <XCircle className="h-4 w-4" aria-hidden />
-              {errorMsg}
-            </div>
-          )}
+            {/* Success/error messages */}
+            {phase === 'success' && (
+              <div className="text-rarity-r bg-surface-2 flex items-center gap-2 rounded-lg p-3 text-sm">
+                <CheckCircle2 className="h-4 w-4" aria-hidden />
+                Carte enregistrée.
+              </div>
+            )}
+            {phase !== 'success' && errorMsg && (
+              <div className="bg-red-bg text-red flex items-center gap-2 rounded-lg p-3 text-sm">
+                <XCircle className="h-4 w-4" aria-hidden />
+                {errorMsg}
+              </div>
+            )}
 
-          {/* Action buttons */}
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={reset}
-              disabled={phase === 'saving'}
-              className="border-border text-text-muted hover:bg-surface-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={phase === 'saving' || phase === 'success'}
-              className="bg-red flex-1 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50"
-            >
-              {phase === 'saving' ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
+            {/* Action buttons */}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={reset}
+                disabled={phase === 'saving'}
+                className="border-border text-text-muted hover:bg-surface-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={phase === 'saving' || phase === 'success'}
+                className="bg-red flex-1 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50"
+              >
+                {phase === 'saving' ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
           </div>
         </form>
       )}
