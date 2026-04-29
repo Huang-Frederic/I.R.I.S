@@ -39,6 +39,10 @@ describe('gemini-vision', () => {
                   language: 'EN',
                   rarity: 'Double Rare',
                   confidence: 'high',
+                  pokemon_number: 25,
+                  pokemon_name_fr: 'Pikachu',
+                  set_name: 'Battle Partners',
+                  set_name_fr: 'Partenaires de Combat',
                 }),
               },
             ],
@@ -64,6 +68,10 @@ describe('gemini-vision', () => {
       language: 'EN',
       rarity: 'Double Rare',
       confidence: 'high',
+      pokemon_number: 25,
+      pokemon_name_fr: 'Pikachu',
+      set_name: 'Battle Partners',
+      set_name_fr: 'Partenaires de Combat',
     });
   });
 
@@ -83,6 +91,10 @@ describe('gemini-vision', () => {
                   language: 'JP',
                   rarity: 'Rare',
                   confidence: 'medium',
+                  pokemon_number: 6,
+                  pokemon_name_fr: 'Dracaufeu',
+                  set_name: null,
+                  set_name_fr: null,
                 }),
               },
             ],
@@ -201,6 +213,10 @@ describe('gemini-vision', () => {
                   language: 'EN',
                   rarity: 'Uncommon',
                   confidence: 'high',
+                  pokemon_number: null,
+                  pokemon_name_fr: null,
+                  set_name: null,
+                  set_name_fr: null,
                 }),
               },
             ],
@@ -237,6 +253,10 @@ describe('gemini-vision', () => {
                   language: 'JP',
                   rarity: 'Promo',
                   confidence: 'high',
+                  pokemon_number: 25,
+                  pokemon_name_fr: 'Pikachu',
+                  set_name: null,
+                  set_name_fr: null,
                 }),
               },
             ],
@@ -273,6 +293,10 @@ describe('gemini-vision', () => {
                   language: 'EN',
                   rarity: 'Common',
                   confidence: 'high',
+                  pokemon_number: null,
+                  pokemon_name_fr: null,
+                  set_name: null,
+                  set_name_fr: null,
                 }),
               },
             ],
@@ -290,5 +314,109 @@ describe('gemini-vision', () => {
     const result = await extractCardFromImage(buffer);
 
     expect(result?.pokemon_name).toBeNull();
+  });
+
+  it('extracts pokemon_number and FR translations when present', async () => {
+    const mockResponse = {
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                text: JSON.stringify({
+                  card_name: 'チャオブー',
+                  pokemon_name: 'チャオブー',
+                  set_code: 'BW5',
+                  set_number: '12',
+                  set_total: 86,
+                  language: 'JP',
+                  rarity: 'Common',
+                  confidence: 'high',
+                  pokemon_number: 499,
+                  pokemon_name_fr: 'Grotichon',
+                  set_name: 'ホワイトフレア',
+                  set_name_fr: 'Flamme Blanche',
+                }),
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse,
+    } as Response);
+
+    const buffer = Buffer.from('fake-image');
+    const result = await extractCardFromImage(buffer);
+
+    expect(result).toEqual({
+      card_name: 'チャオブー',
+      pokemon_name: 'チャオブー',
+      set_code: 'BW5',
+      set_number: '12',
+      set_total: 86,
+      language: 'JP',
+      rarity: 'Common',
+      confidence: 'high',
+      pokemon_number: 499,
+      pokemon_name_fr: 'Grotichon',
+      set_name: 'ホワイトフレア',
+      set_name_fr: 'Flamme Blanche',
+    });
+  });
+
+  it('handles non-Pokémon cards (Trainers) where pokemon_number is null', async () => {
+    const mockResponse = {
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                text: JSON.stringify({
+                  card_name: 'Professor Sada',
+                  pokemon_name: null,
+                  set_code: 'SV11W',
+                  set_number: '75',
+                  set_total: 86,
+                  language: 'EN',
+                  rarity: 'Uncommon',
+                  confidence: 'high',
+                  pokemon_number: null,
+                  pokemon_name_fr: null,
+                  set_name: 'Battle Partners',
+                  set_name_fr: 'Partenaires de Combat',
+                }),
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse,
+    } as Response);
+
+    const buffer = Buffer.from('fake-image');
+    const result = await extractCardFromImage(buffer);
+
+    expect(result).toEqual({
+      card_name: 'Professor Sada',
+      pokemon_name: null,
+      set_code: 'SV11W',
+      set_number: '75',
+      set_total: 86,
+      language: 'EN',
+      rarity: 'Uncommon',
+      confidence: 'high',
+      pokemon_number: null,
+      pokemon_name_fr: null,
+      set_name: 'Battle Partners',
+      set_name_fr: 'Partenaires de Combat',
+    });
   });
 });

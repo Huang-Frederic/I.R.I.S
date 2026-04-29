@@ -87,6 +87,12 @@ export interface OcrResult {
   setNumberCandidate: { card: string; total: string; raw: string } | null;
   /** Set code (e.g. "SV11W") detected near the set number. */
   setCodeCandidate: string | null;
+
+  // Optional, populated only when Gemini provides them (not by Vision fallback)
+  pokemonNumber?: number | null;
+  pokemonNameFr?: string | null;
+  setName?: string | null;
+  setNameFr?: string | null;
 }
 
 export interface EnrichedCard {

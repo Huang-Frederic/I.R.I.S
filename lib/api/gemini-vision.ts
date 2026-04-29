@@ -13,6 +13,14 @@ export interface GeminiCardExtraction {
   language: string; // 2-letter code: JP, EN, FR, DE, IT, ES, PT, KO, ZH
   rarity: string | null;
   confidence: 'high' | 'medium' | 'low';
+
+  // Pokédex info from Gemini training data
+  pokemon_number: number | null; // National dex 1-1025, null for non-Pokémon cards (Trainers/Energies)
+  pokemon_name_fr: string | null; // French species name, e.g. "Gruikui" for "チャオブー"
+
+  // Set translation
+  set_name: string | null; // Set name as printed on card (in card's language)
+  set_name_fr: string | null; // French translation of set name from training data
 }
 
 const PROMPT = `Tu regardes la photo d'une carte Pokémon JCC. Extrais les informations imprimées sur la carte.
@@ -34,7 +42,11 @@ Retourne le JSON suivant. NE DEVINE PAS, lis ce qui est imprimé. Si tu ne peux 
   "set_total": <YYY integer ou null>,
   "language": "<JP|EN|FR|DE|IT|ES|PT|KO|ZH selon la langue imprimée>",
   "rarity": "<Common|Uncommon|Rare|Holo Rare|Double Rare|Ultra Rare|Art Rare|Special Art Rare|Secret Rare|Hyper Rare|Promo|Other ou null>",
-  "confidence": "high|medium|low"
+  "confidence": "high|medium|low",
+  "pokemon_number": <numéro national du Pokédex (1-1025) si c'est une carte Pokémon, null pour Trainers/Energies/Stadium/etc>,
+  "pokemon_name_fr": "<nom français standard du Pokémon (ex: 'Gruikui' pour チャオブー / Tepig), null si non-Pokémon ou si tu n'es pas sûr du nom français>",
+  "set_name": "<nom de l'extension tel qu'imprimé en bas de la carte si visible (ex: 'ホワイトフレア', 'White Flare', 'Battle Partners'), null si non visible>",
+  "set_name_fr": "<nom français de cette extension (ex: 'Combat de Maîtres'), null si tu n'es pas sûr>"
 }`;
 
 const SCHEMA = {
@@ -48,6 +60,10 @@ const SCHEMA = {
     language: { type: 'string' },
     rarity: { type: 'string' },
     confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+    pokemon_number: { type: 'integer' },
+    pokemon_name_fr: { type: 'string' },
+    set_name: { type: 'string' },
+    set_name_fr: { type: 'string' },
   },
   required: ['card_name', 'set_code', 'set_number', 'language', 'confidence'],
 };
@@ -125,6 +141,13 @@ export async function extractCardFromImage(
       language: parsed.language,
       rarity: parsed.rarity || null,
       confidence: parsed.confidence,
+      pokemon_number:
+        typeof parsed.pokemon_number === 'number' && Number.isFinite(parsed.pokemon_number)
+          ? parsed.pokemon_number
+          : null,
+      pokemon_name_fr: parsed.pokemon_name_fr || null,
+      set_name: parsed.set_name || null,
+      set_name_fr: parsed.set_name_fr || null,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

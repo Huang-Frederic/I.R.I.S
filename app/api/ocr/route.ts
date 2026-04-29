@@ -46,6 +46,10 @@ export async function POST(request: Request) {
               raw: geminiResult.set_number,
             },
       setCodeCandidate: geminiResult.set_code,
+      pokemonNumber: geminiResult.pokemon_number,
+      pokemonNameFr: geminiResult.pokemon_name_fr,
+      setName: geminiResult.set_name,
+      setNameFr: geminiResult.set_name_fr,
     };
     return NextResponse.json(ocrResult);
   }
