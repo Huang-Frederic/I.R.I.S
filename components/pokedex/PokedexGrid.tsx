@@ -18,12 +18,15 @@ const ALL_NUMBERS = Array.from({ length: TOTAL_POKEMON }, (_, i) => i + 1);
 const VIEW_MODE_KEY = 'iris.pokedex.viewMode';
 
 function getInitialViewMode(): ViewMode {
-  if (typeof window === 'undefined') return 'grid-5';
+  if (typeof window === 'undefined') return 'grid-compact';
   const stored = localStorage.getItem(VIEW_MODE_KEY);
-  if (stored === 'grid-3' || stored === 'grid-5' || stored === 'list') {
+  if (stored === 'grid-large' || stored === 'grid-compact' || stored === 'list') {
     return stored;
   }
-  return 'grid-5';
+  // Migration from old mode names
+  if (stored === 'grid-3') return 'grid-large';
+  if (stored === 'grid-5') return 'grid-compact';
+  return 'grid-compact';
 }
 
 export default function PokedexGrid({ cards }: PokedexGridProps) {
@@ -69,8 +72,8 @@ export default function PokedexGrid({ cards }: PokedexGridProps) {
     selectedPokemon !== null ? (availableMap.get(selectedPokemon) ?? []) : [];
 
   const gridClasses = {
-    'grid-3': 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3',
-    'grid-5': 'grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2',
+    'grid-large': 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3',
+    'grid-compact': 'grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2',
     'list': 'flex flex-col gap-1',
   }[viewMode];
 
