@@ -102,36 +102,42 @@ Toujours dans **Identifiants**, clique sur ta clé pour l'éditer :
 
 ---
 
-## 3. Pokémon TCG API (optionnel)
+## 3. Gemini API (Phase 1.12 — moteur OCR primaire)
 
-Sans clé, ça marche avec un rate limit faible (1000 req/jour). Avec une clé, c'est 20 000 req/jour.
+Phase 1.12 — **bloquant pour atteindre les 93% accuracy OCR**. Sans Gemini, l'app fonctionne (Vision fallback) mais l'enrichissement plafonne à ~63%.
 
-1. Va sur [https://dev.pokemontcg.io](https://dev.pokemontcg.io) → **Sign Up**.
-2. Une fois connecté, ta clé est dans **Dashboard**.
-3. Copie-la dans `.env.local` :
+### 3.1 Récupérer une clé Gemini
+
+1. Va sur [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).
+2. Clique **Create API key**. Tu peux la rattacher à ton projet GCP existant (celui de Vision API) — c'est même conseillé pour centraliser la facturation.
+3. Copie la clé dans `.env.local` :
 
    ```env
-   POKEMON_TCG_API_KEY=xxxxxxxxxxxxxxxxx
+   GEMINI_API_KEY=AIzaSy...
    ```
+
+### 3.2 Activer la facturation Tier 1
+
+Le free tier de Gemini limite à 5 requêtes/min, ce qui est trop peu pour un usage scan répété. Activer la facturation passe automatiquement en **Tier 1** (15 req/min, suffisant pour usage mono-utilisateur).
+
+1. Dans la GCP console → **Facturation** → vérifie que ton projet est rattaché à un compte de facturation valide (le même que pour Vision).
+2. Coût estimé : **~6¢/mois pour 100 scans** (input ~200 tokens + output ~50 tokens à $0.075/$0.030 par 1M tokens). Reste largement dans le free tier facturé.
+
+### 3.3 Note sur le modèle
+
+Le code utilise `gemini-3-flash-preview` (pinné dans `lib/api/gemini-vision.ts`). C'est un modèle **preview** — Google peut le renommer ou le retirer sans préavis. Si l'OCR commence à retourner null en boucle, vérifier la disponibilité du modèle ou basculer sur l'alias `gemini-flash-latest`.
 
 ---
 
-## 4. Cardmarket API (Phase 3, **pas bloquant pour Phase 1/2**)
+## 4. Anthropic API (optionnel — uniquement pour les benchmarks)
 
-Tu en auras besoin pour la Phase 3 (cron de mise à jour des prix).
+`scripts/test-bench-claude.ts` utilise Claude Haiku 4.5 pour comparer les modèles vision. Bench abandonné (Claude refuse d'extraire l'info), mais le script reste pour traçabilité.
 
-1. Compte **Cardmarket PRO** requis (~5€/mois).
-2. Une fois en PRO, va dans ton compte → **Mes paramètres** → **API Apps**.
-3. Crée une nouvelle app → tu obtiendras 4 tokens (`appToken`, `appSecret`, `accessToken`, `accessSecret`).
-4. À renseigner dans `.env.local` :
+```env
+ANTHROPIC_API_KEY=sk-ant-...
+```
 
-   ```env
-   MKM_APP_TOKEN=...
-   MKM_APP_SECRET=...
-   MKM_ACCESS_TOKEN=...
-   MKM_ACCESS_SECRET=...
-   MKM_API_URL=https://api.cardmarket.com/ws/v2.0
-   ```
+Ne pas activer pour l'usage runtime — pure devtool.
 
 ---
 
@@ -160,17 +166,18 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...
 
-GOOGLE_VISION_API_KEY=AIzaSy...
-POKEMON_TCG_API_KEY=         # optionnel
-MKM_APP_TOKEN=               # Phase 3
-MKM_APP_SECRET=              # Phase 3
-MKM_ACCESS_TOKEN=            # Phase 3
-MKM_ACCESS_SECRET=           # Phase 3
-MKM_API_URL=https://api.cardmarket.com/ws/v2.0
+GOOGLE_VISION_API_KEY=AIzaSy...   # OCR fallback
+GEMINI_API_KEY=AIzaSy...          # OCR primaire (Phase 1.12)
+ANTHROPIC_API_KEY=                # optionnel (scripts uniquement)
+POKEMON_TCG_API_KEY=              # legacy, plus utilisé en runtime
 
-CRON_SECRET=                 # Phase 3
+CRON_SECRET=                      # Phase 3
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
+
+**Note Cardmarket API** : l'API a été fermée aux nouvelles applications en 2023. Le catalogue est désormais peuplé via scraping LimitlessTCG (`scripts/scrape-limitlesstcg.ts`). Les variables `MKM_*` ne sont plus nécessaires.
+
+**Note WSL2 / scraping** : si l'exécution de `scripts/scrape-limitlesstcg.ts` échoue avec `UNABLE_TO_VERIFY_LEAF_SIGNATURE`, lancer `export INSECURE_HTTPS=1` avant le script — contournement temporaire pour les certificats rejetés par Node 22 sur WSL2 derrière un proxy corporate.
 
 ⚠️ **Ne jamais commiter `.env.local`** — il est déjà dans `.gitignore`.
 

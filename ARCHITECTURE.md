@@ -9,7 +9,7 @@ I.R.I.S est une **Progressive Web App mono-utilisateur** pour gérer une collect
 L'architecture s'articule autour d'un **pipeline de scan** :  
 Photo → OCR (Gemini → Vision fallback) → Enrichissement (catalogue local → TCGdex fallback) → Suggestion Pokédex → Formulaire pré-rempli → Enregistrement DB.
 
-Le projet en est à la **Phase 1.12** (terminée) — 97 tests passing, 0 lint warnings, ~19 500 lignes de code. Les phases 2-4 (module Vinted, pricing Cardmarket, dashboard) sont planifiées mais non implémentées.
+Le projet en est à la **Phase 1.13** (terminée) — 116 tests passing, 0 lint warnings, ~20 800 lignes de code. Les phases 2-4 (module Vinted, pricing Cardmarket, dashboard) sont planifiées mais non implémentées.
 
 ---
 
@@ -41,7 +41,8 @@ Le projet en est à la **Phase 1.12** (terminée) — 97 tests passing, 0 lint w
   │  └─────────────────┘     └──────────────────────┘           │
   │                                                               │
   │  Returns: { text, confidence, words[], setNumberCandidate,   │
-  │             setCodeCandidate }                                │
+  │             setCodeCandidate, pokemonNumber?,                 │
+  │             pokemonNameFr?, setName?, setNameFr? }            │
   └───────────────────────────┬──────────────────────────────────┘
                               │
                               ▼
@@ -54,15 +55,25 @@ Le projet en est à la **Phase 1.12** (terminée) — 97 tests passing, 0 lint w
   │  3. TCGdex live API (fallback for new sets)                  │
   │  4. Return null (user fills form manually)                   │
   │                                                               │
+  │  applyGeminiEnrichments() formats names as                   │
+  │   "FR (Original)" + propagates pokemon_number when           │
+  │  Gemini provided FR translations.                             │
+  │                                                               │
   │  Returns: { bestMatch: EnrichedCard | null, candidates[] }   │
   └───────────────────────────┬──────────────────────────────────┘
                               │
                               ▼
   ┌──────────────────────┐
   │ MobileSubmit.tsx     │
+  │ - 2-col layout       │
+  │ - Loupe (1.5×) on    │
+  │   image hover        │
   │ - Show candidates    │
   │ - Pokédex suggestion │
   │ - Pre-fill form      │
+  │   (FR (Original))    │
+  │ - Variant dropdown   │
+  │ - Notes textarea     │
   │ - User confirms      │
   └──────────┬───────────┘
              │ POST FormData (with image)
@@ -143,7 +154,7 @@ I.R.I.S/
 
 ## Fichiers à la racine
 
-- `.env.example` (30 lignes) — Template des variables d'environnement requises : Supabase (URL, anon key, service role), Google Vision API key, Gemini API key, Cron secret. Guide complet dans `docs/setup.md`.
+- `.env.example` (24 lignes) — Template des variables d'environnement requises : Supabase (URL, anon key, service role), Google Vision API key, Gemini API key, Anthropic API key (scripts uniquement), `POKEMON_TCG_API_KEY` legacy, Cron secret. Guide complet dans `docs/setup.md`.
 - `.gitignore` (28 lignes) — Ignore Node modules, Next.js build artifacts, env files, Supabase temp, résultats de benchmarks (`results/`), assets de cartes (`cards_assets/`).
 - `.nvmrc` (1 ligne) — Pin Node.js 22.12.0 (nécessaire pour éviter les timeouts undici sur Node 18).
 - `.prettierignore` (6 lignes) — Exclut `.next/`, `node_modules/`, `build/`, `coverage/`, `package-lock.json`.
@@ -196,11 +207,11 @@ Toutes les routes sous `(app)/` requièrent authentification — proxy.ts rediri
 
 Toutes les routes API sont **protégées par authentification** sauf `/api/prices/update` (cron, protégé par `CRON_SECRET` — non implémenté encore).
 
-- `app/api/ocr/route.ts` (66 lignes) — **POST /api/ocr** : extrait texte depuis une image. Body FormData : `image: File`. Chaîne : Gemini → Vision fallback. Retourne `OcrResult { text, confidence, words[], setNumberCandidate, setCodeCandidate }`. Gemini retourne JSON structuré (`card_name`, `set_code`, `set_number`, `language`, `confidence`), mappé vers `OcrResult`. Si Gemini timeout/erreur/clé absente → fallback Google Vision + extraction regex legacy.
+- `app/api/ocr/route.ts` (69 lignes) — **POST /api/ocr** : extrait texte depuis une image. Body FormData : `image: File`. Chaîne : Gemini → Vision fallback. Retourne `OcrResult { text, confidence, words[], setNumberCandidate, setCodeCandidate, pokemonNumber?, pokemonNameFr?, setName?, setNameFr? }`. Gemini retourne JSON structuré enrichi (`card_name`, `set_code`, `set_number`, `language`, `confidence`, `pokemon_number`, `pokemon_name_fr`, `set_name`, `set_name_fr`), mappé vers `OcrResult` avec les 4 nouveaux champs optionnels. Si Gemini timeout/erreur/clé absente → fallback Google Vision (sans champs optionnels).
 
-- `app/api/enrich/route.ts` (187 lignes) — **POST /api/enrich** : enrichit les données OCR via catalogue + TCGdex. Body JSON : `{ text?, setCode?, localId?, total?, language? }`. 4 stratégies séquentielles avec fallthrough : (1) Catalogue direct (`setCode + localId + language`), (2) Catalogue by-total + disambiguation nom OCR, (3) TCGdex live, (4) Null. Chaque stratégie a un timeout 2s (helper `withTimeout`). Retourne `EnrichResult { bestMatch: EnrichedCard | null, candidates: EnrichedCard[] }`. Gère normalisation set_code (SM-P → smp, XY-P → xyp) + set_number (leading zeros).
+- `app/api/enrich/route.ts` (222 lignes) — **POST /api/enrich** : enrichit les données OCR via catalogue + TCGdex. Body JSON : `{ text?, setCode?, localId?, total?, language?, pokemonNumber?, pokemonNameFr?, setName?, setNameFr? }`. 4 stratégies séquentielles avec fallthrough : (1) Catalogue direct (`setCode + localId + language`), (2) Catalogue by-total + disambiguation nom OCR, (3) TCGdex live, (4) Null. Chaque stratégie a un timeout 2s (helper `withTimeout`). Helper `applyGeminiEnrichments` (interne) reformate `card_name`, `pokemon_name`, `set_name` en `"FR (Original)"` quand la langue scannée n'est pas FR et que Gemini a fourni une traduction française ; propage aussi `pokemon_number` quand le catalogue ne l'a pas. Retourne `EnrichResult { bestMatch: EnrichedCard | null, candidates: EnrichedCard[] }`.
 
-- `app/api/cards/route.ts` (166 lignes) — **POST /api/cards** : enregistre une carte en DB. Body FormData : tous les champs card + `image: File` optionnel. Valide enum values (language, rarity, condition, status). Upload photo vers Supabase Storage bucket `card-photos` (path `{cardId}.jpg`). Calcule `suggested_price = cm_price_trend * 0.85` si pricing disponible. INSERT dans table `cards`. Retourne `{ card: Card }`.
+- `app/api/cards/route.ts` (166 lignes) — **POST /api/cards** : enregistre une carte en DB. Body FormData : tous les champs card (incl. `notes`, `variant`) + `image: File` optionnel. Valide enum values (language, rarity, condition, status). Upload photo vers Supabase Storage bucket `card-photos` (path `{cardId}.jpg`). Calcule `suggested_price = cm_price_trend * 0.85` si pricing disponible. INSERT dans table `cards`. Retourne `{ card: Card }`.
 
 - `app/api/pokedex/suggest/route.ts` (40 lignes) — **POST /api/pokedex/suggest** : retourne une suggestion Pokédex pour une carte. Body JSON : `{ pokemon_number, rarity, rarity_rank, language, cm_price_trend? }`. Fetch la carte actuelle `status='pokedex'` pour ce `pokemon_number`. Appelle `computePokedexSuggestion` (pure function). Retourne `SuggestionResult { type, message, primaryAction, secondaryActions, existingCard? }`.
 
@@ -221,7 +232,7 @@ Toutes les routes API sont **protégées par authentification** sauf `/api/price
 ### components/submit/ — Module de scan
 
 - `components/submit/.gitkeep` (0 lignes) — Placeholder pour le dossier.
-- `components/submit/MobileSubmit.tsx` (523 lignes) — **Composant central du scan**. Client Component. États : `phase` (idle → scanning → reviewing → saving → success/error), `previewUrl`, `photoBlob`, `form: FormFields`, `confidence`, `suggestion: SuggestionResult`, `candidates: EnrichedCard[]`. Flow : (1) User clique "Scanner" → input file → resize image 1600px max via `resizeImage`, (2) POST `/api/ocr` → OCR result, (3) POST `/api/enrich` → enriched card + candidates, (4) Si plusieurs candidates → modal picker visuel (grille d'images TCG), (5) POST `/api/pokedex/suggest` → suggestion Pokédex, (6) Affiche formulaire pré-rempli + `<ScanSuggestion />` bandeau, (7) User confirme → POST `/api/cards` → redirect `/pokedex` ou `/vinted` selon status. Gère bouton "Re-rechercher TCG" pour relancer enrichissement avec set_code + localId saisis manuellement.
+- `components/submit/MobileSubmit.tsx` (953 lignes) — **Composant central du scan**. Client Component. Layout 2 colonnes desktop : photo + loupe sticky à gauche, formulaire à droite. États : `phase` (idle → scanning → reviewing → saving → success/error), `previewUrl`, `photoBlob`, `form: FormFields` (incluant `notes`, `variant` Standard/Poké Ball/Master Ball/Reverse Holo/Promo), `confidence`, `suggestion: SuggestionResult`, `candidates: EnrichedCard[]`, `ocrGemini` (champs optionnels FR), `zoomPos` + `imageDimensions` pour la loupe 1.5×. Flow : (1) User clique "Scanner" → input file → resize image 1600px max via `resizeImage`, (2) POST `/api/ocr` → OCR result (avec `pokemonNumber`, `pokemonNameFr`, `setName`, `setNameFr` si Gemini), (3) POST `/api/enrich` propageant ces champs → enriched card avec noms bilingues + candidates, (4) Si plusieurs candidates → modal picker visuel (grille d'images TCG), (5) POST `/api/pokedex/suggest` → suggestion Pokédex, (6) Affiche formulaire pré-rempli (`card_name = "Gruikui (チャオブー)"` etc.) + `<ScanSuggestion />` bandeau + champ `notes` + dropdown `variant`, (7) User confirme → POST `/api/cards` → redirect `/pokedex` ou `/vinted` selon status. Bouton "Re-rechercher" repasse les champs OCR Gemini (FR translations préservées). Helpers locaux : `Field`, `Input`, `Select`, `CandidatePicker`.
 
 - `components/submit/SubmitTabs.tsx` (34 lignes) — Wrapper tabs : 3 onglets (Mobile, Lot ≤20, Script Python). Seul "Mobile" implémenté (`<MobileSubmit />`). Les 2 autres sont placeholders (Phase 2).
 
@@ -233,13 +244,15 @@ Toutes les routes API sont **protégées par authentification** sauf `/api/price
 ### components/pokedex/ — Module Pokédex
 
 - `components/pokedex/.gitkeep` (0 lignes) — Placeholder.
-- `components/pokedex/PokedexGrid.tsx` (120 lignes) — **Grille 1025 Pokémon**. Client Component. Props : `cards: Card[]`. Construit 2 maps : `pokedexMap` (1 carte par pokemon_number avec `status='pokedex'`), `availableMap` (toutes les autres cartes for_sale/collection groupées par pokemon_number). Filtres via `<PokedexFilters />`. Grille CSS `repeat(auto-fill, minmax(80px, 1fr))`. Chaque cellule : `<PokedexCell />`. Clic → ouvre `<PokedexDrawer />` avec la carte Pokédex + cartes disponibles pour remplacement.
+- `components/pokedex/PokedexGrid.tsx` (144 lignes) — **Grille 1025 Pokémon**. Client Component. Props : `cards: Card[]`. Construit 2 maps : `pokedexMap` (1 carte par pokemon_number avec `status='pokedex'`), `availableMap` (toutes les autres cartes for_sale/collection groupées par pokemon_number). Gère 3 modes d'affichage (`grid-3` large, `grid-5` compact, `list`) persistés en `localStorage` (clé `iris.pokedex.viewMode`). Filtres via `<PokedexFilters />`. Cellule rendue selon mode : `<PokedexCell />` pour grid-* / `<PokedexListItem />` pour list. Clic → ouvre `<PokedexDrawer />` avec la carte Pokédex + cartes disponibles pour remplacement.
 
 - `components/pokedex/PokedexCell.tsx` (66 lignes) — **Cellule grille Pokédex** : sprite PokeAPI (URL GitHub raw `sprites/pokemon/{number}.png`). Si carte possédée → couleur, sinon → silhouette (`filter: brightness(0) opacity(0.25)`). Affiche numéro + nom Pokémon ou "???" si manquant. Lazy loading image.
 
+- `components/pokedex/PokedexListItem.tsx` (97 lignes) — **Ligne mode liste Pokédex** : sprite 48×48 + nom Pokémon + carte (card_name) + badge rareté coloré + prix Cardmarket trend (ou suggested en fallback). Bouton focusable avec aria-label complet. Affiche "Manquant" si `card === null`. Le badge ✓ / — sur le bord droit indique l'état possédé/manquant.
+
 - `components/pokedex/PokedexDrawer.tsx` (192 lignes) — **Drawer détail Pokédex** : bottom sheet mobile, sidebar desktop. Affiche photo user + image TCG côte à côte, nom complet, set, rareté, langue, condition, prix Cardmarket (low/trend/avg/suggested), date d'ajout. Si carte manquante → message + bouton "Scanner". Bouton "Remplacer" → modal liste des cartes disponibles (`availableCards`) triées par rarity_rank DESC. Sélection → appelle `/api/pokedex/replace`.
 
-- `components/pokedex/PokedexFilters.tsx` (99 lignes) — **Barre de filtres Pokédex** : sticky top. 3 filtres : (1) Génération (dropdown Gen 1-9 + Tous), (2) Statut (Tous/Complétés/Manquants), (3) Recherche (input texte, debounce 300ms). Affiche compteur "X/1025 affichés". Export type `FilterState { gen, status, search }` + interface `PokedexFiltersProps`.
+- `components/pokedex/PokedexFilters.tsx` (113 lignes) — **Barre de filtres Pokédex** : sticky top. Toggle de mode d'affichage (3 boutons : `Grid3x3` "Grille large", `Grid2x2` "Grille compacte", `List` "Liste") avec labels visibles ≥ sm. 3 filtres data : (1) Génération (dropdown Gen 1-9 + Tous), (2) Statut (Tous/Complétés/Manquants), (3) Recherche (input texte). Affiche compteur "X affiché(s) · Y dans le filtre". Export types `FilterState { gen, status, search }`, `ViewMode = 'grid-3' | 'grid-5' | 'list'`, `StatusFilter` + interface `PokedexFiltersProps` (incl. `viewMode` + `onViewModeChange`).
 
 ### components/ui/ — (vide pour l'instant)
 
@@ -251,21 +264,21 @@ Toutes les routes API sont **protégées par authentification** sauf `/api/price
 
 ### lib/types/ — Types TypeScript partagés
 
-- `lib/types/index.ts` (114 lignes) — **Types domaine** : enums (`CardLanguage`, `CardCondition`, `CardStatus`, `CardRarity`), interfaces DB (`Card`, `Lot`, `RarityRank`), payloads OCR/enrichment (`WordAnnotation`, `OcrResult`, `EnrichedCard`, `EnrichResult`). Mirror des enums SQL. Documentation inline.
+- `lib/types/index.ts` (120 lignes) — **Types domaine** : enums (`CardLanguage`, `CardCondition`, `CardStatus`, `CardRarity`), interfaces DB (`Card` incluant `notes: string | null` et `variant: string | null`, `Lot`, `RarityRank`), payloads OCR/enrichment (`WordAnnotation`, `OcrResult` avec champs optionnels `pokemonNumber`, `pokemonNameFr`, `setName`, `setNameFr` populés uniquement par Gemini, `EnrichedCard`, `EnrichResult`). Mirror des enums SQL. Documentation inline.
 
 ### lib/api/ — Wrappers API externes
 
 - `lib/api/.gitkeep` (0 lignes) — Placeholder.
 
-- `lib/api/gemini-vision.ts` (135 lignes) — **OCR Gemini 3 Flash Preview**. `server-only`. Export `extractCardFromImage(imageBuffer: Buffer): Promise<GeminiCardExtraction | null>`. Envoie image base64 + prompt structuré (JSON schema) vers endpoint Gemini. Retourne `{ card_name, pokemon_name, set_code, set_number, set_total, language, rarity, confidence: 'high'|'medium'|'low' }`. Timeout 15s. Retourne `null` si API key manquante, erreur réseau, timeout, ou réponse incomplète. Normalise `set_number` (strip leading zeros). Cost : ~$0.0006/scan.
+- `lib/api/gemini-vision.ts` (157 lignes) — **OCR Gemini 3 Flash Preview**. `server-only`. Export `extractCardFromImage(imageBuffer: Buffer): Promise<GeminiCardExtraction | null>`. Envoie image base64 + prompt structuré (JSON schema) vers endpoint Gemini. Retourne `{ card_name, pokemon_name, set_code, set_number, set_total, language, rarity, confidence, pokemon_number, pokemon_name_fr, set_name, set_name_fr }` — les 4 derniers champs viennent du training data Gemini (numéro national Pokédex, traduction française du nom du Pokémon et du set). Timeout 15s. Retourne `null` si API key manquante, erreur réseau, timeout, ou réponse incomplète. Normalise `set_number` (strip leading zeros). Cost : ~$0.0006/scan.
 
-- `lib/api/gemini-vision.test.ts` (141 lignes) — Tests Gemini : mock fetch, timeout, fallback null, parsing JSON, schema validation. 8 tests.
+- `lib/api/gemini-vision.test.ts` (422 lignes) — Tests Gemini : mock fetch, timeout, fallback null, parsing JSON, schema validation, mapping des 4 nouveaux champs FR/pokemon_number, gestion des champs partiels. 12 tests.
 
 - `lib/api/vision.ts` (160 lignes) — **OCR Google Cloud Vision**. `server-only`. Export `detectText(base64Image: string): Promise<OcrResult>`. Appelle Vision API `DOCUMENT_TEXT_DETECTION` avec `languageHints: ['ja', 'en']`. Parse `fullTextAnnotation` : extrait `text`, `confidence` (page-level ou moyenne des blocks), `words: WordAnnotation[]` (bounding boxes normalisées [0,1]). Appelle `findSetNumberCandidate` + `findSetCodeCandidate` pour smart extraction. Retourne `OcrResult { text, confidence, words[], setNumberCandidate, setCodeCandidate }`.
 
-- `lib/api/tcg-catalog.ts` (171 lignes) — **Catalogue local Pokémon TCG**. `server-only`. Export `lookupByCode` (strict + loose normalization), `lookupByTotal` (fallback quand set_code OCR échoue), `disambiguateByName` (filter candidates par nom OCR), `rowToEnrichedCard` (mapping DB row → EnrichedCard), `normalizeSetNumber` (strip leading zeros), `normalizeSetCode` (strip punct + lowercase). Interface `CatalogRow` mirror de table `tcg_catalog`. Gère variants set_code (SM-P vs smp, XY-P vs xyp).
+- `lib/api/tcg-catalog.ts` (215 lignes) — **Catalogue local Pokémon TCG**. `server-only`. Export `lookupByCode` (strict + loose normalization), `lookupByTotal` (fallback quand set_code OCR échoue), `disambiguateByName` (filter candidates par nom OCR), `rowToEnrichedCard` (mapping DB row → EnrichedCard), `normalizeSetNumber` (strip leading zeros), `normalizeSetCode` (strip punct + lowercase), `formatBilingualName(original, frenchName, language)` (formate `"Gruikui (チャオブー)"` quand FR ≠ original et lang ≠ FR), `deriveCardNameFr(originalCardName, pokemonNameFr)` (combine nom FR + suffixe ex/EX/V/VMAX/VSTAR/GX/BREAK/LEGEND extrait du nom original). Interface `CatalogRow` mirror de table `tcg_catalog`. Gère variants set_code (SM-P vs smp, XY-P vs xyp).
 
-- `lib/api/tcg-catalog.test.ts` (342 lignes) — Tests catalogue : normalizeSetNumber, normalizeSetCode, lookupByCode strict/loose, lookupByTotal, disambiguateByName (1 match / N matches / 0 matches), rowToEnrichedCard. 19 tests, mocks Supabase client.
+- `lib/api/tcg-catalog.test.ts` (256 lignes) — Tests catalogue : normalizeSetNumber, normalizeSetCode, lookupByCode strict/loose, lookupByTotal, disambiguateByName (1 match / N matches / 0 matches), rowToEnrichedCard, formatBilingualName (cas JP/EN/FR + nom déjà en FR + frenchName null), deriveCardNameFr (suffixes ex/EX/V/VMAX, sans suffixe, FR null). 36 tests, mocks Supabase client.
 
 - `lib/api/tcgdex.ts` (312 lignes) — **TCGdex API live fallback**. `server-only`. Export `lookupById` (direct set+localId lookup), `listSets` (cache 6h), `findCardsByTotalAndLocalId` (lookup par total imprimé), `enrichWithFrenchNames` (fetch nom FR via dexId pour annonces Vinted), `toEnrichedCard` (mapping TCGdexCard → EnrichedCard), `mapRarity` (English rarity labels → card_rarity enum), `extractPokemonName` (strip suffixes ex/V/VMAX). Cache in-memory : `FR_NAME_CACHE` (Map dexId → nom FR), `SETS_CACHE` (Map language → sets[], TTL 6h). Gère pricing Cardmarket inline (si disponible dans payload TCGdex).
 
@@ -333,6 +346,8 @@ Tous les scripts utilisent `tsx` (TypeScript execution) ou `npx tsx`. Aucun n'es
 
 - `supabase/migrations/20260428114538_tcg_catalog.sql` (44 lignes) — **Migration catalogue** : table `tcg_catalog` (id, cardmarket_id, set_code, set_number, set_total, language, card_name, pokemon_name, pokemon_number, set_name, rarity, image_url, scraped_at), contrainte unique `(set_code, set_number, language)`, 3 index (lookup, cardmarket, total), RLS read-only authenticated.
 
+- `supabase/migrations/20260429142350_add_cards_variant.sql` (6 lignes) — **Migration variant** : `alter table cards add column variant text` (NULL = standard, free text pour Poké Ball / Master Ball / Reverse Holo / Promo / futur sans nouveau schema).
+
 ---
 
 ## docs/ — Documentation projet
@@ -375,15 +390,15 @@ Tous les scripts utilisent `tsx` (TypeScript execution) ou `npx tsx`. Aucun n'es
 
 **Commande** : `npm test` (run once) ou `npm run test:watch` (watch mode).
 
-**97 tests passing** (au commit latest) :
-- `lib/api/gemini-vision.test.ts` — 8 tests
-- `lib/api/tcg-catalog.test.ts` — 19 tests
-- `lib/api/tcgdex.test.ts` — 16 tests
-- `lib/utils/extract-from-words.test.ts` — 18 tests
-- `lib/utils/parse-set-number.test.ts` — 4 tests
-- `lib/utils/pokedex-suggestion.test.ts` — 8 tests
-- `lib/utils/sanity.test.ts` — 3 tests
-- `scripts/scrape-limitlesstcg.test.ts` — 6 tests
+**116 tests passing** (au commit latest) :
+- `lib/api/gemini-vision.test.ts` — 12 tests
+- `lib/api/tcg-catalog.test.ts` — 36 tests
+- `lib/api/tcgdex.test.ts` — 11 tests
+- `lib/utils/extract-from-words.test.ts` — 32 tests
+- `lib/utils/parse-set-number.test.ts` — 7 tests
+- `lib/utils/pokedex-suggestion.test.ts` — 9 tests
+- `lib/utils/sanity.test.ts` — 1 test
+- `scripts/scrape-limitlesstcg.test.ts` — 8 tests
 
 Couverture : non configurée (à ajouter Phase 4). Pas de tests E2E (Playwright prévu Phase 4).
 
@@ -418,8 +433,8 @@ Config dans `app/globals.css` via `@theme { ... }` (nouveau système Tailwind v4
      - POST `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent`
      - Body : prompt structuré + image inline_data + responseSchema JSON
      - Timeout 15s
-     - Retourne `{ card_name: "チャオブー", set_code: "BW5n", set_number: "12", set_total: 86, language: "JP", confidence: "high" }`
-     - Mappé vers `OcrResult { text: "チャオブー | … | BW5n-12 | JP", confidence: 0.95, setNumberCandidate: { card: "12", total: "86" }, setCodeCandidate: "BW5n" }`
+     - Retourne `{ card_name: "チャオブー", set_code: "BW5n", set_number: "12", set_total: 86, language: "JP", confidence: "high", pokemon_number: 499, pokemon_name_fr: "Gruikui", set_name: "ホワイトフレア", set_name_fr: "Combat de Maîtres" }`
+     - Mappé vers `OcrResult { text: "チャオブー | … | BW5n-12 | JP", confidence: 0.95, setNumberCandidate: { card: "12", total: "86" }, setCodeCandidate: "BW5n", pokemonNumber: 499, pokemonNameFr: "Gruikui", setName: "ホワイトフレア", setNameFr: "Combat de Maîtres" }`
    - Si Gemini timeout/erreur → **fallback Google Vision** :
      - POST Vision API `DOCUMENT_TEXT_DETECTION`
      - Parse `fullTextAnnotation` → `{ text, pages[] }`
@@ -431,7 +446,7 @@ Config dans `app/globals.css` via `@theme { ... }` (nouveau système Tailwind v4
 
 5. **Frontend reçoit OCR result** → set state `ocrText`, `confidence`, détecte langue via regex Hiragana/Katakana → `language = 'JP'`.
 
-6. **POST /api/enrich** JSON `{ text: ocrText, setCode: "BW5n", localId: "12", total: 86, language: "JP" }` :
+6. **POST /api/enrich** JSON `{ text: ocrText, setCode: "BW5n", localId: "12", total: 86, language: "JP", pokemonNumber: 499, pokemonNameFr: "Gruikui", setName: "ホワイトフレア", setNameFr: "Combat de Maîtres" }` :
    - `app/api/enrich/route.ts` reçoit request
    - Normalize input : `setCode = "BW5n"`, `localId = "12"`, `total = 86`
    - **Strategy 1 — Catalogue direct** :
@@ -452,10 +467,16 @@ Config dans `app/globals.css` via `@theme { ... }` (nouveau système Tailwind v4
      - Retourne `{ bestMatch: tcgdexToEnrichedCard(card), candidates: [card] }`
    - Si Strategy 3 miss → **Strategy 4 — Null** : retourne `{ bestMatch: null, candidates: [] }`
 
+   - Avant de retourner, `applyGeminiEnrichments(enriched, body, "JP")` reformate :
+     - `card_name = "Gruikui ex (チャオブーex)"` (suffixe ex extrait du nom japonais)
+     - `pokemon_name = "Gruikui (チャオブー)"`
+     - `set_name = "Combat de Maîtres (ホワイトフレア)"`
+     - `pokemon_number = 499` (depuis Gemini si catalogue était null)
+
 7. **Frontend reçoit EnrichResult** :
    - Si `candidates.length > 1` → affiche modal picker visuel (grille d'images TCG) → user clique → select `bestMatch`
-   - Si `bestMatch` → pré-remplit formulaire : `pokemon_name`, `pokemon_number`, `card_name`, `set_name`, `set_code`, `set_number`, `rarity`, `tcg_image_url`, pricing (si disponible)
-   - Si `bestMatch === null` → form vide, user remplit manuellement
+   - Si `bestMatch` → pré-remplit formulaire : `pokemon_name`, `pokemon_number`, `card_name` (déjà bilingue), `set_name`, `set_code`, `set_number`, `rarity`, `tcg_image_url`, pricing (si disponible). Le user peut éditer + spécifier `variant` (Standard / Poké Ball / Master Ball / Reverse Holo / Promo) + ajouter des `notes`.
+   - Si `bestMatch === null` → form vide (mais `pokemon_number` pré-rempli depuis Gemini si dispo), user remplit manuellement
 
 8. **POST /api/pokedex/suggest** JSON `{ pokemon_number: 499, rarity: "R_HOLO", rarity_rank: 4, language: "JP", cm_price_trend: 2.50 }` :
    - Route fetch `SELECT * FROM cards WHERE pokemon_number = 499 AND status = 'pokedex'`
@@ -467,7 +488,7 @@ Config dans `app/globals.css` via `@theme { ... }` (nouveau système Tailwind v4
 
 10. **User confirme formulaire** → clique "Enregistrer" → set state `phase = 'saving'`.
 
-11. **POST /api/cards** FormData `{ pokemon_name, pokemon_number, card_name, language, rarity, condition, status: 'pokedex', image: File, … }` :
+11. **POST /api/cards** FormData `{ pokemon_name, pokemon_number, card_name, language, rarity, condition, status: 'pokedex', notes, variant, image: File, … }` :
     - Route valide enums (language in `LANGUAGES`, etc.)
     - Génère UUID `cardId`
     - Upload photo : `supabase.storage.from('card-photos').upload('${cardId}.jpg', buffer)` → retourne publicUrl
@@ -511,7 +532,7 @@ npm run test:watch    # Watch mode
 npx vitest run --coverage  # Coverage (non configuré)
 ```
 
-**97 tests, 0 failures** (au commit latest). Durée ~2-3s.
+**116 tests, 0 failures** (au commit latest). Durée ~1s.
 
 ---
 
@@ -649,6 +670,21 @@ Ces fichiers existent localement mais ne sont jamais committés :
 
 **Trade-off** : Gemini 3 Flash est un modèle **preview** (Google peut le retirer). Fallback Vision préservé pour robustesse.
 
+### Phase 1.13 — TERMINEE ✅
+
+**Objectif** : Traductions FR via Gemini + modes d'affichage Pokédex + refonte UI scanner + dropdown variant.
+
+**Livrables** :
+- **Gemini OCR enrichi** : `lib/api/gemini-vision.ts` retourne 4 nouveaux champs depuis le training data Gemini — `pokemon_number` (national dex 1-1025), `pokemon_name_fr` (ex: "Gruikui" pour チャオブー), `set_name`, `set_name_fr` (ex: "Combat de Maîtres" pour ホワイトフレア).
+- **Names bilingues** : `lib/api/tcg-catalog.ts` exporte `formatBilingualName` + `deriveCardNameFr` ; `app/api/enrich/route.ts` applique `applyGeminiEnrichments` après chaque hit catalogue → `card_name = "Gruikui ex (チャオブーex)"`, `set_name = "Combat de Maîtres (ホワイトフレア)"`.
+- **Variant dropdown** : nouvelle migration `20260429142350_add_cards_variant.sql` (colonne `variant text` sur `cards`) ; `MobileSubmit.tsx` propose Standard / Poké Ball / Master Ball / Reverse Holo / Promo.
+- **UI scanner** : layout 2 colonnes desktop (photo sticky + form), loupe magnifier 1.5× sur hover, formulaire en grille plus dense, bouton "Re-rechercher" préserve les champs OCR Gemini.
+- **Pokédex view modes** : 3 modes (`grid-3` large 3-6 colonnes, `grid-5` compact 5-10 colonnes, `list` ligne sprite + nom + carte + rareté + prix) persistés dans `localStorage` (clé `iris.pokedex.viewMode`). Nouveau composant `PokedexListItem.tsx`.
+- **Renommage UX** : "TCG match" → "Match catalogue" dans le bandeau.
+- 116 tests (+19), 0 lint warning.
+
+**Followups différés** : pricing Cardmarket par variant (les Poké Ball valent souvent 2× le standard mais le scraper actuel ne distingue pas), wiring Pokédex auto-suggestion sur changement manuel de `pokemon_number`.
+
 ### Phase 2 — TODO 🚧
 
 **Objectif** : Module Vinted — liste FIFO, générateur d'annonce, action "vendu".
@@ -697,52 +733,53 @@ Ces fichiers existent localement mais ne sont jamais committés :
 
 ## Fichiers détaillés par module
 
-### Module OCR (6 fichiers, ~700 lignes)
+### Module OCR (6 fichiers, ~1100 lignes)
 
 | Fichier | Lignes | Description |
 |---------|--------|-------------|
-| `lib/api/gemini-vision.ts` | 135 | Wrapper Gemini 3 Flash Preview : `extractCardFromImage(buffer)` → JSON structuré. Timeout 15s, retourne `null` si erreur. Export `GeminiCardExtraction` interface. |
-| `lib/api/gemini-vision.test.ts` | 141 | Tests Gemini : mock fetch, timeout, parsing, schema validation. 8 tests. |
+| `lib/api/gemini-vision.ts` | 157 | Wrapper Gemini 3 Flash Preview : `extractCardFromImage(buffer)` → JSON structuré (incl. `pokemon_number`, `pokemon_name_fr`, `set_name`, `set_name_fr`). Timeout 15s, retourne `null` si erreur. Export `GeminiCardExtraction` interface. |
+| `lib/api/gemini-vision.test.ts` | 422 | Tests Gemini : mock fetch, timeout, parsing, schema validation, mapping FR + pokemon_number, champs optionnels. 12 tests. |
 | `lib/api/vision.ts` | 160 | Wrapper Google Cloud Vision : `detectText(base64)` → `OcrResult`. DOCUMENT_TEXT_DETECTION, languageHints JP/EN. Extrait words + bounding boxes. |
-| `app/api/ocr/route.ts` | 66 | Route POST /api/ocr : FormData image → Gemini → Vision fallback → retourne `OcrResult`. |
+| `app/api/ocr/route.ts` | 69 | Route POST /api/ocr : FormData image → Gemini → Vision fallback → retourne `OcrResult` (avec champs FR/pokemon_number quand Gemini répond). |
 | `lib/utils/extract-from-words.ts` | 176 | Smart extraction : `findSetNumberCandidate`, `findSetCodeCandidate`, `findKnownSetCodeInText`. Bounding box scoring, anti-false-positives. |
-| `lib/utils/extract-from-words.test.ts` | 276 | Tests extraction : exact token, substring, triplet split, tie-breaker, false positives rejection. 18 tests. |
+| `lib/utils/extract-from-words.test.ts` | 276 | Tests extraction : exact token, substring, triplet split, tie-breaker, false positives rejection. 32 tests. |
 
-### Module Catalogue (4 fichiers, ~550 lignes)
+### Module Catalogue (4 fichiers, ~1100 lignes)
 
 | Fichier | Lignes | Description |
 |---------|--------|-------------|
-| `lib/api/tcg-catalog.ts` | 171 | Helpers catalogue : `lookupByCode` (strict/loose), `lookupByTotal`, `disambiguateByName`, `rowToEnrichedCard`, `normalizeSetNumber`, `normalizeSetCode`. |
-| `lib/api/tcg-catalog.test.ts` | 342 | Tests catalogue : normalize, lookup, disambiguation. 19 tests, mock Supabase. |
+| `lib/api/tcg-catalog.ts` | 215 | Helpers catalogue : `lookupByCode` (strict/loose), `lookupByTotal`, `disambiguateByName`, `rowToEnrichedCard`, `normalizeSetNumber`, `normalizeSetCode`, `formatBilingualName` (formate "FR (Original)"), `deriveCardNameFr` (combine nom FR + suffixe ex/V/VMAX/etc). |
+| `lib/api/tcg-catalog.test.ts` | 256 | Tests catalogue : normalize, lookup, disambiguation, formatBilingualName, deriveCardNameFr. 36 tests, mock Supabase. |
 | `supabase/migrations/20260428114538_tcg_catalog.sql` | 44 | Migration table `tcg_catalog` : schema, unique constraint, 3 index, RLS. |
 | `scripts/scrape-limitlesstcg.ts` | 631 | Scraper LimitlessTCG : crawl 7 langues × 1163 sets → upsert Supabase. Modes probe/full, rate limit 500ms. |
 
-### Module Enrichissement (3 fichiers, ~720 lignes)
+### Module Enrichissement (3 fichiers, ~750 lignes)
 
 | Fichier | Lignes | Description |
 |---------|--------|-------------|
-| `app/api/enrich/route.ts` | 187 | Route POST /api/enrich : 4 strategies (catalogue direct → by-total → TCGdex → null). Timeout 2s/strategy. Retourne `EnrichResult`. |
+| `app/api/enrich/route.ts` | 222 | Route POST /api/enrich : 4 strategies (catalogue direct → by-total → TCGdex → null). Helper `applyGeminiEnrichments` qui formate noms bilingues + propage `pokemon_number`. Timeout 2s/strategy. Retourne `EnrichResult`. |
 | `lib/api/tcgdex.ts` | 312 | TCGdex API wrapper : `lookupById`, `listSets` (cache 6h), `findCardsByTotalAndLocalId`, `enrichWithFrenchNames`, `toEnrichedCard`, `mapRarity`. |
-| `lib/api/tcgdex.test.ts` | 220 | Tests TCGdex : rarity mapping, toEnrichedCard, lookup, cache. 16 tests. |
+| `lib/api/tcgdex.test.ts` | 220 | Tests TCGdex : rarity mapping, toEnrichedCard, lookup, cache. 11 tests. |
 
-### Module Scan Mobile (3 fichiers, ~660 lignes)
+### Module Scan Mobile (3 fichiers, ~1100 lignes)
 
 | Fichier | Lignes | Description |
 |---------|--------|-------------|
-| `components/submit/MobileSubmit.tsx` | 523 | Composant principal scan : phases (idle → scanning → reviewing → saving → success/error), OCR + enrich calls, candidate picker, form, Pokédex suggestion, save. |
+| `components/submit/MobileSubmit.tsx` | 953 | Composant principal scan : layout 2 colonnes desktop (photo+loupe sticky / form), phases (idle → scanning → reviewing → saving → success/error), OCR + enrich calls (passe les 4 champs Gemini), candidate picker, form (notes + variant dropdown Standard/Poké Ball/Master Ball/Reverse Holo/Promo), loupe magnifier 1.5×, Pokédex suggestion, save. |
 | `components/submit/SubmitTabs.tsx` | 34 | Tabs wrapper : Mobile (implémenté), Lot + Script Python (placeholders Phase 2). |
-| `components/cards/ScanSuggestion.tsx` | 109 | Bandeau suggestion Pokédex : 4 variantes visuelles (no_pokemon_number, no_entry, can_replace, keep_existing), boutons radio actions. |
+| `components/cards/ScanSuggestion.tsx` | 109 | Bandeau suggestion Pokédex (label "Match catalogue") : 4 variantes visuelles (no_pokemon_number, no_entry, can_replace, keep_existing), boutons radio actions. |
 
-### Module Pokédex (8 fichiers, ~720 lignes)
+### Module Pokédex (9 fichiers, ~900 lignes)
 
 | Fichier | Lignes | Description |
 |---------|--------|-------------|
-| `components/pokedex/PokedexGrid.tsx` | 120 | Grille 1025 Pokémon : maps pokedex/available, filtres, cellules, drawer. |
+| `components/pokedex/PokedexGrid.tsx` | 144 | Grille 1025 Pokémon : maps pokedex/available, filtres, 3 modes d'affichage (grid-3 / grid-5 / list) persistés en localStorage, render conditionnel cell vs list-item, drawer. |
 | `components/pokedex/PokedexCell.tsx` | 66 | Cellule sprite PokeAPI : couleur si possédée, silhouette sinon. Lazy loading. |
+| `components/pokedex/PokedexListItem.tsx` | 97 | Ligne mode liste : sprite 48px + n° + nom Pokémon + carte + badge rareté + prix Cardmarket trend (ou suggested fallback). Badge ✓/— pour état possédé/manquant. |
 | `components/pokedex/PokedexDrawer.tsx` | 192 | Drawer détail : photo + image TCG, infos, prix, bouton Remplacer, modal liste cartes disponibles. |
-| `components/pokedex/PokedexFilters.tsx` | 99 | Filtres : génération, statut, recherche. Debounce 300ms. |
+| `components/pokedex/PokedexFilters.tsx` | 113 | Filtres : toggle mode d'affichage (3 boutons + labels visibles ≥ sm), génération, statut, recherche. Export `ViewMode = 'grid-3' | 'grid-5' | 'list'`. |
 | `lib/utils/pokedex-suggestion.ts` | 112 | Logique suggestion : `computePokedexSuggestion` (pure function), 4 outcomes, price tie-breaker. |
-| `lib/utils/pokedex-suggestion.test.ts` | 147 | Tests suggestion : 4 outcomes, price breaker. 8 tests. |
+| `lib/utils/pokedex-suggestion.test.ts` | 128 | Tests suggestion : 4 outcomes, price breaker. 9 tests. |
 | `lib/utils/pokemon-generations.ts` | 17 | Config générations 1-9 avec plages numéros. |
 | `app/api/pokedex/replace/route.ts` | 65 | Route POST swap atomique : appelle RPC `replace_pokedex_card`. |
 
@@ -750,50 +787,53 @@ Ces fichiers existent localement mais ne sont jamais committés :
 
 Page `/vinted` est un placeholder (11 lignes). Aucun composant `VintedList`, `VintedRow`, `AnnonceGenerator` implémenté.
 
-### Database (2 fichiers, ~245 lignes SQL)
+### Database (3 fichiers, ~250 lignes SQL)
 
 | Fichier | Lignes | Description |
 |---------|--------|-------------|
 | `supabase/migrations/20260425224142_initial_schema.sql` | 200 | Schema initial : 4 enums, 4 tables (rarity_ranks, lots, cards, config), trigger rarity_rank, RPC replace_pokedex_card, RLS, Storage buckets. |
 | `supabase/migrations/20260428114538_tcg_catalog.sql` | 44 | Table `tcg_catalog` : 111K cartes, unique constraint (set_code, set_number, language), 3 index. |
+| `supabase/migrations/20260429142350_add_cards_variant.sql` | 6 | Colonne `variant text` sur `cards` (NULL = standard, free text Poké Ball/Master Ball/Reverse Holo/Promo). |
 
-### Tests (8 fichiers, 97 tests)
+### Tests (8 fichiers, 116 tests)
 
 | Fichier | Tests | Description |
 |---------|-------|-------------|
-| `lib/api/gemini-vision.test.ts` | 8 | Gemini wrapper : fetch mock, timeout, parsing. |
-| `lib/api/tcg-catalog.test.ts` | 19 | Catalogue : normalize, lookup strict/loose, disambiguation. |
-| `lib/api/tcgdex.test.ts` | 16 | TCGdex : rarity map, toEnrichedCard, lookup, cache. |
-| `lib/utils/extract-from-words.test.ts` | 18 | Smart extraction : set_number, set_code, false positives. |
-| `lib/utils/parse-set-number.test.ts` | 4 | Regex parser set_number. |
-| `lib/utils/pokedex-suggestion.test.ts` | 8 | Suggestion Pokédex : 4 outcomes, price breaker. |
-| `lib/utils/sanity.test.ts` | 3 | Sanity checks : imports, enums values. |
-| `scripts/scrape-limitlesstcg.test.ts` | 6 | Scraper helpers : mapLanguage, mapRarity, normalizeSetCode. |
+| `lib/api/gemini-vision.test.ts` | 12 | Gemini wrapper : fetch mock, timeout, parsing, mapping FR + pokemon_number. |
+| `lib/api/tcg-catalog.test.ts` | 36 | Catalogue : normalize, lookup strict/loose, disambiguation, formatBilingualName, deriveCardNameFr. |
+| `lib/api/tcgdex.test.ts` | 11 | TCGdex : rarity map, toEnrichedCard, lookup, cache. |
+| `lib/utils/extract-from-words.test.ts` | 32 | Smart extraction : set_number, set_code, false positives. |
+| `lib/utils/parse-set-number.test.ts` | 7 | Regex parser set_number. |
+| `lib/utils/pokedex-suggestion.test.ts` | 9 | Suggestion Pokédex : 4 outcomes, price breaker. |
+| `lib/utils/sanity.test.ts` | 1 | Sanity check : imports + enums values. |
+| `scripts/scrape-limitlesstcg.test.ts` | 8 | Scraper helpers : mapLanguage, mapRarity, normalizeSetCode. |
 
 ---
 
 ## Conclusion
 
-I.R.I.S est un projet **bien architecturé** (App Router Next 16, TypeScript strict, séparation client/server claire, tests unitaires solides) et **opérationnel** pour la Phase 1.12 (scan + enrichissement + Pokédex). Le pipeline OCR → enrichissement atteint **93% accuracy** (28/30 cartes bench) grâce à Gemini 3 Flash Preview + catalogue local 111K cartes.
+I.R.I.S est un projet **bien architecturé** (App Router Next 16, TypeScript strict, séparation client/server claire, tests unitaires solides) et **opérationnel** pour la Phase 1.13 (scan + enrichissement + Pokédex multi-modes + traductions FR + variantes). Le pipeline OCR → enrichissement atteint **93% accuracy** (28/30 cartes bench) grâce à Gemini 3 Flash Preview + catalogue local 111K cartes ; les noms sont désormais affichés en français devant l'original (ex: `"Gruikui (チャオブー)"`) quand Gemini fournit la traduction.
 
 **Points forts** :
 - Stack moderne (Next 16, React 19, Tailwind v4, Supabase SSR)
 - OCR multi-stratégies (Gemini → Vision fallback) avec cost $0.0006/scan
 - Catalogue local exhaustif (111K cartes, 7 langues, scraping LimitlessTCG robots.txt OK)
-- Enrichissement 4-strategies avec disambiguation intelligente
+- Enrichissement 4-strategies avec disambiguation intelligente + reformatage bilingue automatique
 - Suggestion Pokédex automatique (comparaison rarity + prix)
-- Tests unitaires 97 passing, 0 lint warnings
+- Pokédex 3 modes (grille large, grille compacte, liste) avec préférence persistée localStorage
+- Scanner UI 2-colonnes avec loupe magnifier 1.5×, dropdown variant (Poké Ball / Master Ball / Reverse Holo / Promo), notes
+- Tests unitaires 116 passing, 0 lint warnings
 - Documentation complète (CLAUDE.md, context.md, phase1-summary.md, setup.md)
 
 **Points à améliorer (Phases 2-4)** :
 - Module Vinted (liste FIFO, générateur annonce, action vendu)
-- Pricing Cardmarket (alternative API fermée : TCGplayer ou scraping HTML)
+- Pricing Cardmarket (alternative API fermée : TCGplayer ou scraping HTML), différenciation par variant
 - Dashboard (KPIs, cartes rares, alertes restock)
 - Tests E2E Playwright (flow complet scan → save → Pokédex)
 - PWA polish (icônes manifest, test install homescreen Android)
 - Déploiement Vercel production
 
-**Fichiers totaux** : 91 (inventaire `/tmp/iris-files.txt`), ~19 500 lignes de code.
+**Fichiers totaux** : 93 (inventaire `git ls-files`), ~20 800 lignes de code.
 
 ---
 
