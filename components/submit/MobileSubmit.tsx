@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import Image from 'next/image';
-import { ScanLine, AlertTriangle, CheckCircle2, XCircle, X } from 'lucide-react';
+import { ScanLine, AlertTriangle, CheckCircle2, XCircle, X, Camera } from 'lucide-react';
 import type {
   CardCondition,
   CardLanguage,
@@ -105,6 +105,8 @@ export default function MobileSubmit() {
   const [researchMsg, setResearchMsg] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<EnrichedCard[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [zoomPos, setZoomPos] = useState<{ x: number; y: number } | null>(null);
+  const [imageDimensions, setImageDimensions] = useState({ w: 0, h: 0 });
 
   function reset() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -481,9 +483,106 @@ export default function MobileSubmit() {
       )}
 
       {(phase === 'reviewing' || phase === 'saving' || phase === 'success') && previewUrl && (
-        <form onSubmit={handleSave} className="flex flex-col gap-5">
+        <form onSubmit={handleSave} className="flex flex-col gap-6">
+          {/* Photo section with loupe */}
+          <div className="flex flex-col gap-3">
+            <h3 className="text-text-muted flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
+              <Camera className="h-3.5 w-3.5" aria-hidden />
+              Photo
+            </h3>
+            <div className="flex flex-col gap-3">
+              <div
+                className="relative mx-auto w-full max-w-md select-none overflow-hidden rounded-xl border-2 border-border shadow-lg"
+                onMouseMove={(e) => {
+                  const target = e.currentTarget.getBoundingClientRect();
+                  const x = e.clientX - target.left;
+                  const y = e.clientY - target.top;
+                  setZoomPos({ x, y });
+                }}
+                onMouseLeave={() => setZoomPos(null)}
+                onTouchMove={(e) => {
+                  const target = e.currentTarget.getBoundingClientRect();
+                  const touch = e.touches[0];
+                  if (touch) {
+                    const x = touch.clientX - target.left;
+                    const y = touch.clientY - target.top;
+                    setZoomPos({ x, y });
+                  }
+                }}
+                onTouchEnd={() => setZoomPos(null)}
+              >
+                <Image
+                  src={previewUrl}
+                  alt="Aperçu de la carte"
+                  width={600}
+                  height={840}
+                  className="w-full object-contain"
+                  unoptimized
+                  onLoad={(e) => {
+                    const img = e.currentTarget;
+                    setImageDimensions({ w: img.naturalWidth, h: img.naturalHeight });
+                  }}
+                />
+                {zoomPos && imageDimensions.w > 0 && (
+                  <div
+                    className="pointer-events-none absolute rounded-full border-2 border-white shadow-2xl"
+                    style={{
+                      width: 140,
+                      height: 140,
+                      left: zoomPos.x - 70,
+                      top: zoomPos.y - 70,
+                      backgroundImage: `url(${previewUrl})`,
+                      backgroundSize: `${imageDimensions.w * 2.5}px ${imageDimensions.h * 2.5}px`,
+                      backgroundPosition: `-${zoomPos.x * 2.5 - 70}px -${zoomPos.y * 2.5 - 70}px`,
+                    }}
+                  />
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={reset}
+                className="border-border text-text-muted hover:border-red hover:text-text mx-auto flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-medium transition-colors"
+              >
+                <Camera className="h-3.5 w-3.5" aria-hidden />
+                Reprendre
+              </button>
+            </div>
+          </div>
+
+          {/* Status block */}
+          <div className={`flex flex-col gap-2 rounded-xl border p-4 ${
+            confidence >= CONFIDENCE_THRESHOLD
+              ? 'bg-rarity-r/10 border-rarity-r/30'
+              : 'bg-rarity-ar/10 border-rarity-ar/30'
+          }`}>
+            <div className="flex items-start gap-2">
+              {confidence >= CONFIDENCE_THRESHOLD ? (
+                <CheckCircle2 className="text-rarity-r mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              ) : (
+                <AlertTriangle className="text-rarity-ar mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              )}
+              <div className="flex flex-1 flex-col gap-1">
+                <p className={`text-sm font-medium ${
+                  confidence >= CONFIDENCE_THRESHOLD ? 'text-rarity-r' : 'text-rarity-ar'
+                }`}>
+                  {confidence >= CONFIDENCE_THRESHOLD ? 'OCR fiable' : 'OCR à vérifier'}
+                  <span className="ml-1.5 font-normal opacity-80">
+                    ({Math.round(confidence * 100)}%)
+                  </span>
+                </p>
+                {form.tcg_image_url && (
+                  <p className="text-text-muted font-mono text-xs">
+                    Match catalogue : <span className="text-text">{form.card_id_tcg}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Pokédex suggestion banner */}
           {suggestion && <ScanSuggestion result={suggestion} />}
 
+          {/* Alert if no catalog match */}
           {!enrichFound && (
             <div className="border-rarity-ar bg-rarity-ar/10 text-rarity-ar rounded-lg border p-3 text-xs">
               Aucun match catalogue — soit le numéro de set n&apos;a pas été lu, soit la carte n&apos;est
@@ -492,8 +591,9 @@ export default function MobileSubmit() {
             </div>
           )}
 
+          {/* OCR text details (collapsed) */}
           {ocrText && (
-            <details className="bg-surface-2 border-border rounded border text-xs">
+            <details className="bg-surface-2 border-border rounded-lg border text-xs">
               <summary className="text-text-muted cursor-pointer select-none px-3 py-2">
                 Texte OCR détecté ({ocrText.length} caractères)
               </summary>
@@ -515,153 +615,159 @@ export default function MobileSubmit() {
             </details>
           )}
 
-          <div className="flex gap-4">
-            <div className="bg-surface-2 relative h-44 w-32 shrink-0 overflow-hidden rounded">
-              <Image src={previewUrl} alt="Preview" fill className="object-cover" unoptimized />
-            </div>
-            <div className="flex flex-1 flex-col gap-2">
-              {confidence < CONFIDENCE_THRESHOLD ? (
-                <div className="text-rarity-ar bg-surface-2 flex items-start gap-2 rounded p-3 text-xs">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                  <span>
-                    Confiance OCR faible ({Math.round(confidence * 100)}%) — vérifie les champs avant
-                    d&apos;enregistrer.
-                  </span>
-                </div>
-              ) : (
-                <div className="text-rarity-r bg-surface-2 flex items-start gap-2 rounded p-3 text-xs">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                  <span>OCR fiable ({Math.round(confidence * 100)}%).</span>
-                </div>
-              )}
-              {form.tcg_image_url && (
-                <p className="text-text-faint text-xs font-mono">
-                  Match catalogue : <span className="text-text-muted">{form.card_id_tcg}</span>
-                </p>
-              )}
-            </div>
-          </div>
+          {/* Form fields section */}
+          <div className="flex flex-col gap-4">
+            <h3 className="text-text-muted text-xs font-semibold uppercase tracking-wide">
+              Informations de la carte
+            </h3>
 
-          <Field label="Nom du Pokémon">
-            <Input value={form.pokemon_name} onChange={(v) => update('pokemon_name', v)} required />
-          </Field>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="N° National">
-              <Input
-                type="number"
-                min={1}
-                max={1025}
-                value={form.pokemon_number}
-                onChange={(v) => update('pokemon_number', v)}
-                required
-              />
+            <Field label="Nom de la carte">
+              <Input value={form.card_name} onChange={(v) => update('card_name', v)} required />
             </Field>
-            <Field label="Langue">
-              <Select
-                value={form.language}
-                onChange={(v) => update('language', v as CardLanguage)}
-                options={LANGUAGES.map((l) => ({ value: l, label: l }))}
-              />
-            </Field>
-          </div>
 
-          <Field label="Nom de la carte">
-            <Input value={form.card_name} onChange={(v) => update('card_name', v)} required />
-          </Field>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Set">
-              <Input value={form.set_name} onChange={(v) => update('set_name', v)} />
+            <Field label="Nom du Pokémon">
+              <Input value={form.pokemon_name} onChange={(v) => update('pokemon_name', v)} required />
             </Field>
-            <Field label="Code set">
-              <Input value={form.set_code} onChange={(v) => update('set_code', v)} />
-            </Field>
-          </div>
 
-          <Field label="N° dans le set">
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Input
-                  value={form.set_number}
-                  onChange={(v) => update('set_number', v)}
-                  placeholder="ex. 200/165"
-                />
+            <div className="grid grid-cols-12 gap-3">
+              <div className="col-span-4">
+                <Field label="Set">
+                  <Input value={form.set_code} onChange={(v) => update('set_code', v)} placeholder="SV11W" />
+                </Field>
               </div>
+              <div className="col-span-4">
+                <Field label="N°">
+                  <Input
+                    value={form.set_number}
+                    onChange={(v) => update('set_number', v)}
+                    placeholder="111/086"
+                  />
+                </Field>
+              </div>
+              <div className="col-span-4">
+                <Field label="Langue">
+                  <Select
+                    value={form.language}
+                    onChange={(v) => update('language', v as CardLanguage)}
+                    options={LANGUAGES.map((l) => ({ value: l, label: l }))}
+                  />
+                </Field>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-12 gap-3">
+              <div className="col-span-4">
+                <Field label="N° Nat.">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={1025}
+                    value={form.pokemon_number}
+                    onChange={(v) => update('pokemon_number', v)}
+                    required
+                  />
+                </Field>
+              </div>
+              <div className="col-span-4">
+                <Field label="Rareté">
+                  <Select
+                    value={form.rarity}
+                    onChange={(v) => update('rarity', v as CardRarity)}
+                    options={RARITIES}
+                  />
+                </Field>
+              </div>
+              <div className="col-span-4">
+                <Field label="État">
+                  <Select
+                    value={form.condition}
+                    onChange={(v) => update('condition', v as CardCondition)}
+                    options={CONDITIONS.map((c) => ({ value: c, label: c }))}
+                  />
+                </Field>
+              </div>
+            </div>
+
+            <Field label="Nom du set (optionnel)">
+              <Input value={form.set_name} onChange={(v) => update('set_name', v)} placeholder="Stellar Miracle" />
+            </Field>
+
+            <div className="flex flex-col gap-2">
               <button
                 type="button"
                 onClick={handleResearch}
                 disabled={researching}
-                className="border-border text-text-muted hover:bg-surface-2 hover:text-text shrink-0 rounded border px-3 text-xs font-medium disabled:opacity-50"
+                className="border-border text-text-muted hover:bg-surface-2 hover:border-red hover:text-text rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
               >
-                {researching ? '…' : 'Re-rechercher catalogue'}
+                {researching ? 'Recherche en cours…' : 'Re-rechercher dans le catalogue'}
               </button>
+              {researchMsg && (
+                <span className="text-text-faint text-[11px]">{researchMsg}</span>
+              )}
             </div>
-            {researchMsg && (
-              <span className="text-text-faint mt-1 text-[11px]">{researchMsg}</span>
-            )}
-          </Field>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Rareté">
-              <Select
-                value={form.rarity}
-                onChange={(v) => update('rarity', v as CardRarity)}
-                options={RARITIES}
-              />
-            </Field>
-            <Field label="État">
-              <Select
-                value={form.condition}
-                onChange={(v) => update('condition', v as CardCondition)}
-                options={CONDITIONS.map((c) => ({ value: c, label: c }))}
-              />
-            </Field>
           </div>
 
-          <Field label="Destination">
-            <Select
-              value={form.status}
-              onChange={(v) => update('status', v as CardStatus)}
-              options={STATUSES}
-            />
-          </Field>
+          {/* Destination section */}
+          <div className="flex flex-col gap-4">
+            <h3 className="text-text-muted text-xs font-semibold uppercase tracking-wide">
+              Destination
+            </h3>
+            <div className="grid grid-cols-3 gap-2">
+              {STATUSES.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => update('status', value)}
+                  className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                    form.status === value
+                      ? 'bg-red-bg border-red text-red'
+                      : 'border-border text-text-muted hover:border-text-muted'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
+          {/* Notes */}
           <Field label="Notes (optionnel)">
             <textarea
               value={form.notes}
               onChange={(e) => update('notes', e.target.value)}
               rows={2}
-              className="bg-surface-2 border-border focus:border-red w-full rounded border px-3 py-2 text-sm outline-none"
+              className="bg-surface-2 border-border focus:border-red w-full rounded-lg border px-3 py-2 text-sm outline-none"
             />
           </Field>
 
+          {/* Success/error messages */}
           {phase === 'success' && (
-            <div className="text-rarity-r bg-surface-2 flex items-center gap-2 rounded p-3 text-sm">
+            <div className="text-rarity-r bg-surface-2 flex items-center gap-2 rounded-lg p-3 text-sm">
               <CheckCircle2 className="h-4 w-4" aria-hidden />
               Carte enregistrée.
             </div>
           )}
           {phase !== 'success' && errorMsg && (
-            <div className="bg-red-bg text-red flex items-center gap-2 rounded p-3 text-sm">
+            <div className="bg-red-bg text-red flex items-center gap-2 rounded-lg p-3 text-sm">
               <XCircle className="h-4 w-4" aria-hidden />
               {errorMsg}
             </div>
           )}
 
+          {/* Action buttons */}
           <div className="flex gap-3">
             <button
               type="button"
               onClick={reset}
               disabled={phase === 'saving'}
-              className="border-border text-text-muted hover:bg-surface-2 flex-1 rounded border px-3 py-2 text-sm font-medium disabled:opacity-50"
+              className="border-border text-text-muted hover:bg-surface-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={phase === 'saving' || phase === 'success'}
-              className="bg-red flex-1 rounded px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="bg-red flex-1 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50"
             >
               {phase === 'saving' ? 'Enregistrement…' : 'Enregistrer'}
             </button>
@@ -674,9 +780,9 @@ export default function MobileSubmit() {
 
 /* ----- inline form primitives — kept here to avoid a wider component sprawl ----- */
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <label className="flex flex-col gap-1.5">
+    <label className={className ? `flex flex-col gap-1.5 ${className}` : "flex flex-col gap-1.5"}>
       <span className="text-text-muted text-xs font-medium uppercase tracking-wide">{label}</span>
       {children}
     </label>
@@ -701,7 +807,7 @@ function Input(props: {
       min={props.min}
       max={props.max}
       placeholder={props.placeholder}
-      className="bg-surface-2 border-border focus:border-red rounded border px-3 py-2 text-sm outline-none"
+      className="bg-surface-2 border-border focus:border-red w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
     />
   );
 }
@@ -715,7 +821,7 @@ function Select(props: {
     <select
       value={props.value}
       onChange={(e) => props.onChange(e.target.value)}
-      className="bg-surface-2 border-border focus:border-red rounded border px-3 py-2 text-sm outline-none"
+      className="bg-surface-2 border-border focus:border-red w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
     >
       {props.options.map((o) => (
         <option key={o.value} value={o.value}>
