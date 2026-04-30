@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import type { Card } from '@/lib/types';
+import { getPokemonName } from '@/lib/data/pokemon-names';
 
 interface PokedexListItemProps {
   number: number;
@@ -32,7 +33,7 @@ export default function PokedexListItem({ number, card, onClick }: PokedexListIt
     <button
       type="button"
       onClick={onClick}
-      aria-label={`${owned ? card!.pokemon_name : 'Pokémon manquant'} n°${number}`}
+      aria-label={`${owned ? card!.pokemon_name : getPokemonName(number, 'fr')} n°${number}`}
       className="bg-surface border-border hover:border-red focus:border-red flex items-center gap-3 rounded border p-2 text-left transition-colors focus:outline-none"
     >
       <div className="shrink-0">
@@ -53,7 +54,7 @@ export default function PokedexListItem({ number, card, onClick }: PokedexListIt
             #{number.toString().padStart(4, '0')}
           </span>
           <span className={`truncate text-sm font-medium ${owned ? 'text-text' : 'text-text-muted'}`}>
-            {card?.pokemon_name ?? 'Pokémon manquant'}
+            {card?.pokemon_name ?? getPokemonName(number, 'fr')}
           </span>
         </div>
 
