@@ -3,14 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NAV_ITEMS } from './nav-items';
-import ThemeToggle from './ThemeToggle';
-import SignOutButton from './SignOutButton';
 
-interface SidebarProps {
-  initialTheme: 'dark' | 'light';
-}
-
-export default function Sidebar({ initialTheme }: SidebarProps) {
+export default function Sidebar() {
   const pathname = usePathname();
 
   return (
@@ -20,7 +14,7 @@ export default function Sidebar({ initialTheme }: SidebarProps) {
         <p className="text-text-faint mt-0.5 text-[10px] uppercase tracking-wider">Pokémon TCG</p>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 px-3">
+      <nav className="flex flex-1 flex-col gap-1 px-3 pb-4">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
           return (
@@ -40,11 +34,6 @@ export default function Sidebar({ initialTheme }: SidebarProps) {
           );
         })}
       </nav>
-
-      <div className="border-border flex flex-col gap-1 border-t px-3 py-3">
-        <ThemeToggle initialTheme={initialTheme} />
-        <SignOutButton />
-      </div>
     </aside>
   );
 }
