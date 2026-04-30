@@ -43,6 +43,7 @@ export interface Card {
   cm_price_avg: number | null;
   suggested_price: number | null;
   cm_updated_at: string | null;
+  vinted_listed_at: string | null;
   lot_id: string | null;
   date_added: string;
   date_sold: string | null;
