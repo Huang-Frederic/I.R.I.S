@@ -6,6 +6,7 @@ import type { Card } from '@/lib/types';
 import { groupCards } from '@/lib/utils/group-cards';
 import VintedFilters, { INITIAL_FILTERS, type VintedFilterState } from './VintedFilters';
 import VintedRow from './VintedRow';
+import EditablePriceCell from './EditablePriceCell';
 
 export interface VintedListProps {
   cards: Card[];
@@ -40,8 +41,14 @@ function matchesFilters(card: Card, f: VintedFilterState, registered: Set<number
 }
 
 export default function VintedList({ cards: initial, registered }: VintedListProps) {
-  const [cards] = useState<Card[]>(initial);
+  const [cards, setCards] = useState<Card[]>(initial);
   const [filters, setFilters] = useState<VintedFilterState>(INITIAL_FILTERS);
+
+  const updateCardPrice = (cardId: string, newPrice: number | null) => {
+    setCards((prev) =>
+      prev.map((c) => (c.id === cardId ? { ...c, suggested_price: newPrice } : c)),
+    );
+  };
 
   const filtered = useMemo(
     () => cards.filter((c) => matchesSearch(c, filters.search) && matchesFilters(c, filters, registered)),
@@ -71,9 +78,11 @@ export default function VintedList({ cards: initial, registered }: VintedListPro
               group={g}
               isRegistered={registered.has(g.head.pokemon_number)}
               priceCell={
-                <span className="text-text-faint font-mono text-xs">
-                  {g.head.suggested_price !== null ? `${g.head.suggested_price.toFixed(2)} €` : '—'}
-                </span>
+                <EditablePriceCell
+                  cardId={g.head.id}
+                  initialPrice={g.head.suggested_price}
+                  onSaved={(newPrice) => updateCardPrice(g.head.id, newPrice)}
+                />
               }
               onAnnonceClick={() => {/* wired in Task 10 */}}
               onSoldClick={() => {/* wired in Task 9 */}}
