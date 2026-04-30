@@ -22,6 +22,14 @@ describe('formatStaleness', () => {
     });
   });
 
+  it('returns "stale" at exactly 1 day ago (boundary)', () => {
+    expect(formatStaleness(isoDaysAgo(1), NOW)).toEqual({
+      tone: 'stale',
+      label: 'Maj il y a 1j',
+      daysSince: 1,
+    });
+  });
+
   it('returns "stale" between 1 and 7 days', () => {
     expect(formatStaleness(isoDaysAgo(3), NOW)).toEqual({
       tone: 'stale',

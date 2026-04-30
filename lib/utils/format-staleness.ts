@@ -23,6 +23,7 @@ export function formatStaleness(cm_updated_at: string | null, now: Date): Stalen
   }
   const elapsed = now.getTime() - new Date(cm_updated_at).getTime();
   const daysSince = Math.floor(elapsed / dayMs);
+  // daysSince < 1 catches both fresh (<24h) and clock-skew future timestamps.
   if (daysSince < 1) return { tone: 'fresh', label: 'Frais', daysSince };
   if (daysSince <= 7) return { tone: 'stale', label: `Maj il y a ${daysSince}j`, daysSince };
   return { tone: 'old', label: `Maj il y a ${daysSince}j`, daysSince };
