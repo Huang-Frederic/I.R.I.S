@@ -9,7 +9,9 @@ import VintedRow from './VintedRow';
 import EditablePriceCell from './EditablePriceCell';
 import SoldModal from './SoldModal';
 import RestockToast from './RestockToast';
+import AnnonceModal from './AnnonceModal';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
+import type { VintedConfig } from '@/lib/utils/vinted-template';
 
 export interface VintedListProps {
   cards: Card[];
@@ -43,7 +45,7 @@ function matchesFilters(card: Card, f: VintedFilterState, registered: Set<number
   return true;
 }
 
-export default function VintedList({ cards: initial, registered }: VintedListProps) {
+export default function VintedList({ cards: initial, registered, config }: VintedListProps) {
   const [cards, setCards] = useState<Card[]>(initial);
   const [filters, setFilters] = useState<VintedFilterState>(INITIAL_FILTERS);
 
@@ -55,6 +57,12 @@ export default function VintedList({ cards: initial, registered }: VintedListPro
 
   const [soldTarget, setSoldTarget] = useState<Card | null>(null);
   const [restockAlert, setRestockAlert] = useState<RestockAlert | null>(null);
+  const [annonceTarget, setAnnonceTarget] = useState<Card | null>(null);
+
+  const vintedConfig: VintedConfig = {
+    vinted_shipping_note: config.vinted_shipping_note ?? '',
+    vinted_seller_note: config.vinted_seller_note ?? '',
+  };
 
   const handleSold = ({ soldCardId, restock }: { soldCardId: string; restock: RestockAlert | null }) => {
     setCards((prev) => prev.filter((c) => c.id !== soldCardId));
@@ -96,7 +104,7 @@ export default function VintedList({ cards: initial, registered }: VintedListPro
                   onSaved={(newPrice) => updateCardPrice(g.head.id, newPrice)}
                 />
               }
-              onAnnonceClick={() => {/* wired in Task 10 */}}
+              onAnnonceClick={() => setAnnonceTarget(g.head)}
               onSoldClick={() => setSoldTarget(g.head)}
             />
           ))}
@@ -112,6 +120,14 @@ export default function VintedList({ cards: initial, registered }: VintedListPro
       )}
       {restockAlert && (
         <RestockToast alert={restockAlert} onDismiss={() => setRestockAlert(null)} />
+      )}
+      {annonceTarget && (
+        <AnnonceModal
+          card={annonceTarget}
+          config={vintedConfig}
+          onClose={() => setAnnonceTarget(null)}
+          onPriceSaved={updateCardPrice}
+        />
       )}
     </div>
   );
