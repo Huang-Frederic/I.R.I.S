@@ -19,7 +19,12 @@ interface PatchBody {
   vinted_listed_at?: string | null;
 }
 
-const ALLOWED_STATUSES: ReadonlySet<CardStatus> = new Set(['for_sale', 'collection', 'sold']);
+const ALLOWED_STATUSES: ReadonlySet<CardStatus> = new Set([
+  'for_sale',
+  'collection',
+  'sold',
+  'pokedex',
+]);
 
 function sanitizeNumber(v: unknown): number | null | undefined {
   if (v === undefined) return undefined;
@@ -55,10 +60,7 @@ export async function PATCH(
 
   if (body.status !== undefined) {
     if (!ALLOWED_STATUSES.has(body.status)) {
-      return NextResponse.json(
-        { error: 'status invalide (utiliser /api/pokedex/replace pour pokedex)' },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: 'status invalide' }, { status: 400 });
     }
     update.status = body.status;
     if (body.status === 'sold') {
@@ -100,6 +102,43 @@ export async function PATCH(
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: 'aucun champ à mettre à jour' }, { status: 400 });
+  }
+
+  // If we're flipping to pokedex, pre-check the per-pokemon unique slot.
+  // The partial unique index `one_pokedex_per_pokemon` guarantees only one
+  // 'pokedex' card per pokemon_number — so promoting an existing card needs
+  // either an empty slot or a swap via /api/pokedex/replace.
+  if (body.status === 'pokedex') {
+    const { data: target, error: fetchErr } = await supabase
+      .from('cards')
+      .select('pokemon_number, status')
+      .eq('id', id)
+      .single();
+    if (fetchErr || !target) {
+      return NextResponse.json({ error: 'carte introuvable' }, { status: 404 });
+    }
+    if (target.status !== 'pokedex' && target.pokemon_number) {
+      const { data: existing } = await supabase
+        .from('cards')
+        .select(
+          'id, image_url, tcg_image_url, card_name, set_name, set_code, set_number, language, condition, rarity, variant, pokemon_number, pokemon_name',
+        )
+        .eq('pokemon_number', target.pokemon_number)
+        .eq('status', 'pokedex')
+        .neq('id', id)
+        .maybeSingle();
+      if (existing) {
+        return NextResponse.json(
+          {
+            error: 'pokedex_slot_taken',
+            message:
+              "Le slot Pokédex pour ce Pokémon est déjà occupé. Utilise « Remplacer » depuis le drawer Pokédex.",
+            existingCard: existing,
+          },
+          { status: 409 },
+        );
+      }
+    }
   }
 
   // If we're flipping to for_sale, pre-check the unique-group constraint
@@ -150,10 +189,20 @@ export async function PATCH(
       return NextResponse.json({ error: 'carte introuvable' }, { status: 404 });
     }
     // Postgres unique violation fallback (in case pre-check missed a race)
+    const msg = error.message ?? '';
     const isUniqueViolation =
-      error.code === '23505' ||
-      /one_for_sale_per_group|duplicate key|unique constraint/i.test(error.message ?? '');
+      error.code === '23505' || /duplicate key|unique constraint/i.test(msg);
     if (isUniqueViolation) {
+      // Distinguish the two partial-unique indexes by name when surfacing.
+      if (/one_pokedex_per_pokemon/i.test(msg) || body.status === 'pokedex') {
+        return NextResponse.json(
+          {
+            error: 'pokedex_slot_taken',
+            message: 'Le slot Pokédex pour ce Pokémon est déjà occupé.',
+          },
+          { status: 409 },
+        );
+      }
       return NextResponse.json(
         { error: 'for_sale_conflict', message: 'Un exemplaire de cette carte est déjà en vente sur Vinted.' },
         { status: 409 },
