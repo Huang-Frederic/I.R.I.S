@@ -161,3 +161,66 @@ describe('POST /api/prices/update — bulk mode', () => {
     expect(json.updated).toBe(1);
   });
 });
+
+describe('POST /api/prices/update — single-card mode', () => {
+  it('returns 401 when not authenticated', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: null } });
+    const req = new Request('http://localhost/api/prices/update?card_id=abc', { method: 'POST' });
+    const res = await POST(req);
+    expect(res.status).toBe(401);
+  });
+
+  it('returns updated card on success', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+
+    // Reuse setupServiceRead but for a single-card read instead of a list.
+    const targetCard = row({ id: 'abc' });
+
+    serviceMock.from.mockImplementation((table: string) => {
+      if (table === 'cards') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({ data: targetCard, error: null }),
+            })),
+          })),
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: { ...targetCard, cm_price_trend: 2.5 },
+                  error: null,
+                }),
+              })),
+            })),
+          })),
+        };
+      }
+      if (table === 'config') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({ data: { value: '0.85' }, error: null }),
+            })),
+          })),
+        };
+      }
+      throw new Error(`unmocked table: ${table}`);
+    });
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        pricing: { cardmarket: { idProduct: 1, low: 1, trend: 2.5, avg: 2 } },
+      }),
+    }) as unknown as typeof fetch;
+
+    const req = new Request('http://localhost/api/prices/update?card_id=abc', { method: 'POST' });
+    const res = await POST(req);
+    const json = await res.json();
+    expect(res.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(json.card.id).toBe('abc');
+    expect(json.card.cm_price_trend).toBe(2.5);
+  });
+});
