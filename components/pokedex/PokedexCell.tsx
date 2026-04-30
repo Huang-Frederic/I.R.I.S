@@ -27,11 +27,14 @@ export default function PokedexCell({ number, card, onClick }: PokedexCellProps)
       <Image
         src={`${SPRITE_BASE}${number}.png`}
         alt=""
-        width={64}
-        height={64}
+        width={80}
+        height={80}
         loading="lazy"
         unoptimized
-        className={owned ? '' : 'opacity-25 brightness-0 saturate-0'}
+        className={owned ? '' : 'opacity-50'}
+        style={owned ? undefined : {
+          filter: 'brightness(0) invert(40%) sepia(90%) saturate(2900%) hue-rotate(335deg) brightness(95%)',
+        }}
       />
       <span className="text-text-faint font-mono text-[10px]">
         #{number.toString().padStart(4, '0')}

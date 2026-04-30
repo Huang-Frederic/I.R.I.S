@@ -27,7 +27,7 @@ const CONDITIONS: CardCondition[] = ['NM', 'EX', 'GD', 'PL', 'PO'];
 const STATUSES: { value: CardStatus; label: string }[] = [
   { value: 'for_sale', label: 'Vinted' },
   { value: 'pokedex', label: 'Pokédex' },
-  { value: 'collection', label: 'Collection' },
+  { value: 'collection', label: 'Stock' },
 ];
 const RARITIES: { value: CardRarity; label: string }[] = [
   { value: 'SAR', label: 'SAR — Special Art' },
@@ -637,7 +637,8 @@ export default function CardScanForm({
                   {phase === 'scanning' ? (
                     <>
                       <div className="border-red border-t-transparent h-8 w-8 animate-spin rounded-full border-2" />
-                      <p className="text-sm">Analyse OCR + enrichissement…</p>
+                      <p className="text-sm">Analyse OCR…</p>
+                      <p className="text-text-muted text-xs">Gemini extrait les infos de la carte (15-30 s)</p>
                     </>
                   ) : (
                     <>
