@@ -128,6 +128,39 @@ export async function POST(request: Request) {
       ? new Date().toISOString()
       : null;
 
+  // Pre-check: if status='pokedex' and the slot is already taken, return 409
+  // with the existing card details so the client can prompt for replacement.
+  if (status === 'pokedex' && pokemon_number) {
+    const { data: existing } = await supabase
+      .from('cards')
+      .select('id, image_url, tcg_image_url, card_name, pokemon_name, set_name, set_code, set_number, language, rarity, condition, variant, card_id_tcg')
+      .eq('pokemon_number', pokemon_number)
+      .eq('status', 'pokedex')
+      .maybeSingle();
+
+    if (existing) {
+      // Check if a for_sale card of the same group already exists,
+      // which would block "displace to Vinted" (one-for-sale unique index).
+      let hasForSaleConflict = false;
+      if (existing.card_id_tcg) {
+        const { data: forSaleCandidates } = await supabase
+          .from('cards')
+          .select('id, variant')
+          .eq('card_id_tcg', existing.card_id_tcg)
+          .eq('language', existing.language)
+          .eq('condition', existing.condition)
+          .eq('status', 'for_sale');
+        const existingVariant = existing.variant ?? null;
+        hasForSaleConflict = (forSaleCandidates ?? []).some((c) => (c.variant ?? null) === existingVariant);
+      }
+
+      return NextResponse.json(
+        { error: 'pokedex_slot_taken', existingCard: existing, hasForSaleConflict },
+        { status: 409 },
+      );
+    }
+  }
+
   const { data, error } = await supabase
     .from('cards')
     .insert({

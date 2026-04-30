@@ -19,6 +19,7 @@ import {
 import { resizeImage } from '@/lib/utils/resize-image';
 import ScanSuggestion from '@/components/cards/ScanSuggestion';
 import { getPokemonName } from '@/lib/data/pokemon-names';
+import PokedexReplaceModal, { type PokedexReplaceModalCard } from '@/components/cards/PokedexReplaceModal';
 
 const LANGUAGES: CardLanguage[] = ['JP', 'EN', 'FR', 'DE', 'IT', 'ES', 'KO', 'PT', 'ZH'];
 const CONDITIONS: CardCondition[] = ['NM', 'EX', 'GD', 'PL', 'PO'];
@@ -150,6 +151,10 @@ export default function CardScanForm({
   const [zoomPos, setZoomPos] = useState<{ x: number; y: number } | null>(null);
   const [imageDimensions, setImageDimensions] = useState({ w: 0, h: 0 });
   const imageRef = useRef<HTMLImageElement>(null);
+  const [replaceModal, setReplaceModal] = useState<{
+    existingCard: PokedexReplaceModalCard;
+    hasForSaleConflict: boolean;
+  } | null>(null);
 
   function reset() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -478,7 +483,19 @@ export default function CardScanForm({
 
       const res = await fetch('/api/cards', { method: 'POST', body: data });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          existingCard?: PokedexReplaceModalCard;
+          hasForSaleConflict?: boolean;
+        };
+        if (res.status === 409 && body.error === 'pokedex_slot_taken' && body.existingCard) {
+          setReplaceModal({
+            existingCard: body.existingCard,
+            hasForSaleConflict: body.hasForSaleConflict ?? false,
+          });
+          setPhase('reviewing'); // back from 'saving' to give the modal user a way to interact
+          return;
+        }
         throw new Error(body.error ?? `Enregistrement a échoué (${res.status})`);
       }
 
@@ -512,6 +529,53 @@ export default function CardScanForm({
     }
   }
 
+  async function handleReplaceConfirm(displaceTo: 'collection' | 'for_sale') {
+    if (!replaceModal) return;
+    setPhase('saving');
+    try {
+      // Step 1: Demote the existing pokedex card to the chosen status
+      const demoteRes = await fetch(`/api/cards/${replaceModal.existingCard.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: displaceTo }),
+      });
+      if (!demoteRes.ok) {
+        const body = (await demoteRes.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? 'Démotion échouée');
+      }
+
+      // Step 2: Re-submit the original POST (slot is now free)
+      const data = new FormData();
+      if (photoBlob) data.append('image', photoBlob, 'card.jpg');
+      for (const [key, value] of Object.entries(form)) {
+        if (key === 'status') continue;
+        if (value !== '' && value !== null && value !== undefined) {
+          data.append(key, String(value));
+        }
+      }
+      data.append('status', 'pokedex');
+
+      const res = await fetch('/api/cards', { method: 'POST', body: data });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `Enregistrement a échoué (${res.status})`);
+      }
+
+      setReplaceModal(null);
+      setPhase('success');
+      if (onSaved) {
+        const inserted = (await res.json()) as { card: { id: string } };
+        onSaved(inserted.card.id);
+      } else {
+        setTimeout(reset, 1800);
+      }
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
+      setPhase('error');
+      setReplaceModal(null);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <input
@@ -531,6 +595,25 @@ export default function CardScanForm({
           candidates={candidates}
           onSelect={(c) => void applyCandidate(c)}
           onDismiss={() => setCandidates([])}
+        />
+      )}
+
+      {replaceModal && (
+        <PokedexReplaceModal
+          existingCard={replaceModal.existingCard}
+          newCardSummary={{
+            card_name: form.card_name,
+            rarity: form.rarity,
+            language: form.language,
+            condition: form.condition,
+            variant: form.variant || null,
+            previewUrl,
+            tcgImageUrl: form.tcg_image_url || null,
+          }}
+          hasForSaleConflict={replaceModal.hasForSaleConflict}
+          onConfirm={handleReplaceConfirm}
+          onCancel={() => setReplaceModal(null)}
+          submitting={phase === 'saving'}
         />
       )}
 
