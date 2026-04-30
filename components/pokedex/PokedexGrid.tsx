@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { Card } from '@/lib/types';
 import { GENERATIONS } from '@/lib/utils/pokemon-generations';
+import { POKEMON_NAMES } from '@/lib/data/pokemon-names';
 import PokedexCell from './PokedexCell';
 import PokedexDrawer from './PokedexDrawer';
 import PokedexFilters, { type FilterState, type ViewMode } from './PokedexFilters';
@@ -136,11 +137,23 @@ function matches(n: number, pokedexMap: Map<number, Card>, filters: FilterState)
   if (filters.status === 'completed' && !card) return false;
   if (filters.status === 'missing' && card) return false;
 
-  const search = filters.search.trim().toLowerCase();
+  const search = filters.search.trim();
   if (search.length > 0) {
-    const numMatch = String(n).includes(search);
-    const nameMatch = card?.pokemon_name.toLowerCase().includes(search) ?? false;
-    if (!numMatch && !nameMatch) return false;
+    // Number search: parse query, match exactly. Handles `0003` → 3, `12` → 12 (not 125).
+    const numQuery = parseInt(search.replace(/^#?0*/, ''), 10);
+    if (!isNaN(numQuery) && n === numQuery) return true;
+
+    // Name search: normalize NFD + lowercase, match across card.pokemon_name + FR + EN.
+    const normalize = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+    const q = normalize(search);
+    const names = [
+      card?.pokemon_name,
+      POKEMON_NAMES[n]?.fr,
+      POKEMON_NAMES[n]?.en,
+    ].filter((s): s is string => typeof s === 'string' && s.length > 0);
+    if (names.some((name) => normalize(name).includes(q))) return true;
+
+    return false;
   }
 
   return true;

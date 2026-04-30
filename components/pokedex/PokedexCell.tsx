@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import type { Card } from '@/lib/types';
+import { getPokemonName } from '@/lib/data/pokemon-names';
 
 interface PokedexCellProps {
   number: number;
@@ -14,13 +15,13 @@ const SPRITE_BASE =
 
 export default function PokedexCell({ number, card, onClick }: PokedexCellProps) {
   const owned = card !== null;
-  const label = card?.pokemon_name ?? '???';
+  const label = card?.pokemon_name ?? getPokemonName(number, 'fr');
 
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={`${owned ? card!.pokemon_name : 'Pokémon manquant'} n°${number}`}
+      aria-label={`${owned ? card!.pokemon_name : getPokemonName(number, 'fr')} n°${number}`}
       className="bg-surface border-border hover:border-red focus:border-red flex flex-col items-center gap-1 rounded border p-2 text-center transition-colors focus:outline-none"
     >
       <Image

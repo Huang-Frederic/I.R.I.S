@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { X, ScanLine, Sparkles, RefreshCcw } from 'lucide-react';
 import type { Card } from '@/lib/types';
+import { getPokemonName } from '@/lib/data/pokemon-names';
 
 interface PokedexDrawerProps {
   open: boolean;
@@ -73,7 +74,7 @@ export default function PokedexDrawer({
             <p className="text-text-faint font-mono text-xs">
               #{pokemonNumber.toString().padStart(4, '0')}
             </p>
-            <h2 className="text-xl font-semibold">{pokedexCard?.pokemon_name ?? 'Pokémon manquant'}</h2>
+            <h2 className="text-xl font-semibold">{pokedexCard?.pokemon_name ?? getPokemonName(pokemonNumber, 'fr')}</h2>
           </div>
           <button
             type="button"
