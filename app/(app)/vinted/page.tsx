@@ -10,7 +10,7 @@ export const metadata = {
 export default async function VintedPage() {
   const supabase = await createClient();
 
-  const [{ data: forSale, error }, { data: pokedex }, { data: configRows }] = await Promise.all([
+  const [forSaleResult, pokedexResult, configResult] = await Promise.all([
     supabase
       .from('cards')
       .select('*')
@@ -23,19 +23,23 @@ export default async function VintedPage() {
     supabase.from('config').select('*'),
   ]);
 
-  if (error) {
+  const fetchError =
+    forSaleResult.error ?? pokedexResult.error ?? configResult.error;
+  if (fetchError) {
     return (
       <section>
         <h1 className="text-2xl font-semibold tracking-tight">Vinted</h1>
-        <p className="text-red mt-4 text-sm">Erreur de chargement : {error.message}</p>
+        <p className="text-red mt-4 text-sm">Erreur de chargement : {fetchError.message}</p>
       </section>
     );
   }
 
-  const cards = (forSale ?? []) as Card[];
-  const registered = new Set<number>((pokedex ?? []).map((r: { pokemon_number: number }) => r.pokemon_number));
+  const cards = (forSaleResult.data ?? []) as Card[];
+  const registered = new Set<number>(
+    (pokedexResult.data ?? []).map((r: { pokemon_number: number }) => r.pokemon_number),
+  );
   const config = Object.fromEntries(
-    (configRows ?? []).map((r: { key: string; value: string }) => [r.key, r.value]),
+    (configResult.data ?? []).map((r: { key: string; value: string }) => [r.key, r.value]),
   ) as Record<string, string>;
 
   return (
