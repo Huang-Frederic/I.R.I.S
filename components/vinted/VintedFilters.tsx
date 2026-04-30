@@ -1,7 +1,6 @@
-// components/vinted/VintedFilters.tsx
 'use client';
 
-import { Search, BookmarkCheck } from 'lucide-react';
+import { Search, Globe, GlobeLock, Tag, RefreshCw } from 'lucide-react';
 import type { CardLanguage, CardRarity } from '@/lib/types';
 
 export interface VintedFilterState {
@@ -9,7 +8,11 @@ export interface VintedFilterState {
   language: CardLanguage | 'all';
   rarity: CardRarity | 'all';
   variant: 'all' | 'standard' | 'pokeball' | 'masterball' | 'reverse_holo' | 'promo';
-  registered: 'all' | 'yes' | 'no';
+  // Cumulative chips
+  showOnline: boolean;     // include for_sale where vinted_listed_at != null
+  showOffline: boolean;    // include for_sale where vinted_listed_at == null
+  showSold: boolean;       // include sold cards (individual rows)
+  showStale: boolean;      // restrict to "à rafraîchir" (>21j)
 }
 
 export const INITIAL_FILTERS: VintedFilterState = {
@@ -17,7 +20,10 @@ export const INITIAL_FILTERS: VintedFilterState = {
   language: 'all',
   rarity: 'all',
   variant: 'all',
-  registered: 'all',
+  showOnline: false,
+  showOffline: false,
+  showSold: false,
+  showStale: false,
 };
 
 const LANGUAGES: ReadonlyArray<CardLanguage> = ['JP', 'EN', 'FR', 'DE', 'IT', 'ES', 'KO', 'PT', 'ZH'];
@@ -34,11 +40,25 @@ interface Props {
   value: VintedFilterState;
   onChange: (next: VintedFilterState) => void;
   visibleCards: number;
-  visibleGroups: number;
   totalCards: number;
 }
 
-export default function VintedFilters({ value, onChange, visibleCards, visibleGroups, totalCards }: Props) {
+interface Chip {
+  key: 'showOnline' | 'showOffline' | 'showSold' | 'showStale';
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const CHIPS: Chip[] = [
+  { key: 'showOnline', label: 'En ligne', icon: Globe },
+  { key: 'showOffline', label: 'Pas en ligne', icon: GlobeLock },
+  { key: 'showSold', label: 'Vendus', icon: Tag },
+  { key: 'showStale', label: 'À rafraîchir', icon: RefreshCw },
+];
+
+export default function VintedFilters({ value, onChange, visibleCards, totalCards }: Props) {
+  const toggleChip = (key: Chip['key']) => onChange({ ...value, [key]: !value[key] });
+
   return (
     <div className="bg-bg sticky top-0 z-10 -mx-4 mb-4 flex flex-col gap-3 px-4 py-3 md:mx-0 md:px-0">
       <div className="flex flex-wrap items-center gap-3">
@@ -60,9 +80,7 @@ export default function VintedFilters({ value, onChange, visibleCards, visibleGr
           aria-label="Langue"
         >
           <option value="all">Toutes langues</option>
-          {LANGUAGES.map((l) => (
-            <option key={l} value={l}>{l}</option>
-          ))}
+          {LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
         </select>
 
         <select
@@ -72,9 +90,7 @@ export default function VintedFilters({ value, onChange, visibleCards, visibleGr
           aria-label="Rareté"
         >
           <option value="all">Toutes raretés</option>
-          {RARITIES.map((r) => (
-            <option key={r} value={r}>{r}</option>
-          ))}
+          {RARITIES.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
 
         <select
@@ -84,36 +100,33 @@ export default function VintedFilters({ value, onChange, visibleCards, visibleGr
           aria-label="Variant"
         >
           <option value="all">Tous variants</option>
-          {VARIANTS.map((v) => (
-            <option key={v.value} value={v.value}>{v.label}</option>
-          ))}
+          {VARIANTS.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
         </select>
+      </div>
 
-        <div className="border-border flex overflow-hidden rounded border text-sm">
-          {(['all', 'yes', 'no'] as const).map((s) => {
-            const active = value.registered === s;
-            const label = s === 'all' ? 'Tous' : s === 'yes' ? 'Registered' : 'Not Registered';
-            return (
-              <button
-                key={s}
-                type="button"
-                onClick={() => onChange({ ...value, registered: s })}
-                className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
-                  active
-                    ? 'bg-red-bg text-red font-medium'
-                    : 'bg-surface-2 text-text-muted hover:text-text'
-                }`}
-              >
-                {s === 'yes' && <BookmarkCheck className="h-3.5 w-3.5" />}
-                {label}
-              </button>
-            );
-          })}
-        </div>
+      <div className="flex flex-wrap gap-2">
+        {CHIPS.map(({ key, label, icon: Icon }) => {
+          const active = value[key];
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => toggleChip(key)}
+              className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${
+                active
+                  ? 'bg-red-bg border-red text-red font-medium'
+                  : 'bg-surface-2 border-border text-text-muted hover:text-text'
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       <p className="text-text-muted text-xs">
-        {visibleCards} carte{visibleCards > 1 ? 's' : ''} ({visibleGroups} groupe{visibleGroups > 1 ? 's' : ''}) sur {totalCards}
+        {visibleCards} sur {totalCards}
       </p>
     </div>
   );
