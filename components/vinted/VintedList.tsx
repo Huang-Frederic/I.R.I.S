@@ -7,6 +7,9 @@ import { groupCards } from '@/lib/utils/group-cards';
 import VintedFilters, { INITIAL_FILTERS, type VintedFilterState } from './VintedFilters';
 import VintedRow from './VintedRow';
 import EditablePriceCell from './EditablePriceCell';
+import SoldModal from './SoldModal';
+import RestockToast from './RestockToast';
+import type { RestockAlert } from '@/lib/utils/restock-detection';
 
 export interface VintedListProps {
   cards: Card[];
@@ -50,6 +53,15 @@ export default function VintedList({ cards: initial, registered }: VintedListPro
     );
   };
 
+  const [soldTarget, setSoldTarget] = useState<Card | null>(null);
+  const [restockAlert, setRestockAlert] = useState<RestockAlert | null>(null);
+
+  const handleSold = ({ soldCardId, restock }: { soldCardId: string; restock: RestockAlert | null }) => {
+    setCards((prev) => prev.filter((c) => c.id !== soldCardId));
+    setSoldTarget(null);
+    if (restock) setRestockAlert(restock);
+  };
+
   const filtered = useMemo(
     () => cards.filter((c) => matchesSearch(c, filters.search) && matchesFilters(c, filters, registered)),
     [cards, filters, registered],
@@ -85,10 +97,21 @@ export default function VintedList({ cards: initial, registered }: VintedListPro
                 />
               }
               onAnnonceClick={() => {/* wired in Task 10 */}}
-              onSoldClick={() => {/* wired in Task 9 */}}
+              onSoldClick={() => setSoldTarget(g.head)}
             />
           ))}
         </ul>
+      )}
+
+      {soldTarget && (
+        <SoldModal
+          card={soldTarget}
+          onClose={() => setSoldTarget(null)}
+          onSold={handleSold}
+        />
+      )}
+      {restockAlert && (
+        <RestockToast alert={restockAlert} onDismiss={() => setRestockAlert(null)} />
       )}
     </div>
   );
