@@ -4,6 +4,7 @@
 import { useMemo, useState } from 'react';
 import type { Card } from '@/lib/types';
 import { groupCards } from '@/lib/utils/group-cards';
+import { sortVintedGroups } from '@/lib/utils/vinted-sort';
 import VintedFilters, { INITIAL_FILTERS, type VintedFilterState } from './VintedFilters';
 import VintedRow from './VintedRow';
 import EditablePriceCell from './EditablePriceCell';
@@ -80,7 +81,10 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
     () => cards.filter((c) => matchesSearch(c, filters.search) && matchesFilters(c, filters, registered)),
     [cards, filters, registered],
   );
-  const groups = useMemo(() => groupCards(filtered), [filtered]);
+  const groups = useMemo(() => {
+    const sorted = sortVintedGroups(groupCards(filtered));
+    return sorted.map((g, i) => ({ ...g, position: i + 1 }));
+  }, [filtered]);
 
   return (
     <div>
