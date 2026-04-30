@@ -12,11 +12,11 @@ Spec complète : [context.md](context.md). Plan d'implémentation en 4 phases : 
 - **Phase 1.11** — TERMINEE. Catalogue local Pokémon TCG via scraping LimitlessTCG. 111K cartes JP/EN/FR/DE/IT/ES/PT. Enrichissement post-scan passe de 33% à 63-73% (test bench). 81 tests, 0 lint warning.
 - **Phase 1.12** — TERMINEE. Gemini 3 Flash Preview comme moteur OCR primaire. Extraction structurée JSON (`card_name`, `set_code`, `set_number`, `language`, `confidence`). Bench : 28/30 (93%), fallback Google Vision. Cost : 6¢/mois pour 100 scans. 97 tests, 0 lint warning.
 - **Phase 1.13** — TERMINEE. Traductions FR via Gemini (4 nouveaux champs `pokemon_number`, `pokemon_name_fr`, `set_name`, `set_name_fr`) → noms affichés `"FR (Original)"` (ex: `"Gruikui (チャオブー)"`). Scanner UI 2-colonnes + loupe magnifier 1.5× + dropdown variant (Poké Ball / Master Ball / Reverse Holo / Promo) + notes. Pokédex 3 modes d'affichage (grid-3 / grid-5 / list) persistés en localStorage. Migration `add_cards_variant`. 116 tests, 0 lint warning.
-- **Phase 2** — A FAIRE. Module Vinted (liste FIFO, générateur d'annonce, action "vendu").
+- **Phase 2** — TERMINEE. Module Vinted : liste FIFO + groupement variant-aware (`card_id_tcg + language + condition + variant`), édit prix inline, action "Vendu" + restock toast, générateur d'annonce avec smart-truncate titre 80 chars + clipboard. 144 tests, 0 lint warning.
 - **Phase 3** — A FAIRE. Cardmarket OAuth, cron prix, mode lot, script Python CLI.
 - **Phase 4** — A FAIRE. Dashboard, bulk vendu, polish PWA.
 
-Bilan détaillé : [docs/phase1-summary.md](docs/phase1-summary.md).
+Bilan détaillé : [docs/phases-summary.md](docs/phases-summary.md).
 
 ## Stack à connaître
 
@@ -42,6 +42,7 @@ Bilan détaillé : [docs/phase1-summary.md](docs/phase1-summary.md).
 | Scan mobile | `components/submit/MobileSubmit.tsx` (2-col + loupe + variant + notes : OCR → enrich → candidate picker → form → save) |
 | Suggestion | `lib/utils/pokedex-suggestion.ts`, `app/api/pokedex/suggest/route.ts` |
 | Pokédex | `components/pokedex/PokedexGrid.tsx`, `PokedexCell.tsx`, `PokedexListItem.tsx`, `PokedexDrawer.tsx`, `PokedexFilters.tsx` (3 view modes) |
+| Vinted | `app/(app)/vinted/page.tsx`, `app/api/cards/[id]/route.ts`, `components/vinted/{VintedList,VintedFilters,VintedRow,EditablePriceCell,SoldModal,RestockToast,AnnonceModal}.tsx`, `lib/utils/{group-cards,restock-detection,vinted-template}.ts` |
 
 ## Pipeline d'enrichissement
 

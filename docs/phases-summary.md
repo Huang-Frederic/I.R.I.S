@@ -186,26 +186,36 @@ Nota : "Match combiné" = extraction correcte (set_code + set_number valides), t
 3. Bug latent : si Gemini retourne `pokemon_number` mais le catalogue retourne une carte avec un `pokemon_number` différent (cas rare des cartes Trainers avec un Pokémon en illustration), le catalogue gagne. À investiguer si on voit des mismatches en prod.
 4. Tests E2E (Playwright) sur les view modes Pokédex et le flow scan complet.
 
-## Prochaine etape : Phase 2
+### Phase 2 — Module Vinted
 
-**Objectif** : Module Vinted — voir les cartes a vendre en FIFO, generer un titre + description prets a coller.
+**Contexte** : Phase 1 livrait l'ingestion (scan → enrichissement → save) ; Phase 2 ferme la boucle vente : voir le stock, marquer vendu, générer une annonce prête à coller.
 
-### 2.1 Liste Vinted
-- Page `/vinted` : `WHERE status = 'for_sale' ORDER BY date_added ASC`
-- Composant `VintedList.tsx` + `VintedRow.tsx`
-- Groupement doublons (`card_id_tcg + language + condition`) avec badge "xN"
-- Recherche debounce + filtres chips (langue, rarete, registered/not registered)
+**Livrables** :
+- `lib/utils/group-cards.ts` — clé de groupement variant-aware (`card_id_tcg + language + condition + variant`, fallback composite si `card_id_tcg` null) + tri FIFO inter/intra-groupe + position globale.
+- `lib/utils/restock-detection.ts` — pure : détecte si une vente expose la carte Pokédex (pokedex existe AND aucune for_sale restante).
+- `lib/utils/vinted-template.ts` — `buildTitle` (smart-truncate ≤ 80 chars, ordre : full → drop bilingual paren → drop NM → set_name → set_code → drop set, fallback last-resort qui préserve le suffixe TCG type "ex"/"VMAX") + `buildDescription` multi-langues + tables de constants (langues, conditions, raretés, variants).
+- `app/api/cards/[id]/route.ts` — PATCH générique (édit prix, marquage vendu) + check restock server-side après vente. Validation stricte : `status='pokedex'` rejeté (utiliser `/api/pokedex/replace`), nombres positifs/finis, 404 sur PGRST116.
+- `app/(app)/vinted/page.tsx` — RSC fetch (for_sale + pokedex registered + config en parallèle, erreurs surfacées sur les 3 queries).
+- `components/vinted/` — `VintedList` (orchestrateur, state local + filtres + groupement + modals), `VintedFilters` (search debounce-free + 4 filtres : langue / rareté / variant / registered), `VintedRow` (layout : position FIFO, thumb fallback PokeAPI, variant chip, badges rareté semantic, registered indicator vers `/pokedex`), `EditablePriceCell` (édit inline, comma→dot, Escape revert, Enter commit, PATCH `suggested_price`), `SoldModal` (prix + date optionnels, gère ISO timezone-safe `T12:00:00Z`), `RestockToast` (5s auto-dismiss, role="alert", lien `/pokedex`), `AnnonceModal` (titre éditable + char counter live, description éditable, copie clipboard avec feedback `Copié ✓` 1.5s, prix Vinted persisté à la fermeture).
+- Tests : +21 unitaires (group-cards 7, restock-detection 4, vinted-template 11, route /api/cards/[id] 6 minus déduplication) → **144 tests** (vs 116 fin Phase 1.13). Lint 0 warning, tsc clean, build prod OK.
 
-### 2.2 Action "Vendu"
-- Bouton → modal prix optionnel → UPDATE status='sold'
-- Alerte restock si derniere carte for_sale d'un Pokemon registered
+**Décisions clés** :
+- Variant inclus dans la clé de groupement (Poké Ball ≠ standard côté valeur Vinted).
+- Prix éditable inline en attendant le cron Cardmarket Phase 3.
+- Restock = toast éphémère (la persistance dashboard est Phase 4).
+- Modal pour vendu et annonce, pas de drawer ni de page dédiée.
+- Tokens Tailwind sémantiques (`text-rarity-sr`, `bg-rarity-r/20`, etc.) au lieu des défauts (`text-yellow-400`) — cohérent avec les composants Pokédex.
+- Validation côté serveur : `status='pokedex'` interdit dans PATCH (passe par RPC swap atomique).
 
-### 2.3 Generateur d'annonce
-- Modal : titre (max 80 chars) + description selon template
-- `lib/utils/vinted-template.ts` (pure function testable)
-- Boutons "Copier titre" / "Copier description" (Clipboard API)
-- Affichage prix Cardmarket + photo + image TCG
+**Followups différés** :
+1. Auto-ouverture du PokedexDrawer au clic sur badge Registered (actuellement : lien vers `/pokedex` sans anchor).
+2. Tests E2E Playwright sur le flow complet (déféré, cohérent avec note Phase 1.13).
+3. Pricing variant-aware quand le scraper LimitlessTCG splittera la donnée (Phase 3).
+4. Cron Cardmarket → Phase 3.
+5. Bulk vendu + dashboard KPIs → Phase 4.
+6. Polish UX : feedback toast sur erreur clipboard ou PATCH (actuellement silencieux + console.error), Escape pour fermer les modals, click overlay pour fermer.
+7. Position du `<RestockToast>` (`bottom-6 right-6`) peut chevaucher la `BottomNav` mobile — vérifier sur device et déplacer si besoin.
 
-### 2.4 Tests Phase 2
-- `vinted-template.test.ts` — titre, description, fallbacks
-- E2E Playwright : scan → enregistrer → generer annonce → copier
+## Prochaine étape : Phase 3
+
+**Objectif** : Cron Cardmarket pour rafraîchir les prix automatiquement, mode lot ≤ 20 photos, script Python CLI.
