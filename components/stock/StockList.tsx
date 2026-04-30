@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { Card } from '@/lib/types';
 import StockFilters, { INITIAL_STOCK_FILTERS, type StockFilterState } from './StockFilters';
 import StockRow from './StockRow';
+import ExchangeOnConflictModal, { type ExchangeConflictCard } from '@/components/vinted/ExchangeOnConflictModal';
 
 export interface StockListProps {
   cards: Card[];
@@ -44,6 +45,10 @@ export default function StockList({ cards: initial, forSaleKeys }: StockListProp
   const [cards, setCards] = useState<Card[]>(initial);
   const [filters, setFilters] = useState<StockFilterState>(INITIAL_STOCK_FILTERS);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [exchangeModal, setExchangeModal] = useState<{
+    newCard: { id: string; cardName: string };
+    conflictCard: ExchangeConflictCard;
+  } | null>(null);
 
   const filtered = useMemo(
     () =>
@@ -63,8 +68,19 @@ export default function StockList({ cards: initial, forSaleKeys }: StockListProp
         body: JSON.stringify({ status: 'for_sale' }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `Mise en vente échouée (${res.status})`);
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          message?: string;
+          conflictCard?: ExchangeConflictCard;
+        };
+        if (res.status === 409 && body.error === 'for_sale_conflict' && body.conflictCard) {
+          setExchangeModal({
+            newCard: { id: card.id, cardName: card.card_name },
+            conflictCard: body.conflictCard,
+          });
+          return;
+        }
+        throw new Error(body.message ?? body.error ?? `Mise en vente échouée (${res.status})`);
       }
       // Optimistic remove from local state
       setCards((prev) => prev.filter((c) => c.id !== card.id));
@@ -104,6 +120,20 @@ export default function StockList({ cards: initial, forSaleKeys }: StockListProp
             />
           ))}
         </ul>
+      )}
+
+      {exchangeModal && (
+        <ExchangeOnConflictModal
+          newCard={exchangeModal.newCard}
+          conflictCard={exchangeModal.conflictCard}
+          onClose={() => setExchangeModal(null)}
+          onExchanged={() => {
+            // Best-effort: remove the just-promoted card from the local Stock state.
+            // The displaced for_sale card now goes to collection (will reappear on refresh) or sold (gone).
+            setCards((prev) => prev.filter((c) => c.id !== exchangeModal.newCard.id));
+            setExchangeModal(null);
+          }}
+        />
       )}
     </div>
   );

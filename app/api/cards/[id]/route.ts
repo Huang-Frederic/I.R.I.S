@@ -117,17 +117,21 @@ export async function PATCH(
     if (target.status !== 'for_sale' && target.card_id_tcg) {
       const { data: conflicts } = await supabase
         .from('cards')
-        .select('id, variant')
+        .select('id, variant, image_url, tcg_image_url, card_name, set_name, set_code, set_number, language, condition, rarity, pokemon_number, pokemon_name, vinted_listed_at')
         .eq('card_id_tcg', target.card_id_tcg)
         .eq('language', target.language)
         .eq('condition', target.condition)
         .eq('status', 'for_sale')
         .neq('id', id);
       const targetVariant = target.variant ?? null;
-      const hasConflict = (conflicts ?? []).some((c) => (c.variant ?? null) === targetVariant);
-      if (hasConflict) {
+      const conflict = (conflicts ?? []).find((c) => (c.variant ?? null) === targetVariant);
+      if (conflict) {
         return NextResponse.json(
-          { error: 'for_sale_conflict', message: 'Un exemplaire de cette carte est déjà en vente sur Vinted.' },
+          {
+            error: 'for_sale_conflict',
+            message: 'Un exemplaire de cette carte est déjà en vente sur Vinted.',
+            conflictCard: conflict,
+          },
           { status: 409 },
         );
       }

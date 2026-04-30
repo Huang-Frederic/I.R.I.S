@@ -4,6 +4,7 @@ import { X, Tag } from 'lucide-react';
 import { useState } from 'react';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 import CardZoomModal from '@/components/vinted/CardZoomModal';
+import ExchangeOnConflictModal, { type ExchangeConflictCard } from '@/components/vinted/ExchangeOnConflictModal';
 
 const VARIANT_LABEL: Record<string, string> = {
   pokeball: 'Poké Ball',
@@ -22,6 +23,10 @@ export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
+  const [exchangeMode, setExchangeMode] = useState<{
+    newCard: { id: string; cardName: string };
+    conflictCard: ExchangeConflictCard;
+  } | null>(null);
 
   const thumb = candidate.imageUrl ?? candidate.tcgImageUrl;
   const variantLabel = candidate.variant ? (VARIANT_LABEL[candidate.variant] ?? candidate.variant) : null;
@@ -36,7 +41,19 @@ export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }
         body: JSON.stringify({ status: 'for_sale' }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          message?: string;
+          conflictCard?: ExchangeConflictCard;
+        };
+        if (res.status === 409 && body.error === 'for_sale_conflict' && body.conflictCard) {
+          setExchangeMode({
+            newCard: { id: candidate.cardId, cardName: candidate.cardName },
+            conflictCard: body.conflictCard,
+          });
+          setSubmitting(false);
+          return;
+        }
         // For for_sale conflict, surface a friendly message
         const friendly = body.message ?? body.error ?? `Promotion échouée (${res.status})`;
         throw new Error(friendly);
@@ -128,6 +145,18 @@ export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }
           <CardZoomModal src={zoomSrc} alt={candidate.cardName} onClose={() => setZoomSrc(null)} />
         )}
       </div>
+
+      {exchangeMode && (
+        <ExchangeOnConflictModal
+          newCard={exchangeMode.newCard}
+          conflictCard={exchangeMode.conflictCard}
+          onClose={() => setExchangeMode(null)}
+          onExchanged={() => {
+            setExchangeMode(null);
+            onPromoted();
+          }}
+        />
+      )}
     </div>
   );
 }
