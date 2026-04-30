@@ -14,16 +14,16 @@ const VARIANT_LABEL: Record<string, string> = {
 };
 
 const RARITY_COLOR: Record<string, string> = {
-  SAR: 'text-red',
-  AR: 'text-orange-400',
-  SR: 'text-yellow-400',
-  CHR: 'text-purple-400',
-  RR: 'text-blue-400',
-  R_HOLO: 'text-teal-400',
-  R: 'text-green-400',
-  UC: 'text-text-muted',
-  C: 'text-text-faint',
-  OTHER: 'text-text-faint',
+  SAR: 'text-rarity-sar',
+  AR: 'text-rarity-ar',
+  SR: 'text-rarity-sr',
+  CHR: 'text-rarity-chr',
+  RR: 'text-rarity-rr',
+  R_HOLO: 'text-rarity-r-holo',
+  R: 'text-rarity-r',
+  UC: 'text-rarity-uc',
+  C: 'text-rarity-c',
+  OTHER: 'text-text-muted',
 };
 
 function thumbUrl(card: Card): string {
@@ -82,8 +82,8 @@ export default function VintedRow({
             href="/pokedex"
             className={`ml-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs ${
               isRegistered
-                ? 'bg-yellow-900/30 text-yellow-300'
-                : 'bg-green-900/30 text-green-300'
+                ? 'bg-rarity-sr/20 text-rarity-sr'
+                : 'bg-rarity-r/20 text-rarity-r'
             }`}
             title={
               isRegistered
