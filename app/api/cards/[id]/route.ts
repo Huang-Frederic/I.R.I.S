@@ -1,0 +1,128 @@
+// app/api/cards/[id]/route.ts
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { detectRestock } from '@/lib/utils/restock-detection';
+import type { CardStatus } from '@/lib/types';
+
+export const runtime = 'nodejs';
+
+interface PatchBody {
+  status?: CardStatus;
+  sold_price?: number | null;
+  date_sold?: string | null;
+  suggested_price?: number | null;
+  cm_price_low?: number | null;
+  cm_price_trend?: number | null;
+  cm_price_avg?: number | null;
+  notes?: string | null;
+}
+
+const ALLOWED_STATUSES: ReadonlySet<CardStatus> = new Set(['for_sale', 'collection', 'sold']);
+
+function sanitizeNumber(v: unknown): number | null | undefined {
+  if (v === undefined) return undefined;
+  if (v === null) return null;
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
+    throw new Error('invalid_number');
+  }
+  return v;
+}
+
+export async function PATCH(
+  request: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  const { id } = await ctx.params;
+  if (!id) return NextResponse.json({ error: 'missing id' }, { status: 400 });
+
+  let body: PatchBody;
+  try {
+    body = (await request.json()) as PatchBody;
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Build the update payload
+  const update: Record<string, unknown> = {};
+
+  if (body.status !== undefined) {
+    if (!ALLOWED_STATUSES.has(body.status)) {
+      return NextResponse.json(
+        { error: 'status invalide (utiliser /api/pokedex/replace pour pokedex)' },
+        { status: 400 },
+      );
+    }
+    update.status = body.status;
+    if (body.status === 'sold') {
+      update.date_sold = body.date_sold ?? new Date().toISOString();
+    }
+  }
+
+  try {
+    const sp = sanitizeNumber(body.sold_price);
+    if (sp !== undefined) update.sold_price = sp;
+    const sg = sanitizeNumber(body.suggested_price);
+    if (sg !== undefined) update.suggested_price = sg;
+    const lo = sanitizeNumber(body.cm_price_low);
+    if (lo !== undefined) update.cm_price_low = lo;
+    const tr = sanitizeNumber(body.cm_price_trend);
+    if (tr !== undefined) update.cm_price_trend = tr;
+    const av = sanitizeNumber(body.cm_price_avg);
+    if (av !== undefined) update.cm_price_avg = av;
+  } catch {
+    return NextResponse.json({ error: 'champ numérique invalide' }, { status: 400 });
+  }
+
+  if (body.notes !== undefined) update.notes = body.notes;
+
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ error: 'aucun champ à mettre à jour' }, { status: 400 });
+  }
+
+  const { data: updated, error } = await supabase
+    .from('cards')
+    .update(update)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return NextResponse.json({ error: 'carte introuvable' }, { status: 404 });
+    }
+    console.error('PATCH cards failed:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Restock check only when this update marked the card sold
+  let restock = null;
+  if (update.status === 'sold' && updated.pokemon_number) {
+    const [{ data: stillForSale }, { data: pokedex }] = await Promise.all([
+      supabase
+        .from('cards')
+        .select('id')
+        .eq('pokemon_number', updated.pokemon_number)
+        .eq('status', 'for_sale'),
+      supabase
+        .from('cards')
+        .select('pokemon_name')
+        .eq('pokemon_number', updated.pokemon_number)
+        .eq('status', 'pokedex')
+        .maybeSingle(),
+    ]);
+
+    restock = detectRestock({
+      pokemonNumber: updated.pokemon_number,
+      pokedexCard: pokedex,
+      remainingForSaleCount: stillForSale?.length ?? 0,
+    });
+  }
+
+  return NextResponse.json({ card: updated, restock });
+}
