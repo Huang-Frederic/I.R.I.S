@@ -1,9 +1,10 @@
 // components/vinted/VintedList.tsx
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Card } from '@/lib/types';
 import { groupCards } from '@/lib/utils/group-cards';
+import VintedFilters, { INITIAL_FILTERS, type VintedFilterState } from './VintedFilters';
 
 export interface VintedListProps {
   cards: Card[];
@@ -11,30 +12,70 @@ export interface VintedListProps {
   config: Record<string, string>;
 }
 
-export default function VintedList({ cards: initial, registered, config }: VintedListProps) {
-  // State of truth during the session — modals optimistically mutate this.
-  const [cards] = useState<Card[]>(initial);
+function normalize(s: string): string {
+  return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+}
 
-  const groups = groupCards(cards);
+function matchesSearch(card: Card, query: string): boolean {
+  if (!query) return true;
+  const q = normalize(query);
+  const fields = [
+    card.set_number, card.card_name, card.pokemon_name,
+    card.set_name, card.set_code, card.language, card.rarity,
+  ];
+  return fields.some((f) => f && normalize(f).includes(q));
+}
 
-  if (groups.length === 0) {
-    return (
-      <div className="bg-surface border-border rounded-lg border p-6">
-        <p className="text-text-muted text-sm">Aucune carte en vente.</p>
-      </div>
-    );
+function matchesFilters(card: Card, f: VintedFilterState, registered: Set<number>): boolean {
+  if (f.language !== 'all' && card.language !== f.language) return false;
+  if (f.rarity !== 'all' && card.rarity !== f.rarity) return false;
+  if (f.variant !== 'all') {
+    const variant = card.variant ?? 'standard';
+    if (variant !== f.variant) return false;
   }
+  if (f.registered === 'yes' && !registered.has(card.pokemon_number)) return false;
+  if (f.registered === 'no' && registered.has(card.pokemon_number)) return false;
+  return true;
+}
 
-  // Subsequent tasks replace this block with VintedFilters + VintedRow.
+export default function VintedList({ cards: initial, registered }: VintedListProps) {
+  const [cards] = useState<Card[]>(initial);
+  const [filters, setFilters] = useState<VintedFilterState>(INITIAL_FILTERS);
+
+  const filtered = useMemo(
+    () => cards.filter((c) => matchesSearch(c, filters.search) && matchesFilters(c, filters, registered)),
+    [cards, filters, registered],
+  );
+  const groups = useMemo(() => groupCards(filtered), [filtered]);
+
   return (
-    <div className="bg-surface border-border rounded-lg border p-6">
-      <p className="text-text-muted text-sm">
-        {groups.length} groupe{groups.length > 1 ? 's' : ''} — {cards.length} carte
-        {cards.length > 1 ? 's' : ''}
-      </p>
-      <p className="text-text-faint mt-2 font-mono text-xs">
-        registered={registered.size} · configKeys={Object.keys(config).length}
-      </p>
+    <div>
+      <VintedFilters
+        value={filters}
+        onChange={setFilters}
+        visibleCards={filtered.length}
+        visibleGroups={groups.length}
+        totalCards={cards.length}
+      />
+
+      {groups.length === 0 ? (
+        <div className="bg-surface border-border rounded-lg border p-6">
+          <p className="text-text-muted text-sm">Aucune carte ne correspond aux filtres.</p>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {groups.map((g) => (
+            <li
+              key={g.key}
+              className="bg-surface border-border flex items-center gap-3 rounded-lg border p-3 text-sm"
+            >
+              <span className="text-text-faint w-8 font-mono text-xs">#{g.position}</span>
+              <span className="flex-1">{g.head.card_name}</span>
+              <span className="text-text-muted text-xs">×{g.count}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
