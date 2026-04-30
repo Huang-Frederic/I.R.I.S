@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import type { Card } from '@/lib/types';
 import { groupCards } from '@/lib/utils/group-cards';
 import VintedFilters, { INITIAL_FILTERS, type VintedFilterState } from './VintedFilters';
+import VintedRow from './VintedRow';
 
 export interface VintedListProps {
   cards: Card[];
@@ -65,14 +66,18 @@ export default function VintedList({ cards: initial, registered }: VintedListPro
       ) : (
         <ul className="space-y-2">
           {groups.map((g) => (
-            <li
+            <VintedRow
               key={g.key}
-              className="bg-surface border-border flex items-center gap-3 rounded-lg border p-3 text-sm"
-            >
-              <span className="text-text-faint w-8 font-mono text-xs">#{g.position}</span>
-              <span className="flex-1">{g.head.card_name}</span>
-              <span className="text-text-muted text-xs">×{g.count}</span>
-            </li>
+              group={g}
+              isRegistered={registered.has(g.head.pokemon_number)}
+              priceCell={
+                <span className="text-text-faint font-mono text-xs">
+                  {g.head.suggested_price !== null ? `${g.head.suggested_price.toFixed(2)} €` : '—'}
+                </span>
+              }
+              onAnnonceClick={() => {/* wired in Task 10 */}}
+              onSoldClick={() => {/* wired in Task 9 */}}
+            />
           ))}
         </ul>
       )}
