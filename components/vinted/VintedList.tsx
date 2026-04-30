@@ -14,6 +14,7 @@ import SoldModal from './SoldModal';
 import RestockToast from './RestockToast';
 import AnnonceModal from './AnnonceModal';
 import PromoteAfterSoldModal from './PromoteAfterSoldModal';
+import CardZoomModal from './CardZoomModal';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 import type { VintedConfig } from '@/lib/utils/vinted-template';
@@ -75,11 +76,18 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
   const [restockAlert, setRestockAlert] = useState<RestockAlert | null>(null);
   const [promoteCandidate, setPromoteCandidate] = useState<PromoteCandidate | null>(null);
   const [annonceTarget, setAnnonceTarget] = useState<Card | null>(null);
+  const [zoomCard, setZoomCard] = useState<Card | null>(null);
 
   const vintedConfig: VintedConfig = {
     vinted_shipping_note: config.vinted_shipping_note ?? '',
     vinted_seller_note: config.vinted_seller_note ?? '',
   };
+
+  function cardImageUrl(card: Card): string {
+    if (card.image_url) return card.image_url;
+    if (card.tcg_image_url) return card.tcg_image_url;
+    return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${card.pokemon_number}.png`;
+  }
 
   const handleSold = ({
     soldCardId,
@@ -178,6 +186,7 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
               onAnnonceClick={() => setAnnonceTarget(g.head)}
               onSoldClick={() => setSoldTarget(g.head)}
               onListedToggled={updateCardListed}
+              onImageClick={() => setZoomCard(g.head)}
             />
           ))}
           {soldRows.map((c) => (
@@ -203,6 +212,13 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
           config={vintedConfig}
           onClose={() => setAnnonceTarget(null)}
           onPriceSaved={updateCardPrice}
+        />
+      )}
+      {zoomCard && (
+        <CardZoomModal
+          src={cardImageUrl(zoomCard)}
+          alt={zoomCard.card_name}
+          onClose={() => setZoomCard(null)}
         />
       )}
     </div>
