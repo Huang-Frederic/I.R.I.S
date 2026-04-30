@@ -1,25 +1,10 @@
 // components/vinted/VintedRow.tsx
 'use client';
 
-import { useState, useMemo } from 'react';
-import { BookmarkCheck, Bookmark, Tag, RefreshCw } from 'lucide-react';
+import { BookmarkCheck, Bookmark, Tag } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
 import VintedListedToggle from './VintedListedToggle';
-import ConfirmDialog from './ConfirmDialog';
-
-const STALE_MS = 21 * 24 * 60 * 60 * 1000;
-
-function daysSince(iso: string | null): number | null {
-  if (!iso) return null;
-  return Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
-}
-
-function formatDays(d: number): string {
-  if (d <= 0) return "Aujourd'hui";
-  if (d > 30) return '30j+';
-  return `${d}j`;
-}
 
 const VARIANT_LABEL: Record<string, string> = {
   pokeball: 'Poké Ball',
@@ -62,36 +47,6 @@ export default function VintedRow({
 }: Props) {
   const card = group.head;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
-  const days = daysSince(card.vinted_listed_at);
-
-  const [now] = useState(() => Date.now());
-  const stale = useMemo(() => {
-    const ref = card.cm_updated_at ?? card.date_added;
-    if (!ref) return false;
-    return now - new Date(ref).getTime() > STALE_MS;
-  }, [card.cm_updated_at, card.date_added, now]);
-
-  const [confirmingRefresh, setConfirmingRefresh] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const doRefresh = async () => {
-    setRefreshing(true);
-    const nowIso = new Date().toISOString();
-    try {
-      const res = await fetch(`/api/cards/${card.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vinted_listed_at: nowIso }),
-      });
-      if (!res.ok) throw new Error('refresh failed');
-      onListedToggled(card.id, nowIso);
-      setConfirmingRefresh(false);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   return (
     <li className="bg-surface border-border flex flex-col gap-3 rounded-lg border p-3 text-sm sm:flex-row sm:items-center">
@@ -150,18 +105,9 @@ export default function VintedRow({
             </span>
             <VintedListedToggle
               cardId={card.id}
-              initialListed={card.vinted_listed_at !== null}
               currentListedAt={card.vinted_listed_at}
               onToggled={(listedAt) => onListedToggled(card.id, listedAt)}
             />
-            {days !== null && (
-              <span
-                className="bg-surface-off text-text-muted shrink-0 rounded px-1.5 py-0.5 font-mono text-xs"
-                title={card.vinted_listed_at ? `Listée le ${new Date(card.vinted_listed_at).toLocaleDateString('fr-FR')}` : undefined}
-              >
-                {formatDays(days)}
-              </span>
-            )}
           </div>
         </div>
       </div>
@@ -171,18 +117,6 @@ export default function VintedRow({
           <span className="bg-surface-off text-text-muted shrink-0 rounded px-2 py-1 font-mono text-xs">
             ×{group.count}
           </span>
-        )}
-
-        {stale && (
-          <button
-            type="button"
-            onClick={() => setConfirmingRefresh(true)}
-            className="bg-surface-2 hover:bg-surface-off border-border shrink-0 rounded border p-1.5 text-text-muted hover:text-text"
-            title="Rafraîchir la date de mise en ligne"
-            aria-label="Rafraîchir"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-          </button>
         )}
 
         <div className="shrink-0">{priceCell}</div>
@@ -204,21 +138,6 @@ export default function VintedRow({
           Vendu
         </button>
       </div>
-
-      {confirmingRefresh && (
-        <ConfirmDialog
-          title="Rafraîchir cette annonce ?"
-          body={
-            <>
-              La date de mise en ligne sera <strong>fixée à aujourd&apos;hui</strong>. La carte sera marquée &laquo; en ligne &raquo; et ne sera plus dans &laquo; À rafraîchir &raquo;.
-            </>
-          }
-          confirmLabel="Rafraîchir"
-          onConfirm={() => void doRefresh()}
-          onCancel={() => setConfirmingRefresh(false)}
-          busy={refreshing}
-        />
-      )}
     </li>
   );
 }

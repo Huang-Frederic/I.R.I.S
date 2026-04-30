@@ -21,7 +21,6 @@ import ScanSuggestion from '@/components/cards/ScanSuggestion';
 import { getPokemonName } from '@/lib/data/pokemon-names';
 import PokedexReplaceModal, { type PokedexReplaceModalCard } from '@/components/cards/PokedexReplaceModal';
 import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
-import ConfirmDialog from '@/components/vinted/ConfirmDialog';
 
 const LANGUAGES: CardLanguage[] = ['JP', 'EN', 'FR', 'DE', 'IT', 'ES', 'KO', 'PT', 'ZH'];
 const CONDITIONS: CardCondition[] = ['NM', 'EX', 'GD', 'PL', 'PO'];
@@ -155,17 +154,13 @@ export default function CardScanForm({
     hasForSaleConflict: boolean;
   } | null>(null);
   const [forSaleConflict, setForSaleConflict] = useState(false);
-  const [confirmingMismatch, setConfirmingMismatch] = useState(false);
 
-  const nameMismatch = (() => {
+  const numberMismatch = (() => {
     if (lockedPokemonNumber === undefined) return false;
-    if (!form.pokemon_name) return false;
-    const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
-    const detected = norm(form.pokemon_name);
-    const fr = norm(getPokemonName(lockedPokemonNumber, 'fr'));
-    const en = norm(getPokemonName(lockedPokemonNumber, 'en'));
-    // Loose match: detected name contains the expected, or vice versa
-    return !detected.includes(fr) && !detected.includes(en) && !fr.includes(detected) && !en.includes(detected);
+    if (!form.pokemon_number) return false;
+    const parsed = parseInt(form.pokemon_number, 10);
+    if (Number.isNaN(parsed)) return false;
+    return parsed !== lockedPokemonNumber;
   })();
 
   function reset() {
@@ -637,11 +632,6 @@ export default function CardScanForm({
 
       <form
         onSubmit={(e) => {
-          if (nameMismatch && !confirmingMismatch) {
-            e.preventDefault();
-            setConfirmingMismatch(true);
-            return;
-          }
           void handleSave(e);
         }}
         className={compact ? 'flex flex-col gap-4' : 'grid gap-6 lg:grid-cols-[minmax(0,28rem)_1fr] lg:items-start'}
@@ -705,7 +695,7 @@ export default function CardScanForm({
         </div>
 
         {/* Right column: All info + form fields */}
-        <div className={compact ? 'space-y-4' : 'space-y-6'}>
+        <div className={`transition-opacity ${phase === 'scanning' ? 'pointer-events-none opacity-40' : ''} ${compact ? 'space-y-4' : 'space-y-6'}`}>
           {/* Error block (shown near top of form instead of as separate section) */}
           {phase === 'error' && errorMsg && (
             <div className="bg-red-bg text-red flex items-center gap-3 rounded-lg p-4">
@@ -937,10 +927,10 @@ export default function CardScanForm({
             </div>
           )}
 
-          {/* Name mismatch warning */}
-          {nameMismatch && (
-            <div className="border-rarity-ar bg-rarity-ar/10 text-rarity-ar mb-3 rounded-lg border p-3 text-xs">
-              ⚠️ Le nom détecté <strong>&quot;{form.pokemon_name}&quot;</strong> ne correspond pas à <strong>{getPokemonName(lockedPokemonNumber!, 'fr')}</strong> (#{lockedPokemonNumber}). Es-tu sûr de vouloir l&apos;enregistrer ?
+          {/* Pokemon number mismatch hard block */}
+          {numberMismatch && (
+            <div className="border-red bg-red/10 text-red rounded-lg border p-3 text-xs">
+              ⛔ Cette carte n&apos;est pas <strong>{getPokemonName(lockedPokemonNumber!, 'fr')}</strong> (#{lockedPokemonNumber}). Le numéro détecté est <strong>#{form.pokemon_number}</strong>. Tu ne peux pas l&apos;enregistrer dans ce slot — utilise le scanner principal pour cette carte.
             </div>
           )}
 
@@ -956,7 +946,7 @@ export default function CardScanForm({
             </button>
             <button
               type="submit"
-              disabled={phase === 'saving' || phase === 'success' || !form.card_name || !form.pokemon_name}
+              disabled={phase === 'saving' || phase === 'success' || !form.card_name || !form.pokemon_name || numberMismatch}
               className="bg-red flex-1 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50"
             >
               {phase === 'saving' ? 'Enregistrement…' : 'Enregistrer'}
@@ -965,25 +955,6 @@ export default function CardScanForm({
         </div>
       </form>
 
-      {confirmingMismatch && (
-        <ConfirmDialog
-          title="Nom différent détecté"
-          body={
-            <>
-              Le nom détecté <strong>&quot;{form.pokemon_name}&quot;</strong> ne correspond pas à <strong>{getPokemonName(lockedPokemonNumber!, 'fr')}</strong> (#{lockedPokemonNumber}). Es-tu vraiment sûr d&apos;enregistrer cette carte dans ce slot ?
-            </>
-          }
-          confirmLabel="Oui, enregistrer"
-          confirmTone="danger"
-          onConfirm={() => {
-            setConfirmingMismatch(false);
-            // Programmatically re-submit after the user confirmed
-            const formEl = document.querySelector('form');
-            if (formEl) formEl.requestSubmit();
-          }}
-          onCancel={() => setConfirmingMismatch(false)}
-        />
-      )}
     </div>
   );
 }

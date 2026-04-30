@@ -1,88 +1,123 @@
+// components/vinted/VintedListedToggle.tsx
 'use client';
 
 import { useState } from 'react';
-import { Globe, GlobeLock } from 'lucide-react';
+import { Globe, GlobeLock, RefreshCw } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
+
+const STALE_DAYS = 21;
+const STALE_MS = STALE_DAYS * 24 * 60 * 60 * 1000;
 
 interface Props {
   cardId: string;
-  initialListed: boolean;
-  /** ISO timestamp when the card was last marked listed. Used in the offline-confirm dialog. */
+  /** Current vinted_listed_at value (null = offline). */
   currentListedAt: string | null;
   onToggled: (listedAt: string | null) => void;
 }
 
-function computeDaysSince(iso: string | null): number | null {
-  if (!iso) return null;
-  return Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
+type State = 'offline' | 'online' | 'stale';
+
+function computeState(listedAt: string | null, now: number): State {
+  if (listedAt === null) return 'offline';
+  const age = now - new Date(listedAt).getTime();
+  return age > STALE_MS ? 'stale' : 'online';
 }
 
-/** Click-to-toggle "is listed on Vinted.com". Optimistic + rollback on error. */
-export default function VintedListedToggle({ cardId, initialListed, currentListedAt, onToggled }: Props) {
-  const [listed, setListed] = useState(initialListed);
+function computeDaysSince(listedAt: string | null, now: number): number | null {
+  if (listedAt === null) return null;
+  return Math.floor((now - new Date(listedAt).getTime()) / (1000 * 60 * 60 * 24));
+}
+
+export default function VintedListedToggle({ cardId, currentListedAt, onToggled }: Props) {
+  const [listed, setListed] = useState(currentListedAt);
   const [busy, setBusy] = useState(false);
-  const [confirmingOff, setConfirmingOff] = useState(false);
-  const [daysSinceListed, setDaysSinceListed] = useState<number | null>(null);
+  // Lazy-init now to avoid SSR/hydration mismatch
+  const [now] = useState(() => Date.now());
+  const [confirmKind, setConfirmKind] = useState<'offline' | 'refresh' | null>(null);
 
-  const requestToggle = () => {
-    if (busy) return;
-    if (listed) {
-      setDaysSinceListed(computeDaysSince(currentListedAt));
-      setConfirmingOff(true);
-    } else {
-      void doToggle(true); // straight on
-    }
-  };
+  const state = computeState(listed, now);
+  const daysSince = computeDaysSince(listed, now);
 
-  const doToggle = async (next: boolean) => {
+  const setListedTo = async (next: string | null) => {
     if (busy) return;
-    const nextValue = next ? new Date().toISOString() : null;
     setBusy(true);
     setListed(next);
-    setConfirmingOff(false);
+    setConfirmKind(null);
     try {
       const res = await fetch(`/api/cards/${cardId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vinted_listed_at: nextValue }),
+        body: JSON.stringify({ vinted_listed_at: next }),
       });
       if (!res.ok) throw new Error('toggle failed');
-      onToggled(nextValue);
+      onToggled(next);
     } catch (err) {
       console.error(err);
-      setListed(!next);
+      setListed(listed); // rollback
     } finally {
       setBusy(false);
     }
   };
 
-  const Icon = listed ? Globe : GlobeLock;
-  const className = listed ? 'bg-rarity-r/20 text-rarity-r' : 'bg-rarity-ar/20 text-rarity-ar';
-  const title = listed
-    ? 'En ligne sur Vinted (clic pour retirer)'
-    : 'Pas en ligne sur Vinted (clic pour marquer en ligne)';
+  const onClick = () => {
+    if (busy) return;
+    if (state === 'offline') {
+      // Direct: offline → online (instant)
+      void setListedTo(new Date().toISOString());
+    } else if (state === 'online') {
+      // Confirm before going offline (loses the date)
+      setConfirmKind('offline');
+    } else {
+      // stale → confirm refresh
+      setConfirmKind('refresh');
+    }
+  };
+
+  // Visual config per state
+  const config = {
+    offline: {
+      icon: GlobeLock,
+      label: 'Pas en ligne',
+      className: 'bg-rarity-ar/20 text-rarity-ar',
+      title: 'Pas en ligne sur Vinted (clic pour mettre en ligne)',
+    },
+    online: {
+      icon: Globe,
+      label: 'En ligne',
+      className: 'bg-rarity-r/20 text-rarity-r',
+      title: 'En ligne sur Vinted (clic pour mettre hors ligne)',
+    },
+    stale: {
+      icon: RefreshCw,
+      label: 'À rafraîchir',
+      className: 'bg-rarity-sr/20 text-rarity-sr',
+      title: `En ligne depuis ${daysSince} jours — clic pour rafraîchir la date`,
+    },
+  }[state];
+
+  const Icon = config.icon;
 
   return (
     <>
       <button
         type="button"
-        onClick={requestToggle}
+        onClick={onClick}
         disabled={busy}
-        title={title}
-        aria-label={title}
-        className={`shrink-0 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-opacity hover:opacity-80 disabled:opacity-50 ${className}`}
+        title={config.title}
+        aria-label={config.title}
+        className={`shrink-0 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-opacity hover:opacity-80 disabled:opacity-50 ${config.className}`}
       >
         <Icon className="h-3 w-3" />
-        {listed ? 'En ligne' : 'Pas en ligne'}
+        {config.label}
       </button>
 
-      {confirmingOff && (
+      {confirmKind === 'offline' && (
         <ConfirmDialog
           title="Mettre cette carte hors ligne ?"
           body={
-            currentListedAt && daysSinceListed !== null ? (
+            listed ? (
               <>
-                La date de mise en ligne <strong>({new Date(currentListedAt).toLocaleDateString('fr-FR')}, il y a {daysSinceListed} jours)</strong> sera perdue.
+                La date de mise en ligne <strong>({new Date(listed).toLocaleDateString('fr-FR')}, il y a {daysSince ?? 0} jours)</strong> sera perdue.
               </>
             ) : (
               <>La date de mise en ligne sera perdue.</>
@@ -90,8 +125,23 @@ export default function VintedListedToggle({ cardId, initialListed, currentListe
           }
           confirmLabel="Mettre hors ligne"
           confirmTone="danger"
-          onConfirm={() => void doToggle(false)}
-          onCancel={() => setConfirmingOff(false)}
+          onConfirm={() => void setListedTo(null)}
+          onCancel={() => setConfirmKind(null)}
+          busy={busy}
+        />
+      )}
+
+      {confirmKind === 'refresh' && (
+        <ConfirmDialog
+          title="Rafraîchir cette annonce ?"
+          body={
+            <>
+              La date de mise en ligne sera <strong>fixée à aujourd&apos;hui</strong>. La carte ne sera plus dans &laquo; À rafraîchir &raquo;.
+            </>
+          }
+          confirmLabel="Rafraîchir"
+          onConfirm={() => void setListedTo(new Date().toISOString())}
+          onCancel={() => setConfirmKind(null)}
           busy={busy}
         />
       )}
