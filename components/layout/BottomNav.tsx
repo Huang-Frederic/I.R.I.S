@@ -18,6 +18,7 @@ export default function BottomNav() {
           <Link
             key={href}
             href={href}
+            prefetch={true}
             aria-current={active ? 'page' : undefined}
             className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] transition-colors ${
               active ? 'text-red' : 'text-text-muted'

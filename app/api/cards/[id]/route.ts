@@ -102,6 +102,38 @@ export async function PATCH(
     return NextResponse.json({ error: 'aucun champ à mettre à jour' }, { status: 400 });
   }
 
+  // If we're flipping to for_sale, pre-check the unique-group constraint
+  if (body.status === 'for_sale') {
+    // Read the current card's group key
+    const { data: target, error: fetchErr } = await supabase
+      .from('cards')
+      .select('card_id_tcg, language, condition, variant, status')
+      .eq('id', id)
+      .single();
+    if (fetchErr || !target) {
+      return NextResponse.json({ error: 'carte introuvable' }, { status: 404 });
+    }
+    // Skip check if already for_sale (no transition) or card_id_tcg is null (uncatalogued card)
+    if (target.status !== 'for_sale' && target.card_id_tcg) {
+      const { data: conflicts } = await supabase
+        .from('cards')
+        .select('id, variant')
+        .eq('card_id_tcg', target.card_id_tcg)
+        .eq('language', target.language)
+        .eq('condition', target.condition)
+        .eq('status', 'for_sale')
+        .neq('id', id);
+      const targetVariant = target.variant ?? null;
+      const hasConflict = (conflicts ?? []).some((c) => (c.variant ?? null) === targetVariant);
+      if (hasConflict) {
+        return NextResponse.json(
+          { error: 'for_sale_conflict', message: 'Un exemplaire de cette carte est déjà en vente sur Vinted.' },
+          { status: 409 },
+        );
+      }
+    }
+  }
+
   const { data: updated, error } = await supabase
     .from('cards')
     .update(update)
@@ -112,6 +144,13 @@ export async function PATCH(
   if (error) {
     if (error.code === 'PGRST116') {
       return NextResponse.json({ error: 'carte introuvable' }, { status: 404 });
+    }
+    // Postgres unique violation fallback (in case pre-check missed a race)
+    if (error.code === '23505') {
+      return NextResponse.json(
+        { error: 'for_sale_conflict', message: 'Un exemplaire de cette carte est déjà en vente sur Vinted.' },
+        { status: 409 },
+      );
     }
     console.error('PATCH cards failed:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
