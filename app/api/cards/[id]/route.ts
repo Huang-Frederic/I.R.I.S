@@ -160,3 +160,28 @@ export async function PATCH(
 
   return NextResponse.json({ card: updated, restock, promote });
 }
+
+export async function DELETE(
+  _request: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  const { id } = await ctx.params;
+  if (!id) return NextResponse.json({ error: 'missing id' }, { status: 400 });
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Try to delete the photo from Storage first (best-effort, don't fail if missing).
+  await supabase.storage.from('card-photos').remove([`${id}.jpg`]).catch(() => {});
+
+  const { error } = await supabase.from('cards').delete().eq('id', id);
+  if (error) {
+    console.error('DELETE cards failed:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
+}

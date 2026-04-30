@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { X, ScanLine, Sparkles, RefreshCcw } from 'lucide-react';
+import { X, ScanLine, Sparkles, RefreshCcw, Trash2 } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import { getPokemonName } from '@/lib/data/pokemon-names';
 import PokedexScanModal from './PokedexScanModal';
+import PokedexCardActionsModal from './PokedexCardActionsModal';
 
 interface PokedexDrawerProps {
   open: boolean;
@@ -100,6 +101,8 @@ export default function PokedexDrawer({
 
 function PokedexCardDetails({ card, availableCards }: { card: Card; availableCards: Card[] }) {
   const [showReplace, setShowReplace] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const router = useRouter();
 
   return (
     <div className="flex flex-col gap-5">
@@ -163,6 +166,27 @@ function PokedexCardDetails({ card, availableCards }: { card: Card; availableCar
             />
           )}
         </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setActionsOpen(true)}
+        className="bg-surface-2 hover:bg-surface-off border-red text-red mt-4 inline-flex w-full items-center justify-center gap-2 rounded border px-4 py-2 text-sm"
+      >
+        <Trash2 className="h-4 w-4" />
+        Retirer cette carte
+      </button>
+
+      {actionsOpen && (
+        <PokedexCardActionsModal
+          card={card}
+          hasForSaleConflict={false}
+          onClose={() => setActionsOpen(false)}
+          onDone={() => {
+            setActionsOpen(false);
+            router.refresh();
+          }}
+        />
       )}
     </div>
   );
