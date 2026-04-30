@@ -1,12 +1,14 @@
 // components/vinted/VintedRow.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { BookmarkCheck, Bookmark, Tag, RefreshCw } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
 import VintedListedToggle from './VintedListedToggle';
 import ConfirmDialog from './ConfirmDialog';
+
+const STALE_MS = 21 * 24 * 60 * 60 * 1000;
 
 function daysSince(iso: string | null): number | null {
   if (!iso) return null;
@@ -61,6 +63,13 @@ export default function VintedRow({
   const card = group.head;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
   const days = daysSince(card.vinted_listed_at);
+
+  const [now] = useState(() => Date.now());
+  const stale = useMemo(() => {
+    const ref = card.cm_updated_at ?? card.date_added;
+    if (!ref) return false;
+    return now - new Date(ref).getTime() > STALE_MS;
+  }, [card.cm_updated_at, card.date_added, now]);
 
   const [confirmingRefresh, setConfirmingRefresh] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -118,14 +127,14 @@ export default function VintedRow({
             {card.set_code && card.set_name ? ` (${card.set_code})` : ''}
             {card.set_number ? ` — ${card.set_number}` : ''}
           </p>
-          <div className="text-text-muted mt-1 flex items-center gap-2 text-xs">
+          <div className="text-text-muted mt-1 flex flex-wrap items-center gap-2 text-xs">
             <span className="font-mono">{card.language}</span>
             <span>·</span>
             <span className={`font-medium ${RARITY_COLOR[card.rarity] ?? ''}`}>{card.rarity}</span>
             <span>·</span>
             <span>{card.condition}</span>
             <span
-              className={`ml-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs ${
+              className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs ${
                 isRegistered
                   ? 'bg-rarity-r/20 text-rarity-r'
                   : 'bg-rarity-ar/20 text-rarity-ar'
@@ -139,6 +148,20 @@ export default function VintedRow({
               {isRegistered ? <BookmarkCheck className="h-3 w-3" /> : <Bookmark className="h-3 w-3" />}
               {isRegistered ? 'Pokédex' : 'Pas Pokédex'}
             </span>
+            <VintedListedToggle
+              cardId={card.id}
+              initialListed={card.vinted_listed_at !== null}
+              currentListedAt={card.vinted_listed_at}
+              onToggled={(listedAt) => onListedToggled(card.id, listedAt)}
+            />
+            {days !== null && (
+              <span
+                className="bg-surface-off text-text-muted shrink-0 rounded px-1.5 py-0.5 font-mono text-xs"
+                title={card.vinted_listed_at ? `Listée le ${new Date(card.vinted_listed_at).toLocaleDateString('fr-FR')}` : undefined}
+              >
+                {formatDays(days)}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -150,31 +173,17 @@ export default function VintedRow({
           </span>
         )}
 
-        <VintedListedToggle
-          cardId={card.id}
-          initialListed={card.vinted_listed_at !== null}
-          currentListedAt={card.vinted_listed_at}
-          onToggled={(listedAt) => onListedToggled(card.id, listedAt)}
-        />
-
-        {days !== null && (
-          <span
-            className="bg-surface-off text-text-muted shrink-0 rounded px-1.5 py-0.5 font-mono text-xs"
-            title={card.vinted_listed_at ? `Listée le ${new Date(card.vinted_listed_at).toLocaleDateString('fr-FR')}` : undefined}
+        {stale && (
+          <button
+            type="button"
+            onClick={() => setConfirmingRefresh(true)}
+            className="bg-surface-2 hover:bg-surface-off border-border shrink-0 rounded border p-1.5 text-text-muted hover:text-text"
+            title="Rafraîchir la date de mise en ligne"
+            aria-label="Rafraîchir"
           >
-            {formatDays(days)}
-          </span>
+            <RefreshCw className="h-3.5 w-3.5" />
+          </button>
         )}
-
-        <button
-          type="button"
-          onClick={() => setConfirmingRefresh(true)}
-          className="bg-surface-2 hover:bg-surface-off border-border shrink-0 rounded border p-1.5 text-text-muted hover:text-text"
-          title="Rafraîchir la date de mise en ligne"
-          aria-label="Rafraîchir"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-        </button>
 
         <div className="shrink-0">{priceCell}</div>
 
@@ -201,8 +210,7 @@ export default function VintedRow({
           title="Rafraîchir cette annonce ?"
           body={
             <>
-              La date de mise en ligne sera réinitialisée à <strong>aujourd&apos;hui</strong>.
-              La carte ne sera plus dans &laquo; À rafraîchir &raquo;.
+              La date de mise en ligne sera <strong>fixée à aujourd&apos;hui</strong>. La carte sera marquée &laquo; en ligne &raquo; et ne sera plus dans &laquo; À rafraîchir &raquo;.
             </>
           }
           confirmLabel="Rafraîchir"

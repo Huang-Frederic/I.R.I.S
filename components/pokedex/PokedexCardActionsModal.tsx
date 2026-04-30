@@ -37,7 +37,6 @@ export default function PokedexCardActionsModal({ card, hasForSaleConflict, onCl
   };
 
   const remove = async () => {
-    if (!confirm('Supprimer cette carte définitivement ? Cette action est irréversible.')) return;
     setSubmitting(true);
     setError(null);
     try {
