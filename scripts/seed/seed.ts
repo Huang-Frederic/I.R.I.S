@@ -158,7 +158,7 @@ interface StatusMeta {
   sold_price: number | null;
 }
 
-function pickStatus(idx: number, _total: number): StatusMeta {
+function pickStatus(idx: number): StatusMeta {
   // Spread cards across statuses to look "lived in":
   // 0..1 = sold (~7%), 2..6 = pokedex (~17%), 7..11 = collection (~17%), rest = for_sale
   if (idx < 2) {
@@ -228,7 +228,7 @@ async function main() {
 
     // Get a unique dexId for pokedex entries
     let dexId = tcg?.dexId?.[0] ?? Math.floor(Math.random() * 1025) + 1;
-    const meta = pickStatus(idx, filenames.length);
+    const meta = pickStatus(idx);
 
     // For pokedex status, ensure unique pokemon_number
     if (meta.status === 'pokedex') {
