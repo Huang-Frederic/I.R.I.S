@@ -73,8 +73,8 @@ export default function PokedexGrid({ cards }: PokedexGridProps) {
     selectedPokemon !== null ? (availableMap.get(selectedPokemon) ?? []) : [];
 
   const gridClasses = {
-    'grid-large': 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3',
-    'grid-compact': 'grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2',
+    'grid-large': 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3',
+    'grid-compact': 'grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-9 gap-2',
     'list': 'flex flex-col gap-1',
   }[viewMode];
 

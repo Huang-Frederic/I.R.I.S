@@ -40,11 +40,14 @@ export default function PokedexListItem({ number, card, onClick }: PokedexListIt
         <Image
           src={`${SPRITE_BASE}${number}.png`}
           alt=""
-          width={48}
-          height={48}
+          width={56}
+          height={56}
           loading="lazy"
           unoptimized
-          className={owned ? '' : 'opacity-25 brightness-0 saturate-0'}
+          className={owned ? '' : 'opacity-50'}
+          style={owned ? undefined : {
+            filter: 'brightness(0) invert(40%) sepia(90%) saturate(2900%) hue-rotate(335deg) brightness(95%)',
+          }}
         />
       </div>
 
