@@ -240,7 +240,9 @@ async function main() {
 
     const cardName = tcg?.name ?? `${parsed.setCode}-${parsed.setNumber}`;
     const tcgImageUrl = tcg?.image ? `${tcg.image}/high.jpg` : null;
-    const cardIdTcg = tcg?.id ?? null;
+    // When TCGdex doesn't return an ID, generate a unique one so the partial
+    // unique index `one_for_sale_per_group` doesn't reject bulk insert.
+    const cardIdTcg = tcg?.id ?? `seed-${parsed.setCode.toLowerCase()}-${parsed.setNumber}`;
     const setName = tcg?.set?.name ?? parsed.setCode;
     const setTotal = tcg?.set?.cardCount?.official ?? null;
     const rarity = parsed.rarityRaw ? (RARITY_MAP[parsed.rarityRaw] ?? 'OTHER') : 'OTHER';
@@ -277,11 +279,16 @@ async function main() {
 
   // 4. Bulk insert
   console.log(`\n💾 Inserting ${rows.length} rows...`);
-  const { error: insertErr } = await supabase.from('cards').insert(rows);
+  const { data: inserted, error: insertErr } = await supabase
+    .from('cards')
+    .insert(rows)
+    .select('id');
   if (insertErr) {
-    console.error('Insert failed:', insertErr.message);
+    console.error('❌ Insert failed:', insertErr.message);
+    console.error('Hint: si "duplicate key value violates unique constraint", c\'est probablement la contrainte one_for_sale_per_group. Vérifie que les card_id_tcg sont bien uniques.');
     process.exit(1);
   }
+  console.log(`✅ Inserted ${inserted?.length ?? 0} rows.`);
 
   // 5. Summary
   const counts: Record<string, number> = {};

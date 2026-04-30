@@ -21,6 +21,7 @@ import ScanSuggestion from '@/components/cards/ScanSuggestion';
 import { getPokemonName } from '@/lib/data/pokemon-names';
 import PokedexReplaceModal, { type PokedexReplaceModalCard } from '@/components/cards/PokedexReplaceModal';
 import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
+import ConfirmDialog from '@/components/vinted/ConfirmDialog';
 
 const LANGUAGES: CardLanguage[] = ['JP', 'EN', 'FR', 'DE', 'IT', 'ES', 'KO', 'PT', 'ZH'];
 const CONDITIONS: CardCondition[] = ['NM', 'EX', 'GD', 'PL', 'PO'];
@@ -153,6 +154,8 @@ export default function CardScanForm({
     existingCard: PokedexReplaceModalCard;
     hasForSaleConflict: boolean;
   } | null>(null);
+  const [forSaleConflict, setForSaleConflict] = useState(false);
+  const [confirmingMismatch, setConfirmingMismatch] = useState(false);
 
   const nameMismatch = (() => {
     if (lockedPokemonNumber === undefined) return false;
@@ -494,6 +497,7 @@ export default function CardScanForm({
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as {
           error?: string;
+          message?: string;
           existingCard?: PokedexReplaceModalCard;
           hasForSaleConflict?: boolean;
         };
@@ -505,7 +509,12 @@ export default function CardScanForm({
           setPhase('reviewing'); // back from 'saving' to give the modal user a way to interact
           return;
         }
-        throw new Error(body.error ?? `Enregistrement a échoué (${res.status})`);
+        if (res.status === 409 && body.error === 'for_sale_conflict') {
+          setForSaleConflict(true);
+          setPhase('reviewing');
+          return;
+        }
+        throw new Error(body.message ?? body.error ?? `Enregistrement a échoué (${res.status})`);
       }
 
       const inserted = (await res.json()) as { card: { id: string } };
@@ -627,7 +636,14 @@ export default function CardScanForm({
       )}
 
       <form
-        onSubmit={handleSave}
+        onSubmit={(e) => {
+          if (nameMismatch && !confirmingMismatch) {
+            e.preventDefault();
+            setConfirmingMismatch(true);
+            return;
+          }
+          void handleSave(e);
+        }}
         className={compact ? 'flex flex-col gap-4' : 'grid gap-6 lg:grid-cols-[minmax(0,28rem)_1fr] lg:items-start'}
       >
         {/* Left column: Photo section with loupe (or CTA when no photo) */}
@@ -698,8 +714,8 @@ export default function CardScanForm({
             </div>
           )}
 
-          {/* Status block (only show when we have OCR data) */}
-          {previewUrl && (
+          {/* Status block (only show after OCR has run) */}
+          {(phase === 'reviewing' || phase === 'saving' || phase === 'success') && (
             <div className={`flex flex-col gap-2 rounded-xl border p-4 ${
               confidence >= CONFIDENCE_THRESHOLD
                 ? 'bg-rarity-r/10 border-rarity-r/30'
@@ -731,10 +747,12 @@ export default function CardScanForm({
           )}
 
           {/* Pokédex suggestion banner */}
-          {suggestion && <ScanSuggestion result={suggestion} />}
+          {(phase === 'reviewing' || phase === 'saving' || phase === 'success') && suggestion && (
+            <ScanSuggestion result={suggestion} />
+          )}
 
           {/* Alert if no catalog match */}
-          {!enrichFound && previewUrl && (
+          {(phase === 'reviewing' || phase === 'saving' || phase === 'success') && !enrichFound && (
             <div className="border-rarity-ar bg-rarity-ar/10 text-rarity-ar rounded-lg border p-3 text-xs">
               Aucun match catalogue — soit le numéro de set n&apos;a pas été lu, soit la carte n&apos;est
               pas indexée (sets JP récents notamment). Le texte OCR ci-dessous t&apos;aidera à
@@ -743,7 +761,7 @@ export default function CardScanForm({
           )}
 
           {/* OCR text details (collapsed) */}
-          {ocrText && (
+          {(phase === 'reviewing' || phase === 'saving' || phase === 'success') && ocrText && (
             <details className="bg-surface-2 border-border rounded-lg border text-xs">
               <summary className="text-text-muted cursor-pointer select-none px-3 py-2">
                 Texte OCR détecté ({ocrText.length} caractères)
@@ -879,7 +897,10 @@ export default function CardScanForm({
                 <button
                   key={value}
                   type="button"
-                  onClick={() => update('status', value)}
+                  onClick={() => {
+                    update('status', value);
+                    setForSaleConflict(false);
+                  }}
                   className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
                     form.status === value
                       ? 'bg-red-bg border-red text-red'
@@ -890,6 +911,11 @@ export default function CardScanForm({
                 </button>
               ))}
             </div>
+            {forSaleConflict && form.status === 'for_sale' && (
+              <p className="text-rarity-ar mt-2 text-xs">
+                💡 Cette carte est déjà en vente sur Vinted. Choisis <strong>Stock</strong> à la place pour la garder en réserve.
+              </p>
+            )}
             </div>
           )}
 
@@ -938,6 +964,26 @@ export default function CardScanForm({
           </div>
         </div>
       </form>
+
+      {confirmingMismatch && (
+        <ConfirmDialog
+          title="Nom différent détecté"
+          body={
+            <>
+              Le nom détecté <strong>&quot;{form.pokemon_name}&quot;</strong> ne correspond pas à <strong>{getPokemonName(lockedPokemonNumber!, 'fr')}</strong> (#{lockedPokemonNumber}). Es-tu vraiment sûr d&apos;enregistrer cette carte dans ce slot ?
+            </>
+          }
+          confirmLabel="Oui, enregistrer"
+          confirmTone="danger"
+          onConfirm={() => {
+            setConfirmingMismatch(false);
+            // Programmatically re-submit after the user confirmed
+            const formEl = document.querySelector('form');
+            if (formEl) formEl.requestSubmit();
+          }}
+          onCancel={() => setConfirmingMismatch(false)}
+        />
+      )}
     </div>
   );
 }

@@ -146,7 +146,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'carte introuvable' }, { status: 404 });
     }
     // Postgres unique violation fallback (in case pre-check missed a race)
-    if (error.code === '23505') {
+    const isUniqueViolation =
+      error.code === '23505' ||
+      /one_for_sale_per_group|duplicate key|unique constraint/i.test(error.message ?? '');
+    if (isUniqueViolation) {
       return NextResponse.json(
         { error: 'for_sale_conflict', message: 'Un exemplaire de cette carte est déjà en vente sur Vinted.' },
         { status: 409 },

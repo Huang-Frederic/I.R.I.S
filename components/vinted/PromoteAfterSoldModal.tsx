@@ -36,8 +36,10 @@ export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }
         body: JSON.stringify({ status: 'for_sale' }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `Promotion échouée (${res.status})`);
+        const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+        // For for_sale conflict, surface a friendly message
+        const friendly = body.message ?? body.error ?? `Promotion échouée (${res.status})`;
+        throw new Error(friendly);
       }
       onPromoted();
     } catch (err) {
