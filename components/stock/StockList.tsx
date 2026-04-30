@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Card } from '@/lib/types';
-import { groupCards, groupKey } from '@/lib/utils/group-cards';
+import { groupCards, groupKey, type CardGroup } from '@/lib/utils/group-cards';
 import StockFilters, { INITIAL_STOCK_FILTERS, type StockFilterState } from './StockFilters';
 import StockRow from './StockRow';
 import ExchangeOnConflictModal, { type ExchangeConflictCard } from '@/components/vinted/ExchangeOnConflictModal';
@@ -98,45 +98,45 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
     }
   };
 
-  const handleIncrement = async (card: Card) => {
-    setBusyKey(groupKey(card));
+  const handleSetCount = async (group: CardGroup, target: number) => {
+    if (target < 1) return; // guard — input also rejects
+    const diff = target - group.count;
+    if (diff === 0) return;
+    setBusyKey(group.key);
     try {
-      const res = await fetch(`/api/cards/${card.id}/clone`, { method: 'POST' });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-        throw new Error(body.message ?? body.error ?? `Clone échoué (${res.status})`);
+      if (diff > 0) {
+        // Clone N times in parallel — the API handles each as an independent
+        // INSERT, so order doesn't matter.
+        const sourceId = group.head.id;
+        const results = await Promise.all(
+          Array.from({ length: diff }, async () => {
+            const res = await fetch(`/api/cards/${sourceId}/clone`, { method: 'POST' });
+            if (!res.ok) {
+              const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+              throw new Error(body.message ?? body.error ?? `Clone échoué (${res.status})`);
+            }
+            return ((await res.json()) as { card: Card }).card;
+          }),
+        );
+        setCards((prev) => [...prev, ...results]);
+      } else {
+        // Drop the |diff| FRESHEST copies — preserves the original/head entry.
+        const sorted = [...group.cards].sort((a, b) =>
+          a.date_added.localeCompare(b.date_added),
+        );
+        const toDelete = sorted.slice(target); // everything past the target slot
+        await Promise.all(
+          toDelete.map(async (c) => {
+            const res = await fetch(`/api/cards/${c.id}`, { method: 'DELETE' });
+            if (!res.ok) {
+              const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+              throw new Error(body.message ?? body.error ?? `Suppression échouée (${res.status})`);
+            }
+          }),
+        );
+        const dropped = new Set(toDelete.map((c) => c.id));
+        setCards((prev) => prev.filter((c) => !dropped.has(c.id)));
       }
-      const { card: cloned } = (await res.json()) as { card: Card };
-      // Inserting at the end keeps the head (oldest) untouched — the new copy
-      // is the freshest, which matches "le plus vieux en premier" sort order.
-      setCards((prev) => [...prev, cloned]);
-    } catch (err) {
-      console.error(err);
-      alert(err instanceof Error ? err.message : 'Erreur inconnue');
-    } finally {
-      setBusyKey(null);
-    }
-  };
-
-  const handleDecrement = async (card: Card) => {
-    // Remove the freshest copy of the group so the original entry sticks
-    // around for history. We re-derive the group from current state to find
-    // the right id (the head card passed in is the oldest, not the target).
-    const key = groupKey(card);
-    const sameGroup = cards
-      .filter((c) => groupKey(c) === key)
-      .sort((a, b) => a.date_added.localeCompare(b.date_added));
-    if (sameGroup.length <= 1) return; // guard — UI also disables the button
-    const target = sameGroup[sameGroup.length - 1];
-
-    setBusyKey(key);
-    try {
-      const res = await fetch(`/api/cards/${target.id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-        throw new Error(body.message ?? body.error ?? `Suppression échouée (${res.status})`);
-      }
-      setCards((prev) => prev.filter((c) => c.id !== target.id));
     } catch (err) {
       console.error(err);
       alert(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -170,8 +170,7 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
               hasForSaleSibling={forSaleKeys.has(stockMatchKey(g.head))}
               onListForSaleClick={handleListForSale}
               onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}
-              onIncrement={handleIncrement}
-              onDecrement={handleDecrement}
+              onSetCount={handleSetCount}
               busy={busyKey === g.key}
             />
           ))}

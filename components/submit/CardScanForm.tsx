@@ -679,7 +679,11 @@ export default function CardScanForm({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-surface border-border hover:border-red relative mx-auto flex h-[28rem] w-full max-w-md flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed transition-colors lg:max-w-none"
+                  className={
+                    compact
+                      ? 'bg-surface border-border hover:border-red relative mx-auto flex h-[14rem] w-full max-w-[10rem] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed transition-colors'
+                      : 'bg-surface border-border hover:border-red relative mx-auto flex h-[28rem] w-full max-w-md flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed transition-colors lg:max-w-none'
+                  }
                 >
                   {phase === 'scanning' ? (
                     <>
@@ -702,7 +706,11 @@ export default function CardScanForm({
                     <MagnifierLoupe
                       src={previewUrl}
                       alt="Aperçu de la carte"
-                      className="mx-auto w-full max-w-md border-2 border-border shadow-lg lg:max-w-none"
+                      className={
+                        compact
+                          ? 'mx-auto w-full max-w-[10rem] border-2 border-border shadow-lg'
+                          : 'mx-auto w-full max-w-md border-2 border-border shadow-lg lg:max-w-none'
+                      }
                     />
                     {phase === 'scanning' && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">

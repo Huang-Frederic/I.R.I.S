@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Tag, BookmarkCheck, Bookmark, Plus, Minus } from 'lucide-react';
+import { Tag, BookmarkCheck, Bookmark } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
 import CardZoomModal from '@/components/vinted/CardZoomModal';
@@ -38,8 +38,8 @@ interface Props {
   hasForSaleSibling: boolean;
   onListForSaleClick: (card: Card) => void;
   onMoveToPokedexClick?: (card: Card) => void;
-  onIncrement: (card: Card) => void;
-  onDecrement: (card: Card) => void;
+  /** Apply a target count for this group. Caller diffs against group.count and clones / deletes accordingly. */
+  onSetCount: (group: CardGroup, target: number) => void;
   busy?: boolean;
 }
 
@@ -49,13 +49,33 @@ export default function StockRow({
   hasForSaleSibling,
   onListForSaleClick,
   onMoveToPokedexClick,
-  onIncrement,
-  onDecrement,
+  onSetCount,
   busy = false,
 }: Props) {
   const card = group.head;
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
+  // Sync the input value with the parent-reported count, but allow free typing
+  // in between. We mirror group.count in `lastSyncedCount` and reset the draft
+  // whenever the parent sends a new count (after a clone / delete settles).
+  // This is the React 19 idiom for "derive state from props" without an effect.
+  const [draftCount, setDraftCount] = useState(String(group.count));
+  const [lastSyncedCount, setLastSyncedCount] = useState(group.count);
+  if (group.count !== lastSyncedCount) {
+    setLastSyncedCount(group.count);
+    setDraftCount(String(group.count));
+  }
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
+
+  const commitCount = () => {
+    const parsed = parseInt(draftCount, 10);
+    if (Number.isNaN(parsed) || parsed < 1) {
+      // Reject: revert the field to the current group count.
+      setDraftCount(String(group.count));
+      return;
+    }
+    if (parsed === group.count) return; // no-op
+    onSetCount(group, parsed);
+  };
 
   return (
     <li className="bg-surface border-border flex flex-col gap-3 rounded-lg border p-3 text-sm sm:flex-row sm:items-center">
@@ -120,32 +140,29 @@ export default function StockRow({
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
-        {/* Copy counter with +/- — always visible so the user can grow a group from 1. */}
-        <div className="border-border flex items-center overflow-hidden rounded border">
-          <button
-            type="button"
-            onClick={() => onDecrement(card)}
-            disabled={busy || group.count <= 1}
-            aria-label="Retirer un exemplaire"
-            title={group.count <= 1 ? 'Au moins 1 exemplaire requis' : 'Retirer un exemplaire'}
-            className="bg-surface-2 hover:bg-surface-off text-text-muted h-7 w-7 shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Minus className="mx-auto h-3.5 w-3.5" />
-          </button>
-          <span className="bg-surface-off text-text shrink-0 px-2 py-0.5 font-mono text-xs">
-            ×{group.count}
-          </span>
-          <button
-            type="button"
-            onClick={() => onIncrement(card)}
+        {/* Editable count: type a number and blur (or Enter) to apply.
+            Caller diffs against the previous count to clone or delete. */}
+        <label className="border-border bg-surface-2 flex items-center gap-1 rounded border px-2 py-1">
+          <span className="text-text-muted font-mono text-xs">×</span>
+          <input
+            type="number"
+            min={1}
+            value={draftCount}
             disabled={busy}
-            aria-label="Ajouter un exemplaire"
-            title="Ajouter un exemplaire"
-            className="bg-surface-2 hover:bg-surface-off text-text-muted h-7 w-7 shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Plus className="mx-auto h-3.5 w-3.5" />
-          </button>
-        </div>
+            onChange={(e) => setDraftCount(e.target.value)}
+            onBlur={commitCount}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.currentTarget.blur();
+              } else if (e.key === 'Escape') {
+                setDraftCount(String(group.count));
+                e.currentTarget.blur();
+              }
+            }}
+            aria-label="Nombre d'exemplaires"
+            className="bg-transparent text-text w-10 font-mono text-xs outline-none disabled:opacity-40"
+          />
+        </label>
 
         <button
           type="button"

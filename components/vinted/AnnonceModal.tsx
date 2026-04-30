@@ -158,7 +158,7 @@ export default function AnnonceModal({ card, onClose, onPriceSaved }: Props) {
             </div>
 
             {/* Download img */}
-            <div className="flex flex-col items-start gap-1">
+            <div className="flex flex-col items-center gap-1">
               <button
                 type="button"
                 onClick={handleDownload}
