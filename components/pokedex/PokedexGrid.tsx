@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import type { Card } from '@/lib/types';
 import { GENERATIONS } from '@/lib/utils/pokemon-generations';
 import { POKEMON_NAMES } from '@/lib/data/pokemon-names';
@@ -17,17 +17,38 @@ const TOTAL_POKEMON = 1025;
 const ALL_NUMBERS = Array.from({ length: TOTAL_POKEMON }, (_, i) => i + 1);
 
 const VIEW_MODE_KEY = 'iris.pokedex.viewMode';
+const DEFAULT_VIEW_MODE: ViewMode = 'grid-compact';
+const VIEW_MODE_CHANGE_EVENT = 'iris:pokedex:view-mode-change';
 
-function getInitialViewMode(): ViewMode {
-  if (typeof window === 'undefined') return 'grid-compact';
+function readStoredViewMode(): ViewMode {
+  if (typeof window === 'undefined') return DEFAULT_VIEW_MODE;
   const stored = localStorage.getItem(VIEW_MODE_KEY);
   if (stored === 'grid-large' || stored === 'grid-compact' || stored === 'list') {
     return stored;
   }
-  // Migration from old mode names
+  // Migration from old mode names — kept around so users who set their
+  // preference before the rename still see the right view.
   if (stored === 'grid-3') return 'grid-large';
   if (stored === 'grid-5') return 'grid-compact';
-  return 'grid-compact';
+  return DEFAULT_VIEW_MODE;
+}
+
+/**
+ * useSyncExternalStore lets us treat localStorage as the source of truth and
+ * gives React a proper server snapshot — so the SSR pass renders the default,
+ * the client's first paint matches, and the next paint adopts the persisted
+ * preference. No setState-in-effect, no hydration mismatch.
+ */
+function subscribeViewMode(callback: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  // Cross-tab via the native storage event; same-tab via a custom event we
+  // dispatch ourselves from handleViewModeChange.
+  window.addEventListener('storage', callback);
+  window.addEventListener(VIEW_MODE_CHANGE_EVENT, callback);
+  return () => {
+    window.removeEventListener('storage', callback);
+    window.removeEventListener(VIEW_MODE_CHANGE_EVENT, callback);
+  };
 }
 
 export default function PokedexGrid({ cards }: PokedexGridProps) {
@@ -37,12 +58,15 @@ export default function PokedexGrid({ cards }: PokedexGridProps) {
     status: 'all',
     search: '',
   });
-  const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode);
+  const viewMode = useSyncExternalStore(
+    subscribeViewMode,
+    readStoredViewMode,
+    () => DEFAULT_VIEW_MODE,
+  );
 
-  // Persist view mode to localStorage
   const handleViewModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
     localStorage.setItem(VIEW_MODE_KEY, mode);
+    window.dispatchEvent(new Event(VIEW_MODE_CHANGE_EVENT));
   };
 
   // pokedexMap: one card per pokemon (status='pokedex' enforced by the partial unique index)
