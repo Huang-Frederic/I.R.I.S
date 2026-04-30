@@ -159,8 +159,13 @@ interface StatusMeta {
 }
 
 function pickStatus(idx: number): StatusMeta {
-  // Spread cards across statuses to look "lived in":
-  // 0..1 = sold (~7%), 2..6 = pokedex (~17%), 7..11 = collection (~17%), rest = for_sale
+  // Spread cards across statuses to look "lived in" + cover all UI states:
+  //   0..1   = sold (~7%)                                  [2 cards]
+  //   2..6   = pokedex (~17%)                              [5 cards]
+  //   7..11  = collection / Stock (~17%)                    [5 cards]
+  //   12..14 = for_sale STALE (>21j → "À rafraîchir" UI)    [3 cards]
+  //   15..17 = for_sale online recent                       [3 cards]
+  //   18+    = for_sale offline                             [~12 cards]
   if (idx < 2) {
     return {
       status: 'sold',
@@ -185,11 +190,28 @@ function pickStatus(idx: number): StatusMeta {
       sold_price: null,
     };
   }
-  // for_sale: ~half are listed
-  const isListed = Math.random() < 0.5;
+  // 3 stale cards (>21d) — they show as "À rafraîchir"
+  if (idx < 15) {
+    return {
+      status: 'for_sale',
+      vinted_listed_at: daysAgo(25 + Math.floor(Math.random() * 10)),  // 25-34 days ago
+      date_sold: null,
+      sold_price: null,
+    };
+  }
+  // 3 fresh online
+  if (idx < 18) {
+    return {
+      status: 'for_sale',
+      vinted_listed_at: daysAgo(Math.floor(Math.random() * 14)),
+      date_sold: null,
+      sold_price: null,
+    };
+  }
+  // The rest: for_sale offline (vinted_listed_at = null)
   return {
     status: 'for_sale',
-    vinted_listed_at: isListed ? daysAgo(Math.floor(Math.random() * 14)) : null,
+    vinted_listed_at: null,
     date_sold: null,
     sold_price: null,
   };
