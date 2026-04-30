@@ -154,6 +154,17 @@ export default function CardScanForm({
     hasForSaleConflict: boolean;
   } | null>(null);
 
+  const nameMismatch = (() => {
+    if (lockedPokemonNumber === undefined) return false;
+    if (!form.pokemon_name) return false;
+    const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+    const detected = norm(form.pokemon_name);
+    const fr = norm(getPokemonName(lockedPokemonNumber, 'fr'));
+    const en = norm(getPokemonName(lockedPokemonNumber, 'en'));
+    // Loose match: detected name contains the expected, or vice versa
+    return !detected.includes(fr) && !detected.includes(en) && !fr.includes(detected) && !en.includes(detected);
+  })();
+
   function reset() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
@@ -897,6 +908,13 @@ export default function CardScanForm({
             <div className="text-rarity-r bg-surface-2 flex items-center gap-2 rounded-lg p-3 text-sm">
               <CheckCircle2 className="h-4 w-4" aria-hidden />
               Carte enregistrée.
+            </div>
+          )}
+
+          {/* Name mismatch warning */}
+          {nameMismatch && (
+            <div className="border-rarity-ar bg-rarity-ar/10 text-rarity-ar mb-3 rounded-lg border p-3 text-xs">
+              ⚠️ Le nom détecté <strong>&quot;{form.pokemon_name}&quot;</strong> ne correspond pas à <strong>{getPokemonName(lockedPokemonNumber!, 'fr')}</strong> (#{lockedPokemonNumber}). Es-tu sûr de vouloir l&apos;enregistrer ?
             </div>
           )}
 
