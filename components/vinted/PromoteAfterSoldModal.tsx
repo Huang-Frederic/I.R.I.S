@@ -3,6 +3,7 @@
 import { X, Tag } from 'lucide-react';
 import { useState } from 'react';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
+import CardZoomModal from '@/components/vinted/CardZoomModal';
 
 const VARIANT_LABEL: Record<string, string> = {
   pokeball: 'Poké Ball',
@@ -20,6 +21,7 @@ interface Props {
 export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [zoomSrc, setZoomSrc] = useState<string | null>(null);
 
   const thumb = candidate.imageUrl ?? candidate.tcgImageUrl;
   const variantLabel = candidate.variant ? (VARIANT_LABEL[candidate.variant] ?? candidate.variant) : null;
@@ -65,12 +67,19 @@ export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }
 
         <div className="my-4 flex items-center gap-4">
           {thumb ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={thumb}
-              alt={candidate.cardName}
-              className="bg-surface-off h-[140px] w-[100px] shrink-0 rounded object-cover"
-            />
+            <button
+              type="button"
+              onClick={() => setZoomSrc(thumb)}
+              className="hover:ring-red shrink-0 rounded transition-shadow hover:ring-2"
+              aria-label="Voir en grand"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={thumb}
+                alt={candidate.cardName}
+                className="bg-surface-off h-[140px] w-[100px] rounded object-cover"
+              />
+            </button>
           ) : (
             <div className="bg-surface-off flex h-[140px] w-[100px] shrink-0 items-center justify-center rounded text-xs text-text-faint">
               Pas d&apos;image
@@ -112,6 +121,10 @@ export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }
             {submitting ? 'Patientez…' : 'Mettre en vente'}
           </button>
         </div>
+
+        {zoomSrc && (
+          <CardZoomModal src={zoomSrc} alt={candidate.cardName} onClose={() => setZoomSrc(null)} />
+        )}
       </div>
     </div>
   );

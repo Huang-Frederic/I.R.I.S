@@ -74,6 +74,12 @@ export default function PokedexCardActionsModal({ card, hasForSaleConflict, onCl
 
         {error && <p className="text-red mb-3 text-xs">{error}</p>}
 
+        {hasForSaleConflict && (
+          <p className="text-text-muted mb-3 text-xs">
+            💡 Un exemplaire de cette carte est déjà en vente sur Vinted. Tu ne peux pas en déplacer un deuxième vers Vinted — Stock à la place.
+          </p>
+        )}
+
         <div className="flex flex-col gap-2">
           <button
             type="button"
