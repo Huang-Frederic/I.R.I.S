@@ -79,7 +79,14 @@ async function handleBulk(): Promise<NextResponse> {
 
   for (let i = 0; i < cards.length; i += PARALLELISM) {
     const slice = cards.slice(i, i + PARALLELISM);
-    await Promise.all(slice.map((card) => processCard(card, service, coeff, summary)));
+    await Promise.all(
+      slice.map((card) =>
+        processCard(card, service, coeff, summary).catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : String(err);
+          summary.errors.push({ card_id: card.id, message: `unexpected: ${message}` });
+        }),
+      ),
+    );
   }
 
   return NextResponse.json(summary);
@@ -112,8 +119,12 @@ async function processCard(
   let backfilled = false;
 
   if (cat === 'backfill') {
+    if (!card.set_code || !card.set_number) {
+      summary.errors.push({ card_id: card.id, message: 'backfill: missing set_code or set_number' });
+      return;
+    }
     try {
-      const row = await lookupByCode(service, card.set_code!, card.set_number!, card.language);
+      const row = await lookupByCode(service, card.set_code, card.set_number, card.language);
       if (!row) {
         summary.skipped += 1;
         return;
