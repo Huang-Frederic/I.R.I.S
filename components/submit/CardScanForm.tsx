@@ -681,7 +681,7 @@ export default function CardScanForm({
                   onClick={() => fileInputRef.current?.click()}
                   className={
                     compact
-                      ? 'bg-surface border-border hover:border-red relative mx-auto flex h-[14rem] w-full max-w-[10rem] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed transition-colors'
+                      ? 'bg-surface border-border hover:border-red relative mx-auto flex h-[14rem] w-full max-w-[14rem] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed transition-colors'
                       : 'bg-surface border-border hover:border-red relative mx-auto flex h-[28rem] w-full max-w-md flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed transition-colors lg:max-w-none'
                   }
                 >
@@ -708,7 +708,7 @@ export default function CardScanForm({
                       alt="Aperçu de la carte"
                       className={
                         compact
-                          ? 'mx-auto w-full max-w-[10rem] border-2 border-border shadow-lg'
+                          ? 'mx-auto w-full max-w-[14rem] border-2 border-border shadow-lg'
                           : 'mx-auto w-full max-w-md border-2 border-border shadow-lg lg:max-w-none'
                       }
                     />
