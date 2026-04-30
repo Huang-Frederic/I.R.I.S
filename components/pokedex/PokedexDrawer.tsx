@@ -8,6 +8,8 @@ import type { Card } from '@/lib/types';
 import { getPokemonName } from '@/lib/data/pokemon-names';
 import PokedexScanModal from './PokedexScanModal';
 import PokedexCardActionsModal from './PokedexCardActionsModal';
+import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
+import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
 
 interface PokedexDrawerProps {
   open: boolean;
@@ -137,14 +139,32 @@ function PokedexCardDetails({ card, availableCards }: { card: Card; availableCar
 
       {(card.cm_price_low ?? card.cm_price_trend ?? card.cm_price_avg ?? card.suggested_price) !==
       null ? (
-        <div className="bg-surface-2 grid grid-cols-2 gap-3 rounded-lg p-4 text-sm md:grid-cols-4">
-          <Price label="Low" value={card.cm_price_low} />
-          <Price label="Trend" value={card.cm_price_trend} />
-          <Price label="Avg" value={card.cm_price_avg} />
-          <Price label="Suggéré" value={card.suggested_price} highlight />
+        <div className="bg-surface-2 flex flex-col gap-2 rounded-lg p-4 text-sm">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Price label="Low" value={card.cm_price_low} />
+            <Price label="Trend" value={card.cm_price_trend} />
+            <Price label="Avg" value={card.cm_price_avg} />
+            <Price label="Suggéré" value={card.suggested_price} highlight />
+          </div>
+          <div className="flex items-center justify-between">
+            <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
+            <RefreshPriceButton
+              cardId={card.id}
+              onRefreshed={() => {
+                // Pokédex drawer reads from props; re-fetch from the server.
+                router.refresh();
+              }}
+            />
+          </div>
         </div>
       ) : (
-        <p className="text-text-faint text-xs">Pas encore de prix Cardmarket — viendra avec le cron Phase 3.</p>
+        <div className="flex items-center gap-2">
+          <p className="text-text-faint text-xs">Pas encore de prix Cardmarket.</p>
+          <RefreshPriceButton
+            cardId={card.id}
+            onRefreshed={() => router.refresh()}
+          />
+        </div>
       )}
 
       {availableCards.length > 0 && (
