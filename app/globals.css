@@ -33,6 +33,12 @@
   --color-rarity-uc: #8a8885;
   --color-rarity-c: #55524f;
 
+  /* Pricing freshness */
+  --color-staleness-fresh: #6daa45;
+  --color-staleness-stale: #8a8885;
+  --color-staleness-old:   #e8942a;
+  --color-staleness-never: #55524f;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
