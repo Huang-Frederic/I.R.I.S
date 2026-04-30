@@ -14,7 +14,7 @@ export default async function VintedPage() {
     supabase
       .from('cards')
       .select('*')
-      .eq('status', 'for_sale')
+      .in('status', ['for_sale', 'sold'])
       .order('date_added', { ascending: true }),
     supabase
       .from('cards')
@@ -47,7 +47,7 @@ export default async function VintedPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Vinted</h1>
         <p className="text-text-muted mt-1 text-sm">
-          {cards.length} carte{cards.length > 1 ? 's' : ''} en stock — tri FIFO
+          {cards.length} carte{cards.length > 1 ? 's' : ''} — tri FIFO
         </p>
       </div>
       <div className="mt-6">
