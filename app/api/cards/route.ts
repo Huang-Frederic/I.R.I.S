@@ -191,6 +191,15 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
+    const isUniqueViolation =
+      error.code === '23505' ||
+      /one_for_sale_per_group|duplicate key|unique constraint/i.test(error.message ?? '');
+    if (isUniqueViolation) {
+      return NextResponse.json(
+        { error: 'for_sale_conflict', message: 'Un exemplaire de cette carte est déjà en vente sur Vinted.' },
+        { status: 409 },
+      );
+    }
     console.error('Card insert failed:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
