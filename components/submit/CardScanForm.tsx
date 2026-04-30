@@ -21,6 +21,7 @@ import ScanSuggestion from '@/components/cards/ScanSuggestion';
 import { getPokemonName } from '@/lib/data/pokemon-names';
 import PokedexReplaceModal, { type PokedexReplaceModalCard } from '@/components/cards/PokedexReplaceModal';
 import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
+import { detectNumberMismatch } from '@/lib/utils/pokedex-mismatch';
 
 const LANGUAGES: CardLanguage[] = ['JP', 'EN', 'FR', 'DE', 'IT', 'ES', 'KO', 'PT', 'ZH'];
 const CONDITIONS: CardCondition[] = ['NM', 'EX', 'GD', 'PL', 'PO'];
@@ -154,14 +155,16 @@ export default function CardScanForm({
     hasForSaleConflict: boolean;
   } | null>(null);
   const [forSaleConflict, setForSaleConflict] = useState(false);
+  /**
+   * Pokémon number actually detected in the photo (via Gemini OCR or TCGdex
+   * match). We track this SEPARATELY from `form.pokemon_number` because, when
+   * the slot is locked, we force the form value back to `lockedPokemonNumber`
+   * for UX clarity — but we still need the real detected value to surface a
+   * mismatch.
+   */
+  const [detectedPokemonNumber, setDetectedPokemonNumber] = useState<number | null>(null);
 
-  const numberMismatch = (() => {
-    if (lockedPokemonNumber === undefined) return false;
-    if (!form.pokemon_number) return false;
-    const parsed = parseInt(form.pokemon_number, 10);
-    if (Number.isNaN(parsed)) return false;
-    return parsed !== lockedPokemonNumber;
-  })();
+  const numberMismatch = detectNumberMismatch({ lockedPokemonNumber, detectedPokemonNumber });
 
   function reset() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -188,6 +191,7 @@ export default function CardScanForm({
     setResearchMsg(null);
     setCandidates([]);
     setOcrGemini(null);
+    setDetectedPokemonNumber(null);
     setPhase('idle');
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
@@ -289,10 +293,20 @@ export default function CardScanForm({
     setCandidates([]);
     setEnrichFound(true);
     setResearchMsg(null);
+    if (match.pokemon_number != null) setDetectedPokemonNumber(match.pokemon_number);
     setForm((prev) => ({
       ...prev,
-      pokemon_name: match.pokemon_name,
-      pokemon_number: match.pokemon_number?.toString() ?? '',
+      pokemon_name:
+        lockedPokemonNumber != null
+          ? getPokemonName(lockedPokemonNumber, 'fr')
+          : match.pokemon_name,
+      // When the slot is locked we keep the locked number visible (input is
+      // disabled). The real detected number lives in `detectedPokemonNumber`
+      // so the mismatch warning can fire.
+      pokemon_number:
+        lockedPokemonNumber != null
+          ? String(lockedPokemonNumber)
+          : (match.pokemon_number?.toString() ?? ''),
       card_name: match.card_name,
       card_id_tcg: match.card_id_tcg,
       set_name: match.set_name,
@@ -392,6 +406,14 @@ export default function CardScanForm({
       }
       const enrich = (await enrichRes.json()) as EnrichResult;
       setEnrichFound(enrich.bestMatch !== null);
+
+      // Capture the detected pokémon number from match (or fallback to OCR
+      // Gemini extraction) so the mismatch hard-block can fire even when the
+      // form value is forced back to `lockedPokemonNumber`.
+      const detected =
+        enrich.bestMatch?.pokemon_number ??
+        (ocr.pokemonNumber ?? null);
+      setDetectedPokemonNumber(detected);
 
       // Multiple candidates → show picker, don't auto-fill yet.
       if (enrich.candidates.length > 1) {

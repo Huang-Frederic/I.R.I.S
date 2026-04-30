@@ -4,9 +4,7 @@
 import { useState } from 'react';
 import { Globe, GlobeLock, RefreshCw } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
-
-const STALE_DAYS = 21;
-const STALE_MS = STALE_DAYS * 24 * 60 * 60 * 1000;
+import { isListingStale, daysSinceListing } from '@/lib/utils/listing-stale';
 
 interface Props {
   cardId: string;
@@ -19,13 +17,13 @@ type State = 'offline' | 'online' | 'stale';
 
 function computeState(listedAt: string | null, now: number): State {
   if (listedAt === null) return 'offline';
-  const age = now - new Date(listedAt).getTime();
-  return age > STALE_MS ? 'stale' : 'online';
+  return isListingStale(listedAt, now) ? 'stale' : 'online';
 }
 
-function computeDaysSince(listedAt: string | null, now: number): number | null {
-  if (listedAt === null) return null;
-  return Math.floor((now - new Date(listedAt).getTime()) / (1000 * 60 * 60 * 24));
+function formatDays(d: number): string {
+  if (d <= 0) return "auj.";
+  if (d > 99) return '99j+';
+  return `${d}j`;
 }
 
 export default function VintedListedToggle({ cardId, currentListedAt, onToggled }: Props) {
@@ -36,7 +34,7 @@ export default function VintedListedToggle({ cardId, currentListedAt, onToggled 
   const [confirmKind, setConfirmKind] = useState<'offline' | 'refresh' | null>(null);
 
   const state = computeState(listed, now);
-  const daysSince = computeDaysSince(listed, now);
+  const daysSince = daysSinceListing(listed, now);
 
   const setListedTo = async (next: string | null) => {
     if (busy) return;
@@ -73,7 +71,9 @@ export default function VintedListedToggle({ cardId, currentListedAt, onToggled 
     }
   };
 
-  // Visual config per state
+  // Visual config per state — labels embed the days-since count when relevant
+  // so users can see at a glance how stale a listing is without hovering.
+  const daysLabel = daysSince !== null ? ` · ${formatDays(daysSince)}` : '';
   const config = {
     offline: {
       icon: GlobeLock,
@@ -83,13 +83,13 @@ export default function VintedListedToggle({ cardId, currentListedAt, onToggled 
     },
     online: {
       icon: Globe,
-      label: 'En ligne',
+      label: `En ligne${daysLabel}`,
       className: 'bg-rarity-r/20 text-rarity-r',
       title: 'En ligne sur Vinted (clic pour mettre hors ligne)',
     },
     stale: {
       icon: RefreshCw,
-      label: 'À rafraîchir',
+      label: `À rafraîchir${daysLabel}`,
       className: 'bg-rarity-sr/20 text-rarity-sr',
       title: `En ligne depuis ${daysSince} jours — clic pour rafraîchir la date`,
     },

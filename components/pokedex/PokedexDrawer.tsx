@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { X, ScanLine, Sparkles, RefreshCcw, Trash2 } from 'lucide-react';
+import { X, ScanLine, Sparkles, RefreshCcw, Trash2, Package, Tag } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import { getPokemonName } from '@/lib/data/pokemon-names';
 import PokedexScanModal from './PokedexScanModal';
@@ -204,28 +204,31 @@ function ReplaceList({
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // After picking a candidate, surface a confirm modal so the user explicitly
+  // chooses where the DISPLACED Pokédex card goes (Stock vs Vinted). Both
+  // destinations are valid — the unique constraint on for_sale is freed when
+  // the candidate vacates its slot in the swap RPC.
+  const [confirmCandidate, setConfirmCandidate] = useState<Card | null>(null);
 
-  async function pick(candidate: Card) {
+  async function performReplace(candidate: Card, displaceTo: 'collection' | 'for_sale') {
     setPending(candidate.id);
     setError(null);
     try {
-      // The candidate's current status (for_sale | collection) becomes the old card's
-      // new home — preserves stock counts and skips an extra "where does the old one
-      // go?" question for the user.
       const res = await fetch('/api/pokedex/replace', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           old_card_id: currentCard.id,
-          old_new_status: candidate.status,
+          old_new_status: displaceTo,
           new_card_id: candidate.id,
         }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `Échec (${res.status})`);
+        const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+        throw new Error(body.message ?? body.error ?? `Échec (${res.status})`);
       }
       router.refresh();
+      setConfirmCandidate(null);
       onCancel();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -251,7 +254,7 @@ function ReplaceList({
           key={c.id}
           type="button"
           disabled={pending !== null}
-          onClick={() => pick(c)}
+          onClick={() => setConfirmCandidate(c)}
           className="bg-surface-2 hover:border-red border-border flex items-center gap-3 rounded border p-2 text-left text-sm transition-colors disabled:opacity-50"
         >
           <Sparkles className="text-rarity-ar h-4 w-4 shrink-0" />
@@ -261,7 +264,7 @@ function ReplaceList({
             </p>
             <p className="text-text-faint truncate font-mono text-xs">
               {c.set_code ?? '—'} {c.set_number ?? ''} ·{' '}
-              {c.status === 'for_sale' ? 'Vinted' : 'Collection'}
+              {c.status === 'for_sale' ? 'Vinted' : 'Stock'}
             </p>
           </div>
           {pending === c.id && (
@@ -270,6 +273,95 @@ function ReplaceList({
         </button>
       ))}
       {error && <p className="text-red text-xs">{error}</p>}
+
+      {confirmCandidate && (
+        <PokedexReplaceConfirm
+          currentCard={currentCard}
+          candidate={confirmCandidate}
+          submitting={pending === confirmCandidate.id}
+          error={error}
+          onConfirm={(displaceTo) => void performReplace(confirmCandidate, displaceTo)}
+          onCancel={() => {
+            setConfirmCandidate(null);
+            setError(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function PokedexReplaceConfirm({
+  currentCard,
+  candidate,
+  submitting,
+  error,
+  onConfirm,
+  onCancel,
+}: {
+  currentCard: Card;
+  candidate: Card;
+  submitting: boolean;
+  error: string | null;
+  onConfirm: (displaceTo: 'collection' | 'for_sale') => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
+        <div className="mb-3 flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Échanger les exemplaires&nbsp;?</h2>
+            <p className="text-text-muted mt-1 text-sm">
+              <strong>{candidate.card_name}</strong> ({candidate.rarity} · {candidate.condition}) prendra la place du Pokédex.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="text-text-muted hover:text-text disabled:opacity-50"
+            aria-label="Fermer"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <p className="text-text-muted mb-3 text-xs">
+          Où mettre <strong>l&apos;ancienne carte du Pokédex</strong> ({currentCard.rarity} · {currentCard.condition}) ?
+        </p>
+
+        {error && <p className="text-red mb-3 text-xs">{error}</p>}
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="bg-surface-2 hover:bg-surface-off border-border rounded border px-4 py-2 text-sm disabled:opacity-50"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={() => onConfirm('collection')}
+            disabled={submitting}
+            className="bg-surface-2 hover:bg-surface-off border-border inline-flex items-center justify-center gap-1.5 rounded border px-4 py-2 text-sm disabled:opacity-50"
+          >
+            <Package className="h-3.5 w-3.5" />
+            Vers Stock
+          </button>
+          <button
+            type="button"
+            onClick={() => onConfirm('for_sale')}
+            disabled={submitting}
+            className="bg-red text-bg inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          >
+            <Tag className="h-3.5 w-3.5" />
+            Vers Vinted
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

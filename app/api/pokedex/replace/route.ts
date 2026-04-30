@@ -41,6 +41,21 @@ export async function POST(request: Request) {
 
   if (error) {
     console.error('replace_pokedex_card RPC failed:', error);
+    // The 3-step swap RPC handles the common collision (candidate occupies the
+    // for_sale slot the displaced card needs). The remaining failure mode is a
+    // *third* card of the same group already in for_sale — that's real data
+    // corruption and the user must resolve it manually.
+    if (/one_for_sale_per_group|duplicate key|unique constraint/i.test(error.message ?? '')) {
+      return NextResponse.json(
+        {
+          error: 'for_sale_conflict',
+          message:
+            "Un autre exemplaire est déjà en vente sur Vinted pour ce groupe. " +
+            'Choisis « Vers Stock » à la place, ou retire d\'abord la carte conflictuelle.',
+        },
+        { status: 409 },
+      );
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

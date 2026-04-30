@@ -18,15 +18,13 @@ import CardZoomModal from './CardZoomModal';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 import type { VintedConfig } from '@/lib/utils/vinted-template';
+import { isListingStale } from '@/lib/utils/listing-stale';
 
 export interface VintedListProps {
   cards: Card[];
   registered: Set<number>;
   config: Record<string, string>;
 }
-
-const STALE_DAYS = 21;
-const STALE_MS = STALE_DAYS * 24 * 60 * 60 * 1000;
 
 function normalize(s: string): string {
   return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
@@ -53,9 +51,10 @@ function matchesAttrFilters(card: Card, f: VintedFilterState): boolean {
 }
 
 function isStale(card: Card, now: number): boolean {
-  const ref = card.cm_updated_at ?? card.date_added;
-  if (!ref) return false;
-  return now - new Date(ref).getTime() > STALE_MS;
+  // "Stale" = listed on Vinted for more than 21 days. Cards that aren't online
+  // can never be "À rafraîchir" — there's nothing to refresh on the marketplace
+  // if the listing isn't live there. Aligns with VintedListedToggle.
+  return isListingStale(card.vinted_listed_at, now);
 }
 
 export default function VintedList({ cards: initial, registered, config }: VintedListProps) {
