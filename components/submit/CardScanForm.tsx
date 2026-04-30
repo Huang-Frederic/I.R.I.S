@@ -109,6 +109,13 @@ export interface CardScanFormProps {
   lockedStatus?: CardStatus;
   /** Called after a successful save instead of the default 1.8s auto-reset. Use for modal close. */
   onSaved?: (cardId: string) => void;
+  /**
+   * When provided, the "Annuler" button calls this instead of resetting the
+   * scanner. Modal hosts pass `onClose` here so cancel = close the modal,
+   * matching the X button behaviour. The free-standing /submit page leaves
+   * this undefined so cancel keeps its "reset and rescan" meaning.
+   */
+  onCancel?: () => void;
   /** Compact mode: 1-col layout, smaller paddings (for embedded modal use). */
   compact?: boolean;
 }
@@ -117,6 +124,7 @@ export default function CardScanForm({
   lockedPokemonNumber,
   lockedStatus,
   onSaved,
+  onCancel,
   compact = false,
 }: CardScanFormProps) {
   const [phase, setPhase] = useState<Phase>('idle');
@@ -960,7 +968,7 @@ export default function CardScanForm({
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={reset}
+              onClick={onCancel ?? reset}
               disabled={phase === 'saving'}
               className="border-border text-text-muted hover:bg-surface-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50"
             >
