@@ -172,6 +172,9 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
               onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}
               onSetCount={handleSetCount}
               busy={busyKey === g.key}
+              onPriceRefreshed={(updated) => {
+                setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+              }}
             />
           ))}
         </ul>
