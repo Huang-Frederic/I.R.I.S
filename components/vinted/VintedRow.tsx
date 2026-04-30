@@ -112,7 +112,7 @@ export default function VintedRow({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
         {group.count > 1 && (
           <span className="bg-surface-off text-text-muted shrink-0 rounded px-2 py-1 font-mono text-xs">
             ×{group.count}

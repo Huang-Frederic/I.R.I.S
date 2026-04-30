@@ -18,7 +18,7 @@ import CardZoomModal from './CardZoomModal';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 import type { VintedConfig } from '@/lib/utils/vinted-template';
-import { isListingStale } from '@/lib/utils/listing-stale';
+import { passesStateChips, shouldHideForSalePile } from '@/lib/utils/vinted-filter';
 
 export interface VintedListProps {
   cards: Card[];
@@ -48,13 +48,6 @@ function matchesAttrFilters(card: Card, f: VintedFilterState): boolean {
     if (variant !== f.variant) return false;
   }
   return true;
-}
-
-function isStale(card: Card, now: number): boolean {
-  // "Stale" = listed on Vinted for more than 21 days. Cards that aren't online
-  // can never be "À rafraîchir" — there's nothing to refresh on the marketplace
-  // if the listing isn't live there. Aligns with VintedListedToggle.
-  return isListingStale(card.vinted_listed_at, now);
 }
 
 export default function VintedList({ cards: initial, registered, config }: VintedListProps) {
@@ -116,41 +109,37 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
   };
 
   const { groups, soldRows, totalVisible } = useMemo(() => {
-    // Split by status
     const forSale = cards.filter((c) => c.status === 'for_sale');
     const sold = cards.filter((c) => c.status === 'sold');
 
-    // Apply attribute + search + stale filters separately
+    // Common: search + attribute filters apply to every pile.
     const passesCommon = (c: Card) =>
-      matchesSearch(c, filters.search) &&
-      matchesAttrFilters(c, filters) &&
-      (!filters.showStale || isStale(c, now));
+      matchesSearch(c, filters.search) && matchesAttrFilters(c, filters);
 
-    // For-sale subset depending on online/offline chips
-    let forSaleSubset = forSale.filter(passesCommon);
-    const onOnly = filters.showOnline && !filters.showOffline;
-    const offOnly = !filters.showOnline && filters.showOffline;
-    if (onOnly) {
-      forSaleSubset = forSaleSubset.filter((c) => c.vinted_listed_at !== null);
-    } else if (offOnly) {
-      forSaleSubset = forSaleSubset.filter((c) => c.vinted_listed_at === null);
-    }
-    // Both on or both off → no extra filter (show all for_sale)
+    // The state chips (En ligne / Pas en ligne / À rafraîchir) combine
+    // additively — see lib/utils/vinted-filter.ts for the rules. Using the
+    // shared helper keeps the UI semantics in lockstep with the test suite.
+    const finalForSale = shouldHideForSalePile(filters)
+      ? []
+      : forSale.filter((c) => passesCommon(c) && passesStateChips(c, filters, now));
 
-    // Logic: if Vendus is the ONLY active chip (showSold=true, others false) → hide for_sale.
-    // Otherwise (no chips OR sold + others) → show for_sale.
-    const onlySoldActive = filters.showSold && !filters.showOnline && !filters.showOffline;
-    const finalForSale = onlySoldActive ? [] : forSaleSubset;
-
-    // Sold subset: included only when showSold chip is active
+    // Sold pile is independent: included only when the Vendus chip is on.
     const soldSubset = filters.showSold
-      ? sold.filter(passesCommon).sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''))
+      ? sold
+          .filter(passesCommon)
+          .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''))
       : [];
 
-    // Group + sort for_sale
-    const sorted = sortVintedGroups(groupCards(finalForSale)).map((g, i) => ({ ...g, position: i + 1 }));
+    const sorted = sortVintedGroups(groupCards(finalForSale), now).map((g, i) => ({
+      ...g,
+      position: i + 1,
+    }));
 
-    return { groups: sorted, soldRows: soldSubset, totalVisible: finalForSale.length + soldSubset.length };
+    return {
+      groups: sorted,
+      soldRows: soldSubset,
+      totalVisible: finalForSale.length + soldSubset.length,
+    };
   }, [cards, filters, now]);
 
   const isEmpty = groups.length === 0 && soldRows.length === 0;

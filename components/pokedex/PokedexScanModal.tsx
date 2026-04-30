@@ -37,6 +37,7 @@ export default function PokedexScanModal({ pokemonNumber, onClose }: Props) {
             lockedPokemonNumber={pokemonNumber}
             lockedStatus="pokedex"
             compact
+            onCancel={onClose}
             onSaved={() => {
               onClose();
               router.refresh();
