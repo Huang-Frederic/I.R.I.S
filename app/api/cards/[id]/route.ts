@@ -2,7 +2,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { detectRestock } from '@/lib/utils/restock-detection';
-import type { CardStatus } from '@/lib/types';
+import { detectPromotable, type PromoteCandidate } from '@/lib/utils/promote-detection';
+import type { CardStatus, Card } from '@/lib/types';
 
 export const runtime = 'nodejs';
 
@@ -140,5 +141,22 @@ export async function PATCH(
     });
   }
 
-  return NextResponse.json({ card: updated, restock });
+  // Promote check: if just sold AND a stock copy of the same group exists, suggest promotion.
+  let promote: PromoteCandidate | null = null;
+  if (update.status === 'sold' && updated.card_id_tcg) {
+    const { data: stockCandidates } = await supabase
+      .from('cards')
+      .select('*')
+      .eq('card_id_tcg', updated.card_id_tcg)
+      .eq('language', updated.language)
+      .eq('condition', updated.condition)
+      .eq('status', 'collection');
+
+    promote = detectPromotable({
+      soldCard: updated,
+      stockCards: (stockCandidates ?? []) as Card[],
+    });
+  }
+
+  return NextResponse.json({ card: updated, restock, promote });
 }

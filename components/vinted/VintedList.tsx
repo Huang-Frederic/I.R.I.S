@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Card } from '@/lib/types';
 import { groupCards } from '@/lib/utils/group-cards';
 import { sortVintedGroups } from '@/lib/utils/vinted-sort';
@@ -12,7 +13,9 @@ import EditablePriceCell from './EditablePriceCell';
 import SoldModal from './SoldModal';
 import RestockToast from './RestockToast';
 import AnnonceModal from './AnnonceModal';
+import PromoteAfterSoldModal from './PromoteAfterSoldModal';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
+import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 import type { VintedConfig } from '@/lib/utils/vinted-template';
 
 export interface VintedListProps {
@@ -55,6 +58,7 @@ function isStale(card: Card, now: number): boolean {
 }
 
 export default function VintedList({ cards: initial, registered, config }: VintedListProps) {
+  const router = useRouter();
   const [cards, setCards] = useState<Card[]>(initial);
   const [filters, setFilters] = useState<VintedFilterState>(INITIAL_FILTERS);
   const [now] = useState(() => Date.now());
@@ -69,6 +73,7 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
 
   const [soldTarget, setSoldTarget] = useState<Card | null>(null);
   const [restockAlert, setRestockAlert] = useState<RestockAlert | null>(null);
+  const [promoteCandidate, setPromoteCandidate] = useState<PromoteCandidate | null>(null);
   const [annonceTarget, setAnnonceTarget] = useState<Card | null>(null);
 
   const vintedConfig: VintedConfig = {
@@ -76,7 +81,15 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
     vinted_seller_note: config.vinted_seller_note ?? '',
   };
 
-  const handleSold = ({ soldCardId, restock }: { soldCardId: string; restock: RestockAlert | null }) => {
+  const handleSold = ({
+    soldCardId,
+    restock,
+    promote,
+  }: {
+    soldCardId: string;
+    restock: RestockAlert | null;
+    promote: PromoteCandidate | null;
+  }) => {
     // Mark the card as sold in local state instead of removing it (so it shows up under Vendus filter).
     setCards((prev) =>
       prev.map((c) =>
@@ -87,6 +100,12 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
     );
     setSoldTarget(null);
     if (restock) setRestockAlert(restock);
+    if (promote) setPromoteCandidate(promote);
+  };
+
+  const handlePromoted = () => {
+    setPromoteCandidate(null);
+    router.refresh();
   };
 
   const { groups, soldRows, totalVisible } = useMemo(() => {
@@ -171,6 +190,13 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
         <SoldModal card={soldTarget} onClose={() => setSoldTarget(null)} onSold={handleSold} />
       )}
       {restockAlert && <RestockToast alert={restockAlert} onDismiss={() => setRestockAlert(null)} />}
+      {promoteCandidate && (
+        <PromoteAfterSoldModal
+          candidate={promoteCandidate}
+          onClose={() => setPromoteCandidate(null)}
+          onPromoted={handlePromoted}
+        />
+      )}
       {annonceTarget && (
         <AnnonceModal
           card={annonceTarget}

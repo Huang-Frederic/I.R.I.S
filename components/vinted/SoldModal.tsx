@@ -5,11 +5,16 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
+import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 
 interface Props {
   card: Card;
   onClose: () => void;
-  onSold: (info: { soldCardId: string; restock: RestockAlert | null }) => void;
+  onSold: (info: {
+    soldCardId: string;
+    restock: RestockAlert | null;
+    promote: PromoteCandidate | null;
+  }) => void;
 }
 
 function todayIso(): string {
@@ -42,7 +47,7 @@ export default function SoldModal({ card, onClose, onSold }: Props) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Erreur serveur');
-      onSold({ soldCardId: card.id, restock: json.restock ?? null });
+      onSold({ soldCardId: card.id, restock: json.restock ?? null, promote: json.promote ?? null });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setSubmitting(false);
