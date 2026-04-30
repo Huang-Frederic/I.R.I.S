@@ -2,11 +2,18 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { createClient } from '@/lib/supabase/server';
+import { categorizePricingCard } from '@/lib/utils/categorize-pricing-card';
+import { recalcSuggestedPrice } from '@/lib/utils/recalc-suggested-price';
+import { lookupByCode } from '@/lib/api/tcg-catalog';
+import { toTCGdexLang } from '@/lib/api/tcgdex';
+import type { Card, CardLanguage } from '@/lib/types';
 
 export const runtime = 'nodejs';
 
-// Touch unused import to silence linter (needed for Task 5)
-void createServiceClient;
+const BATCH_SIZE = 200;
+const PARALLELISM = 10;
+const TCGDEX_BASE = 'https://api.tcgdex.net/v2';
+const TCGDEX_TIMEOUT_MS = 15_000;
 
 interface UpdateSummary {
   ok: boolean;
@@ -17,6 +24,17 @@ interface UpdateSummary {
   errors: Array<{ card_id: string; message: string }>;
 }
 
+interface TCGdexCardmarket {
+  idProduct?: number;
+  low?: number;
+  trend?: number;
+  avg?: number;
+}
+
+interface TCGdexCardResponse {
+  pricing?: { cardmarket?: TCGdexCardmarket | null };
+}
+
 function unauthorized(): NextResponse {
   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 }
@@ -24,40 +42,159 @@ function unauthorized(): NextResponse {
 export async function POST(request: Request): Promise<NextResponse> {
   const url = new URL(request.url);
   const cardId = url.searchParams.get('card_id');
+  if (cardId) return handleSingleCard(cardId);
 
-  if (cardId) {
-    return handleSingleCard(cardId);
-  }
-
-  // Bulk mode: require CRON_SECRET via Bearer.
   const auth = request.headers.get('authorization');
   const secret = process.env.CRON_SECRET;
-  if (!auth || !secret || auth !== `Bearer ${secret}`) {
-    return unauthorized();
-  }
+  if (!auth || !secret || auth !== `Bearer ${secret}`) return unauthorized();
 
   return handleBulk();
 }
 
 async function handleBulk(): Promise<NextResponse> {
+  const service = createServiceClient();
   const summary: UpdateSummary = {
-    ok: true,
-    total: 0,
-    updated: 0,
-    backfilled: 0,
-    skipped: 0,
-    errors: [],
+    ok: true, total: 0, updated: 0, backfilled: 0, skipped: 0, errors: [],
   };
+
+  const { data: rows, error } = await service
+    .from('cards')
+    .select('*')
+    .eq('status', 'for_sale')
+    .order('cm_updated_at', { ascending: true, nullsFirst: true })
+    .limit(BATCH_SIZE);
+
+  if (error) {
+    return NextResponse.json(
+      { ok: false, error: `read failed: ${error.message}` },
+      { status: 500 },
+    );
+  }
+
+  const cards = (rows ?? []) as Card[];
+  summary.total = cards.length;
+  if (cards.length === 0) return NextResponse.json(summary);
+
+  const coeff = await readPriceCoefficient(service);
+
+  for (let i = 0; i < cards.length; i += PARALLELISM) {
+    const slice = cards.slice(i, i + PARALLELISM);
+    await Promise.all(slice.map((card) => processCard(card, service, coeff, summary)));
+  }
+
   return NextResponse.json(summary);
+}
+
+async function readPriceCoefficient(service: ReturnType<typeof createServiceClient>): Promise<number> {
+  const { data } = await service
+    .from('config')
+    .select('value')
+    .eq('key', 'price_coefficient')
+    .single();
+  const raw = (data as { value?: string } | null)?.value;
+  const parsed = raw ? Number(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0.85;
+}
+
+async function processCard(
+  card: Card,
+  service: ReturnType<typeof createServiceClient>,
+  coeff: number,
+  summary: UpdateSummary,
+): Promise<void> {
+  const cat = categorizePricingCard(card);
+  if (cat === 'skip') {
+    summary.skipped += 1;
+    return;
+  }
+
+  let cardIdTcg = card.card_id_tcg;
+  let backfilled = false;
+
+  if (cat === 'backfill') {
+    try {
+      const row = await lookupByCode(service, card.set_code!, card.set_number!, card.language);
+      if (!row) {
+        summary.skipped += 1;
+        return;
+      }
+      cardIdTcg = `${row.set_code}-${row.set_number}`;
+      backfilled = true;
+    } catch (err) {
+      summary.errors.push({ card_id: card.id, message: `backfill: ${(err as Error).message}` });
+      return;
+    }
+  }
+
+  if (!cardIdTcg) {
+    summary.skipped += 1;
+    return;
+  }
+
+  const fetched = await fetchTCGdexPricing(cardIdTcg, card.language);
+  if (fetched.error) {
+    summary.errors.push({ card_id: card.id, message: fetched.error });
+    return;
+  }
+  const cm = fetched.cm;
+  if (!cm || (cm.low == null && cm.trend == null && cm.avg == null)) {
+    // No pricing data yet → don't bump cm_updated_at, retry tomorrow.
+    summary.skipped += 1;
+    return;
+  }
+
+  const newSuggested = recalcSuggestedPrice({
+    oldTrend: card.cm_price_trend,
+    newTrend: cm.trend ?? null,
+    oldSuggested: card.suggested_price,
+    coeff,
+  });
+
+  const update: Record<string, unknown> = {
+    cm_price_low: cm.low ?? null,
+    cm_price_trend: cm.trend ?? null,
+    cm_price_avg: cm.avg ?? null,
+    cm_updated_at: new Date().toISOString(),
+    suggested_price: newSuggested,
+  };
+  if (cm.idProduct != null) update.cardmarket_id = String(cm.idProduct);
+  if (backfilled) update.card_id_tcg = cardIdTcg;
+
+  const { error: updErr } = await service.from('cards').update(update).eq('id', card.id);
+  if (updErr) {
+    summary.errors.push({ card_id: card.id, message: `update: ${updErr.message}` });
+    return;
+  }
+
+  summary.updated += 1;
+  if (backfilled) summary.backfilled += 1;
+}
+
+async function fetchTCGdexPricing(
+  cardIdTcg: string,
+  language: CardLanguage,
+): Promise<{ cm?: TCGdexCardmarket | null; error?: string }> {
+  const lang = toTCGdexLang(language);
+  const url = `${TCGDEX_BASE}/${lang}/cards/${encodeURIComponent(cardIdTcg)}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TCGDEX_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) return { error: `tcgdex ${res.status}` };
+    const json = (await res.json()) as TCGdexCardResponse;
+    return { cm: json.pricing?.cardmarket ?? null };
+  } catch (err) {
+    return { error: `tcgdex fetch: ${(err as Error).message}` };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function handleSingleCard(cardId: string): Promise<NextResponse> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return unauthorized();
   // Implementation comes in Task 6.
-  void cardId; // Touch unused parameter to silence linter
+  void cardId;
   return NextResponse.json({ ok: false, error: 'not_implemented' }, { status: 501 });
 }
