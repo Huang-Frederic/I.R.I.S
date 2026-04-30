@@ -22,7 +22,7 @@ export default function RestockToast({ alert, onDismiss }: Props) {
   return (
     <div
       role="alert"
-      className="bg-surface border-red fixed bottom-6 right-6 z-50 flex max-w-sm items-start gap-3 rounded-lg border p-4 shadow-xl"
+      className="bg-surface border-red fixed bottom-20 right-6 z-50 flex max-w-sm items-start gap-3 rounded-lg border p-4 shadow-xl md:bottom-6"
     >
       <AlertTriangle className="text-red mt-0.5 h-5 w-5 shrink-0" />
       <div className="flex-1 text-sm">
