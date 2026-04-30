@@ -205,7 +205,100 @@ async function handleSingleCard(cardId: string): Promise<NextResponse> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return unauthorized();
-  // Implementation comes in Task 6.
-  void cardId;
-  return NextResponse.json({ ok: false, error: 'not_implemented' }, { status: 501 });
+
+  const service = createServiceClient();
+
+  const { data: target, error: readErr } = await service
+    .from('cards')
+    .select('*')
+    .eq('id', cardId)
+    .single();
+  if (readErr || !target) {
+    return NextResponse.json({ ok: false, error: 'card_not_found' }, { status: 404 });
+  }
+
+  const card = target as Card;
+  const cat = categorizePricingCard(card);
+  if (cat === 'skip') {
+    return NextResponse.json(
+      { ok: false, error: 'card_not_eligible', reason: 'variant or missing identifiers' },
+      { status: 422 },
+    );
+  }
+
+  const coeff = await readPriceCoefficient(service);
+
+  let cardIdTcg = card.card_id_tcg;
+  let backfilled = false;
+  if (cat === 'backfill') {
+    if (!card.set_code || !card.set_number) {
+      return NextResponse.json(
+        { ok: false, error: 'no_catalog_match' },
+        { status: 422 },
+      );
+    }
+    const row = await lookupByCode(service, card.set_code, card.set_number, card.language);
+    if (!row) {
+      return NextResponse.json(
+        { ok: false, error: 'no_catalog_match' },
+        { status: 422 },
+      );
+    }
+    cardIdTcg = `${row.set_code}-${row.set_number}`;
+    backfilled = true;
+  }
+
+  if (!cardIdTcg) {
+    return NextResponse.json(
+      { ok: false, error: 'card_not_eligible' },
+      { status: 422 },
+    );
+  }
+
+  const fetched = await fetchTCGdexPricing(cardIdTcg, card.language);
+  if (fetched.error) {
+    return NextResponse.json(
+      { ok: false, error: 'tcgdex_failed', message: fetched.error },
+      { status: 502 },
+    );
+  }
+  const cm = fetched.cm;
+  if (!cm || (cm.low == null && cm.trend == null && cm.avg == null)) {
+    return NextResponse.json(
+      { ok: false, error: 'no_pricing_yet' },
+      { status: 422 },
+    );
+  }
+
+  const newSuggested = recalcSuggestedPrice({
+    oldTrend: card.cm_price_trend,
+    newTrend: cm.trend ?? null,
+    oldSuggested: card.suggested_price,
+    coeff,
+  });
+
+  const update: Record<string, unknown> = {
+    cm_price_low: cm.low ?? null,
+    cm_price_trend: cm.trend ?? null,
+    cm_price_avg: cm.avg ?? null,
+    cm_updated_at: new Date().toISOString(),
+    suggested_price: newSuggested,
+  };
+  if (cm.idProduct != null) update.cardmarket_id = String(cm.idProduct);
+  if (backfilled) update.card_id_tcg = cardIdTcg;
+
+  const { data: updated, error: updErr } = await service
+    .from('cards')
+    .update(update)
+    .eq('id', cardId)
+    .select('*')
+    .single();
+  if (updErr) {
+    return NextResponse.json(
+      { ok: false, error: 'update_failed', message: updErr.message },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({ ok: true, card: updated });
 }
