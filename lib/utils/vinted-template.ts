@@ -1,26 +1,24 @@
 // lib/utils/vinted-template.ts
-import type { Card, CardCondition, CardLanguage, CardRarity } from '@/lib/types';
+import type { Card, CardCondition, CardLanguage } from '@/lib/types';
 
 export const MAX_TITLE_LENGTH = 80;
 
-const LANGUAGE_FLAGS: Record<CardLanguage, string> = {
+export const LANGUAGE_FLAGS: Record<CardLanguage, string> = {
   JP: '🇯🇵', EN: '🇬🇧', FR: '🇫🇷', DE: '🇩🇪', IT: '🇮🇹',
   ES: '🇪🇸', KO: '🇰🇷', PT: '🇵🇹', ZH: '🇨🇳',
 };
 
-const LANGUAGE_FULL: Record<CardLanguage, string> = {
-  JP: 'Japonais', EN: 'Anglais', FR: 'Français', DE: 'Allemand',
-  IT: 'Italien', ES: 'Espagnol', KO: 'Coréen', PT: 'Portugais', ZH: 'Chinois',
+const LANGUAGE_FEMALE: Record<CardLanguage, string> = {
+  JP: 'Japonaise', EN: 'Anglaise', FR: 'Française', DE: 'Allemande',
+  IT: 'Italienne', ES: 'Espagnole', KO: 'Coréenne', PT: 'Portugaise', ZH: 'Chinoise',
 };
 
-const CONDITION_FULL: Record<CardCondition, string> = {
-  NM: 'Near Mint', EX: 'Excellent', GD: 'Good', PL: 'Played', PO: 'Poor',
-};
-
-const RARITY_LABEL: Record<CardRarity, string> = {
-  SAR: 'Special Art Rare', AR: 'Art Rare', SR: 'Super Rare',
-  CHR: 'Character Rare', RR: 'Double Rare', R_HOLO: 'Rare Holo',
-  R: 'Rare', UC: 'Uncommon', C: 'Common', OTHER: 'Other',
+const CONDITION_LABEL: Record<CardCondition, string> = {
+  NM: 'Très bon état (Near Mint)',
+  EX: 'Excellent (EX)',
+  GD: 'Bon état (Good)',
+  PL: 'Joué (Played)',
+  PO: 'Mauvais état (Poor)',
 };
 
 const VARIANT_LABEL: Record<string, string> = {
@@ -40,114 +38,131 @@ function stripParen(name: string): string {
   return name.replace(/\s*\([^)]+\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+/** "70/167" → "70". Returns the original if no slash. */
+function stripDenominator(setNumber: string | null): string | null {
+  if (!setNumber) return null;
+  const slash = setNumber.indexOf('/');
+  return slash >= 0 ? setNumber.slice(0, slash).trim() : setNumber.trim();
+}
+
+interface TitleParts {
+  carteSuffix: string; // "Carte Pokémon "
+  cardName: string;     // "Simiabraz (ゴウカザル)" or just "Simiabraz"
+  variant: string;      // " Poké Ball" or "" — leading space when present
+  setSegment: string;   // " - Mascarade Crépusculaire (SV5A 70)" or "" — leading " - " when present
+  language: string;     // " [JP]"
+}
+
+function composeTitle(parts: TitleParts): string {
+  return `${parts.carteSuffix}${parts.cardName}${parts.variant}${parts.setSegment}${parts.language}`;
+}
+
 /**
  * Compose the Vinted ad title (≤ 80 chars). Smart truncate ladder:
  *   1. Full bilingual format
  *   2. Drop bilingual paren in card_name + set_name
- *   3. Drop condition when it is the implicit default NM
- *   4. Replace set_name with set_code
- *   5. Drop the set segment entirely
+ *   3. Drop variant
+ *   4. Drop "Carte Pokémon " prefix
+ *   5. set_name → set_code only
+ *   6. Drop set entirely
  *
- * Invariants: card_name (truncated form), rarity, language, and variant
- * (when present) are always retained.
+ * Invariants: card_name, set_code, language ALWAYS retained.
  */
 export function buildTitle(card: Card): string {
   const variant = variantLabel(card.variant);
-
-  const compose = (
-    cardName: string,
-    setSegment: string | null,
-    includeCondition: boolean,
-  ): string => {
-    const parts = [cardName];
-    if (setSegment) parts.push(setSegment);
-    parts.push(card.rarity);
-    parts.push(card.language);
-    if (variant) parts.push(variant);
-    if (includeCondition) parts.push(card.condition);
-    return parts.join(' — ');
-  };
-
-  const fullCardName = card.card_name;
-  const strippedCardName = stripParen(fullCardName);
-  const fullSet = card.set_name ?? null;
-  const strippedSet = fullSet ? stripParen(fullSet) : null;
+  const fullName = card.card_name;
+  const strippedName = stripParen(fullName);
+  const setNumberShort = stripDenominator(card.set_number);
   const setCode = card.set_code ?? null;
-  const conditionIsDefault = card.condition === 'NM';
-  const keepCondition = !conditionIsDefault;
+  const setName = card.set_name ?? null;
+  const lang = card.language;
 
-  const ladder: string[] = [];
-  // 1. Full bilingual + condition
-  ladder.push(compose(fullCardName, fullSet, true));
-  // 2. Drop bilingual paren in card_name + set_name
-  ladder.push(compose(strippedCardName, strippedSet, true));
-  // 3. Drop the implicit-default NM (only when condition is NM)
-  if (conditionIsDefault) {
-    ladder.push(compose(strippedCardName, strippedSet, false));
-  }
-  // 4. set_name → set_code (keep condition only if not default)
-  ladder.push(compose(strippedCardName, setCode, keepCondition));
-  // 5. Drop set entirely
-  ladder.push(compose(strippedCardName, null, keepCondition));
+  // Set segment helpers
+  const setSegFull = (() => {
+    if (!setName) return setCode ? ` - (${setCode}${setNumberShort ? ` ${setNumberShort}` : ''})` : '';
+    return ` - ${setName}${setCode || setNumberShort ? ` (${[setCode, setNumberShort].filter(Boolean).join(' ')})` : ''}`;
+  })();
+  const setSegCodeOnly = setCode ? ` - (${setCode}${setNumberShort ? ` ${setNumberShort}` : ''})` : '';
+  const variantSeg = variant ? ` ${variant}` : '';
+  const langSeg = ` [${lang}]`;
+
+  const ladder: string[] = [
+    // 1. Full bilingual + variant + full set
+    composeTitle({ carteSuffix: 'Carte Pokémon ', cardName: fullName, variant: variantSeg, setSegment: setSegFull, language: langSeg }),
+    // 2. Drop bilingual paren
+    composeTitle({ carteSuffix: 'Carte Pokémon ', cardName: strippedName, variant: variantSeg, setSegment: setSegFull, language: langSeg }),
+    // 3. Drop variant
+    composeTitle({ carteSuffix: 'Carte Pokémon ', cardName: strippedName, variant: '', setSegment: setSegFull, language: langSeg }),
+    // 4. Drop "Carte Pokémon " prefix
+    composeTitle({ carteSuffix: '', cardName: strippedName, variant: '', setSegment: setSegFull, language: langSeg }),
+    // 5. set_name → set_code only
+    composeTitle({ carteSuffix: '', cardName: strippedName, variant: '', setSegment: setSegCodeOnly, language: langSeg }),
+    // 6. Drop set entirely
+    composeTitle({ carteSuffix: '', cardName: strippedName, variant: '', setSegment: '', language: langSeg }),
+  ];
 
   for (const candidate of ladder) {
     if (candidate.length <= MAX_TITLE_LENGTH) return candidate;
   }
 
-  // Last resort: hard-truncate the card name. Keeps card_name + rarity + lang + variant.
-  const tail = compose('', null, keepCondition).replace(/^\s*—\s*/, '');
-  const budget = MAX_TITLE_LENGTH - tail.length - ' — '.length;
-
-  // For Pokemon cards, preserve the suffix (ex, V, VMAX, etc.) which is more identifying
-  // than the prefix. Try to keep the last few words if possible.
-  const words = strippedCardName.split(' ');
-  let truncatedName = strippedCardName.slice(0, Math.max(1, budget));
-
-  // If we're truncating, try to preserve at least the last 2 words (e.g., "Pikachu ex")
-  if (truncatedName.length < strippedCardName.length && words.length >= 2) {
-    const lastTwoWords = words.slice(-2).join(' ');
-    const ellipsis = '…';
-    const budgetForSuffix = budget - ellipsis.length - lastTwoWords.length - 1; // -1 for space
-
-    if (budgetForSuffix > 3) {
-      // We have room for at least a few chars + ellipsis + suffix
-      const prefix = strippedCardName.slice(0, budgetForSuffix).trimEnd();
-      truncatedName = `${prefix}${ellipsis} ${lastTwoWords}`;
-    }
-  }
-
-  return `${truncatedName} — ${tail}`;
+  // Last resort: hard-truncate the card name. Keeps card_name + language.
+  const tail = ` [${lang}]`;
+  const budget = MAX_TITLE_LENGTH - tail.length;
+  const truncatedName = strippedName.slice(0, Math.max(1, budget));
+  return `${truncatedName}${tail}`;
 }
 
 export interface VintedConfig {
-  vinted_shipping_note: string;
-  vinted_seller_note: string;
+  vinted_shipping_note?: string;
+  vinted_seller_note?: string;
 }
 
+const DEFAULT_FOOTER_LINES = [
+  '🛡️ Carte envoyée sous sleeve + toploader !',
+  '🚀 Expédition rapide sous 1 à 2 jours ouvrés 📦',
+  '🤝 Remise en main propre possible sur Paris / 92 / 95',
+  '📸 Besoin de photos supplémentaires ? N\'hésitez pas à me demander !',
+  '',
+  '🃏 Plein d\'autres cartes sont disponibles sur mon profil !',
+  '📦 Possibilité de créer des lots personnalisés avec réduction sur les frais de port 🤑',
+];
+
 /**
- * Compose the Vinted ad description. Multi-line, includes shop notes from config.
+ * Compose the Vinted ad description. Multi-line, fixed footer lines.
  */
-export function buildDescription(card: Card, config: VintedConfig): string {
+export function buildDescription(card: Card): string {
+  const variant = variantLabel(card.variant);
+  const fullName = card.card_name;
+  const setNumberShort = stripDenominator(card.set_number);
+  const setBits = [card.set_code, setNumberShort].filter(Boolean).join(' ');
+  const setSegment = card.set_name
+    ? `${card.set_name}${setBits ? ` (${setBits})` : ''}`
+    : (setBits ? `(${setBits})` : '');
+
+  // First line mirrors the title format, but always includes the full bilingual name + variant
+  const firstLineParts = ['✨ Carte Pokémon ', fullName];
+  if (variant) firstLineParts.push(` ${variant}`);
+  if (setSegment) firstLineParts.push(` - ${setSegment}`);
+  firstLineParts.push(` [${card.language}]`);
+  const firstLine = firstLineParts.join('').replace(/\s+(?=-)/g, ' '); // tidy up spaces
+
+  const flag = LANGUAGE_FLAGS[card.language];
+  const langName = LANGUAGE_FEMALE[card.language];
+  const conditionLabel = CONDITION_LABEL[card.condition];
+
   const lines: string[] = [
-    `✨ ${card.card_name} — ${RARITY_LABEL[card.rarity]}`,
+    firstLine,
+    `📘 Version ${langName} ${flag}`,
+    `✅ État : ${conditionLabel}.`,
   ];
 
-  const setBits: string[] = [];
-  if (card.set_name) setBits.push(card.set_name);
-  if (card.set_code) setBits.push(`(${card.set_code})`);
-  let setLine = setBits.length > 0 ? `📦 Set : ${setBits.join(' ')}` : null;
-  if (setLine && card.set_number) setLine += ` — N° ${card.set_number}`;
-  if (setLine) lines.push(setLine);
-
-  lines.push(`${LANGUAGE_FLAGS[card.language]} Langue : ${LANGUAGE_FULL[card.language]}`);
-  lines.push(`⭐ État : ${CONDITION_FULL[card.condition]}`);
-
-  const variant = variantLabel(card.variant);
-  if (variant) lines.push(`🎨 Variant : ${variant}`);
+  if (card.notes && card.notes.trim()) {
+    lines.push('');
+    lines.push(`[Notes : ${card.notes.trim()}]`);
+  }
 
   lines.push('');
-  lines.push(config.vinted_shipping_note);
-  lines.push(config.vinted_seller_note);
+  for (const f of DEFAULT_FOOTER_LINES) lines.push(f);
 
   return lines.join('\n');
 }

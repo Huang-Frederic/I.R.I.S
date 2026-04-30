@@ -1,4 +1,3 @@
-// lib/utils/vinted-template.test.ts
 import { describe, expect, it } from 'vitest';
 import { buildTitle, buildDescription, MAX_TITLE_LENGTH } from './vinted-template';
 import type { Card } from '@/lib/types';
@@ -6,16 +5,16 @@ import type { Card } from '@/lib/types';
 function makeCard(overrides: Partial<Card> = {}): Card {
   return {
     id: 'c1',
-    pokemon_name: 'Pikachu (ピカチュウ)',
-    pokemon_number: 25,
-    card_name: 'Pikachu ex',
+    pokemon_name: 'Simiabraz',
+    pokemon_number: 392,
+    card_name: 'Simiabraz (ゴウカザル)',
     card_id_tcg: null,
-    set_name: 'Combat de Maîtres',
-    set_code: 'sv11',
-    set_number: '120/180',
+    set_name: 'Mascarade Crépusculaire',
+    set_code: 'SV5A',
+    set_number: '70/167',
     language: 'JP',
-    rarity: 'SAR',
-    rarity_rank: 9,
+    rarity: 'AR',
+    rarity_rank: 8,
     condition: 'NM',
     status: 'for_sale',
     image_url: null,
@@ -26,145 +25,120 @@ function makeCard(overrides: Partial<Card> = {}): Card {
     cm_price_avg: null,
     suggested_price: null,
     cm_updated_at: null,
-    vinted_listed_at: null,
     lot_id: null,
     date_added: '2026-01-01T00:00:00Z',
     date_sold: null,
     sold_price: null,
     notes: null,
     variant: null,
+    vinted_listed_at: null,
     ...overrides,
   };
 }
 
-const CONFIG = {
-  vinted_shipping_note: 'Expédition soignée en toploader.',
-  vinted_seller_note: 'Vendeur sérieux.',
-};
-
 describe('buildTitle', () => {
-  it('emits the full bilingual format when it fits', () => {
-    const t = buildTitle(
-      makeCard({ card_name: 'Pikachu (ピカチュウ) ex', condition: 'EX' }),
-    );
-    expect(t).toContain('Pikachu');
-    expect(t).toContain('ピカチュウ');
-    expect(t).toContain('SAR');
-    expect(t).toContain('JP');
-    expect(t).toContain('EX');
+  it('uses the user-specified format when within 80 chars', () => {
+    const t = buildTitle(makeCard());
+    expect(t).toBe('Carte Pokémon Simiabraz (ゴウカザル) - Mascarade Crépusculaire (SV5A 70) [JP]');
     expect(t.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
   });
 
-  it('drops the bilingual paren when the full version overflows', () => {
+  it('strips the denominator from set_number', () => {
+    const t = buildTitle(makeCard());
+    expect(t).toContain('SV5A 70');
+    expect(t).not.toContain('70/167');
+  });
+
+  it('inserts variant before the set name when present', () => {
+    const t = buildTitle(makeCard({ variant: 'pokeball' }));
+    expect(t).toContain('Poké Ball - Mascarade');
+    expect(t).toContain('[JP]');
+  });
+
+  it('drops the bilingual paren when full version overflows', () => {
     const card = makeCard({
-      card_name: 'Très Long Nom de Carte (とても長いカード名前) ex',
+      card_name: 'Très Long Nom (とても長い名前) ex',
       set_name: 'Un Set Au Nom Vraiment Long',
       variant: 'pokeball',
-      condition: 'EX',
     });
     const t = buildTitle(card);
     expect(t.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
-    expect(t).not.toContain('とても長いカード名前');
-    expect(t).toContain('Très Long Nom');
+    expect(t).not.toContain('とても長い名前');
   });
 
-  it('drops condition when it is the implicit default NM', () => {
+  it('drops the variant before dropping the prefix', () => {
+    // Crafted to overflow with variant but fit without it
     const card = makeCard({
-      card_name: 'Très Long Nom de Carte (とても長いカード名前) ex',
-      set_name: 'Un Set Au Nom Vraiment Long',
-      variant: 'pokeball',
-      condition: 'NM',
-    });
-    const t = buildTitle(card);
-    expect(t).not.toMatch(/—\s*NM\s*$/);
-  });
-
-  it('keeps non-NM condition even after truncation', () => {
-    const card = makeCard({
-      card_name: 'Aaaaa Bbbbb Ccccc Ddddd Eeeee Fffff Ggggg Hhhhh ex',
-      set_name: 'Aaaaa Bbbbb Ccccc',
-      variant: 'pokeball',
-      condition: 'EX',
-    });
-    const t = buildTitle(card);
-    expect(t).toContain('EX');
-    expect(t.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
-  });
-
-  it('falls back to set_code when set_name is too long', () => {
-    const card = makeCard({
-      card_name: 'Long Card Name Here Pikachu ex',
-      set_name: 'A Very Very Very Very Long Set Name',
-      variant: 'pokeball',
-      condition: 'EX',
+      card_name: 'Charizard EX',
+      set_name: 'Pokemon Card 151 Special Edition Long Set Name',
+      variant: 'masterball',
     });
     const t = buildTitle(card);
     expect(t.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
-    expect(t).not.toContain('A Very Very Very Very');
   });
 
-  it('drops the set entirely when even set_code does not fit', () => {
+  it('always preserves card_name + language', () => {
     const card = makeCard({
-      card_name: 'Aaaaaaa Bbbbbbb Ccccccc Ddddddd Eeeeeee Fffffff Pikachu ex',
-      set_name: 'Set Name',
-      set_code: 'sv11',
-      variant: 'pokeball',
-      condition: 'EX',
-    });
-    const t = buildTitle(card);
-    expect(t.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
-    expect(t).toContain('Pikachu ex');
-    expect(t).toContain('SAR');
-    expect(t).toContain('JP');
-    expect(t).toContain('Poké Ball');
-  });
-
-  it('always preserves card_name + rarity + language', () => {
-    const card = makeCard({
-      card_name: 'X',
-      rarity: 'AR',
+      card_name: 'X Y Z',
       language: 'EN',
-      variant: null,
     });
     const t = buildTitle(card);
-    expect(t).toContain('X');
-    expect(t).toContain('AR');
-    expect(t).toContain('EN');
+    expect(t).toContain('X Y Z');
+    expect(t).toContain('[EN]');
   });
 
-  it('omits the variant chip when variant is null', () => {
-    const t = buildTitle(makeCard({ variant: null, condition: 'EX' }));
+  it('omits the variant entirely when card has no variant', () => {
+    const t = buildTitle(makeCard({ variant: null }));
     expect(t).not.toContain('Poké Ball');
     expect(t).not.toContain('Master Ball');
+  });
+
+  it('handles a card with no set_name (just set_code)', () => {
+    const card = makeCard({ set_name: null, set_code: 'SV5A', set_number: '70/167' });
+    const t = buildTitle(card);
+    expect(t).toContain('(SV5A 70)');
+    expect(t).not.toContain('Mascarade');
   });
 });
 
 describe('buildDescription', () => {
-  it('includes all sections by default', () => {
-    const d = buildDescription(makeCard(), CONFIG);
-    expect(d).toContain('Pikachu ex');
-    expect(d).toContain('Special Art Rare');
-    expect(d).toContain('Combat de Maîtres');
-    expect(d).toContain('sv11');
-    expect(d).toContain('120/180');
-    expect(d).toContain('Japonais');
-    expect(d).toContain('Near Mint');
-    expect(d).toContain('Expédition soignée');
-    expect(d).toContain('Vendeur sérieux');
+  it('matches the user-specified format for a typical JP card', () => {
+    const d = buildDescription(makeCard());
+    expect(d).toContain('✨ Carte Pokémon Simiabraz (ゴウカザル) - Mascarade Crépusculaire (SV5A 70) [JP]');
+    expect(d).toContain('📘 Version Japonaise 🇯🇵');
+    expect(d).toContain('✅ État : Très bon état (Near Mint).');
+    expect(d).toContain('🛡️ Carte envoyée sous sleeve + toploader !');
+    expect(d).toContain('🚀 Expédition rapide sous 1 à 2 jours ouvrés 📦');
+    expect(d).toContain('🤝 Remise en main propre possible sur Paris / 92 / 95');
+    expect(d).toContain('📸 Besoin de photos supplémentaires');
+    expect(d).toContain('🃏 Plein d\'autres cartes sont disponibles sur mon profil');
+    expect(d).toContain('📦 Possibilité de créer des lots personnalisés avec réduction sur les frais de port 🤑');
   });
 
-  it('adds a variant line only when variant is present', () => {
-    const without = buildDescription(makeCard({ variant: null }), CONFIG);
-    expect(without).not.toMatch(/Variant/);
-    const withVariant = buildDescription(
-      makeCard({ variant: 'masterball' }),
-      CONFIG,
-    );
-    expect(withVariant).toMatch(/Variant.*Master Ball/);
+  it('inserts the notes block when notes is non-empty', () => {
+    const d = buildDescription(makeCard({ notes: 'Léger pli au coin' }));
+    expect(d).toMatch(/\[Notes : Léger pli au coin\]/);
   });
 
-  it('omits the set_number suffix when set_number is null', () => {
-    const d = buildDescription(makeCard({ set_number: null }), CONFIG);
-    expect(d).not.toMatch(/N°/);
+  it('omits the notes block when notes is null or empty', () => {
+    expect(buildDescription(makeCard({ notes: null }))).not.toMatch(/\[Notes/);
+    expect(buildDescription(makeCard({ notes: '' }))).not.toMatch(/\[Notes/);
+    expect(buildDescription(makeCard({ notes: '   ' }))).not.toMatch(/\[Notes/);
+  });
+
+  it('inserts the variant in the first line when present', () => {
+    const d = buildDescription(makeCard({ variant: 'pokeball' }));
+    expect(d).toContain('Simiabraz (ゴウカザル) Poké Ball - Mascarade');
+  });
+
+  it('uses the right language label for each language', () => {
+    expect(buildDescription(makeCard({ language: 'EN' }))).toContain('Version Anglaise 🇬🇧');
+    expect(buildDescription(makeCard({ language: 'FR' }))).toContain('Version Française 🇫🇷');
+    expect(buildDescription(makeCard({ language: 'DE' }))).toContain('Version Allemande 🇩🇪');
+  });
+
+  it('uses the right condition label', () => {
+    expect(buildDescription(makeCard({ condition: 'EX' }))).toContain('Excellent (EX)');
+    expect(buildDescription(makeCard({ condition: 'GD' }))).toContain('Bon état (Good)');
   });
 });
