@@ -22,6 +22,7 @@ const TONE_CLASS: Record<StalenessTone, string> = {
  */
 export default function PriceFreshnessBadge({ cm_updated_at }: Props) {
   const [now, setNow] = useState<Date | null>(null);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setNow(new Date()); }, []);
   if (now === null) return null;
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RefreshCw, Check, AlertCircle } from 'lucide-react';
 import type { Card } from '@/lib/types';
 
@@ -21,6 +21,17 @@ export default function RefreshPriceButton({ cardId, onRefreshed }: Props) {
   const [state, setState] = useState<State>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (state === 'success') {
+      const timer = setTimeout(() => setState('idle'), 1000);
+      return () => clearTimeout(timer);
+    }
+    if (state === 'error') {
+      const timer = setTimeout(() => setState('idle'), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [state]);
+
   async function refresh() {
     setState('loading');
     setErrorMsg(null);
@@ -34,11 +45,9 @@ export default function RefreshPriceButton({ cardId, onRefreshed }: Props) {
       }
       onRefreshed(json.card);
       setState('success');
-      setTimeout(() => setState('idle'), 1000);
     } catch (err) {
       setErrorMsg((err as Error).message);
       setState('error');
-      setTimeout(() => setState('idle'), 2500);
     }
   }
 
