@@ -183,9 +183,17 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ---
 
-## 7. Appliquer la migration Supabase
+## 7. Appliquer les migrations Supabase
 
-La migration `supabase/migrations/20260425224142_initial_schema.sql` doit être appliquée à ton projet Supabase distant. Deux options :
+Toutes les migrations dans `supabase/migrations/` doivent être appliquées dans l'ordre :
+
+| Ordre | Fichier | Contenu |
+|---|---|---|
+| 1 | `20260425224142_initial_schema.sql` | Enums + 4 tables (`rarity_ranks`, `lots`, `cards`, `config`), index unique partiel `one_pokedex_per_pokemon`, trigger rarity_rank, RPC `replace_pokedex_card` (sera réécrite par migration 5), buckets Storage `card-photos` / `lot-photos` + RLS |
+| 2 | `20260428114538_tcg_catalog.sql` | Table `tcg_catalog` pour les 111K cartes scrapées LimitlessTCG (Phase 1.11) |
+| 3 | `20260429142350_add_cards_variant.sql` | Colonne `variant text` sur `cards` (Phase 1.13) |
+| 4 | `20260430130000_phase21_vinted_unique_listed.sql` | Index partiel unique `one_for_sale_per_group` + colonne `vinted_listed_at` + index sort (Phase 2.1) |
+| 5 | `20260430200000_fix_replace_pokedex_card_3step.sql` | Réécrit `replace_pokedex_card` en 3-step pour gérer la collision unicité for_sale (Phase 2.1) |
 
 ### Option A — via la CLI Supabase (recommandé)
 
@@ -194,7 +202,7 @@ La migration `supabase/migrations/20260425224142_initial_schema.sql` doit être 
 npx supabase login                                  # ouvre le navigateur pour s'authentifier
 npx supabase link --project-ref <PROJECT_REF>       # PROJECT_REF = la partie xxxxx de https://xxxxx.supabase.co
 
-# 2. Appliquer la migration
+# 2. Appliquer toutes les migrations
 npx supabase db push                                # demandera le mot de passe DB défini en 1.1
 ```
 
@@ -202,7 +210,11 @@ Pour les migrations futures, créer un nouveau fichier avec `npx supabase migrat
 
 ### Option B — via le SQL Editor du dashboard Supabase
 
-Copier-coller le contenu de `supabase/migrations/20260425224142_initial_schema.sql` dans le SQL Editor du dashboard Supabase, puis exécuter. Plus rapide pour la première fois mais on perd la traçabilité.
+Copier-coller chaque migration dans l'ordre dans le SQL Editor du dashboard Supabase. Plus rapide pour la première fois mais on perd la traçabilité.
+
+### Option C — script tout-en-un
+
+Pour repartir de zéro sur un nouveau projet Supabase (changement de region par exemple), suivre [docs/supabase-reset.md](supabase-reset.md). Ce playbook couvre : link, migrations, repopulation du catalogue (~12 min), seed des cartes test, auth user.
 
 ---
 

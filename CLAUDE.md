@@ -13,7 +13,8 @@ Spec complète : [context.md](context.md). Plan d'implémentation en 4 phases : 
 - **Phase 1.12** — TERMINEE. Gemini 3 Flash Preview comme moteur OCR primaire. Extraction structurée JSON (`card_name`, `set_code`, `set_number`, `language`, `confidence`). Bench : 28/30 (93%), fallback Google Vision. Cost : 6¢/mois pour 100 scans. 97 tests, 0 lint warning.
 - **Phase 1.13** — TERMINEE. Traductions FR via Gemini (4 nouveaux champs `pokemon_number`, `pokemon_name_fr`, `set_name`, `set_name_fr`) → noms affichés `"FR (Original)"` (ex: `"Gruikui (チャオブー)"`). Scanner UI 2-colonnes + loupe magnifier 1.5× + dropdown variant (Poké Ball / Master Ball / Reverse Holo / Promo) + notes. Pokédex 3 modes d'affichage (grid-3 / grid-5 / list) persistés en localStorage. Migration `add_cards_variant`. 116 tests, 0 lint warning.
 - **Phase 2** — TERMINEE. Module Vinted : liste FIFO + groupement variant-aware (`card_id_tcg + language + condition + variant`), édit prix inline, action "Vendu" + restock toast, générateur d'annonce avec smart-truncate titre 80 chars + clipboard. 144 tests, 0 lint warning.
-- **Phase 3** — A FAIRE. Cardmarket OAuth, cron prix, mode lot, script Python CLI.
+- **Phase 2.1** — TERMINEE. Restructuration Stock/Vinted en 2 pages distinctes + `vinted_listed_at` pour tracker "publié sur Vinted.com" (toggle 3 états offline/online/stale). Pokédex enrichi (1025 noms FR+EN, exact-number search, replace modal avec choix Stock/Vinted, scanner inline depuis le drawer, hard block mismatch via `pokemon_number`). Stock comme miroir de Vinted (groupement, tag Pokédex, compteur ×N éditable, clone endpoint, sort date_added ASC). Modale `MoveToPokedexModal` partagée Stock+Vinted (clic sur "Pas Pokédex" → confirm + sub-flow swap si slot occupé). AnnonceModal redesign (PiP mobile, Download img anti-bot, templates v2 avec mapping condition/langue). Options page (6e onglet) avec ThemeToggle 2-boutons + SignOut. RPC `replace_pokedex_card` corrigée en 3-step (fix collision unicité for_sale). Filtres Vinted = chips mutuellement exclusifs (offline / stale / fresh / sold). 7 helpers purs ajoutés (`listing-stale`, `vinted-filter`, `vinted-sort`, `pokedex-mismatch`, `pokedex-swap`, `pokemon-names`, `image-postprocess`, `promote-detection`). 2 nouvelles migrations (`20260430130000_phase21_vinted_unique_listed`, `20260430200000_fix_replace_pokedex_card_3step`). **199 tests**, 0 lint warning, 0 type error.
+- **Phase 3** — A FAIRE. Cron prix (Cardmarket fermée → stratégie alternative : scraper Cardmarket public ou réutiliser TCGdex pricing déjà inclus). Mode lot ≤ 20 photos. Script Python CLI.
 - **Phase 4** — A FAIRE. Dashboard, bulk vendu, polish PWA.
 
 Bilan détaillé : [docs/phases-summary.md](docs/phases-summary.md).
@@ -35,14 +36,18 @@ Bilan détaillé : [docs/phases-summary.md](docs/phases-summary.md).
 |---|---|
 | OCR | `lib/api/gemini-vision.ts` (primaire), `lib/api/vision.ts` (fallback), `app/api/ocr/route.ts` |
 | Catalogue local | `lib/api/tcg-catalog.ts` (incl. `formatBilingualName` + `deriveCardNameFr`), table `tcg_catalog` (111K cartes) |
-| Migration variant | `supabase/migrations/20260429142350_add_cards_variant.sql` (colonne `variant text` sur `cards`) |
 | Scraper LimitlessTCG | `scripts/scrape-limitlesstcg.ts` (~12 min, 7 langues, 1163 sets) |
 | Enrichissement | `app/api/enrich/route.ts` (catalogue → TCGdex fallback, helper `applyGeminiEnrichments` pour noms bilingues) |
 | Smart extraction | `lib/utils/extract-from-words.ts` (set_code + set_number depuis bounding boxes Vision) |
-| Scan mobile | `components/submit/MobileSubmit.tsx` (2-col + loupe + variant + notes : OCR → enrich → candidate picker → form → save) |
+| Scanner | `components/submit/CardScanForm.tsx` (réutilisable : standalone via `<SubmitTabs>` ou embarqué dans `<PokedexScanModal>` avec props `lockedPokemonNumber`/`lockedStatus`/`onCancel`/`onSaved`/`compact`) |
 | Suggestion | `lib/utils/pokedex-suggestion.ts`, `app/api/pokedex/suggest/route.ts` |
-| Pokédex | `components/pokedex/PokedexGrid.tsx`, `PokedexCell.tsx`, `PokedexListItem.tsx`, `PokedexDrawer.tsx`, `PokedexFilters.tsx` (3 view modes) |
-| Vinted | `app/(app)/vinted/page.tsx`, `app/api/cards/[id]/route.ts`, `components/vinted/{VintedList,VintedFilters,VintedRow,EditablePriceCell,SoldModal,RestockToast,AnnonceModal}.tsx`, `lib/utils/{group-cards,restock-detection,vinted-template}.ts` |
+| Pokédex | `components/pokedex/PokedexGrid.tsx`, `PokedexCell.tsx`, `PokedexListItem.tsx`, `PokedexDrawer.tsx` (avec replace + scan inline), `PokedexFilters.tsx` (3 view modes : grid-large/grid-compact/list, persistés via `useSyncExternalStore` + localStorage) |
+| Stock | `app/(app)/stock/page.tsx`, `components/stock/{StockList,StockRow,StockFilters}.tsx`, endpoint `app/api/cards/[id]/clone/route.ts` |
+| Vinted | `app/(app)/vinted/page.tsx`, `app/api/cards/[id]/route.ts`, `components/vinted/{VintedList,VintedFilters,VintedRow,EditablePriceCell,SoldModal,RestockToast,PromoteAfterSoldModal,AnnonceModal,VintedListedToggle,ExchangeOnConflictModal,SoldRow,ConfirmDialog,CardZoomModal}.tsx` |
+| Pokédex slot promotion | `components/cards/MoveToPokedexModal.tsx` (utilisée Stock+Vinted), `components/cards/PokedexReplaceModal.tsx` (depuis le scan), endpoint `app/api/pokedex/replace/route.ts` (RPC 3-step) |
+| Helpers purs (testés) | `lib/utils/{group-cards, vinted-sort, vinted-filter, listing-stale, restock-detection, promote-detection, pokedex-mismatch, pokedex-swap, pokemon-names, image-postprocess, vinted-template, parse-set-number, extract-from-words}.ts` |
+| Options | `app/(app)/options/page.tsx` + `components/layout/{ThemeToggle,SignOutButton}.tsx` |
+| Migrations | `supabase/migrations/20260425224142_initial_schema.sql`, `20260428114538_tcg_catalog.sql`, `20260429142350_add_cards_variant.sql`, `20260430130000_phase21_vinted_unique_listed.sql`, `20260430200000_fix_replace_pokedex_card_3step.sql` |
 
 ## Pipeline d'enrichissement
 
@@ -57,10 +62,11 @@ Bilan détaillé : [docs/phases-summary.md](docs/phases-summary.md).
 
 ## Conventions
 
-- Strict TypeScript, ESLint + Prettier, Geist (font Google), theme dark par defaut.
-- Pas de `localStorage` — Supabase est la source de verite unique.
+- Strict TypeScript, ESLint + Prettier, Geist (font Google), theme dark par défaut.
+- Supabase = source de vérité pour toute la donnée. `localStorage` réservé aux pures préférences UI (`iris.pokedex.viewMode` via `useSyncExternalStore` pour éviter les hydration mismatch).
 - App mono-utilisateur. Auth Supabase email/password minimale.
 - Matching multi-langues par `set_code + set_number` (universel JP/EN/FR).
+- Helpers purs dans `lib/utils/` testés en isolation. Composants UI consomment ces helpers — pas de logique métier dans React.
 
 ## Setup local
 

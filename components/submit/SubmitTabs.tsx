@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ScanLine, Layers, Terminal } from 'lucide-react';
-import MobileSubmit from './MobileSubmit';
+import CardScanForm from './CardScanForm';
 
 type Tab = 'mobile' | 'lot' | 'script';
 
@@ -39,7 +39,7 @@ export default function SubmitTabs() {
         })}
       </div>
 
-      {tab === 'mobile' && <MobileSubmit />}
+      {tab === 'mobile' && <CardScanForm />}
       {tab === 'lot' && (
         <p className="text-text-muted bg-surface border-border rounded-lg border p-6 text-sm">
           Mode lot (jusqu&apos;à 20 cartes en une fois) disponible en Phase 3.

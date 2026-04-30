@@ -216,6 +216,91 @@ Nota : "Match combiné" = extraction correcte (set_code + set_number valides), t
 6. Polish UX : feedback toast sur erreur clipboard ou PATCH (actuellement silencieux + console.error), Escape pour fermer les modals, click overlay pour fermer.
 7. Position du `<RestockToast>` (`bottom-6 right-6`) peut chevaucher la `BottomNav` mobile — vérifier sur device et déplacer si besoin.
 
+### Phase 2.1 — Restructuration Stock/Vinted + UX deep-clean
+
+**Contexte** : Le smoke-test de la Phase 2 a remonté un paquet de manques structurels et UX. Le modèle "1 carte = 1 ligne FIFO" était trop pauvre : il manquait la distinction Stock (collection perso pas en vente) vs Vinted (en vente, certaines déjà en ligne sur le marketplace, d'autres en attente d'upload). Le scanner forçait un flow séquentiel rigide. La grille Pokédex affichait `???` pour les manquants (impossible de chercher par nom). L'unique constraint pokédex faisait crasher l'enregistrement au lieu d'ouvrir une modale de remplacement.
+
+Cette itération corrige tout ça en une vague cohérente, plus du polish UX accumulé sur ~3 semaines de tests utilisateur réels.
+
+**Décisions architecturales clés** :
+- **Stock = nouvelle page `/stock`** (status='collection', cartes pas destinées à la vente immédiate). Vinted reste `/vinted` (status='for_sale', avec sous-statut "publié sur Vinted.com" via colonne `vinted_listed_at`). Nav 6 onglets : Home / Scanner / Pokédex / Stock / Vinted / Options.
+- **Filtres Vinted = chips mutuellement exclusifs** (Pas en ligne / À rafraîchir / En ligne / Vendus). Chaque chip = 1 bucket. Combinaisons = unions. Sort en 3 buckets : offline (date_added ASC) → stale (vinted_listed_at ASC) → fresh (vinted_listed_at DESC). Sold en queue séparée (date_sold DESC).
+- **Toggle "en ligne" 3 états** sur chaque row Vinted : offline (orange) / online (vert) / stale (sarcelle, >21j). Click :
+    - offline → online instant (date = now)
+    - online → confirm dialog → offline (perd la date)
+    - stale → confirm dialog → fresh (date = now, sort de "À rafraîchir")
+  Labels intègrent le compteur "X j" (ex: "En ligne · 5j"). PATCH `vinted_listed_at` côté API.
+- **Hard block scanner Pokédex** : quand le drawer Pokédex est ouvert sur le slot #N et qu'on scanne une carte de Pokémon ≠ #N, le bouton Save est désactivé et un message ⛔ explicite. Comparaison sur le `pokemon_number` réellement détecté par Gemini, pas sur le nom (plus fiable).
+- **Stock = miroir de Vinted** : groupement variant-aware identique, badge Pokédex/Pas Pokédex à côté de la condition, bouton "Mettre en vente" right-aligned, compteur ×N éditable inline (input number ; submit blur ou Enter → diff vs count actuel → clones ou deletes parallèles).
+- **Image bypass anti-bot Vinted** : bouton "Download img" dans AnnonceModal qui post-process l'image dans le browser via canvas (random crop 2-5px + JPEG quality 88-92 + filename randomisé + EXIF strippé naturellement). Pas de round-trip serveur.
+- **PiP mobile dans AnnonceModal** : sur mobile, `image_url` (ma photo) en grand + `tcg_image_url` en thumbnail bas-droite. Click sur la thumb → swap atomique des positions. Sur desktop on reste en 2-up côte à côte avec MagnifierLoupe.
+- **MoveToPokedexModal partagée** : clic sur le badge "Pas Pokédex" depuis Stock ou Vinted → modal "Ajouter au Pokédex ?". Si slot occupé, sub-flow demande où envoyer la carte déplacée (Stock ou Vinted). Backend via PATCH `status='pokedex'` (avec pré-check) ou `/api/pokedex/replace` (RPC swap).
+- **RPC `replace_pokedex_card` corrigée en 3-step** : park `old`→collection → promote `new`→pokedex (libère le slot for_sale si applicable) → restore `old`→target. Évite la collision unicité quand on swap A (pokedex) ↔ B (for_sale même groupe) avec A → for_sale.
+
+**Migrations DB** :
+- `20260430130000_phase21_vinted_unique_listed.sql` : index partiel unique `one_for_sale_per_group` sur `(coalesce(card_id_tcg, ''), language, condition, coalesce(variant, 'standard')) WHERE status='for_sale'`. Colonne `vinted_listed_at timestamptz` + index pour le tri.
+- `20260430200000_fix_replace_pokedex_card_3step.sql` : `CREATE OR REPLACE FUNCTION replace_pokedex_card` en 3-step.
+
+**Nouveaux helpers purs (tous testés)** :
+- `lib/utils/listing-stale.ts` — `isListingStale(vinted_listed_at, now)`, `daysSinceListing(...)`. Source unique pour le seuil 21j (toggle + filtre).
+- `lib/utils/vinted-filter.ts` — `passesStateChips(card, chips, now)` avec sémantique mutuellement exclusive + `shouldHideForSalePile(chips)`.
+- `lib/utils/vinted-sort.ts` — sort 3 buckets (réécrit).
+- `lib/utils/pokedex-mismatch.ts` — `detectNumberMismatch({ lockedPokemonNumber, detectedPokemonNumber })`.
+- `lib/utils/pokedex-swap.ts` — `applyReplacePokedex(...)` modélise l'algo 3-step (pour tester sans Postgres).
+- `lib/utils/pokemon-names.ts` — dataset 1025 Pokémon FR+EN (généré une fois via `scripts/fetch-pokemon-names.ts`) + `getPokemonName(n, lang)` helper.
+- `lib/utils/image-postprocess.ts` — `processImageForVinted(srcUrl)` (canvas-based) + `downloadBlob(blob, filename)`.
+- `lib/utils/promote-detection.ts` — détecte un Stock candidate à promouvoir après vente.
+
+**Nouveaux composants** :
+- `components/submit/CardScanForm.tsx` (extrait de l'ancien `MobileSubmit`) — composant scanner réutilisable. Props : `lockedPokemonNumber`, `lockedStatus`, `onSaved`, `onCancel`, `compact` (1-col + photo réduite à 14×14rem).
+- `components/pokedex/PokedexScanModal.tsx` — wrapper modal pour scanner inline depuis le drawer Pokédex.
+- `components/cards/PokedexReplaceModal.tsx` — modal post-scan quand le slot Pokédex est déjà pris (depuis le scanner standalone).
+- `components/cards/MoveToPokedexModal.tsx` — modal partagée Stock+Vinted déclenchée en cliquant "Pas Pokédex".
+- `components/vinted/VintedListedToggle.tsx` — toggle 3 états avec confirm dialogs.
+- `components/vinted/PromoteAfterSoldModal.tsx` — proposée après vente quand un Stock copy existe.
+- `components/vinted/ExchangeOnConflictModal.tsx` — flow 2-step swap quand on tente de mettre en vente une carte dont le for_sale slot est occupé.
+- `components/vinted/CardZoomModal.tsx` + `components/ui/MagnifierLoupe.tsx` — extraction réutilisable du zoom + loupe.
+- `components/vinted/ConfirmDialog.tsx` — petit primitif confirm avec danger tone.
+- `components/vinted/SoldRow.tsx` — row spécifique pour la liste des Vendus.
+- `components/stock/{StockList,StockRow,StockFilters}.tsx` — page Stock complète.
+- `app/(app)/options/page.tsx` + `components/layout/ThemeToggle.tsx` (refondu en 2 boutons côte à côte) — page Options pour les préférences globales.
+
+**Nouveaux endpoints** :
+- `POST /api/cards/[id]/clone` — duplique une carte Stock (copie infos + image_url, reset date_added/listed/sold). Permet la gestion ×N depuis l'UI sans rescan.
+
+**API mises à jour** :
+- `PATCH /api/cards/[id]` — accepte maintenant `status='pokedex'` avec pré-check du slot (409 propre si occupé). Pré-check for_sale conflict élargi pour renvoyer `conflictCard` complet (image + meta). Catch des violations 23505 distingue maintenant pokedex vs for_sale.
+- `POST /api/cards` — pré-check pokédex slot taken (renvoie `existingCard` + `hasForSaleConflict`). Catch 23505 → 409 friendly.
+- `POST /api/pokedex/replace` — capture les violations 23505 résiduelles (3e exemplaire conflictuel).
+
+**Seed script** (`scripts/seed/seed.ts`) :
+- Wipe + seed depuis `cards_assets/` (~30 cartes JP scannées). Distribution : 2 sold, 5 pokedex, 5 collection, 3 for_sale stale (vinted_listed_at 25-34j), 3 for_sale fresh online, ~12 for_sale offline. Garantit que tous les flows UI ont des données représentatives.
+
+**Bugs corrigés en route** :
+| Symptôme | Cause | Fix |
+|---|---|---|
+| `?` au lieu du nom Pokédex pour les manquants | Cell/List rendaient `card?.pokemon_name ?? '???'` | Fallback `getPokemonName(n, 'fr')` depuis le dataset 1025 noms |
+| Search Pokédex `12` matchait #12, #121, #125 | `String(n).includes(search)` substring | Parse exact : `parseInt(s.replace(/^#?0*/, ''))` |
+| Search `0003` ne matchait jamais | Parsing leading-zero | Même normalisation que ci-dessus |
+| Hydration mismatch sur `viewMode` localStorage | `useState` initialisé via `localStorage.getItem` au render | `useSyncExternalStore` avec `getServerSnapshot` retournant le default |
+| Hard block pokemon_number ne marchait pas | Le code overridait `form.pokemon_number` à `lockedPokemonNumber` au prefill, masquant le mismatch | State `detectedPokemonNumber` séparé, capturé depuis `enrich.bestMatch.pokemon_number` ou `ocr.pokemonNumber` |
+| Filtre "À rafraîchir" toujours vide malgré seed | `isStale` lisait `cm_updated_at ?? date_added`, alignement faux avec le toggle | Helper partagé `isListingStale` basé sur `vinted_listed_at` |
+| Promote duplicate key sur swap pokedex↔for_sale | RPC 2-step faisait `UPDATE old for_sale` AVANT que `new` n'ait quitté for_sale | RPC 3-step : park → swap → restore |
+| Bouton Annuler dans le scanner modal réinitialisait au lieu de fermer | `reset()` toujours appelé | Prop `onCancel` optionnelle qui prend le pas |
+| Seed bulk insert silent fail | Plusieurs cards avec `card_id_tcg=null` collisionnaient sur l'index partiel for_sale | Fallback `card_id_tcg = \`seed-${setCode}-${setNumber}\`` |
+
+**Tests : 199/199**, 0 lint warning, 0 type error.
+
+Décompte des nouveaux tests (≥55 ajoutés depuis Phase 2) : `vinted-filter` (12), `vinted-sort` (8 réécrits), `listing-stale` (8), `pokedex-mismatch` (4), `pokedex-swap` (7), `pokemon-names` (2), `image-postprocess` (4), `promote-detection` (3), `route /api/cards/[id]` PATCH pokedex (+1).
+
+**Followups différés** :
+1. **Pricing variant-aware** quand le scraper LimitlessTCG splittera (Phase 3). Aujourd'hui `suggested_price` est saisi à la main.
+2. Bulk listing (sélectionner plusieurs Stock cards et les promote en for_sale d'un coup) → Phase 4.
+3. Cron Cardmarket / source de prix → Phase 3 (l'API Cardmarket reste fermée — 2 stratégies envisagées : scraper Cardmarket public ou réutiliser le pricing TCGdex déjà inclus dans le catalogue).
+4. Tests E2E Playwright sur les flows critiques (toujours déféré depuis 1.13).
+5. Pré-compute `has_for_sale` côté DB (vue matérialisée ou trigger) si la perf de la page Stock devient un souci avec 10k+ cartes.
+6. Image bypass plus agressif (rotation 0.3°, noise) si Vinted détecte encore les uploads.
+
 ## Prochaine étape : Phase 3
 
-**Objectif** : Cron Cardmarket pour rafraîchir les prix automatiquement, mode lot ≤ 20 photos, script Python CLI.
+**Objectif** : Source de prix Cardmarket (stratégie à définir : scraper public ou TCGdex pricing existant), cron de rafraîchissement, mode lot ≤ 20 photos, script Python CLI pour l'import en masse.
