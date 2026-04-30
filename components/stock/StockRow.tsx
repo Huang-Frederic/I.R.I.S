@@ -5,6 +5,8 @@ import { Tag, BookmarkCheck, Bookmark } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
 import CardZoomModal from '@/components/vinted/CardZoomModal';
+import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
+import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
 
 const VARIANT_LABEL: Record<string, string> = {
   pokeball: 'Poké Ball',
@@ -41,6 +43,8 @@ interface Props {
   /** Apply a target count for this group. Caller diffs against group.count and clones / deletes accordingly. */
   onSetCount: (group: CardGroup, target: number) => void;
   busy?: boolean;
+  /** Called when the manual refresh of this card's price succeeds. */
+  onPriceRefreshed?: (card: Card) => void;
 }
 
 export default function StockRow({
@@ -51,6 +55,7 @@ export default function StockRow({
   onMoveToPokedexClick,
   onSetCount,
   busy = false,
+  onPriceRefreshed,
 }: Props) {
   const card = group.head;
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
@@ -163,6 +168,15 @@ export default function StockRow({
             className="bg-transparent text-text w-10 font-mono text-xs outline-none disabled:opacity-40"
           />
         </label>
+
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <div className="flex items-center gap-1.5">
+            {onPriceRefreshed && (
+              <RefreshPriceButton cardId={card.id} onRefreshed={onPriceRefreshed} />
+            )}
+          </div>
+          <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
+        </div>
 
         <button
           type="button"
