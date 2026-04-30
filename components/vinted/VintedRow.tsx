@@ -40,10 +40,16 @@ interface Props {
   onSoldClick: () => void;
   onListedToggled: (cardId: string, listedAt: string | null) => void;
   onImageClick?: (card: Card) => void;
+  /**
+   * Called when the user clicks the "Pas Pokédex" badge — invitation to
+   * promote this card to the Pokédex slot. The badge is non-interactive when
+   * the card is already registered.
+   */
+  onMoveToPokedexClick?: (card: Card) => void;
 }
 
 export default function VintedRow({
-  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, onListedToggled, onImageClick,
+  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, onListedToggled, onImageClick, onMoveToPokedexClick,
 }: Props) {
   const card = group.head;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
@@ -51,8 +57,6 @@ export default function VintedRow({
   return (
     <li className="bg-surface border-border flex flex-col gap-3 rounded-lg border p-3 text-sm sm:flex-row sm:items-center">
       <div className="flex items-center gap-3">
-        <span className="text-text-faint w-8 shrink-0 font-mono text-xs">#{group.position}</span>
-
         <button
           type="button"
           onClick={() => onImageClick?.(card)}
@@ -88,21 +92,26 @@ export default function VintedRow({
             <span className={`font-medium ${RARITY_COLOR[card.rarity] ?? ''}`}>{card.rarity}</span>
             <span>·</span>
             <span>{card.condition}</span>
-            <span
-              className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs ${
-                isRegistered
-                  ? 'bg-rarity-r/20 text-rarity-r'
-                  : 'bg-rarity-ar/20 text-rarity-ar'
-              }`}
-              title={
-                isRegistered
-                  ? 'Cette carte est dans ton Pokédex'
-                  : 'Pas dans ton Pokédex'
-              }
-            >
-              {isRegistered ? <BookmarkCheck className="h-3 w-3" /> : <Bookmark className="h-3 w-3" />}
-              {isRegistered ? 'Pokédex' : 'Pas Pokédex'}
-            </span>
+            {isRegistered ? (
+              <span
+                className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
+                title="Cette carte est dans ton Pokédex"
+              >
+                <BookmarkCheck className="h-3 w-3" />
+                Pokédex
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onMoveToPokedexClick?.(card)}
+                disabled={!onMoveToPokedexClick}
+                title="Ajouter cette carte au Pokédex"
+                className="bg-rarity-ar/20 text-rarity-ar hover:bg-rarity-ar/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors disabled:cursor-default"
+              >
+                <Bookmark className="h-3 w-3" />
+                Pas Pokédex
+              </button>
+            )}
             <VintedListedToggle
               cardId={card.id}
               currentListedAt={card.vinted_listed_at}

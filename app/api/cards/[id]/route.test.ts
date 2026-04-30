@@ -36,8 +36,44 @@ describe('PATCH /api/cards/[id]', () => {
     supabaseMock.auth.getUser.mockResolvedValue({
       data: { user: { id: 'u' } },
     });
-    const res = await PATCH(makeRequest({ status: 'pokedex' }), ctx('abc'));
+    // 'archived' is not in the allowed set; 'pokedex' IS allowed since the
+    // new MoveToPokedex flow needs to flip cards into the pokédex slot.
+    const res = await PATCH(makeRequest({ status: 'archived' as never }), ctx('abc'));
     expect(res.status).toBe(400);
+  });
+
+  it('returns 409 pokedex_slot_taken when promoting to pokedex but slot is occupied', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+
+    // Pre-check #1: read the target card to learn its pokemon_number.
+    const targetSingle = vi.fn().mockResolvedValue({
+      data: { pokemon_number: 25, status: 'collection' },
+      error: null,
+    });
+    const targetSelect = vi.fn(() => ({ eq: () => ({ single: targetSingle }) }));
+
+    // Pre-check #2: existing pokedex card for the same pokemon.
+    const existingMaybe = vi.fn().mockResolvedValue({
+      data: {
+        id: 'ex', card_name: 'Pikachu', image_url: null, tcg_image_url: null,
+        set_name: null, set_code: null, language: 'JP', condition: 'NM',
+        rarity: 'AR', variant: null, pokemon_number: 25, pokemon_name: 'Pikachu',
+      },
+      error: null,
+    });
+    const existingSelect = vi.fn(() => ({
+      eq: () => ({ eq: () => ({ neq: () => ({ maybeSingle: existingMaybe }) }) }),
+    }));
+
+    supabaseMock.from
+      .mockReturnValueOnce({ select: targetSelect })
+      .mockReturnValueOnce({ select: existingSelect });
+
+    const res = await PATCH(makeRequest({ status: 'pokedex' }), ctx('abc'));
+    const json = await res.json();
+    expect(res.status).toBe(409);
+    expect(json.error).toBe('pokedex_slot_taken');
+    expect(json.existingCard?.id).toBe('ex');
   });
 
   it('updates suggested_price without touching status', async () => {

@@ -1,21 +1,25 @@
 /**
  * Vinted state-chip filter logic. Pure, tested, shared.
  *
- * The four chips (En ligne / Pas en ligne / À rafraîchir / Vendus) are
- * cumulative: a card passes when ANY active chip would include it.
+ * The three state chips correspond to MUTUALLY EXCLUSIVE buckets — every
+ * for_sale card belongs to exactly one. Combinations are unions.
  *
- *   - showOnline  → any card with vinted_listed_at != null (any age)
- *   - showOffline → vinted_listed_at == null
- *   - showStale   → listed > 21 days (a SUBSET of online)
- *   - showSold    → status = sold (independent — handled separately)
+ *   - Pas en ligne (showOffline) → vinted_listed_at === null
+ *   - À rafraîchir (showStale)   → listed for more than 21 days
+ *   - En ligne     (showOnline)  → listed within the last 21 days (FRESH only)
+ *
+ * `showOnline` deliberately does NOT include stale rows: each chip stands
+ * for one bucket. So "En ligne + À rafraîchir" produces all-online (the
+ * union of fresh + stale), and "En ligne" alone shows just the fresh ones.
+ *
+ *   - showSold (Vendus) → status = sold (handled separately by caller).
  *
  * Edge cases:
- *   - All four chips false → "Tous" implicit, return all for_sale (sold
- *     stays excluded unless showSold is also on).
- *   - showStale alone → only stale rows.
- *   - showOnline + showStale → all online (stale is already a subset).
- *   - showOffline + showStale → offline + stale (a useful "things to act
- *     on" view: cards not yet listed plus listings overdue for refresh).
+ *   - All three state chips false → "Tous" implicit, every for_sale passes.
+ *   - showOnline alone → fresh only.
+ *   - showStale alone  → stale only.
+ *   - showOnline + showStale → all listed (fresh + stale).
+ *   - showOffline + showStale → offline + stale ("things to act on").
  */
 
 import { isListingStale } from './listing-stale';
@@ -45,12 +49,13 @@ export function passesStateChips(
   if (noStateChip) return true; // "Tous" — show every for_sale row
 
   const isOnline = card.vinted_listed_at !== null;
+  const isStale = isOnline && isListingStale(card.vinted_listed_at, now);
+  const isFresh = isOnline && !isStale;
   const isOffline = !isOnline;
-  const isStale = isListingStale(card.vinted_listed_at, now);
 
-  if (chips.showOnline && isOnline) return true;
-  if (chips.showOffline && isOffline) return true;
+  if (chips.showOnline && isFresh) return true;
   if (chips.showStale && isStale) return true;
+  if (chips.showOffline && isOffline) return true;
   return false;
 }
 

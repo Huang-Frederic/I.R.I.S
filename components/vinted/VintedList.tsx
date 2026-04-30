@@ -19,6 +19,7 @@ import type { RestockAlert } from '@/lib/utils/restock-detection';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 import type { VintedConfig } from '@/lib/utils/vinted-template';
 import { passesStateChips, shouldHideForSalePile } from '@/lib/utils/vinted-filter';
+import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
 
 export interface VintedListProps {
   cards: Card[];
@@ -69,6 +70,7 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
   const [promoteCandidate, setPromoteCandidate] = useState<PromoteCandidate | null>(null);
   const [annonceTarget, setAnnonceTarget] = useState<Card | null>(null);
   const [zoomCard, setZoomCard] = useState<Card | null>(null);
+  const [moveToPokedexCard, setMoveToPokedexCard] = useState<Card | null>(null);
 
   const vintedConfig: VintedConfig = {
     vinted_shipping_note: config.vinted_shipping_note ?? '',
@@ -175,6 +177,7 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
               onSoldClick={() => setSoldTarget(g.head)}
               onListedToggled={updateCardListed}
               onImageClick={() => setZoomCard(g.head)}
+              onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}
             />
           ))}
           {soldRows.map((c) => (
@@ -207,6 +210,26 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
           src={cardImageUrl(zoomCard)}
           alt={zoomCard.card_name}
           onClose={() => setZoomCard(null)}
+        />
+      )}
+      {moveToPokedexCard && (
+        <MoveToPokedexModal
+          card={{
+            id: moveToPokedexCard.id,
+            card_name: moveToPokedexCard.card_name,
+            image_url: moveToPokedexCard.image_url,
+            tcg_image_url: moveToPokedexCard.tcg_image_url,
+          }}
+          currentLocation="Vinted"
+          onClose={() => setMoveToPokedexCard(null)}
+          onPromoted={() => {
+            // The card has left for_sale → drop it from local state and refresh
+            // so the Pokédex slot reflects the change.
+            const promotedId = moveToPokedexCard.id;
+            setCards((prev) => prev.filter((c) => c.id !== promotedId));
+            setMoveToPokedexCard(null);
+            router.refresh();
+          }}
         />
       )}
     </div>

@@ -14,7 +14,7 @@ export default function PokedexScanModal({ pokemonNumber, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/60 p-4">
-      <div className="bg-surface border-border my-6 w-full max-w-2xl rounded-lg border shadow-xl">
+      <div className="bg-surface border-border my-6 w-full max-w-2xl rounded-lg border shadow-xl lg:max-w-md">
         <div className="border-border bg-surface sticky top-0 flex items-center justify-between border-b px-5 py-3">
           <h2 className="text-base font-semibold">
             Scanner une carte pour le Pokédex

@@ -23,11 +23,11 @@ describe('passesStateChips', () => {
     expect(passesStateChips(stale, NONE, NOW)).toBe(true);
   });
 
-  it('showOnline alone includes both fresh and stale (any age)', () => {
+  it('showOnline alone includes ONLY fresh (not stale) — chips are mutually exclusive buckets', () => {
     const chips = { ...NONE, showOnline: true };
     expect(passesStateChips(offline, chips, NOW)).toBe(false);
     expect(passesStateChips(fresh, chips, NOW)).toBe(true);
-    expect(passesStateChips(stale, chips, NOW)).toBe(true);
+    expect(passesStateChips(stale, chips, NOW)).toBe(false);
   });
 
   it('showOffline alone returns only offline cards', () => {
@@ -44,11 +44,9 @@ describe('passesStateChips', () => {
     expect(passesStateChips(stale, chips, NOW)).toBe(true);
   });
 
-  it('En ligne + À rafraîchir is the bug-fix case: shows ALL online (stale subset of online)', () => {
-    // The bug: previously showStale was a hard restriction, so combining it
-    // with showOnline produced "online AND stale" = stale only. Users
-    // expected the union "online OR stale" = all online (since stale is a
-    // subset of online).
+  it('En ligne + À rafraîchir = union of fresh-only and stale-only = all listed', () => {
+    // Each chip owns exactly one bucket, so combining "fresh-only" with
+    // "stale-only" gives "any listed", which is what the user wants.
     const chips = { ...NONE, showOnline: true, showStale: true };
     expect(passesStateChips(offline, chips, NOW)).toBe(false);
     expect(passesStateChips(fresh, chips, NOW)).toBe(true);
