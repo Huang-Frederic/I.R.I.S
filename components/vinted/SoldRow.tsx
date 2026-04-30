@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import type { Card } from '@/lib/types';
+import CardZoomModal from '@/components/vinted/CardZoomModal';
 
 const VARIANT_LABEL: Record<string, string> = {
   pokeball: 'Poké Ball',
@@ -38,16 +40,24 @@ interface Props {
 }
 
 export default function SoldRow({ card }: Props) {
+  const [zoomSrc, setZoomSrc] = useState<string | null>(null);
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
   return (
     <li className="bg-surface-off border-border flex items-center gap-3 rounded-lg border p-3 text-sm opacity-90">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={thumbUrl(card)}
-        alt=""
-        loading="lazy"
-        className="bg-surface-off h-[84px] w-[60px] shrink-0 rounded object-cover"
-      />
+      <button
+        type="button"
+        onClick={() => setZoomSrc(thumbUrl(card))}
+        className="hover:ring-red shrink-0 rounded transition-shadow hover:ring-2"
+        aria-label={`Voir ${card.card_name} en grand`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={thumbUrl(card)}
+          alt=""
+          loading="lazy"
+          className="bg-surface-off h-[84px] w-[60px] rounded object-cover"
+        />
+      </button>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -77,6 +87,10 @@ export default function SoldRow({ card }: Props) {
       <span className="text-rarity-sr shrink-0 font-mono text-sm font-bold">
         {card.sold_price !== null ? `${card.sold_price.toFixed(2)} €` : '—'}
       </span>
+
+      {zoomSrc && (
+        <CardZoomModal src={zoomSrc} alt="" onClose={() => setZoomSrc(null)} />
+      )}
     </li>
   );
 }

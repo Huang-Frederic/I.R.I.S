@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { ArrowRight, X } from 'lucide-react';
+import CardZoomModal from '@/components/vinted/CardZoomModal';
 
 export interface PokedexReplaceModalCard {
   id: string;
@@ -63,6 +65,7 @@ export default function PokedexReplaceModal({
   onCancel,
   submitting = false,
 }: Props) {
+  const [zoomSrc, setZoomSrc] = useState<string | null>(null);
   const existingThumb = thumbUrl(existingCard);
   const newThumb = thumbUrl(newCardSummary);
 
@@ -88,9 +91,9 @@ export default function PokedexReplaceModal({
         </div>
 
         <div className="my-6 flex items-center justify-center gap-4">
-          <CardPanel label="Existante" thumbUrl={existingThumb} title={existingCard.card_name} subtitle={`${existingCard.rarity} · ${existingCard.language} · ${formatVariant(existingCard.variant)}`} />
+          <CardPanel label="Existante" thumbUrl={existingThumb} title={existingCard.card_name} subtitle={`${existingCard.rarity} · ${existingCard.language} · ${formatVariant(existingCard.variant)}`} onZoomClick={existingThumb ? () => setZoomSrc(existingThumb) : undefined} />
           <ArrowRight className="text-text-muted h-6 w-6 shrink-0" />
-          <CardPanel label="Nouvelle" thumbUrl={newThumb} title={newCardSummary.card_name} subtitle={`${newCardSummary.rarity} · ${newCardSummary.language} · ${formatVariant(newCardSummary.variant)}`} highlight />
+          <CardPanel label="Nouvelle" thumbUrl={newThumb} title={newCardSummary.card_name} subtitle={`${newCardSummary.rarity} · ${newCardSummary.language} · ${formatVariant(newCardSummary.variant)}`} highlight onZoomClick={newThumb ? () => setZoomSrc(newThumb) : undefined} />
         </div>
 
         <div className="border-border bg-surface-2 mb-4 rounded border p-3 text-xs">
@@ -99,6 +102,12 @@ export default function PokedexReplaceModal({
             L&apos;ancienne sera <strong className="text-text">déplacée</strong> :
           </p>
         </div>
+
+        {hasForSaleConflict && (
+          <p className="text-text-muted mb-3 text-xs">
+            💡 Un exemplaire de cette carte est déjà en vente sur Vinted. Tu ne peux pas en lister un deuxième — déplace celui-ci en Stock à la place.
+          </p>
+        )}
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <button
@@ -127,6 +136,10 @@ export default function PokedexReplaceModal({
             Vers Vinted
           </button>
         </div>
+
+        {zoomSrc && (
+          <CardZoomModal src={zoomSrc} alt="Carte en grand" onClose={() => setZoomSrc(null)} />
+        )}
       </div>
     </div>
   );
@@ -138,19 +151,33 @@ function CardPanel({
   title,
   subtitle,
   highlight = false,
+  onZoomClick,
 }: {
   label: string;
   thumbUrl: string | null;
   title: string;
   subtitle: string;
   highlight?: boolean;
+  onZoomClick?: () => void;
 }) {
   return (
     <div className={`flex w-32 flex-col items-center gap-2 ${highlight ? 'opacity-100' : 'opacity-80'}`}>
       <span className={`text-text-faint text-xs uppercase tracking-wide ${highlight ? 'text-red' : ''}`}>{label}</span>
       {thumbUrl ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img src={thumbUrl} alt={title} className="bg-surface-off h-[140px] w-[100px] rounded object-cover" />
+        onZoomClick ? (
+          <button
+            type="button"
+            onClick={onZoomClick}
+            className="hover:ring-red rounded transition-shadow hover:ring-2"
+            aria-label="Voir en grand"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={thumbUrl} alt={title} className="bg-surface-off h-[140px] w-[100px] rounded object-cover" />
+          </button>
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={thumbUrl} alt={title} className="bg-surface-off h-[140px] w-[100px] rounded object-cover" />
+        )
       ) : (
         <div className="bg-surface-off flex h-[140px] w-[100px] items-center justify-center rounded text-xs text-text-faint">
           Pas d&apos;image
