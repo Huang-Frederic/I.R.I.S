@@ -55,6 +55,12 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
     );
   };
 
+  const updateCardListed = (cardId: string, listedAt: string | null) => {
+    setCards((prev) =>
+      prev.map((c) => (c.id === cardId ? { ...c, vinted_listed_at: listedAt } : c)),
+    );
+  };
+
   const [soldTarget, setSoldTarget] = useState<Card | null>(null);
   const [restockAlert, setRestockAlert] = useState<RestockAlert | null>(null);
   const [annonceTarget, setAnnonceTarget] = useState<Card | null>(null);
@@ -106,6 +112,7 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
               }
               onAnnonceClick={() => setAnnonceTarget(g.head)}
               onSoldClick={() => setSoldTarget(g.head)}
+              onListedToggled={updateCardListed}
             />
           ))}
         </ul>

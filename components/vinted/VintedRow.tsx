@@ -1,10 +1,10 @@
 // components/vinted/VintedRow.tsx
 'use client';
 
-import Link from 'next/link';
 import { BookmarkCheck, Bookmark, Tag } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
+import VintedListedToggle from './VintedListedToggle';
 
 const VARIANT_LABEL: Record<string, string> = {
   pokeball: 'Poké Ball',
@@ -38,10 +38,11 @@ interface Props {
   priceCell: React.ReactNode;
   onAnnonceClick: () => void;
   onSoldClick: () => void;
+  onListedToggled: (cardId: string, listedAt: string | null) => void;
 }
 
 export default function VintedRow({
-  group, isRegistered, priceCell, onAnnonceClick, onSoldClick,
+  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, onListedToggled,
 }: Props) {
   const card = group.head;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
@@ -78,22 +79,21 @@ export default function VintedRow({
           <span className={`font-medium ${RARITY_COLOR[card.rarity] ?? ''}`}>{card.rarity}</span>
           <span>·</span>
           <span>{card.condition}</span>
-          <Link
-            href="/pokedex"
+          <span
             className={`ml-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs ${
               isRegistered
-                ? 'bg-rarity-sr/20 text-rarity-sr'
-                : 'bg-rarity-r/20 text-rarity-r'
+                ? 'bg-rarity-r/20 text-rarity-r'
+                : 'bg-rarity-ar/20 text-rarity-ar'
             }`}
             title={
               isRegistered
-                ? 'Carte déjà dans ton Pokédex (clic : ouvre le Pokédex)'
-                : 'Pas dans ton Pokédex (clic : ouvre le Pokédex)'
+                ? 'Cette carte est dans ton Pokédex'
+                : 'Pas dans ton Pokédex'
             }
           >
             {isRegistered ? <BookmarkCheck className="h-3 w-3" /> : <Bookmark className="h-3 w-3" />}
-            {isRegistered ? 'Registered' : 'Not Registered'}
-          </Link>
+            {isRegistered ? 'Pokédex' : 'Pas Pokédex'}
+          </span>
         </div>
       </div>
 
@@ -102,6 +102,12 @@ export default function VintedRow({
           ×{group.count}
         </span>
       )}
+
+      <VintedListedToggle
+        cardId={card.id}
+        initialListed={card.vinted_listed_at !== null}
+        onToggled={(listedAt) => onListedToggled(card.id, listedAt)}
+      />
 
       <div className="shrink-0">{priceCell}</div>
 
