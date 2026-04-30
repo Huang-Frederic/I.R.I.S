@@ -20,6 +20,7 @@ import { resizeImage } from '@/lib/utils/resize-image';
 import ScanSuggestion from '@/components/cards/ScanSuggestion';
 import { getPokemonName } from '@/lib/data/pokemon-names';
 import PokedexReplaceModal, { type PokedexReplaceModalCard } from '@/components/cards/PokedexReplaceModal';
+import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
 
 const LANGUAGES: CardLanguage[] = ['JP', 'EN', 'FR', 'DE', 'IT', 'ES', 'KO', 'PT', 'ZH'];
 const CONDITIONS: CardCondition[] = ['NM', 'EX', 'GD', 'PL', 'PO'];
@@ -148,9 +149,6 @@ export default function CardScanForm({
     setNameFr?: string | null;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [zoomPos, setZoomPos] = useState<{ x: number; y: number } | null>(null);
-  const [imageDimensions, setImageDimensions] = useState({ w: 0, h: 0 });
-  const imageRef = useRef<HTMLImageElement>(null);
   const [replaceModal, setReplaceModal] = useState<{
     existingCard: PokedexReplaceModalCard;
     hasForSaleConflict: boolean;
@@ -652,67 +650,14 @@ export default function CardScanForm({
               ) : (
                 // Photo + loupe when photo loaded
                 <>
-                  <div
-                    className="relative mx-auto w-full max-w-md select-none overflow-hidden rounded-xl border-2 border-border shadow-lg lg:max-w-none"
-                    onMouseMove={(e) => {
-                      const target = e.currentTarget.getBoundingClientRect();
-                      const x = e.clientX - target.left;
-                      const y = e.clientY - target.top;
-                      setZoomPos({ x, y });
-                    }}
-                    onMouseLeave={() => setZoomPos(null)}
-                    onTouchMove={(e) => {
-                      const target = e.currentTarget.getBoundingClientRect();
-                      const touch = e.touches[0];
-                      if (touch) {
-                        const x = touch.clientX - target.left;
-                        const y = touch.clientY - target.top;
-                        setZoomPos({ x, y });
-                      }
-                    }}
-                    onTouchEnd={() => setZoomPos(null)}
-                  >
-                    <Image
-                      ref={imageRef}
+                  <div className="relative">
+                    <MagnifierLoupe
                       src={previewUrl}
                       alt="Aperçu de la carte"
-                      width={600}
-                      height={840}
-                      className="w-full object-contain"
-                      unoptimized
-                      onLoad={(e) => {
-                        const img = e.currentTarget;
-                        setImageDimensions({ w: img.naturalWidth, h: img.naturalHeight });
-                      }}
+                      className="mx-auto w-full max-w-md border-2 border-border shadow-lg lg:max-w-none"
                     />
-                    {zoomPos && imageDimensions.w > 0 && imageRef.current && (() => {
-                      const LOUPE_SIZE = 140;
-                      const ZOOM = 1.5;
-                      const imgRect = imageRef.current.getBoundingClientRect();
-                      const displayedW = imgRect.width;
-                      const displayedH = imgRect.height;
-
-                      // Clamp cursor position to keep loupe inside image bounds
-                      const clampedX = Math.min(Math.max(zoomPos.x, LOUPE_SIZE / 2), displayedW - LOUPE_SIZE / 2);
-                      const clampedY = Math.min(Math.max(zoomPos.y, LOUPE_SIZE / 2), displayedH - LOUPE_SIZE / 2);
-
-                      return (
-                        <div
-                          className="pointer-events-none absolute rounded-full border-2 border-white shadow-2xl"
-                          style={{
-                            width: LOUPE_SIZE,
-                            height: LOUPE_SIZE,
-                            left: clampedX - LOUPE_SIZE / 2,
-                            top: clampedY - LOUPE_SIZE / 2,
-                            backgroundImage: `url(${previewUrl})`,
-                            backgroundSize: `${displayedW * ZOOM}px ${displayedH * ZOOM}px`,
-                            backgroundPosition: `-${zoomPos.x * ZOOM - LOUPE_SIZE / 2}px -${zoomPos.y * ZOOM - LOUPE_SIZE / 2}px`,
-                          }}
-                        />
-                      );
-                    })()}
                     {phase === 'scanning' && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
                         <div className="border-red border-t-transparent h-8 w-8 animate-spin rounded-full border-2" />
                       </div>
                     )}

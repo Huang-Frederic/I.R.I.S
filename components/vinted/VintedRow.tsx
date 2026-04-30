@@ -39,10 +39,11 @@ interface Props {
   onAnnonceClick: () => void;
   onSoldClick: () => void;
   onListedToggled: (cardId: string, listedAt: string | null) => void;
+  onImageClick?: (card: Card) => void;
 }
 
 export default function VintedRow({
-  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, onListedToggled,
+  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, onListedToggled, onImageClick,
 }: Props) {
   const card = group.head;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
@@ -51,13 +52,20 @@ export default function VintedRow({
     <li className="bg-surface border-border flex items-center gap-3 rounded-lg border p-3 text-sm">
       <span className="text-text-faint w-8 shrink-0 font-mono text-xs">#{group.position}</span>
 
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={thumbUrl(card)}
-        alt=""
-        loading="lazy"
-        className="bg-surface-off h-[84px] w-[60px] shrink-0 rounded object-cover"
-      />
+      <button
+        type="button"
+        onClick={() => onImageClick?.(card)}
+        className="hover:ring-red shrink-0 rounded transition-shadow hover:ring-2"
+        aria-label={`Voir ${card.card_name} en grand`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={thumbUrl(card)}
+          alt=""
+          loading="lazy"
+          className="bg-surface-off h-[84px] w-[60px] rounded object-cover"
+        />
+      </button>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
