@@ -220,46 +220,44 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
             </div>
 
             {/* Price grid: Annonce (suggested_price) is editable inline.
-                Refresh button + freshness badge stack on the right (next to Annonce). */}
-            <div className="border-border flex items-stretch gap-3 rounded border p-3 text-xs">
-              <div className="grid flex-1 grid-cols-4 gap-2 text-center">
-                <PriceCell label="Low" value={card.cm_price_low} />
-                <PriceCell label="Trend" value={card.cm_price_trend} />
-                <PriceCell label="Avg" value={card.cm_price_avg} />
-                <div>
-                  <p className="text-text-faint">Annonce</p>
-                  {editingSuggested ? (
-                    <input
-                      autoFocus
-                      type="text"
-                      inputMode="decimal"
-                      value={suggestedDraft}
-                      disabled={savingSuggested}
-                      onChange={(e) => setSuggestedDraft(e.target.value)}
-                      onBlur={persistSuggested}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') persistSuggested();
-                        if (e.key === 'Escape') {
-                          setSuggestedDraft(card.suggested_price !== null ? String(card.suggested_price) : '');
-                          setEditingSuggested(false);
-                        }
-                      }}
-                      className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-1 py-0.5 text-center font-mono text-xs outline-none"
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setEditingSuggested(true)}
-                      className="text-rarity-sr hover:text-rarity-sr/80 font-mono font-bold"
-                      title="Cliquer pour modifier"
-                    >
-                      {card.suggested_price !== null ? `${card.suggested_price.toFixed(2)}` : '—'}
-                    </button>
-                  )}
-                </div>
+                5th cell (when refresh wired) = freshness badge on top + refresh button below. */}
+            <div className={`border-border grid ${onCardRefreshed ? 'grid-cols-5' : 'grid-cols-4'} gap-2 rounded border p-3 text-center text-xs`}>
+              <PriceCell label="Low" value={card.cm_price_low} />
+              <PriceCell label="Trend" value={card.cm_price_trend} />
+              <PriceCell label="Avg" value={card.cm_price_avg} />
+              <div>
+                <p className="text-text-faint">Annonce</p>
+                {editingSuggested ? (
+                  <input
+                    autoFocus
+                    type="text"
+                    inputMode="decimal"
+                    value={suggestedDraft}
+                    disabled={savingSuggested}
+                    onChange={(e) => setSuggestedDraft(e.target.value)}
+                    onBlur={persistSuggested}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') persistSuggested();
+                      if (e.key === 'Escape') {
+                        setSuggestedDraft(card.suggested_price !== null ? String(card.suggested_price) : '');
+                        setEditingSuggested(false);
+                      }
+                    }}
+                    className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-1 py-0.5 text-center font-mono text-xs outline-none"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditingSuggested(true)}
+                    className="text-rarity-sr hover:text-rarity-sr/80 font-mono font-bold"
+                    title="Cliquer pour modifier"
+                  >
+                    {card.suggested_price !== null ? `${card.suggested_price.toFixed(2)}` : '—'}
+                  </button>
+                )}
               </div>
               {onCardRefreshed && (
-                <div className="flex shrink-0 flex-col items-center justify-center gap-1">
+                <div className="flex flex-col items-center justify-center gap-1">
                   <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
                   <RefreshPriceButton cardId={card.id} onRefreshed={onCardRefreshed} />
                 </div>
