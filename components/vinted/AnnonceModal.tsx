@@ -259,9 +259,9 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
                 </div>
               </div>
               {onCardRefreshed && (
-                <div className="flex shrink-0 flex-col items-end justify-end gap-1">
-                  <RefreshPriceButton cardId={card.id} onRefreshed={onCardRefreshed} />
+                <div className="flex shrink-0 flex-col items-center justify-center gap-1">
                   <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
+                  <RefreshPriceButton cardId={card.id} onRefreshed={onCardRefreshed} />
                 </div>
               )}
             </div>
