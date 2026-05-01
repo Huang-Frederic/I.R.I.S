@@ -5,8 +5,6 @@ import { BookmarkCheck, Bookmark, Tag } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
 import VintedListedToggle from './VintedListedToggle';
-import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
-import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
 
 const VARIANT_LABEL: Record<string, string> = {
   pokeball: 'Poké Ball',
@@ -48,12 +46,10 @@ interface Props {
    * the card is already registered.
    */
   onMoveToPokedexClick?: (card: Card) => void;
-  /** Called when the manual refresh of this card's price succeeds. */
-  onPriceRefreshed?: (card: Card) => void;
 }
 
 export default function VintedRow({
-  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, onListedToggled, onImageClick, onMoveToPokedexClick, onPriceRefreshed,
+  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, onListedToggled, onImageClick, onMoveToPokedexClick,
 }: Props) {
   const card = group.head;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
@@ -132,15 +128,7 @@ export default function VintedRow({
           </span>
         )}
 
-        <div className="flex shrink-0 items-center gap-2">
-          {priceCell}
-          <div className="flex flex-col items-end gap-0.5">
-            {onPriceRefreshed && (
-              <RefreshPriceButton cardId={card.id} onRefreshed={onPriceRefreshed} />
-            )}
-            <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
-          </div>
-        </div>
+        <div className="shrink-0">{priceCell}</div>
 
         <button
           type="button"

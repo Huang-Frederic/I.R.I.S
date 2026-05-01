@@ -7,19 +7,23 @@ import type { Card } from '@/lib/types';
 import { buildTitle, buildDescription, MAX_TITLE_LENGTH, type VintedConfig } from '@/lib/utils/vinted-template';
 import { processImageForVinted, downloadBlob } from '@/lib/utils/image-postprocess';
 import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
+import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
+import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
 
 interface Props {
   card: Card;
   config: VintedConfig;
   onClose: () => void;
   onPriceSaved: (cardId: string, newPrice: number | null) => void;
+  /** Called when the manual refresh button updates the card's full row (cm_price_*, cm_updated_at). */
+  onCardRefreshed?: (card: Card) => void;
 }
 
 function pokeApiSprite(n: number): string {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${n}.png`;
 }
 
-export default function AnnonceModal({ card, onClose, onPriceSaved }: Props) {
+export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefreshed }: Props) {
   const [title, setTitle] = useState<string>(() => buildTitle(card));
   const [description, setDescription] = useState<string>(() => buildDescription(card));
   const [copiedField, setCopiedField] = useState<'title' | 'desc' | null>(null);
@@ -215,42 +219,51 @@ export default function AnnonceModal({ card, onClose, onPriceSaved }: Props) {
               </button>
             </div>
 
-            {/* Price grid: Suggéré is editable inline */}
-            <div className="border-border grid grid-cols-4 gap-2 rounded border p-3 text-center text-xs">
-              <PriceCell label="Low" value={card.cm_price_low} />
-              <PriceCell label="Trend" value={card.cm_price_trend} />
-              <PriceCell label="Avg" value={card.cm_price_avg} />
-              <div>
-                <p className="text-text-faint">Suggéré</p>
-                {editingSuggested ? (
-                  <input
-                    autoFocus
-                    type="text"
-                    inputMode="decimal"
-                    value={suggestedDraft}
-                    disabled={savingSuggested}
-                    onChange={(e) => setSuggestedDraft(e.target.value)}
-                    onBlur={persistSuggested}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') persistSuggested();
-                      if (e.key === 'Escape') {
-                        setSuggestedDraft(card.suggested_price !== null ? String(card.suggested_price) : '');
-                        setEditingSuggested(false);
-                      }
-                    }}
-                    className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-1 py-0.5 text-center font-mono text-xs outline-none"
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setEditingSuggested(true)}
-                    className="text-rarity-sr hover:text-rarity-sr/80 font-mono font-bold"
-                    title="Cliquer pour modifier"
-                  >
-                    {card.suggested_price !== null ? `${card.suggested_price.toFixed(2)}` : '—'}
-                  </button>
-                )}
+            {/* Price grid: Annonce (suggested_price) is editable inline.
+                Refresh button + freshness badge stack on the right (next to Annonce). */}
+            <div className="border-border flex items-stretch gap-3 rounded border p-3 text-xs">
+              <div className="grid flex-1 grid-cols-4 gap-2 text-center">
+                <PriceCell label="Low" value={card.cm_price_low} />
+                <PriceCell label="Trend" value={card.cm_price_trend} />
+                <PriceCell label="Avg" value={card.cm_price_avg} />
+                <div>
+                  <p className="text-text-faint">Annonce</p>
+                  {editingSuggested ? (
+                    <input
+                      autoFocus
+                      type="text"
+                      inputMode="decimal"
+                      value={suggestedDraft}
+                      disabled={savingSuggested}
+                      onChange={(e) => setSuggestedDraft(e.target.value)}
+                      onBlur={persistSuggested}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') persistSuggested();
+                        if (e.key === 'Escape') {
+                          setSuggestedDraft(card.suggested_price !== null ? String(card.suggested_price) : '');
+                          setEditingSuggested(false);
+                        }
+                      }}
+                      className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-1 py-0.5 text-center font-mono text-xs outline-none"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEditingSuggested(true)}
+                      className="text-rarity-sr hover:text-rarity-sr/80 font-mono font-bold"
+                      title="Cliquer pour modifier"
+                    >
+                      {card.suggested_price !== null ? `${card.suggested_price.toFixed(2)}` : '—'}
+                    </button>
+                  )}
+                </div>
               </div>
+              {onCardRefreshed && (
+                <div className="flex shrink-0 flex-col items-end justify-end gap-1">
+                  <RefreshPriceButton cardId={card.id} onRefreshed={onCardRefreshed} />
+                  <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
+                </div>
+              )}
             </div>
           </div>
         </div>
