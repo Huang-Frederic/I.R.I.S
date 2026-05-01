@@ -178,9 +178,6 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
               onListedToggled={updateCardListed}
               onImageClick={() => setZoomCard(g.head)}
               onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}
-              onPriceRefreshed={(updated) => {
-                setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
-              }}
             />
           ))}
           {soldRows.map((c) => (
@@ -206,6 +203,10 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
           config={vintedConfig}
           onClose={() => setAnnonceTarget(null)}
           onPriceSaved={updateCardPrice}
+          onCardRefreshed={(updated) => {
+            setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+            setAnnonceTarget(updated);
+          }}
         />
       )}
       {zoomCard && (
