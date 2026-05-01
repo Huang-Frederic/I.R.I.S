@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { createClient } from '@/lib/supabase/server';
 import { categorizePricingCard } from '@/lib/utils/categorize-pricing-card';
-import { recalcSuggestedPrice } from '@/lib/utils/recalc-suggested-price';
 import { lookupByCode } from '@/lib/api/tcg-catalog';
 import { toTCGdexLang } from '@/lib/api/tcgdex';
 import type { Card, CardLanguage } from '@/lib/types';
@@ -75,13 +74,11 @@ async function handleBulk(): Promise<NextResponse> {
   summary.total = cards.length;
   if (cards.length === 0) return NextResponse.json(summary);
 
-  const coeff = await readPriceCoefficient(service);
-
   for (let i = 0; i < cards.length; i += PARALLELISM) {
     const slice = cards.slice(i, i + PARALLELISM);
     await Promise.all(
       slice.map((card) =>
-        processCard(card, service, coeff, summary).catch((err: unknown) => {
+        processCard(card, service, summary).catch((err: unknown) => {
           const message = err instanceof Error ? err.message : String(err);
           summary.errors.push({ card_id: card.id, message: `unexpected: ${message}` });
         }),
@@ -92,21 +89,9 @@ async function handleBulk(): Promise<NextResponse> {
   return NextResponse.json(summary);
 }
 
-async function readPriceCoefficient(service: ReturnType<typeof createServiceClient>): Promise<number> {
-  const { data } = await service
-    .from('config')
-    .select('value')
-    .eq('key', 'price_coefficient')
-    .single();
-  const raw = (data as { value?: string } | null)?.value;
-  const parsed = raw ? Number(raw) : NaN;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0.85;
-}
-
 async function processCard(
   card: Card,
   service: ReturnType<typeof createServiceClient>,
-  coeff: number,
   summary: UpdateSummary,
 ): Promise<void> {
   const cat = categorizePricingCard(card);
@@ -154,19 +139,11 @@ async function processCard(
     return;
   }
 
-  const newSuggested = recalcSuggestedPrice({
-    oldTrend: card.cm_price_trend,
-    newTrend: cm.trend ?? null,
-    oldSuggested: card.suggested_price,
-    coeff,
-  });
-
   const update: Record<string, unknown> = {
     cm_price_low: cm.low ?? null,
     cm_price_trend: cm.trend ?? null,
     cm_price_avg: cm.avg ?? null,
     cm_updated_at: new Date().toISOString(),
-    suggested_price: newSuggested,
   };
   if (cm.idProduct != null) update.cardmarket_id = String(cm.idProduct);
   if (backfilled) update.card_id_tcg = cardIdTcg;
@@ -226,8 +203,6 @@ async function handleSingleCard(cardId: string): Promise<NextResponse> {
     );
   }
 
-  const coeff = await readPriceCoefficient(service);
-
   let cardIdTcg = card.card_id_tcg;
   let backfilled = false;
   if (cat === 'backfill') {
@@ -270,19 +245,11 @@ async function handleSingleCard(cardId: string): Promise<NextResponse> {
     );
   }
 
-  const newSuggested = recalcSuggestedPrice({
-    oldTrend: card.cm_price_trend,
-    newTrend: cm.trend ?? null,
-    oldSuggested: card.suggested_price,
-    coeff,
-  });
-
   const update: Record<string, unknown> = {
     cm_price_low: cm.low ?? null,
     cm_price_trend: cm.trend ?? null,
     cm_price_avg: cm.avg ?? null,
     cm_updated_at: new Date().toISOString(),
-    suggested_price: newSuggested,
   };
   if (cm.idProduct != null) update.cardmarket_id = String(cm.idProduct);
   if (backfilled) update.card_id_tcg = cardIdTcg;
