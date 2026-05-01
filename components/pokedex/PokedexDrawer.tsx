@@ -139,15 +139,14 @@ function PokedexCardDetails({ card, availableCards }: { card: Card; availableCar
 
       {(card.cm_price_low ?? card.cm_price_trend ?? card.cm_price_avg ?? card.suggested_price) !==
       null ? (
-        <div className="bg-surface-2 flex flex-col gap-2 rounded-lg p-4 text-sm">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="bg-surface-2 flex items-stretch gap-3 rounded-lg p-4 text-sm">
+          <div className="grid flex-1 grid-cols-2 gap-3 md:grid-cols-4">
             <Price label="Low" value={card.cm_price_low} />
             <Price label="Trend" value={card.cm_price_trend} />
             <Price label="Avg" value={card.cm_price_avg} />
-            <Price label="Suggéré" value={card.suggested_price} highlight />
+            <Price label="Annonce" value={card.suggested_price} highlight />
           </div>
-          <div className="flex items-center justify-between">
-            <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
+          <div className="flex shrink-0 flex-col items-end justify-end gap-1">
             <RefreshPriceButton
               cardId={card.id}
               onRefreshed={() => {
@@ -155,6 +154,7 @@ function PokedexCardDetails({ card, availableCards }: { card: Card; availableCar
                 router.refresh();
               }}
             />
+            <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
           </div>
         </div>
       ) : (
