@@ -161,32 +161,34 @@ export async function POST(request: Request) {
     }
   }
 
+  const row = {
+    id: cardId,
+    pokemon_name,
+    pokemon_number,
+    card_name,
+    card_id_tcg: str(formData, 'card_id_tcg'),
+    set_name: str(formData, 'set_name'),
+    set_code: str(formData, 'set_code'),
+    set_number: str(formData, 'set_number'),
+    language,
+    rarity,
+    condition,
+    status,
+    image_url,
+    tcg_image_url: str(formData, 'tcg_image_url'),
+    notes: str(formData, 'notes'),
+    variant: str(formData, 'variant') || null,
+    cardmarket_id,
+    cm_price_low,
+    cm_price_trend,
+    cm_price_avg,
+    suggested_price,
+    cm_updated_at,
+  };
+
   const { data, error } = await supabase
     .from('cards')
-    .insert({
-      id: cardId,
-      pokemon_name,
-      pokemon_number,
-      card_name,
-      card_id_tcg: str(formData, 'card_id_tcg'),
-      set_name: str(formData, 'set_name'),
-      set_code: str(formData, 'set_code'),
-      set_number: str(formData, 'set_number'),
-      language,
-      rarity,
-      condition,
-      status,
-      image_url,
-      tcg_image_url: str(formData, 'tcg_image_url'),
-      notes: str(formData, 'notes'),
-      variant: str(formData, 'variant') || null,
-      cardmarket_id,
-      cm_price_low,
-      cm_price_trend,
-      cm_price_avg,
-      suggested_price,
-      cm_updated_at,
-    })
+    .insert(row)
     .select()
     .single();
 
@@ -194,9 +196,34 @@ export async function POST(request: Request) {
     const isUniqueViolation =
       error.code === '23505' ||
       /one_for_sale_per_group|duplicate key|unique constraint/i.test(error.message ?? '');
+
+    if (isUniqueViolation && status === 'for_sale') {
+      // Auto-fallback: retry as collection. The unique index only covers for_sale,
+      // so this insert won't collide. We surface the fallback to the caller via
+      // the `fallback` field so UIs can show a toast.
+      const fallbackInsert = await supabase
+        .from('cards')
+        .insert({ ...row, status: 'collection' })
+        .select('*')
+        .single();
+      if (fallbackInsert.error) {
+        return NextResponse.json(
+          { error: `fallback failed: ${fallbackInsert.error.message}` },
+          { status: 500 },
+        );
+      }
+      return NextResponse.json({
+        card: fallbackInsert.data,
+        fallback: 'for_sale_to_collection',
+        reason: 'Une carte identique est déjà en vente, ajoutée à ton Stock',
+      });
+    }
+
     if (isUniqueViolation) {
+      // Conflict on a constraint we can't auto-resolve (e.g., the user explicitly
+      // requested status='collection' and somehow conflicted, or pokedex slot taken).
       return NextResponse.json(
-        { error: 'for_sale_conflict', message: 'Un exemplaire de cette carte est déjà en vente sur Vinted.' },
+        { error: 'for_sale_conflict', message: 'Conflit de contrainte unique non résolvable.' },
         { status: 409 },
       );
     }
