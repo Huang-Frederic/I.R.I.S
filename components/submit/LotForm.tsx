@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, X } from 'lucide-react';
 import { buildLotAnnonce } from '@/lib/utils/lot-template';
+import { resizeImage } from '@/lib/utils/resize-image';
 import type { CardLanguage, CardCondition } from '@/lib/types';
 
 // Visible languages in the lot form. The CardLanguage enum still supports DE/IT/ES/PT
@@ -51,9 +52,22 @@ export default function LotForm() {
   const titleLength = annonce.title.length;
   const titleOver = titleLength > TITLE_MAX;
 
-  function addPhotos(files: FileList | File[]) {
+  async function addPhotos(files: FileList | File[]) {
     const arr = Array.from(files).filter((f) => f.type.startsWith('image/'));
-    setPhotos((prev) => [...prev, ...arr]);
+    // Resize each photo client-side before storing in state. Reduces upload
+    // payload (Vercel proxy limit ~25MB now, but smaller is faster regardless).
+    const resized = await Promise.all(
+      arr.map(async (f) => {
+        try {
+          const blob = await resizeImage(f);
+          return new File([blob], f.name, { type: 'image/jpeg' });
+        } catch {
+          // If resize fails (e.g. corrupt image), keep the original — server will reject if needed
+          return f;
+        }
+      }),
+    );
+    setPhotos((prev) => [...prev, ...resized]);
   }
 
   function removePhoto(index: number) {
@@ -196,7 +210,7 @@ function PhotoDropzone({
 }: {
   photos: File[];
   previewUrls: string[];
-  onAdd: (files: FileList) => void;
+  onAdd: (files: FileList | File[]) => Promise<void>;
   onRemove: (index: number) => void;
 }) {
   const [dragging, setDragging] = useState(false);
@@ -210,7 +224,7 @@ function PhotoDropzone({
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
-          if (e.dataTransfer.files.length) onAdd(e.dataTransfer.files);
+          if (e.dataTransfer.files.length) void onAdd(e.dataTransfer.files);
         }}
         className={`bg-surface-2 mt-1 flex cursor-pointer items-center justify-center rounded border border-dashed p-4 text-sm transition-colors ${
           dragging ? 'border-red' : 'border-border'
@@ -220,7 +234,7 @@ function PhotoDropzone({
           type="file"
           accept="image/*"
           multiple
-          onChange={(e) => e.target.files && onAdd(e.target.files)}
+          onChange={(e) => { if (e.target.files) void onAdd(e.target.files); }}
           className="hidden"
         />
         <span className="text-text-muted flex items-center gap-2">

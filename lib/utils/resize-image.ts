@@ -9,7 +9,7 @@ export async function resizeImage(
   file: File,
   options: { maxDim?: number; quality?: number } = {},
 ): Promise<Blob> {
-  const { maxDim = 1600, quality = 0.85 } = options;
+  const { maxDim = 1024, quality = 0.85 } = options;
   if (typeof document === 'undefined') {
     throw new Error('resizeImage must run in the browser');
   }
