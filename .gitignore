@@ -51,7 +51,7 @@ next-env.d.ts
 .claude/settings.local.json
 .vscode/
 
-# Python virtualenv (for scripts/add_cards.py)
+# Python virtualenvs (defensive — projet 100% TS depuis Phase 3b2 v2)
 env/
 venv/
 .venv/
