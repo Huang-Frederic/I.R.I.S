@@ -8,9 +8,13 @@ interface Props {
   cardId: string;
   initialPrice: number | null;
   onSaved: (newPrice: number | null) => void;
+  /** Override the default endpoint `/api/cards/${cardId}`. Lot rows pass `/api/lots/${lotId}`. */
+  endpoint?: string;
+  /** Override the field name in the PATCH body. Defaults to 'suggested_price' (cards). Lots use 'price'. */
+  priceField?: 'suggested_price' | 'price';
 }
 
-export default function EditablePriceCell({ cardId, initialPrice, onSaved }: Props) {
+export default function EditablePriceCell({ cardId, initialPrice, onSaved, endpoint, priceField }: Props) {
   const [price, setPrice] = useState<number | null>(initialPrice);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<string>(initialPrice !== null ? String(initialPrice) : '');
@@ -26,10 +30,12 @@ export default function EditablePriceCell({ cardId, initialPrice, onSaved }: Pro
       return;
     }
     try {
-      const res = await fetch(`/api/cards/${cardId}`, {
+      const url = endpoint ?? `/api/cards/${cardId}`;
+      const field = priceField ?? 'suggested_price';
+      const res = await fetch(url, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ suggested_price: parsed }),
+        body: JSON.stringify({ [field]: parsed }),
       });
       if (!res.ok) throw new Error('save failed');
       setPrice(parsed);

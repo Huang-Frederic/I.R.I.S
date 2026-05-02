@@ -11,6 +11,8 @@ interface Props {
   /** Current vinted_listed_at value (null = offline). */
   currentListedAt: string | null;
   onToggled: (listedAt: string | null) => void;
+  /** Override the default endpoint `/api/cards/${cardId}`. Lot rows pass `/api/lots/${lotId}`. */
+  endpoint?: string;
 }
 
 type State = 'offline' | 'online' | 'stale';
@@ -26,7 +28,7 @@ function formatDays(d: number): string {
   return `${d}j`;
 }
 
-export default function VintedListedToggle({ cardId, currentListedAt, onToggled }: Props) {
+export default function VintedListedToggle({ cardId, currentListedAt, onToggled, endpoint }: Props) {
   const [listed, setListed] = useState(currentListedAt);
   const [busy, setBusy] = useState(false);
   // Lazy-init now to avoid SSR/hydration mismatch
@@ -42,7 +44,8 @@ export default function VintedListedToggle({ cardId, currentListedAt, onToggled 
     setListed(next);
     setConfirmKind(null);
     try {
-      const res = await fetch(`/api/cards/${cardId}`, {
+      const url = endpoint ?? `/api/cards/${cardId}`;
+      const res = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vinted_listed_at: next }),
