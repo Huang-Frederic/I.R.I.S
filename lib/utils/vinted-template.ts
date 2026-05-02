@@ -8,12 +8,12 @@ export const LANGUAGE_FLAGS: Record<CardLanguage, string> = {
   ES: '🇪🇸', KO: '🇰🇷', PT: '🇵🇹', ZH: '🇨🇳',
 };
 
-const LANGUAGE_FEMALE: Record<CardLanguage, string> = {
+export const LANGUAGE_FEMALE: Record<CardLanguage, string> = {
   JP: 'Japonaise', EN: 'Anglaise', FR: 'Française', DE: 'Allemande',
   IT: 'Italienne', ES: 'Espagnole', KO: 'Coréenne', PT: 'Portugaise', ZH: 'Chinoise',
 };
 
-const CONDITION_LABEL: Record<CardCondition, string> = {
+export const CONDITION_LABEL: Record<CardCondition, string> = {
   NM: 'Très bon état (Near Mint)',
   EX: 'Excellent (EX)',
   GD: 'Bon état (Good)',
