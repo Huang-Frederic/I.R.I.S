@@ -54,8 +54,23 @@ export interface Card {
 
 export interface Lot {
   id: string;
+  /** Legacy column from initial scaffold — unused since Phase 3b1, may be null. */
   photo_url: string | null;
   created_at: string;
+
+  // Phase 3b1 extensions
+  name: string;
+  language: CardLanguage | null;
+  condition: CardCondition;
+  extra_description: string | null;
+  price: number | null;
+  status: 'for_sale' | 'sold';
+  date_sold: string | null;
+  sold_price: number | null;
+  vinted_listed_at: string | null;
+  /** Array of Storage paths relative to the lot-photos bucket, e.g. ["{lot_id}/0.jpg"]. */
+  photo_urls: string[];
+  date_added: string;
 }
 
 export interface RarityRank {
