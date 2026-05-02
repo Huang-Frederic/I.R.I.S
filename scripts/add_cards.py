@@ -163,6 +163,89 @@ def _row_from_ocr(path: Path, ocr: dict, source: str) -> dict:
     }
 
 
+def mode_two(folder: Path, csv_path: Path, iris: IrisClient) -> int:
+    """Mode 2: read CSV, commit each row via POST /api/cards, prompt on fallback."""
+    from scripts.lib.csv_io import read_for_commit, update_row_in_place
+
+    rows = read_for_commit(csv_path)
+    print(f"[mode 2] Committing {len(rows)} row(s) from {csv_path}")
+
+    iris.login()
+    accept_all = False  # set to True if the user presses 'A' once
+    aborted = False
+
+    for i, row in enumerate(rows, start=1):
+        filename = row["filename"]
+        count = int(row.get("count") or "1")
+        photo_path = folder / filename
+        if not photo_path.exists():
+            print(f"  ✗ {filename}: photo missing in {folder}")
+            update_row_in_place(csv_path, filename=filename, error="photo file missing")
+            continue
+
+        final_ids: list[str] = []
+        final_statuses: list[str] = []
+        last_error = ""
+
+        for copy_idx in range(count):
+            try:
+                resp = iris.create_card(
+                    {
+                        "card_name": row["card_name"],
+                        "pokemon_name": row.get("card_name", ""),  # fallback
+                        "pokemon_number": "",
+                        "set_code": row["set_code"],
+                        "set_number": row["set_number"],
+                        "language": row["language"],
+                        "rarity": "OTHER",  # enrich result already wrote this if known
+                        "condition": row.get("condition", "NM"),
+                        "variant": row.get("variant", ""),
+                        "status": row.get("requested_status", "for_sale"),
+                    },
+                    photo_path,
+                )
+
+                if resp.get("error"):
+                    last_error = resp["error"]
+                    print(f"  ✗ [{i}/{len(rows)}] {filename} copy {copy_idx+1}/{count}: {last_error}")
+                    break  # stop trying more copies of this card
+
+                card = resp.get("card", {})
+                final_ids.append(card.get("id", ""))
+                fallback = resp.get("fallback")
+                if fallback == "for_sale_to_collection":
+                    final_statuses.append("collection")
+                    print(f"\n  ⚠  [{i}/{len(rows)}] {filename}: cette carte est déjà en ligne, ajoutée à Stock.")
+                    if not accept_all:
+                        choice = input("    Y=continue, N=abort, A=accept all remaining: ").strip().upper()
+                        if choice == "A":
+                            accept_all = True
+                        elif choice == "N":
+                            aborted = True
+                            break
+                        # else assume Y → continue
+                else:
+                    final_statuses.append(card.get("status", row.get("requested_status", "")))
+            except Exception as e:
+                last_error = str(e)
+                print(f"  ✗ [{i}/{len(rows)}] {filename} copy {copy_idx+1}/{count}: {last_error}")
+                break
+
+        update_row_in_place(
+            csv_path,
+            filename=filename,
+            final_status=" + ".join(final_statuses) if final_statuses else "",
+            final_ids=", ".join(final_ids),
+            error=last_error,
+        )
+        if aborted:
+            print(f"\n[mode 2] User aborted. {i} of {len(rows)} row(s) processed.")
+            return 1
+
+    print(f"\n[mode 2] Done. {len(rows)} row(s) processed. CSV updated in-place.")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="IRIS bulk import script")
     parser.add_argument("folder", type=Path, help="Folder containing card photos")
@@ -186,8 +269,7 @@ def main() -> int:
     iris = IrisClient(iris_config)
 
     if args.commit:
-        print("ERROR: --commit not implemented yet (Task 11)", file=sys.stderr)
-        return 1
+        return mode_two(args.folder, args.commit, iris)
     else:
         mode_one(args.folder, args.output, api_key, iris)
         return 0
