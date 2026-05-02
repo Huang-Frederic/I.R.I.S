@@ -1,16 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { ScanLine, Layers, Terminal } from 'lucide-react';
+import { ScanLine, Layers, Package } from 'lucide-react';
 import CardScanForm from './CardScanForm';
 import LotForm from './LotForm';
+import BatchForm from './BatchForm';
 
-type Tab = 'mobile' | 'lot' | 'script';
+type Tab = 'mobile' | 'lot' | 'batch';
 
 const TABS: { id: Tab; label: string; icon: typeof ScanLine }[] = [
   { id: 'mobile', label: 'Mobile', icon: ScanLine },
   { id: 'lot', label: 'Lot Vinted', icon: Layers },
-  { id: 'script', label: 'Script', icon: Terminal },
+  { id: 'batch', label: 'Batch', icon: Package },
 ];
 
 export default function SubmitTabs() {
@@ -42,12 +43,7 @@ export default function SubmitTabs() {
 
       {tab === 'mobile' && <CardScanForm />}
       {tab === 'lot' && <LotForm />}
-      {tab === 'script' && (
-        <p className="text-text-muted bg-surface border-border rounded-lg border p-6 text-sm">
-          Le script Python d&apos;import en masse arrive en Phase 3. Voir{' '}
-          <code className="bg-surface-2 rounded px-1 py-0.5 text-xs">scripts/add_cards.py</code>.
-        </p>
-      )}
+      {tab === 'batch' && <BatchForm />}
     </div>
   );
 }
