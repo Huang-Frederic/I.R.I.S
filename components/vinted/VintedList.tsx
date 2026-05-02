@@ -10,7 +10,7 @@ import VintedFilters, { INITIAL_FILTERS, type VintedFilterState } from './Vinted
 import VintedRow from './VintedRow';
 import SoldRow from './SoldRow';
 import EditablePriceCell from './EditablePriceCell';
-import SoldModal from './SoldModal';
+import SoldModal, { type SoldEntity } from './SoldModal';
 import RestockToast from './RestockToast';
 import AnnonceModal from './AnnonceModal';
 import PromoteAfterSoldModal from './PromoteAfterSoldModal';
@@ -65,7 +65,7 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
     setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, vinted_listed_at: listedAt } : c)));
   };
 
-  const [soldTarget, setSoldTarget] = useState<Card | null>(null);
+  const [soldTarget, setSoldTarget] = useState<SoldEntity | null>(null);
   const [restockAlert, setRestockAlert] = useState<RestockAlert | null>(null);
   const [promoteCandidate, setPromoteCandidate] = useState<PromoteCandidate | null>(null);
   const [annonceTarget, setAnnonceTarget] = useState<Card | null>(null);
@@ -83,26 +83,28 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
     return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${card.pokemon_number}.png`;
   }
 
-  const handleSold = ({
-    soldCardId,
-    restock,
-    promote,
-  }: {
-    soldCardId: string;
+  const handleSold = (info: {
+    soldId: string;
+    kind: 'card' | 'lot';
     restock: RestockAlert | null;
     promote: PromoteCandidate | null;
   }) => {
-    // Mark the card as sold in local state instead of removing it (so it shows up under Vendus filter).
-    setCards((prev) =>
-      prev.map((c) =>
-        c.id === soldCardId
-          ? { ...c, status: 'sold' as const, date_sold: new Date().toISOString() }
-          : c,
-      ),
-    );
+    // For Phase 3b1, lot handling will be wired in Task 10 (VintedList lots state).
+    // For now, only the card branch updates local state.
+    if (info.kind === 'card') {
+      // Mark the card as sold in local state instead of removing it (so it shows up under Vendus filter).
+      setCards((prev) =>
+        prev.map((c) =>
+          c.id === info.soldId
+            ? { ...c, status: 'sold' as const, date_sold: new Date().toISOString() }
+            : c,
+        ),
+      );
+      if (info.restock) setRestockAlert(info.restock);
+      if (info.promote) setPromoteCandidate(info.promote);
+    }
+    // info.kind === 'lot' is a no-op here; Task 10 wires setLots
     setSoldTarget(null);
-    if (restock) setRestockAlert(restock);
-    if (promote) setPromoteCandidate(promote);
   };
 
   const handlePromoted = () => {
@@ -174,7 +176,7 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
                 />
               }
               onAnnonceClick={() => setAnnonceTarget(g.head)}
-              onSoldClick={() => setSoldTarget(g.head)}
+              onSoldClick={() => setSoldTarget({ kind: 'card', card: g.head })}
               onListedToggled={updateCardListed}
               onImageClick={() => setZoomCard(g.head)}
               onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}
@@ -187,7 +189,7 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
       )}
 
       {soldTarget && (
-        <SoldModal card={soldTarget} onClose={() => setSoldTarget(null)} onSold={handleSold} />
+        <SoldModal entity={soldTarget} onClose={() => setSoldTarget(null)} onSold={handleSold} />
       )}
       {restockAlert && <RestockToast alert={restockAlert} onDismiss={() => setRestockAlert(null)} />}
       {promoteCandidate && (

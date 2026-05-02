@@ -3,15 +3,20 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import type { Card } from '@/lib/types';
+import type { Card, Lot } from '@/lib/types';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 
+export type SoldEntity =
+  | { kind: 'card'; card: Card }
+  | { kind: 'lot'; lot: Lot };
+
 interface Props {
-  card: Card;
+  entity: SoldEntity;
   onClose: () => void;
   onSold: (info: {
-    soldCardId: string;
+    soldId: string;
+    kind: 'card' | 'lot';
     restock: RestockAlert | null;
     promote: PromoteCandidate | null;
   }) => void;
@@ -21,11 +26,15 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function SoldModal({ card, onClose, onSold }: Props) {
+export default function SoldModal({ entity, onClose, onSold }: Props) {
   const [price, setPrice] = useState<string>('');
   const [date, setDate] = useState<string>(todayIso());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const displayName = entity.kind === 'card' ? entity.card.card_name : entity.lot.name;
+  const targetId = entity.kind === 'card' ? entity.card.id : entity.lot.id;
+  const endpoint = entity.kind === 'card' ? `/api/cards/${targetId}` : `/api/lots/${targetId}`;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +45,7 @@ export default function SoldModal({ card, onClose, onSold }: Props) {
       if (parsedPrice !== null && (!Number.isFinite(parsedPrice) || parsedPrice < 0)) {
         throw new Error('Prix invalide');
       }
-      const res = await fetch(`/api/cards/${card.id}`, {
+      const res = await fetch(endpoint, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -47,7 +56,12 @@ export default function SoldModal({ card, onClose, onSold }: Props) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Erreur serveur');
-      onSold({ soldCardId: card.id, restock: json.restock ?? null, promote: json.promote ?? null });
+      onSold({
+        soldId: targetId,
+        kind: entity.kind,
+        restock: json.restock ?? null,
+        promote: json.promote ?? null,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setSubmitting(false);
@@ -60,7 +74,7 @@ export default function SoldModal({ card, onClose, onSold }: Props) {
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-semibold">Marquer comme vendue</h2>
-            <p className="text-text-muted mt-1 text-sm">{card.card_name}</p>
+            <p className="text-text-muted mt-1 text-sm">{displayName}</p>
           </div>
           <button
             type="button"
