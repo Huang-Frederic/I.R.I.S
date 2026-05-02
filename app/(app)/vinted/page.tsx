@@ -1,7 +1,7 @@
 // app/(app)/vinted/page.tsx
 import { createClient } from '@/lib/supabase/server';
 import VintedList from '@/components/vinted/VintedList';
-import type { Card } from '@/lib/types';
+import type { Card, Lot } from '@/lib/types';
 
 export const metadata = {
   title: 'Vinted — I.R.I.S',
@@ -10,7 +10,7 @@ export const metadata = {
 export default async function VintedPage() {
   const supabase = await createClient();
 
-  const [forSaleResult, pokedexResult, configResult] = await Promise.all([
+  const [forSaleResult, pokedexResult, configResult, lotsResult] = await Promise.all([
     supabase
       .from('cards')
       .select('*')
@@ -21,10 +21,15 @@ export default async function VintedPage() {
       .select('pokemon_number')
       .eq('status', 'pokedex'),
     supabase.from('config').select('*'),
+    supabase
+      .from('lots')
+      .select('*')
+      .in('status', ['for_sale', 'sold'])
+      .order('date_added', { ascending: true }),
   ]);
 
   const fetchError =
-    forSaleResult.error ?? pokedexResult.error ?? configResult.error;
+    forSaleResult.error ?? pokedexResult.error ?? configResult.error ?? lotsResult.error;
   if (fetchError) {
     return (
       <section>
@@ -35,6 +40,7 @@ export default async function VintedPage() {
   }
 
   const cards = (forSaleResult.data ?? []) as Card[];
+  const lots = (lotsResult.data ?? []) as Lot[];
   const registered = new Set<number>(
     (pokedexResult.data ?? []).map((r: { pokemon_number: number }) => r.pokemon_number),
   );
@@ -51,7 +57,7 @@ export default async function VintedPage() {
         </p>
       </div>
       <div className="mt-6">
-        <VintedList cards={cards} registered={registered} config={config} />
+        <VintedList cards={cards} lots={lots} registered={registered} config={config} />
       </div>
     </section>
   );
