@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Card } from '@/lib/types';
+import type { Card, Lot } from '@/lib/types';
 import { groupCards } from '@/lib/utils/group-cards';
 import { sortVintedGroups } from '@/lib/utils/vinted-sort';
 import VintedFilters, { INITIAL_FILTERS, type VintedFilterState } from './VintedFilters';
@@ -20,9 +20,12 @@ import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 import type { VintedConfig } from '@/lib/utils/vinted-template';
 import { passesStateChips, shouldHideForSalePile } from '@/lib/utils/vinted-filter';
 import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
+import LotRow from '@/components/lots/LotRow';
+import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
 
 export interface VintedListProps {
   cards: Card[];
+  lots: Lot[];
   registered: Set<number>;
   config: Record<string, string>;
 }
@@ -51,11 +54,15 @@ function matchesAttrFilters(card: Card, f: VintedFilterState): boolean {
   return true;
 }
 
-export default function VintedList({ cards: initial, registered, config }: VintedListProps) {
+export default function VintedList({ cards: initial, lots: initialLots, registered, config }: VintedListProps) {
   const router = useRouter();
   const [cards, setCards] = useState<Card[]>(initial);
+  const [lots, setLots] = useState<Lot[]>(initialLots);
   const [filters, setFilters] = useState<VintedFilterState>(INITIAL_FILTERS);
   const [now] = useState(() => Date.now());
+
+  const storagePublicUrl = (path: string) =>
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/lot-photos/${path}`;
 
   const updateCardPrice = (cardId: string, newPrice: number | null) => {
     setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, suggested_price: newPrice } : c)));
@@ -65,10 +72,19 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
     setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, vinted_listed_at: listedAt } : c)));
   };
 
+  const updateLotPrice = (lotId: string, newPrice: number | null) => {
+    setLots((prev) => prev.map((l) => (l.id === lotId ? { ...l, price: newPrice } : l)));
+  };
+
+  const updateLotListed = (lotId: string, listedAt: string | null) => {
+    setLots((prev) => prev.map((l) => (l.id === lotId ? { ...l, vinted_listed_at: listedAt } : l)));
+  };
+
   const [soldTarget, setSoldTarget] = useState<SoldEntity | null>(null);
   const [restockAlert, setRestockAlert] = useState<RestockAlert | null>(null);
   const [promoteCandidate, setPromoteCandidate] = useState<PromoteCandidate | null>(null);
   const [annonceTarget, setAnnonceTarget] = useState<Card | null>(null);
+  const [lotAnnonceTarget, setLotAnnonceTarget] = useState<Lot | null>(null);
   const [zoomCard, setZoomCard] = useState<Card | null>(null);
   const [moveToPokedexCard, setMoveToPokedexCard] = useState<Card | null>(null);
 
@@ -89,8 +105,6 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
     restock: RestockAlert | null;
     promote: PromoteCandidate | null;
   }) => {
-    // For Phase 3b1, lot handling will be wired in Task 10 (VintedList lots state).
-    // For now, only the card branch updates local state.
     if (info.kind === 'card') {
       // Mark the card as sold in local state instead of removing it (so it shows up under Vendus filter).
       setCards((prev) =>
@@ -102,8 +116,16 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
       );
       if (info.restock) setRestockAlert(info.restock);
       if (info.promote) setPromoteCandidate(info.promote);
+    } else {
+      // Lot branch: mark the lot as sold in local state (so it appears under Vendus filter).
+      setLots((prev) =>
+        prev.map((l) =>
+          l.id === info.soldId
+            ? { ...l, status: 'sold' as const, date_sold: new Date().toISOString() }
+            : l,
+        ),
+      );
     }
-    // info.kind === 'lot' is a no-op here; Task 10 wires setLots
     setSoldTarget(null);
   };
 
@@ -112,7 +134,7 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
     router.refresh();
   };
 
-  const { groups, soldRows, totalVisible } = useMemo(() => {
+  const { groups, soldRows, forSaleLots, soldLotsList, totalVisible } = useMemo(() => {
     const forSale = cards.filter((c) => c.status === 'for_sale');
     const sold = cards.filter((c) => c.status === 'sold');
 
@@ -139,14 +161,27 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
       position: i + 1,
     }));
 
+    // Lots: no grouping, each lot is unique. For Phase 3b1, we don't apply card-specific filters
+    // (search, language, rarity, etc.) to lots since they don't have those fields.
+    // Future enhancement: simple text search on lot.name.
+    const forSaleLots = lots.filter((l) => l.status === 'for_sale');
+
+    const soldLotsList = filters.showSold
+      ? lots
+          .filter((l) => l.status === 'sold')
+          .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''))
+      : [];
+
     return {
       groups: sorted,
       soldRows: soldSubset,
-      totalVisible: finalForSale.length + soldSubset.length,
+      forSaleLots,
+      soldLotsList,
+      totalVisible: finalForSale.length + soldSubset.length + forSaleLots.length + soldLotsList.length,
     };
-  }, [cards, filters, now]);
+  }, [cards, lots, filters, now]);
 
-  const isEmpty = groups.length === 0 && soldRows.length === 0;
+  const isEmpty = groups.length === 0 && soldRows.length === 0 && forSaleLots.length === 0 && soldLotsList.length === 0;
 
   return (
     <div>
@@ -182,8 +217,32 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
               onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}
             />
           ))}
+          {forSaleLots.map((l) => (
+            <LotRow
+              key={`lot-${l.id}`}
+              lot={l}
+              storagePublicUrl={storagePublicUrl}
+              onAnnonceClick={(lot) => setLotAnnonceTarget(lot)}
+              onSoldClick={(lot) => setSoldTarget({ kind: 'lot', lot })}
+              onPriceSaved={updateLotPrice}
+              onListedToggled={updateLotListed}
+            />
+          ))}
           {soldRows.map((c) => (
             <SoldRow key={c.id} card={c} />
+          ))}
+          {soldLotsList.map((l) => (
+            <LotRow
+              key={`sold-lot-${l.id}`}
+              lot={l}
+              storagePublicUrl={storagePublicUrl}
+              onAnnonceClick={(lot) => setLotAnnonceTarget(lot)}
+              onSoldClick={() => {
+                /* already sold */
+              }}
+              onPriceSaved={updateLotPrice}
+              onListedToggled={updateLotListed}
+            />
           ))}
         </ul>
       )}
@@ -209,6 +268,14 @@ export default function VintedList({ cards: initial, registered, config }: Vinte
             setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
             setAnnonceTarget(updated);
           }}
+        />
+      )}
+      {lotAnnonceTarget && (
+        <LotAnnonceModal
+          lot={lotAnnonceTarget}
+          storagePublicUrl={storagePublicUrl}
+          onClose={() => setLotAnnonceTarget(null)}
+          onPriceSaved={updateLotPrice}
         />
       )}
       {zoomCard && (
