@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import { ScanLine, Layers, Terminal } from 'lucide-react';
 import CardScanForm from './CardScanForm';
+import LotForm from './LotForm';
 
 type Tab = 'mobile' | 'lot' | 'script';
 
 const TABS: { id: Tab; label: string; icon: typeof ScanLine }[] = [
   { id: 'mobile', label: 'Mobile', icon: ScanLine },
-  { id: 'lot', label: 'Lot ≤20', icon: Layers },
+  { id: 'lot', label: 'Lot Vinted', icon: Layers },
   { id: 'script', label: 'Script', icon: Terminal },
 ];
 
@@ -40,11 +41,7 @@ export default function SubmitTabs() {
       </div>
 
       {tab === 'mobile' && <CardScanForm />}
-      {tab === 'lot' && (
-        <p className="text-text-muted bg-surface border-border rounded-lg border p-6 text-sm">
-          Mode lot (jusqu&apos;à 20 cartes en une fois) disponible en Phase 3.
-        </p>
-      )}
+      {tab === 'lot' && <LotForm />}
       {tab === 'script' && (
         <p className="text-text-muted bg-surface border-border rounded-lg border p-6 text-sm">
           Le script Python d&apos;import en masse arrive en Phase 3. Voir{' '}
