@@ -1,6 +1,11 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Bumped to 25MB to allow lot photo multipart uploads (default is 1MB).
+  // Lots can have up to ~10 photos at ~2-3MB each from a phone camera.
+  experimental: {
+    middlewareClientMaxBodySize: '25mb',
+  },
   images: {
     remotePatterns: [
       // Pokémon TCG official card images
