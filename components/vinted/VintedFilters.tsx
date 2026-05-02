@@ -8,6 +8,8 @@ export interface VintedFilterState {
   language: CardLanguage | 'all';
   rarity: CardRarity | 'all';
   variant: 'all' | 'standard' | 'pokeball' | 'masterball' | 'reverse_holo' | 'promo';
+  /** Type of listings to show: all (cards+lots), cards only, or lots only. */
+  kindFilter: 'all' | 'cards' | 'lots';
   // Cumulative chips
   showOnline: boolean;     // include for_sale where vinted_listed_at != null
   showOffline: boolean;    // include for_sale where vinted_listed_at == null
@@ -20,6 +22,7 @@ export const INITIAL_FILTERS: VintedFilterState = {
   language: 'all',
   rarity: 'all',
   variant: 'all',
+  kindFilter: 'all',
   showOnline: false,
   showOffline: false,
   showSold: false,
@@ -102,6 +105,24 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
           <option value="all">Tous variants</option>
           {VARIANTS.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
         </select>
+      </div>
+
+      <div className="flex items-center gap-1">
+        <span className="text-text-faint mr-1 text-xs">Type :</span>
+        {(['all', 'cards', 'lots'] as const).map((k) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => onChange({ ...value, kindFilter: k })}
+            className={`rounded px-2 py-1 text-xs ${
+              value.kindFilter === k
+                ? 'bg-red text-bg'
+                : 'bg-surface-2 text-text-muted hover:text-text'
+            }`}
+          >
+            {k === 'all' ? 'Tout' : k === 'cards' ? 'Cartes' : 'Lots'}
+          </button>
+        ))}
       </div>
 
       <div className="flex flex-wrap gap-2">

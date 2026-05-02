@@ -135,6 +135,9 @@ export default function VintedList({ cards: initial, lots: initialLots, register
   };
 
   const { groups, soldRows, forSaleLots, soldLotsList, totalVisible } = useMemo(() => {
+    const showCards = filters.kindFilter !== 'lots';
+    const showLots = filters.kindFilter !== 'cards';
+
     const forSale = cards.filter((c) => c.status === 'for_sale');
     const sold = cards.filter((c) => c.status === 'sold');
 
@@ -145,16 +148,16 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     // The state chips (En ligne / Pas en ligne / À rafraîchir) combine
     // additively — see lib/utils/vinted-filter.ts for the rules. Using the
     // shared helper keeps the UI semantics in lockstep with the test suite.
-    const finalForSale = shouldHideForSalePile(filters)
+    const finalForSale = !showCards || shouldHideForSalePile(filters)
       ? []
       : forSale.filter((c) => passesCommon(c) && passesStateChips(c, filters, now));
 
     // Sold pile is independent: included only when the Vendus chip is on.
-    const soldSubset = filters.showSold
-      ? sold
+    const soldSubset = !showCards || !filters.showSold
+      ? []
+      : sold
           .filter(passesCommon)
-          .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''))
-      : [];
+          .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''));
 
     const sorted = sortVintedGroups(groupCards(finalForSale), now).map((g, i) => ({
       ...g,
@@ -164,13 +167,15 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     // Lots: no grouping, each lot is unique. For Phase 3b1, we don't apply card-specific filters
     // (search, language, rarity, etc.) to lots since they don't have those fields.
     // Future enhancement: simple text search on lot.name.
-    const forSaleLots = lots.filter((l) => l.status === 'for_sale');
+    const forSaleLots = !showLots
+      ? []
+      : lots.filter((l) => l.status === 'for_sale');
 
-    const soldLotsList = filters.showSold
-      ? lots
+    const soldLotsList = !showLots || !filters.showSold
+      ? []
+      : lots
           .filter((l) => l.status === 'sold')
-          .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''))
-      : [];
+          .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''));
 
     return {
       groups: sorted,
