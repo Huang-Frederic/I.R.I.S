@@ -9,7 +9,8 @@ export async function resizeImage(
   file: File,
   options: { maxDim?: number; quality?: number } = {},
 ): Promise<Blob> {
-  const { maxDim = 1024, quality = 0.85 } = options;
+  // 1600 is the sweet spot — bottom-of-card text (set_code/set_number, ~5pt) is OCR-readable; 1024 dropped 8/30 cards in user testing.
+  const { maxDim = 1600, quality = 0.85 } = options;
   if (typeof document === 'undefined') {
     throw new Error('resizeImage must run in the browser');
   }

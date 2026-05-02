@@ -44,6 +44,13 @@ function matchesSearch(card: Card, query: string): boolean {
   return fields.some((f) => f && normalize(f).includes(q));
 }
 
+function matchesLotSearch(lot: Lot, query: string): boolean {
+  if (!query) return true;
+  const q = normalize(query);
+  const fields = [lot.name, lot.extra_description ?? '', lot.language ?? ''];
+  return fields.some((f) => f && normalize(f).includes(q));
+}
+
 function matchesAttrFilters(card: Card, f: VintedFilterState): boolean {
   if (f.language !== 'all' && card.language !== f.language) return false;
   if (f.rarity !== 'all' && card.rarity !== f.rarity) return false;
@@ -164,17 +171,15 @@ export default function VintedList({ cards: initial, lots: initialLots, register
       position: i + 1,
     }));
 
-    // Lots: no grouping, each lot is unique. For Phase 3b1, we don't apply card-specific filters
-    // (search, language, rarity, etc.) to lots since they don't have those fields.
-    // Future enhancement: simple text search on lot.name.
+    // Lots: no grouping, each lot is unique. Apply search filter to lot name + extra_description.
     const forSaleLots = !showLots
       ? []
-      : lots.filter((l) => l.status === 'for_sale');
+      : lots.filter((l) => l.status === 'for_sale' && matchesLotSearch(l, filters.search));
 
     const soldLotsList = !showLots || !filters.showSold
       ? []
       : lots
-          .filter((l) => l.status === 'sold')
+          .filter((l) => l.status === 'sold' && matchesLotSearch(l, filters.search))
           .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''));
 
     return {
