@@ -1,14 +1,14 @@
 // components/submit/BatchForm.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, X, Loader2 } from 'lucide-react';
 import { resizeImage } from '@/lib/utils/resize-image';
 import BatchReviewQueue, { type QueueItem } from './BatchReviewQueue';
 import type { OcrResult, EnrichResult } from '@/lib/types';
 
-const MAX_PHOTOS = 15;
+const MAX_PHOTOS = 30;
 
 type Phase = 'pick' | 'analyzing' | 'review' | 'committing' | 'done';
 
@@ -27,6 +27,16 @@ export default function BatchForm() {
   const [items, setItems] = useState<QueueItem[]>([]);
   const [progress, setProgress] = useState(0);
   const [summary, setSummary] = useState<CommitSummary | null>(null);
+  const [registeredPokedex, setRegisteredPokedex] = useState<Set<number>>(new Set());
+  const [maxIndexReached, setMaxIndexReached] = useState(0);
+
+  useEffect(() => {
+    // Fetch all currently-registered Pokédex numbers once at mount.
+    fetch('/api/pokedex/registered')
+      .then((r) => r.ok ? r.json() : { numbers: [] })
+      .then((j: { numbers: number[] }) => setRegisteredPokedex(new Set(j.numbers)))
+      .catch(() => setRegisteredPokedex(new Set()));
+  }, []);
 
   function addPhotos(files: FileList | File[]) {
     const arr = Array.from(files).filter((f) => f.type.startsWith('image/'));
@@ -54,6 +64,10 @@ export default function BatchForm() {
           localId: ocr.setNumberCandidate?.card,
           // Default language for enrich lookup; user can refine in the review queue
           language: 'JP',
+          pokemonNumber: ocr.pokemonNumber,
+          pokemonNameFr: ocr.pokemonNameFr,
+          setName: ocr.setName,
+          setNameFr: ocr.setNameFr,
         }),
       });
       const enrich = await enrichRes.json() as EnrichResult;
@@ -85,13 +99,9 @@ export default function BatchForm() {
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
   }
 
-  function skipItem(index: number) {
-    updateItem(index, { requested_status: 'SKIP' });
-  }
-
   async function commit() {
     setPhase('committing');
-    const commitItems = items.filter((i) => i.requested_status !== 'SKIP');
+    const commitItems = items;
     let for_sale = 0, collection = 0, fallback = 0, failed = 0;
 
     for (const item of commitItems) {
@@ -150,11 +160,18 @@ export default function BatchForm() {
   if (phase === 'review') {
     return (
       <div className="space-y-4">
-        <BatchReviewQueue items={items} onUpdate={updateItem} onSkip={skipItem} />
+        <BatchReviewQueue
+          items={items}
+          onUpdate={updateItem}
+          registeredPokedex={registeredPokedex}
+          onIndexReached={(idx) => setMaxIndexReached((m) => Math.max(m, idx))}
+        />
         <button
           type="button"
           onClick={commit}
-          className="bg-red text-bg w-full rounded px-4 py-2 text-sm font-medium"
+          disabled={maxIndexReached < items.length - 1}
+          title={maxIndexReached < items.length - 1 ? 'Validez toutes les cartes avant d\'enregistrer' : undefined}
+          className="bg-red text-bg w-full rounded px-4 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Tout enregistrer
         </button>

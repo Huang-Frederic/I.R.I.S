@@ -20,6 +20,7 @@ import { resizeImage } from '@/lib/utils/resize-image';
 import ScanSuggestion from '@/components/cards/ScanSuggestion';
 import { getPokemonName } from '@/lib/data/pokemon-names';
 import PokedexReplaceModal, { type PokedexReplaceModalCard } from '@/components/cards/PokedexReplaceModal';
+import DuplicateForSaleModal from '@/components/cards/DuplicateForSaleModal';
 import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
 import { detectNumberMismatch } from '@/lib/utils/pokedex-mismatch';
 
@@ -67,6 +68,7 @@ interface FormFields {
   status: CardStatus;
   notes: string;
   variant: string;
+  count: number;
   /* Pricing — hidden from the user, populated by enrichment when available. */
   cardmarket_id: string;
   cm_price_low: string;
@@ -89,6 +91,7 @@ const EMPTY: FormFields = {
   status: 'for_sale',
   notes: '',
   variant: '',
+  count: 1,
   cardmarket_id: '',
   cm_price_low: '',
   cm_price_trend: '',
@@ -162,7 +165,6 @@ export default function CardScanForm({
     existingCard: PokedexReplaceModalCard;
     hasForSaleConflict: boolean;
   } | null>(null);
-  const [forSaleConflict, setForSaleConflict] = useState(false);
   /**
    * Pokémon number actually detected in the photo (via Gemini OCR or TCGdex
    * match). We track this SEPARATELY from `form.pokemon_number` because, when
@@ -172,10 +174,10 @@ export default function CardScanForm({
    */
   const [detectedPokemonNumber, setDetectedPokemonNumber] = useState<number | null>(null);
   /**
-   * Info message shown when server auto-fallbacks from for_sale to collection
+   * Modal message shown when server auto-fallbacks from for_sale to collection
    * (Phase 3b2 Task 1 conflict resolution).
    */
-  const [infoMsg, setInfoMsg] = useState<string | null>(null);
+  const [duplicateModalMsg, setDuplicateModalMsg] = useState<string | null>(null);
 
   const numberMismatch = detectNumberMismatch({ lockedPokemonNumber, detectedPokemonNumber });
 
@@ -500,84 +502,94 @@ export default function CardScanForm({
     event.preventDefault();
     setPhase('saving');
     setErrorMsg(null);
-    setInfoMsg(null); // Clear any previous info message
+    setDuplicateModalMsg(null); // Clear any previous modal message
     try {
-      // If the user wants to take over the Pokédex slot AND a card is already there,
-      // we can't insert directly with status='pokedex' — the partial unique index
-      // would block it. Insert with status='for_sale' first, then call the atomic
-      // RPC to swap the existing card out and the new one in.
       const finalStatus = lockedStatus ?? form.status;
+      const totalCount = form.count;
+
+      // First iteration potentially triggers replace flow if Pokédex + can_replace
       const wantsToReplace =
         finalStatus === 'pokedex' &&
-        !lockedStatus && // Skip replace logic if status is locked (handled differently in commit 5)
+        !lockedStatus &&
         suggestion?.type === 'can_replace' &&
         !!suggestion.existingCard;
-      const insertStatus: CardStatus = wantsToReplace ? 'for_sale' : finalStatus;
 
-      const data = new FormData();
-      if (photoBlob) data.append('image', photoBlob, 'card.jpg');
-      for (const [key, value] of Object.entries(form)) {
-        if (key === 'status') continue;
-        if (value !== '' && value !== null && value !== undefined) {
-          data.append(key, String(value));
+      let anyFallback = false;
+      let fallbackReason = '';
+      let firstCardId: string | null = null;
+
+      for (let copy = 0; copy < totalCount; copy++) {
+        // After first iteration, force status='collection' if original was 'pokedex'
+        const statusForThisIteration = (copy === 0)
+          ? (wantsToReplace ? 'for_sale' : finalStatus)
+          : (finalStatus === 'pokedex' ? 'collection' : finalStatus);
+
+        const data = new FormData();
+        if (photoBlob) data.append('image', photoBlob, 'card.jpg');
+        for (const [key, value] of Object.entries(form)) {
+          if (key === 'status' || key === 'count') continue;
+          if (value !== '' && value !== null && value !== undefined) {
+            data.append(key, String(value));
+          }
         }
-      }
-      data.append('status', insertStatus);
+        data.append('status', statusForThisIteration);
 
-      const res = await fetch('/api/cards', { method: 'POST', body: data });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as {
-          error?: string;
-          message?: string;
-          existingCard?: PokedexReplaceModalCard;
-          hasForSaleConflict?: boolean;
+        const res = await fetch('/api/cards', { method: 'POST', body: data });
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
+            message?: string;
+            existingCard?: PokedexReplaceModalCard;
+            hasForSaleConflict?: boolean;
+          };
+          if (res.status === 409 && body.error === 'pokedex_slot_taken' && body.existingCard && copy === 0) {
+            setReplaceModal({
+              existingCard: body.existingCard,
+              hasForSaleConflict: body.hasForSaleConflict ?? false,
+            });
+            setPhase('reviewing');
+            return;
+          }
+          throw new Error(body.message ?? body.error ?? `Enregistrement a échoué (${res.status})`);
+        }
+
+        const inserted = (await res.json()) as {
+          card: { id: string };
+          fallback?: 'for_sale_to_collection';
+          reason?: string;
         };
-        if (res.status === 409 && body.error === 'pokedex_slot_taken' && body.existingCard) {
-          setReplaceModal({
-            existingCard: body.existingCard,
-            hasForSaleConflict: body.hasForSaleConflict ?? false,
+
+        if (copy === 0) firstCardId = inserted.card.id;
+        if (inserted.fallback === 'for_sale_to_collection') {
+          anyFallback = true;
+          fallbackReason = inserted.reason ?? 'Une ou plusieurs copies déjà en vente, ajoutées à ton Stock.';
+        }
+
+        // Replace flow only on first iteration
+        if (copy === 0 && wantsToReplace && suggestion?.existingCard) {
+          const swap = await fetch('/api/pokedex/replace', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              old_card_id: suggestion.existingCard.id,
+              old_new_status: 'for_sale',
+              new_card_id: inserted.card.id,
+            }),
           });
-          setPhase('reviewing'); // back from 'saving' to give the modal user a way to interact
-          return;
+          if (!swap.ok) {
+            const body = (await swap.json().catch(() => ({}))) as { error?: string };
+            throw new Error(body.error ?? `Remplacement Pokédex a échoué (${swap.status})`);
+          }
         }
-        if (res.status === 409 && body.error === 'for_sale_conflict') {
-          setForSaleConflict(true);
-          setPhase('reviewing');
-          return;
-        }
-        throw new Error(body.message ?? body.error ?? `Enregistrement a échoué (${res.status})`);
       }
 
-      const inserted = (await res.json()) as {
-        card: { id: string };
-        fallback?: 'for_sale_to_collection';
-        reason?: string;
-      };
-
-      // Phase 3b2: surface server-side fallback to the user
-      if (inserted.fallback === 'for_sale_to_collection') {
-        setInfoMsg(inserted.reason ?? 'Carte ajoutée à ton Stock (déjà en vente)');
-      }
-
-      if (wantsToReplace && suggestion?.existingCard) {
-        const swap = await fetch('/api/pokedex/replace', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            old_card_id: suggestion.existingCard.id,
-            old_new_status: 'for_sale',
-            new_card_id: inserted.card.id,
-          }),
-        });
-        if (!swap.ok) {
-          const body = (await swap.json().catch(() => ({}))) as { error?: string };
-          throw new Error(body.error ?? `Remplacement Pokédex a échoué (${swap.status})`);
-        }
+      if (anyFallback) {
+        setDuplicateModalMsg(fallbackReason);
       }
 
       setPhase('success');
       if (onSaved) {
-        onSaved(inserted.card.id);
+        onSaved(firstCardId ?? '');
       } else {
         setTimeout(reset, 1800);
       }
@@ -754,14 +766,6 @@ export default function CardScanForm({
             <div className="bg-red-bg text-red flex items-center gap-3 rounded-lg p-4">
               <XCircle className="h-5 w-5 shrink-0" aria-hidden />
               <p className="flex-1 text-sm">{errorMsg}</p>
-            </div>
-          )}
-
-          {/* Info block (Phase 3b2: server-side fallback notification) */}
-          {infoMsg && (
-            <div className="bg-rarity-ar/20 text-rarity-ar flex items-center gap-3 rounded-lg px-3 py-2">
-              <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
-              <p className="flex-1 text-sm">{infoMsg}</p>
             </div>
           )}
 
@@ -943,30 +947,32 @@ export default function CardScanForm({
               <h3 className="text-text-muted text-xs font-semibold uppercase tracking-wide">
                 Destination
               </h3>
-            <div className="grid grid-cols-3 gap-2">
-              {STATUSES.map(({ value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => {
-                    update('status', value);
-                    setForSaleConflict(false);
-                  }}
-                  className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                    form.status === value
-                      ? 'bg-red-bg border-red text-red'
-                      : 'border-border text-text-muted hover:border-text-muted'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            {forSaleConflict && form.status === 'for_sale' && (
-              <p className="text-rarity-ar mt-2 text-xs">
-                💡 Cette carte est déjà en vente sur Vinted. Choisis <strong>Stock</strong> à la place pour la garder en réserve.
-              </p>
-            )}
+              <div className="flex items-end gap-3">
+                <label className="flex-1">
+                  <span className="text-text-muted text-xs">Status</span>
+                  <select
+                    value={form.status}
+                    onChange={(e) => update('status', e.target.value as CardStatus)}
+                    className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none"
+                  >
+                    {STATUSES.map(({ value, label }) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="w-20">
+                  <span className="text-text-muted text-xs">Quantité</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.count}
+                    disabled={form.status === 'pokedex'}
+                    onChange={(e) => update('count', Math.max(1, Number(e.target.value) || 1))}
+                    className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none disabled:opacity-50"
+                    title={form.status === 'pokedex' ? 'Pokédex limité à 1 exemplaire' : undefined}
+                  />
+                </label>
+              </div>
             </div>
           )}
 
@@ -1016,6 +1022,12 @@ export default function CardScanForm({
         </div>
       </form>
 
+      {duplicateModalMsg && (
+        <DuplicateForSaleModal
+          message={duplicateModalMsg}
+          onClose={() => setDuplicateModalMsg(null)}
+        />
+      )}
     </div>
   );
 }

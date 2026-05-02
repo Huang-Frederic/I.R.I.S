@@ -1,8 +1,8 @@
 // components/submit/BatchReviewQueue.tsx
 'use client';
 
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { CardLanguage, CardCondition, CardRarity, CardStatus } from '@/lib/types';
 
 export interface QueueItem {
@@ -18,30 +18,34 @@ export interface QueueItem {
   condition: CardCondition;
   variant: string;
   count: number;
-  requested_status: CardStatus | 'SKIP';
+  requested_status: CardStatus;
 }
 
 interface Props {
   items: QueueItem[];
   onUpdate: (index: number, patch: Partial<QueueItem>) => void;
-  onSkip: (index: number) => void;
+  registeredPokedex: Set<number>;
+  onIndexReached?: (index: number) => void;
 }
 
-export default function BatchReviewQueue({ items, onUpdate, onSkip }: Props) {
+export default function BatchReviewQueue({ items, onUpdate, registeredPokedex, onIndexReached }: Props) {
   const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    onIndexReached?.(index);
+  }, [index, onIndexReached]);
 
   if (items.length === 0) {
     return <p className="text-text-muted text-sm">Aucune carte à valider.</p>;
   }
 
   const item = items[index];
-  const validatedCount = items.filter((i) => i.requested_status !== 'SKIP').length;
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-text-muted text-xs">
-          Card {index + 1} / {items.length} ({validatedCount} validées)
+          Card {index + 1} / {items.length}
         </p>
         <div className="flex gap-1">
           <button
@@ -73,12 +77,17 @@ export default function BatchReviewQueue({ items, onUpdate, onSkip }: Props) {
         </div>
 
         <div className="space-y-2">
+          {item.pokemon_number !== null && registeredPokedex.has(item.pokemon_number) && (
+            <div className="bg-rarity-ar/20 text-rarity-ar mb-2 flex items-center gap-2 rounded px-3 py-2 text-xs">
+              <span>⚠️ Ce Pokémon est déjà dans le Pokédex (#{item.pokemon_number}). Choisis Stock ou Vinted (pas Pokédex).</span>
+            </div>
+          )}
           <Field label="Card name" value={item.card_name} onChange={(v) => onUpdate(index, { card_name: v })} />
           <div className="grid grid-cols-2 gap-2">
             <Field label="Set code" value={item.set_code} onChange={(v) => onUpdate(index, { set_code: v })} />
             <Field label="Set #" value={item.set_number} onChange={(v) => onUpdate(index, { set_number: v })} />
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <SelectField
               label="Langue"
               value={item.language}
@@ -91,26 +100,24 @@ export default function BatchReviewQueue({ items, onUpdate, onSkip }: Props) {
               options={['NM', 'EX', 'GD', 'PL', 'PO']}
               onChange={(v) => onUpdate(index, { condition: v as CardCondition })}
             />
-            <NumberField
-              label="Count"
-              value={item.count}
-              onChange={(v) => onUpdate(index, { count: v })}
-            />
           </div>
-          <SelectField
-            label="Status"
-            value={item.requested_status}
-            options={['for_sale', 'collection', 'pokedex']}
-            onChange={(v) => onUpdate(index, { requested_status: v as CardStatus })}
-          />
-          <button
-            type="button"
-            onClick={() => onSkip(index)}
-            className="bg-surface-2 hover:bg-surface-off text-red border-border mt-2 inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Skip cette carte
-          </button>
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <SelectField
+                label="Status"
+                value={item.requested_status}
+                options={['for_sale', 'collection', 'pokedex']}
+                onChange={(v) => onUpdate(index, { requested_status: v as CardStatus })}
+              />
+            </div>
+            <div className="w-20">
+              <NumberField
+                label="Count"
+                value={item.count}
+                onChange={(v) => onUpdate(index, { count: v })}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>
