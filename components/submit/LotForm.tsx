@@ -6,15 +6,13 @@ import { Upload, X } from 'lucide-react';
 import { buildLotAnnonce } from '@/lib/utils/lot-template';
 import type { CardLanguage, CardCondition } from '@/lib/types';
 
+// Visible languages in the lot form. The CardLanguage enum still supports DE/IT/ES/PT
+// for legacy cards, but lots only need the 5 markets the user actively sells in.
 const LANGUAGES: { value: CardLanguage; label: string }[] = [
   { value: 'JP', label: 'Japonaise 🇯🇵' },
   { value: 'EN', label: 'Anglaise 🇬🇧' },
   { value: 'FR', label: 'Française 🇫🇷' },
-  { value: 'DE', label: 'Allemande 🇩🇪' },
-  { value: 'IT', label: 'Italienne 🇮🇹' },
-  { value: 'ES', label: 'Espagnole 🇪🇸' },
   { value: 'KO', label: 'Coréenne 🇰🇷' },
-  { value: 'PT', label: 'Portugaise 🇵🇹' },
   { value: 'ZH', label: 'Chinoise 🇨🇳' },
 ];
 
@@ -49,7 +47,9 @@ export default function LotForm() {
     [name, language, condition, extraDescription],
   );
 
-  const titleOver = name.length > TITLE_MAX;
+  // Counter reflects the FULL composed title length (prefix + name + [code]).
+  const titleLength = annonce.title.length;
+  const titleOver = titleLength > TITLE_MAX;
 
   function addPhotos(files: FileList | File[]) {
     const arr = Array.from(files).filter((f) => f.type.startsWith('image/'));
@@ -94,16 +94,21 @@ export default function LotForm() {
         <PhotoDropzone photos={photos} previewUrls={previewUrls} onAdd={addPhotos} onRemove={removePhoto} />
 
         <label className="block">
-          <span className="text-text-muted text-xs">Nom / Titre Vinted ({name.length}/{TITLE_MAX})</span>
+          <span className="text-text-muted text-xs">
+            Titre — partie centrale uniquement ({titleLength}/{TITLE_MAX} avec préfixe + [{language === 'ZH' ? 'CN' : language}])
+          </span>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Lot Cartes Pokémon Art Set Complet…"
+            placeholder="Art Set Complet Shiny Gem Pack Vol 1 - SBB1C"
             className={`bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none ${
               titleOver ? 'border-red' : ''
             }`}
           />
+          <span className="text-text-faint mt-1 block text-[11px]">
+            Final : <span className="text-text-muted font-mono">{annonce.title}</span>
+          </span>
         </label>
 
         <label className="block">

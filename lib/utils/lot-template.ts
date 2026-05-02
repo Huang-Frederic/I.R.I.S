@@ -15,6 +15,26 @@ export interface LotAnnonce {
   description: string;
 }
 
+/**
+ * Title suffix code per language. Mostly = the enum value, except ZH → "CN"
+ * (user's convention: Chinese cards labeled with the country code).
+ */
+const LANGUAGE_TITLE_CODE: Record<CardLanguage, string> = {
+  JP: 'JP', EN: 'EN', FR: 'FR', DE: 'DE', IT: 'IT',
+  ES: 'ES', KO: 'KO', PT: 'PT', ZH: 'CN',
+};
+
+const TITLE_PREFIX = 'Lot de Cartes Pokémon ';
+
+/**
+ * Compose the final Vinted title from the user-typed middle part.
+ * Example: name="Art Set SBB1C", language='ZH' → "Lot de Cartes Pokémon Art Set SBB1C [CN]"
+ */
+export function composeLotTitle(name: string, language: CardLanguage | null): string {
+  const code = LANGUAGE_TITLE_CODE[language ?? 'JP'];
+  return `${TITLE_PREFIX}${name} [${code}]`;
+}
+
 const DESCRIPTION_TEMPLATE = `✨ {{title}}
 📘 Cartes officielles {{language_name}} {{language_flag}}
 ✅ État : {{condition_label}}, carte en excellent état (voir photos).
@@ -32,16 +52,18 @@ export function buildLotAnnonce(lot: LotForTemplate): LotAnnonce {
   const langName = LANGUAGE_FEMALE[langKey];
   const langFlag = LANGUAGE_FLAGS[langKey];
   const condLabel = CONDITION_LABEL[lot.condition];
+  const title = composeLotTitle(lot.name, lot.language);
 
   const trimmedExtra = lot.extra_description?.trim() ?? '';
-  const extraBlock = trimmedExtra === '' ? '' : `\n${trimmedExtra}\n`;
+  // Add 📝 emoji prefix to match the visual style of the other lines (✨ 📘 ✅ etc.)
+  const extraBlock = trimmedExtra === '' ? '' : `\n📝 ${trimmedExtra}\n`;
 
   const description = DESCRIPTION_TEMPLATE
-    .replace('{{title}}', lot.name)
+    .replace('{{title}}', title)
     .replace('{{language_name}}', langName)
     .replace('{{language_flag}}', langFlag)
     .replace('{{condition_label}}', condLabel)
     .replace('{{extra_block}}', extraBlock);
 
-  return { title: lot.name, description };
+  return { title, description };
 }
