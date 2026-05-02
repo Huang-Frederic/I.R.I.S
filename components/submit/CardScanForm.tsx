@@ -171,6 +171,11 @@ export default function CardScanForm({
    * mismatch.
    */
   const [detectedPokemonNumber, setDetectedPokemonNumber] = useState<number | null>(null);
+  /**
+   * Info message shown when server auto-fallbacks from for_sale to collection
+   * (Phase 3b2 Task 1 conflict resolution).
+   */
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
   const numberMismatch = detectNumberMismatch({ lockedPokemonNumber, detectedPokemonNumber });
 
@@ -495,6 +500,7 @@ export default function CardScanForm({
     event.preventDefault();
     setPhase('saving');
     setErrorMsg(null);
+    setInfoMsg(null); // Clear any previous info message
     try {
       // If the user wants to take over the Pokédex slot AND a card is already there,
       // we can't insert directly with status='pokedex' — the partial unique index
@@ -542,7 +548,16 @@ export default function CardScanForm({
         throw new Error(body.message ?? body.error ?? `Enregistrement a échoué (${res.status})`);
       }
 
-      const inserted = (await res.json()) as { card: { id: string } };
+      const inserted = (await res.json()) as {
+        card: { id: string };
+        fallback?: 'for_sale_to_collection';
+        reason?: string;
+      };
+
+      // Phase 3b2: surface server-side fallback to the user
+      if (inserted.fallback === 'for_sale_to_collection') {
+        setInfoMsg(inserted.reason ?? 'Carte ajoutée à ton Stock (déjà en vente)');
+      }
 
       if (wantsToReplace && suggestion?.existingCard) {
         const swap = await fetch('/api/pokedex/replace', {
@@ -739,6 +754,14 @@ export default function CardScanForm({
             <div className="bg-red-bg text-red flex items-center gap-3 rounded-lg p-4">
               <XCircle className="h-5 w-5 shrink-0" aria-hidden />
               <p className="flex-1 text-sm">{errorMsg}</p>
+            </div>
+          )}
+
+          {/* Info block (Phase 3b2: server-side fallback notification) */}
+          {infoMsg && (
+            <div className="bg-rarity-ar/20 text-rarity-ar flex items-center gap-3 rounded-lg px-3 py-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
+              <p className="flex-1 text-sm">{infoMsg}</p>
             </div>
           )}
 
