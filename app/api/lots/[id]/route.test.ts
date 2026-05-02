@@ -81,6 +81,24 @@ describe('PATCH /api/lots/[id]', () => {
     );
   });
 
+  it('preserves explicit date_sold when status flips to sold (explicit > auto)', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    const explicitDate = '2026-01-01T00:00:00Z';
+    const updateSingle = vi.fn().mockResolvedValue({
+      data: { id: 'abc', status: 'sold', date_sold: explicitDate },
+      error: null,
+    });
+    const update = vi.fn(() => ({
+      eq: vi.fn(() => ({ select: vi.fn(() => ({ single: updateSingle })) })),
+    }));
+    supabaseMock.from.mockReturnValue({ update });
+    const res = await PATCH(patchRequest({ status: 'sold', date_sold: explicitDate }), ctx('abc'));
+    expect(res.status).toBe(200);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'sold', date_sold: explicitDate }),
+    );
+  });
+
   it('rejects an invalid status', async () => {
     supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
     const res = await PATCH(patchRequest({ status: 'collection' }), ctx('abc'));
