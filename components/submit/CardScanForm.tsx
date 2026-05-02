@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { ScanLine, AlertTriangle, CheckCircle2, XCircle, X, Camera } from 'lucide-react';
 import type {
@@ -121,6 +121,15 @@ export interface CardScanFormProps {
   onCancel?: () => void;
   /** Compact mode: 1-col layout, smaller paddings (for embedded modal use). */
   compact?: boolean;
+  /**
+   * Pre-loaded data for the batch flow. When all four are provided, CardScanForm
+   * skips the file picker, OCR call, and enrich call, jumping directly to the
+   * "reviewing" phase with the form pre-filled.
+   */
+  initialPhoto?: Blob;
+  initialPhotoFilename?: string;
+  initialOcr?: OcrResult;
+  initialEnrich?: EnrichResult;
 }
 
 export default function CardScanForm({
@@ -129,6 +138,10 @@ export default function CardScanForm({
   onSaved,
   onCancel,
   compact = false,
+  initialPhoto,
+  initialPhotoFilename,
+  initialOcr,
+  initialEnrich,
 }: CardScanFormProps) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -173,13 +186,123 @@ export default function CardScanForm({
    * mismatch.
    */
   const [detectedPokemonNumber, setDetectedPokemonNumber] = useState<number | null>(null);
-  /**
-   * Modal message shown when server auto-fallbacks from for_sale to collection
-   * (Phase 3b2 Task 1 conflict resolution).
-   */
-  const [duplicateModalMsg, setDuplicateModalMsg] = useState<string | null>(null);
+  interface ExistingCardLite {
+    id: string;
+    card_name: string;
+    image_url: string | null;
+    tcg_image_url: string | null;
+    suggested_price: number | null;
+    date_added: string;
+    vinted_listed_at: string | null;
+    language: string;
+    condition: string;
+    variant: string | null;
+    set_name: string | null;
+    set_code: string | null;
+  }
+  const [duplicateForSaleConflict, setDuplicateForSaleConflict] = useState<{ existingCard: ExistingCardLite | null } | null>(null);
 
   const numberMismatch = detectNumberMismatch({ lockedPokemonNumber, detectedPokemonNumber });
+
+  // Prefill effect for batch mode: when all initialPhoto/Ocr/Enrich are provided,
+  // skip the file picker + API calls and jump straight to reviewing with pre-filled form.
+  useEffect(() => {
+    if (!initialPhoto || !initialOcr || !initialEnrich) return;
+
+    const previewURL = URL.createObjectURL(initialPhoto);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPhotoBlob(initialPhoto);
+    setPreviewUrl(previewURL);
+
+    // Mirror OCR state from handleFile
+    setConfidence(initialOcr.confidence);
+    setOcrText(initialOcr.text);
+    setExtractedSetCode(initialOcr.setCodeCandidate);
+    setExtractedSetNumber(initialOcr.setNumberCandidate?.raw ?? null);
+    setOcrGemini({
+      pokemonNumber: initialOcr.pokemonNumber,
+      pokemonNameFr: initialOcr.pokemonNameFr,
+      setName: initialOcr.setName,
+      setNameFr: initialOcr.setNameFr,
+    });
+
+    // Mirror enrich state from handleFile
+    setEnrichFound(initialEnrich.bestMatch !== null);
+    const detected =
+      initialEnrich.bestMatch?.pokemon_number ??
+      (initialOcr.pokemonNumber ?? null);
+    setDetectedPokemonNumber(detected);
+
+    // If multiple candidates, show picker
+    if (initialEnrich.candidates.length > 1) {
+      setCandidates(initialEnrich.candidates);
+      const language = detectLanguage(initialOcr.text);
+      const baseForm = {
+        ...EMPTY,
+        language,
+        pokemon_number: initialOcr.pokemonNumber ? String(initialOcr.pokemonNumber) : '',
+        set_code: initialOcr.setCodeCandidate ?? '',
+        set_number: initialOcr.setNumberCandidate?.raw ?? '',
+      };
+      if (lockedPokemonNumber != null) {
+        baseForm.pokemon_number = String(lockedPokemonNumber);
+        baseForm.pokemon_name = getPokemonName(lockedPokemonNumber, 'fr');
+      }
+      setForm(baseForm);
+      setPhase('reviewing');
+      return () => URL.revokeObjectURL(previewURL);
+    }
+
+    // Single match or none → auto-fill
+    const match = initialEnrich.bestMatch;
+    const language = detectLanguage(initialOcr.text);
+    const setCode = initialOcr.setCodeCandidate ?? '';
+    const setNumber = initialOcr.setNumberCandidate?.raw ?? '';
+    const prefill: FormFields = {
+      ...EMPTY,
+      language,
+      pokemon_name: match?.pokemon_name ?? '',
+      pokemon_number: match?.pokemon_number?.toString() ?? (initialOcr.pokemonNumber ? String(initialOcr.pokemonNumber) : ''),
+      card_name: match?.card_name ?? '',
+      card_id_tcg: match?.card_id_tcg ?? '',
+      set_name: match?.set_name ?? '',
+      set_code: match?.set_code ?? setCode,
+      set_number: match?.set_number ?? setNumber,
+      tcg_image_url: match?.tcg_image_url ?? '',
+      rarity: match?.rarity ?? 'OTHER',
+      cardmarket_id: match?.cardmarket_id ?? '',
+      cm_price_low: match?.cm_price_low != null ? String(match.cm_price_low) : '',
+      cm_price_trend: match?.cm_price_trend != null ? String(match.cm_price_trend) : '',
+      cm_price_avg: match?.cm_price_avg != null ? String(match.cm_price_avg) : '',
+    };
+
+    // Override with locked fields
+    if (lockedPokemonNumber != null) {
+      prefill.pokemon_number = String(lockedPokemonNumber);
+      prefill.pokemon_name = getPokemonName(lockedPokemonNumber, 'fr');
+    }
+
+    // Fetch suggestion
+    if (match?.pokemon_number) {
+      void fetchSuggestion({
+        pokemon_number: match.pokemon_number,
+        pokemon_name: match.pokemon_name,
+        rarity: prefill.rarity,
+        language: prefill.language,
+      }).then((nextSuggestion) => {
+        if (nextSuggestion) {
+          prefill.status = actionToStatus(nextSuggestion.primaryAction);
+        }
+        setSuggestion(nextSuggestion);
+      });
+    }
+
+    setForm(prefill);
+    setPhase('reviewing');
+
+    return () => URL.revokeObjectURL(previewURL);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPhoto, initialOcr, initialEnrich]);
 
   function reset() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -502,7 +625,7 @@ export default function CardScanForm({
     event.preventDefault();
     setPhase('saving');
     setErrorMsg(null);
-    setDuplicateModalMsg(null); // Clear any previous modal message
+    setDuplicateForSaleConflict(null); // Clear any previous modal
     try {
       const finalStatus = lockedStatus ?? form.status;
       const totalCount = form.count;
@@ -514,8 +637,6 @@ export default function CardScanForm({
         suggestion?.type === 'can_replace' &&
         !!suggestion.existingCard;
 
-      let anyFallback = false;
-      let fallbackReason = '';
       let firstCardId: string | null = null;
 
       for (let copy = 0; copy < totalCount; copy++) {
@@ -539,14 +660,19 @@ export default function CardScanForm({
           const body = (await res.json().catch(() => ({}))) as {
             error?: string;
             message?: string;
-            existingCard?: PokedexReplaceModalCard;
+            existingCard?: PokedexReplaceModalCard | ExistingCardLite;
             hasForSaleConflict?: boolean;
           };
           if (res.status === 409 && body.error === 'pokedex_slot_taken' && body.existingCard && copy === 0) {
             setReplaceModal({
-              existingCard: body.existingCard,
+              existingCard: body.existingCard as PokedexReplaceModalCard,
               hasForSaleConflict: body.hasForSaleConflict ?? false,
             });
+            setPhase('reviewing');
+            return;
+          }
+          if (res.status === 409 && body.error === 'for_sale_conflict') {
+            setDuplicateForSaleConflict({ existingCard: (body.existingCard as ExistingCardLite | undefined) ?? null });
             setPhase('reviewing');
             return;
           }
@@ -555,15 +681,9 @@ export default function CardScanForm({
 
         const inserted = (await res.json()) as {
           card: { id: string };
-          fallback?: 'for_sale_to_collection';
-          reason?: string;
         };
 
         if (copy === 0) firstCardId = inserted.card.id;
-        if (inserted.fallback === 'for_sale_to_collection') {
-          anyFallback = true;
-          fallbackReason = inserted.reason ?? 'Une ou plusieurs copies déjà en vente, ajoutées à ton Stock.';
-        }
 
         // Replace flow only on first iteration
         if (copy === 0 && wantsToReplace && suggestion?.existingCard) {
@@ -583,13 +703,43 @@ export default function CardScanForm({
         }
       }
 
-      if (anyFallback) {
-        setDuplicateModalMsg(fallbackReason);
-      }
-
       setPhase('success');
       if (onSaved) {
         onSaved(firstCardId ?? '');
+      } else {
+        setTimeout(reset, 1800);
+      }
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
+      setPhase('error');
+    }
+  }
+
+  async function handleResaveAsCollection() {
+    if (!photoBlob) return;
+    setDuplicateForSaleConflict(null);
+    setPhase('saving');
+    try {
+      const data = new FormData();
+      data.append('image', photoBlob, initialPhotoFilename ?? 'card.jpg');
+      for (const [key, value] of Object.entries(form)) {
+        if (key === 'status' || key === 'count') continue;
+        if (value !== '' && value !== null && value !== undefined) {
+          data.append(key, String(value));
+        }
+      }
+      data.append('status', 'collection');
+
+      const res = await fetch('/api/cards', { method: 'POST', body: data });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `Enregistrement a échoué (${res.status})`);
+      }
+
+      const inserted = (await res.json()) as { card: { id: string } };
+      setPhase('success');
+      if (onSaved) {
+        onSaved(inserted.card.id);
       } else {
         setTimeout(reset, 1800);
       }
@@ -1022,10 +1172,12 @@ export default function CardScanForm({
         </div>
       </form>
 
-      {duplicateModalMsg && (
+      {duplicateForSaleConflict && (
         <DuplicateForSaleModal
-          message={duplicateModalMsg}
-          onClose={() => setDuplicateModalMsg(null)}
+          existingCard={duplicateForSaleConflict.existingCard}
+          onCancel={() => setDuplicateForSaleConflict(null)}
+          onConfirmCollection={handleResaveAsCollection}
+          busy={phase === 'saving'}
         />
       )}
     </div>

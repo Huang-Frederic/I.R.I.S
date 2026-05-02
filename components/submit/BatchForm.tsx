@@ -1,42 +1,38 @@
 // components/submit/BatchForm.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, X, Loader2 } from 'lucide-react';
 import { resizeImage } from '@/lib/utils/resize-image';
-import BatchReviewQueue, { type QueueItem } from './BatchReviewQueue';
+import CardScanForm from './CardScanForm';
 import type { OcrResult, EnrichResult } from '@/lib/types';
 
 const MAX_PHOTOS = 30;
 
-type Phase = 'pick' | 'analyzing' | 'review' | 'committing' | 'done';
+type Phase = 'pick' | 'analyzing' | 'review' | 'done';
 
-interface CommitSummary {
-  total: number;
-  for_sale: number;
-  collection: number;
-  fallback: number;
-  failed: number;
+interface PreparedPhoto {
+  file: File;
+  blob: Blob;
+  ocr: OcrResult;
+  enrich: EnrichResult;
+}
+
+interface SaveResult {
+  filename: string;
+  cardId: string | null;
+  status: 'success' | 'skipped' | 'failed';
 }
 
 export default function BatchForm() {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>('pick');
   const [photos, setPhotos] = useState<File[]>([]);
-  const [items, setItems] = useState<QueueItem[]>([]);
+  const [prepared, setPrepared] = useState<PreparedPhoto[]>([]);
   const [progress, setProgress] = useState(0);
-  const [summary, setSummary] = useState<CommitSummary | null>(null);
-  const [registeredPokedex, setRegisteredPokedex] = useState<Set<number>>(new Set());
-  const [maxIndexReached, setMaxIndexReached] = useState(0);
-
-  useEffect(() => {
-    // Fetch all currently-registered Pokédex numbers once at mount.
-    fetch('/api/pokedex/registered')
-      .then((r) => r.ok ? r.json() : { numbers: [] })
-      .then((j: { numbers: number[] }) => setRegisteredPokedex(new Set(j.numbers)))
-      .catch(() => setRegisteredPokedex(new Set()));
-  }, []);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [results, setResults] = useState<SaveResult[]>([]);
 
   function addPhotos(files: FileList | File[]) {
     const arr = Array.from(files).filter((f) => f.type.startsWith('image/'));
@@ -46,105 +42,92 @@ export default function BatchForm() {
   async function analyze() {
     setPhase('analyzing');
     setProgress(0);
-    const newItems: QueueItem[] = [];
+    const newPrepared: PreparedPhoto[] = new Array(photos.length);
 
-    // Resize → OCR → enrich, parallel but with progress reporting
-    const tasks = photos.map(async (file, i) => {
-      const blob = await resizeImage(file);
-      const fd = new FormData();
-      fd.append('image', blob, file.name);
-      const ocrRes = await fetch('/api/ocr', { method: 'POST', body: fd });
-      const ocr = await ocrRes.json() as OcrResult;
-      const enrichRes = await fetch('/api/enrich', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          text: ocr.text,
-          setCode: ocr.setCodeCandidate,
-          localId: ocr.setNumberCandidate?.card,
-          // Default language for enrich lookup; user can refine in the review queue
-          language: 'JP',
-          pokemonNumber: ocr.pokemonNumber,
-          pokemonNameFr: ocr.pokemonNameFr,
-          setName: ocr.setName,
-          setNameFr: ocr.setNameFr,
-        }),
-      });
-      const enrich = await enrichRes.json() as EnrichResult;
-      const best = enrich.bestMatch;
-      const item: QueueItem = {
-        filename: file.name,
-        photoPreviewUrl: URL.createObjectURL(file),
-        card_name: best?.card_name ?? '',
-        pokemon_name: best?.pokemon_name ?? '',
-        pokemon_number: best?.pokemon_number ?? null,
-        set_code: best?.set_code ?? '',
-        set_number: best?.set_number ?? '',
-        language: 'JP',
-        rarity: best?.rarity ?? 'OTHER',
-        condition: 'NM',
-        variant: '',
-        count: 1,
-        requested_status: 'for_sale',
-      };
-      newItems[i] = item;
-      setProgress((p) => p + 1);
-    });
-    await Promise.all(tasks);
-    setItems(newItems);
-    setPhase('review');
-  }
-
-  function updateItem(index: number, patch: Partial<QueueItem>) {
-    setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
-  }
-
-  async function commit() {
-    setPhase('committing');
-    const commitItems = items;
-    let for_sale = 0, collection = 0, fallback = 0, failed = 0;
-
-    for (const item of commitItems) {
-      const photo = photos.find((p) => p.name === item.filename);
-      if (!photo) { failed += 1; continue; }
-      for (let copy = 0; copy < item.count; copy += 1) {
-        const blob = await resizeImage(photo);
-        const fd = new FormData();
-        fd.append('image', blob, item.filename);
-        fd.append('card_name', item.card_name);
-        fd.append('pokemon_name', item.pokemon_name || item.card_name);
-        fd.append('pokemon_number', String(item.pokemon_number ?? ''));
-        fd.append('set_code', item.set_code);
-        fd.append('set_number', item.set_number);
-        fd.append('language', item.language);
-        fd.append('rarity', item.rarity);
-        fd.append('condition', item.condition);
-        if (item.variant) fd.append('variant', item.variant);
-        fd.append('status', item.requested_status as string);
-
+    // Parallel OCR + enrich; bound concurrency at 5 to respect Gemini Tier 1 (15 req/min).
+    const CONCURRENCY = 5;
+    let cursor = 0;
+    async function worker() {
+      while (cursor < photos.length) {
+        const i = cursor++;
+        const file = photos[i];
         try {
-          const res = await fetch('/api/cards', { method: 'POST', body: fd });
-          const json = await res.json();
-          if (!res.ok) { failed += 1; continue; }
-          if (json.fallback === 'for_sale_to_collection') { fallback += 1; collection += 1; }
-          else if (json.card?.status === 'for_sale') { for_sale += 1; }
-          else if (json.card?.status === 'collection') { collection += 1; }
+          const blob = await resizeImage(file);
+          const fd = new FormData();
+          fd.append('image', blob, file.name);
+          const ocrRes = await fetch('/api/ocr', { method: 'POST', body: fd });
+          const ocr = (await ocrRes.json()) as OcrResult;
+          const enrichRes = await fetch('/api/enrich', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              text: ocr.text,
+              setCode: ocr.setCodeCandidate,
+              localId: ocr.setNumberCandidate?.card,
+              language: 'JP',
+              pokemonNumber: ocr.pokemonNumber,
+              pokemonNameFr: ocr.pokemonNameFr,
+              setName: ocr.setName,
+              setNameFr: ocr.setNameFr,
+            }),
+          });
+          const enrich = (await enrichRes.json()) as EnrichResult;
+          newPrepared[i] = { file, blob, ocr, enrich };
         } catch {
-          failed += 1;
+          // Even if OCR/enrich fails for this photo, keep a slot so the user can fill manually.
+          newPrepared[i] = {
+            file,
+            blob: file,  // fallback to original
+            ocr: { text: '', confidence: 0, words: [], setNumberCandidate: null, setCodeCandidate: null },
+            enrich: { bestMatch: null, candidates: [] },
+          };
+        } finally {
+          setProgress((p) => p + 1);
         }
       }
     }
-    setSummary({ total: commitItems.length, for_sale, collection, fallback, failed });
-    setPhase('done');
+    await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+
+    setPrepared(newPrepared);
+    setCurrentIndex(0);
+    setPhase('review');
+  }
+
+  function handleSaved(cardId: string) {
+    setResults((prev) => [
+      ...prev,
+      { filename: prepared[currentIndex].file.name, cardId, status: 'success' },
+    ]);
+    advance();
+  }
+
+  function handleCancelCurrent() {
+    setResults((prev) => [
+      ...prev,
+      { filename: prepared[currentIndex].file.name, cardId: null, status: 'skipped' },
+    ]);
+    advance();
+  }
+
+  function advance() {
+    const next = currentIndex + 1;
+    if (next >= prepared.length) {
+      setPhase('done');
+    } else {
+      setCurrentIndex(next);
+    }
   }
 
   // RENDER
-  if (phase === 'done' && summary) {
+  if (phase === 'done') {
+    const success = results.filter((r) => r.status === 'success').length;
+    const skipped = results.filter((r) => r.status === 'skipped').length;
+    const failed = results.filter((r) => r.status === 'failed').length;
     return (
       <div className="space-y-3">
-        <h3 className="text-base font-semibold">Récap</h3>
+        <h3 className="text-base font-semibold">Récap du batch</h3>
         <p className="text-sm">
-          {summary.for_sale} en vente · {summary.collection} en collection (dont {summary.fallback} auto-fallback) · {summary.failed} échecs
+          {success} carte(s) enregistrée(s) · {skipped} ignorée(s) · {failed} échec(s)
         </p>
         <button
           type="button"
@@ -153,39 +136,49 @@ export default function BatchForm() {
         >
           Voir le résultat
         </button>
-      </div>
-    );
-  }
-
-  if (phase === 'review') {
-    return (
-      <div className="space-y-4">
-        <BatchReviewQueue
-          items={items}
-          onUpdate={updateItem}
-          registeredPokedex={registeredPokedex}
-          onIndexReached={(idx) => setMaxIndexReached((m) => Math.max(m, idx))}
-        />
         <button
           type="button"
-          onClick={commit}
-          disabled={maxIndexReached < items.length - 1}
-          title={maxIndexReached < items.length - 1 ? 'Validez toutes les cartes avant d\'enregistrer' : undefined}
-          className="bg-red text-bg w-full rounded px-4 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={() => {
+            setPhotos([]);
+            setPrepared([]);
+            setResults([]);
+            setCurrentIndex(0);
+            setPhase('pick');
+          }}
+          className="bg-surface-2 ml-2 rounded px-4 py-2 text-sm"
         >
-          Tout enregistrer
+          Nouveau batch
         </button>
       </div>
     );
   }
 
-  if (phase === 'analyzing' || phase === 'committing') {
+  if (phase === 'review') {
+    const item = prepared[currentIndex];
+    const total = prepared.length;
+    return (
+      <div className="space-y-4">
+        <p className="text-text-muted text-xs">
+          Carte {currentIndex + 1} / {total} ({item.file.name})
+        </p>
+        <CardScanForm
+          key={currentIndex}
+          initialPhoto={item.blob}
+          initialPhotoFilename={item.file.name}
+          initialOcr={item.ocr}
+          initialEnrich={item.enrich}
+          onSaved={handleSaved}
+          onCancel={handleCancelCurrent}
+        />
+      </div>
+    );
+  }
+
+  if (phase === 'analyzing') {
     return (
       <div className="text-text-muted flex items-center gap-2">
         <Loader2 className="h-5 w-5 animate-spin" />
-        {phase === 'analyzing'
-          ? `Analyse en cours… ${progress}/${photos.length}`
-          : 'Enregistrement…'}
+        Analyse en cours… {progress}/{photos.length}
       </div>
     );
   }

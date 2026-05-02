@@ -198,30 +198,28 @@ export async function POST(request: Request) {
       /one_for_sale_per_group|duplicate key|unique constraint/i.test(error.message ?? '');
 
     if (isUniqueViolation && status === 'for_sale') {
-      // Auto-fallback: retry as collection. The unique index only covers for_sale,
-      // so this insert won't collide. We surface the fallback to the caller via
-      // the `fallback` field so UIs can show a toast.
-      const fallbackInsert = await supabase
+      // Fetch the existing for_sale card so the frontend can display it in the modal.
+      const { data: existingCard } = await supabase
         .from('cards')
-        .insert({ ...row, status: 'collection' })
-        .select('*')
-        .single();
-      if (fallbackInsert.error) {
-        return NextResponse.json(
-          { error: `fallback failed: ${fallbackInsert.error.message}` },
-          { status: 500 },
-        );
-      }
-      return NextResponse.json({
-        card: fallbackInsert.data,
-        fallback: 'for_sale_to_collection',
-        reason: 'Une carte identique est déjà en vente, ajoutée à ton Stock',
-      });
+        .select('id, card_name, image_url, tcg_image_url, suggested_price, date_added, vinted_listed_at, language, condition, variant, set_name, set_code')
+        .eq('card_id_tcg', row.card_id_tcg)
+        .eq('language', row.language)
+        .eq('condition', row.condition)
+        .eq('status', 'for_sale')
+        .maybeSingle();
+
+      return NextResponse.json(
+        {
+          error: 'for_sale_conflict',
+          message: 'Cette carte est déjà en vente sur Vinted.',
+          existingCard,
+        },
+        { status: 409 },
+      );
     }
 
     if (isUniqueViolation) {
-      // Conflict on a constraint we can't auto-resolve (e.g., the user explicitly
-      // requested status='collection' and somehow conflicted, or pokedex slot taken).
+      // Conflict on a constraint we can't auto-resolve (e.g., user requested status='collection' and somehow conflicted).
       return NextResponse.json(
         { error: 'for_sale_conflict', message: 'Conflit de contrainte unique non résolvable.' },
         { status: 409 },
