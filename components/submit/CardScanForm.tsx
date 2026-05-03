@@ -236,9 +236,11 @@ export default function CardScanForm({
       (initialOcr.pokemonNumber ?? null);
     setDetectedPokemonNumber(detected);
 
-    // If multiple candidates, show picker
-    if (initialEnrich.candidates.length > 1) {
-      setCandidates(initialEnrich.candidates);
+    // If multiple candidates, show picker. Defensive guard: a failed enrich
+    // call (e.g. catalog timeout) can return without `candidates` populated.
+    const candidatesList = initialEnrich.candidates ?? [];
+    if (candidatesList.length > 1) {
+      setCandidates(candidatesList);
       const language = detectLanguage(initialOcr.text);
       const baseForm = {
         ...EMPTY,
