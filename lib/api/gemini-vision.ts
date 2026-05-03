@@ -3,7 +3,7 @@ import 'server-only';
 // Gemini 3.1 Flash Lite Preview pricing (paid tier, per 1M tokens, source:
 // https://ai.google.dev/gemini-api/docs/pricing — verified 2026-05).
 // Bench 5/5 same as gemini-3-flash-preview at -43% cost / -35% latency.
-const PROMPT_TOKEN_ESTIMATE = 220; // mesuré post-shortening Task 3
+const PROMPT_TOKEN_ESTIMATE = 360; // mesuré post-multilang prompt rewrite (avant: 220 pour le prompt court JP-only)
 const COST_USD_PER_M_INPUT = 0.25;  // text / image / video
 const COST_USD_PER_M_OUTPUT = 1.50; // including thinking tokens (we set thinkingBudget=0 → 0 charged)
 const USD_TO_EUR = 0.92;
@@ -41,24 +41,35 @@ export interface GeminiCardExtraction {
   _usage?: GeminiUsage;
 }
 
-const PROMPT = `Lis une carte Pokémon JCC et retourne le JSON ci-dessous. NE DEVINE PAS — si non lisible, mets null (sauf champs requis).
+const PROMPT = `Lis une carte Pokémon JCC. Extrais ce qui est IMPRIMÉ sur la carte, ne traduis pas vers une autre langue. NE DEVINE PAS — si non lisible, mets null (sauf champs requis).
 
-ZONE BAS : ligne fine sous le texte d'attaque avec illustrateur, numéro XXX/YYY (ex 012/086), et code d'extension court (ex SV11W, BW5, sm8b — casse exacte).
-ZONE HAUT : nom du Pokémon (langue de la carte).
+LOCALISATION :
+- Numéro XXX/YYY (ex 012/086, 199/198, 175/175) : en bas, souvent à droite. Sans zéros initiaux dans la sortie.
+- set_code : court code alphanumérique imprimé en bas, soit collé au numéro (cartes JP), soit dans un bloc séparé en bas-gauche près du logo de set (cartes EN/FR/DE/IT/ES/PT modernes).
+- Nom du Pokémon : en HAUT.
+
+CODES DE SET PAR LANGUE — extrais ce qui est imprimé, JAMAIS l'équivalent d'une autre langue :
+- JP : codes mixed-case avec suffixes lettres → sv11W, s12a, BW4, sm8b, sv8a, XY9, smp, xyp
+- EN : codes uppercase 3 lettres → OBF, MEW, JTG, SCR, PRE, PAL, BKP, BKT, AOR, STS, GEN, FCO, EVO, SVI
+- FR/DE/IT/ES/PT : MÊMES codes uppercase 3 lettres que EN (BKP, OBF, MEW, SCR, PRE, JTG, …)
+- ZH : codes 'cs'+suffixe → cs4bc, cs4aC, cs1c
+- KO : codes similaires à JP ou EN selon la série
+
+⚠️ ANTI-PIÈGE : si la carte est en alphabet latin (Pikachu, Dracaufeu, …), le set_code est OBLIGATOIREMENT en format EN/FR (3 lettres UPPERCASE comme BKP, OBF, MEW). N'INVENTE PAS de code JP (XY9, sv11W, BW5) sur une carte FR/EN — ce serait une hallucination.
 
 {
-  "card_name": "<nom haut, ex 'チャオブー' ou 'Pikachu ex'>",
-  "pokemon_name": "<sans suffixe ex/V/VMAX, ex 'Pikachu'>",
-  "set_code": "<code exact, casse sensible>",
+  "card_name": "<nom haut, ex 'チャオブー' (JP), 'Pikachu ex' (EN), 'Dracaufeu ex' (FR)>",
+  "pokemon_name": "<sans suffixe ex/V/VMAX, ex 'Pikachu' / 'Dracaufeu'>",
+  "set_code": "<code exact tel qu'imprimé, casse sensible>",
   "set_number": "<XXX sans zéros initiaux: '12' pas '012'>",
   "set_total": <YYY ou null>,
   "language": "<JP|EN|FR|DE|IT|ES|PT|KO|ZH>",
   "rarity": "<Common|Uncommon|Rare|Holo Rare|Double Rare|Ultra Rare|Art Rare|Special Art Rare|Secret Rare|Hyper Rare|Promo|Other ou null>",
   "confidence": "high|medium|low",
-  "pokemon_number": <national dex 1-1025 si carte Pokémon, null pour Trainer/Energy/Stadium>,
-  "pokemon_name_fr": "<nom FR standard (ex 'Gruikui'), null si non-Pokémon ou incertain>",
-  "set_name": "<nom extension imprimé (ex 'White Flare'), null si invisible>",
-  "set_name_fr": "<traduction FR (ex 'Combat de Maîtres'), null si incertain>"
+  "pokemon_number": <national dex 1-1025 si Pokémon, null pour Trainer/Energy/Stadium>,
+  "pokemon_name_fr": "<nom FR standard (ex 'Gruikui', 'Dracaufeu'), null si non-Pokémon ou incertain>",
+  "set_name": "<nom extension imprimé (ex 'White Flare', 'BREAKpoint'), null si invisible>",
+  "set_name_fr": "<traduction FR (ex 'Combat de Maîtres', 'Rupture Turbo'), null si incertain>"
 }`;
 
 /**
