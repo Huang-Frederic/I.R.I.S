@@ -94,6 +94,18 @@ export interface WordAnnotation {
   confidence: number;
 }
 
+/**
+ * Gemini token usage + EUR cost (cf. lib/api/gemini-vision.ts).
+ * Mirrored here to avoid server-only import in client code.
+ */
+export interface GeminiUsage {
+  tokens_in: number;
+  tokens_out: number;
+  /** Estimated image tokens (Gemini doesn't break this out, derived = promptTokenCount - PROMPT_TOKEN_ESTIMATE). */
+  tokens_image: number;
+  cost_eur: number;
+}
+
 export interface OcrResult {
   text: string;
   /** Page-level confidence from Google Vision, 0..1 */
@@ -110,6 +122,9 @@ export interface OcrResult {
   pokemonNameFr?: string | null;
   setName?: string | null;
   setNameFr?: string | null;
+
+  /** Gemini token usage + EUR cost. Absent if Vision fallback was used. */
+  _usage?: GeminiUsage;
 }
 
 export interface EnrichedCard {
