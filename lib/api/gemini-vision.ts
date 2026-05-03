@@ -1,8 +1,22 @@
 import 'server-only';
 
+// Gemini Flash Preview pricing (cf. spec §4.1).
+const PROMPT_TOKEN_ESTIMATE = 300; // mesuré post-shortening (Task 3), ajuster si bench différe
+const COST_USD_PER_M_INPUT = 0.075;
+const COST_USD_PER_M_OUTPUT = 0.30;
+const USD_TO_EUR = 0.92;
+
 const GEMINI_MODEL = 'gemini-3-flash-preview';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const TIMEOUT_MS = 15000;
+
+export interface GeminiUsage {
+  tokens_in: number;
+  tokens_out: number;
+  /** Estimated image tokens (Gemini doesn't break this out, derived = promptTokenCount - PROMPT_TOKEN_ESTIMATE). */
+  tokens_image: number;
+  cost_eur: number;
+}
 
 export interface GeminiCardExtraction {
   card_name: string;
@@ -21,6 +35,8 @@ export interface GeminiCardExtraction {
   // Set translation
   set_name: string | null; // Set name as printed on card (in card's language)
   set_name_fr: string | null; // French translation of set name from training data
+
+  _usage?: GeminiUsage;
 }
 
 const PROMPT = `Tu regardes la photo d'une carte Pokémon JCC. Extrais les informations imprimées sur la carte.
@@ -100,6 +116,7 @@ export async function extractCardFromImage(
           temperature: 0,
           responseMimeType: 'application/json',
           responseSchema: SCHEMA,
+          maxOutputTokens: 300,
         },
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -113,10 +130,28 @@ export async function extractCardFromImage(
 
     interface GeminiResp {
       candidates?: { content?: { parts?: { text?: string }[] } }[];
+      usageMetadata?: {
+        promptTokenCount?: number;
+        candidatesTokenCount?: number;
+        totalTokenCount?: number;
+      };
     }
     const data = (await response.json()) as GeminiResp;
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) return null;
+
+    // Extract usage if present. Best-effort — absent if API doesn't return it.
+    let usage: GeminiUsage | undefined;
+    const meta = data.usageMetadata;
+    if (meta && typeof meta.promptTokenCount === 'number' && typeof meta.candidatesTokenCount === 'number') {
+      const tokens_in = meta.promptTokenCount;
+      const tokens_out = meta.candidatesTokenCount;
+      const tokens_image = Math.max(0, tokens_in - PROMPT_TOKEN_ESTIMATE);
+      const cost_usd = (tokens_in * COST_USD_PER_M_INPUT + tokens_out * COST_USD_PER_M_OUTPUT) / 1_000_000;
+      const cost_eur = cost_usd * USD_TO_EUR;
+      usage = { tokens_in, tokens_out, tokens_image, cost_eur };
+      console.log(`[Gemini] ${tokens_in}in / ${tokens_out}out / ${tokens_image}img — €${cost_eur.toFixed(6)}`);
+    }
 
     const parsed = JSON.parse(text) as Partial<GeminiCardExtraction>;
 
@@ -148,6 +183,7 @@ export async function extractCardFromImage(
       pokemon_name_fr: parsed.pokemon_name_fr || null,
       set_name: parsed.set_name || null,
       set_name_fr: parsed.set_name_fr || null,
+      _usage: usage,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

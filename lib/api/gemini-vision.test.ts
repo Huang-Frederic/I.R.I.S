@@ -419,4 +419,76 @@ describe('gemini-vision', () => {
       set_name_fr: 'Partenaires de Combat',
     });
   });
+
+  it('extracts _usage from response when usageMetadata is present', async () => {
+    const mockResponse = {
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                text: JSON.stringify({
+                  card_name: 'Pikachu',
+                  set_code: 'SV1',
+                  set_number: '1',
+                  language: 'EN',
+                  confidence: 'high',
+                }),
+              },
+            ],
+          },
+        },
+      ],
+      usageMetadata: {
+        promptTokenCount: 350,
+        candidatesTokenCount: 80,
+        totalTokenCount: 430,
+      },
+    };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse,
+    }) as unknown as typeof fetch;
+
+    const result = await extractCardFromImage(Buffer.from('fake'));
+    expect(result?._usage).toBeDefined();
+    expect(result?._usage?.tokens_in).toBe(350);
+    expect(result?._usage?.tokens_out).toBe(80);
+    // tokens_image = 350 (in) - PROMPT_TOKEN_ESTIMATE (300) = 50
+    expect(result?._usage?.tokens_image).toBe(50);
+    // cost: (350 * 0.075 + 80 * 0.30) / 1M = 0.00005025 USD * 0.92 = 0.00004623 EUR
+    expect(result?._usage?.cost_eur).toBeCloseTo(0.00004623, 7);
+  });
+
+  it('omits _usage when usageMetadata is missing', async () => {
+    const mockResponse = {
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                text: JSON.stringify({
+                  card_name: 'Pikachu',
+                  set_code: 'SV1',
+                  set_number: '1',
+                  language: 'EN',
+                  confidence: 'high',
+                }),
+              },
+            ],
+          },
+        },
+      ],
+      // no usageMetadata
+    };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse,
+    }) as unknown as typeof fetch;
+
+    const result = await extractCardFromImage(Buffer.from('fake'));
+    expect(result).not.toBeNull();
+    expect(result?._usage).toBeUndefined();
+    expect(result?.card_name).toBe('Pikachu');
+  });
 });
