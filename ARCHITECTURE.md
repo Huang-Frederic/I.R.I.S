@@ -198,7 +198,7 @@ Pages **non protégées** (proxy.ts les exclut de la redirection).
 Toutes les routes sous `(app)/` requièrent authentification — proxy.ts redirige vers `/login` si non connecté.
 
 - `app/(app)/layout.tsx` (37 lignes) — **Layout principal** : Sidebar desktop (220px fixe gauche) + BottomNav mobile (sticky bottom) + SignOutButton. Structure : `<div class="flex">` (sidebar) + `<main>` (contenu) sur desktop, `<main>` + BottomNav sur mobile.
-- `app/(app)/page.tsx` (14 lignes) — **Dashboard** (TODO Phase 4) : placeholder avec titre "Tableau de bord" + texte "À venir : KPIs, cartes rares, alertes".
+- `app/(app)/page.tsx` (14 lignes) — **Dashboard** (TODO Phase 5) : placeholder avec titre "Tableau de bord" + texte "À venir : KPIs, cartes rares, alertes".
 - `app/(app)/pokedex/page.tsx` (37 lignes) — **Page Pokédex** : fetch toutes les cartes (`status` in `pokedex`, `for_sale`, `collection`) via Supabase, affiche `<PokedexGrid cards={data} />`. Gère le cas 0 cartes avec message d'invite au scan.
 - `app/(app)/submit/page.tsx` (23 lignes) — **Page Scan** : affiche `<SubmitTabs />`. Tab 'Mobile' (CardScanForm), 'Lot Vinted' (LotForm, Phase 3b1), 'Batch' (BatchForm, Phase 3b2 v2 — enchaînement CardScanForm).
 - `app/(app)/vinted/page.tsx` (11 lignes) — **Page Vinted** (TODO Phase 2) : placeholder avec titre "Stock Vinted" + texte "À venir : liste FIFO, générateur d'annonce".
@@ -400,7 +400,7 @@ Tous les scripts utilisent `tsx` (TypeScript execution) ou `npx tsx`. Aucun n'es
 - `lib/utils/sanity.test.ts` — 1 test
 - `scripts/scrape-limitlesstcg.test.ts` — 8 tests
 
-Couverture : non configurée (à ajouter Phase 4). Pas de tests E2E (Playwright prévu Phase 4).
+Couverture : non configurée (à ajouter futur). Pas de tests E2E (Playwright différé depuis Phase 1.13).
 
 ### Tailwind v4
 
@@ -519,10 +519,10 @@ Config dans `app/globals.css` via `@theme { ... }` (nouveau système Tailwind v4
 
 ### Ce qui n'est PAS testé
 
-- **Composants React** : 0 tests UI actuellement. Plan Phase 4 : ajouter tests `MobileSubmit.tsx`, `PokedexGrid.tsx`, `PokedexDrawer.tsx`.
-- **Routes API** : 0 tests integration. Plan Phase 4 : tester `/api/ocr`, `/api/enrich`, `/api/cards` avec mock Supabase + mock Vision/Gemini.
-- **Database** : 0 tests SQL. RPC `replace_pokedex_card`, trigger `cards_set_rarity_rank` non testés. Plan Phase 4 : tests Supabase local (via `supabase start`).
-- **E2E** : 0 tests Playwright. Plan Phase 4 : flow complet scan → enrich → save → Pokédex.
+- **Composants React** : 0 tests UI actuellement. Politique projet : pas de tests UI sur les composants React (cf. Phase 1.13 / 2.1 / 3a / 3b1 / 3b2 v2). Smoke test à la main + Playwright différé.
+- **Routes API** : tests integration en place pour `/api/cards`, `/api/cards/[id]`, `/api/lots`, `/api/lots/[id]`, `/api/prices/update` (Phase 3a + 3b1 + 3b2 v2). Manquent : `/api/ocr`, `/api/enrich`, `/api/pokedex/replace`, `/api/pokedex/suggest`.
+- **Database** : 0 tests SQL. RPC `replace_pokedex_card`, trigger `cards_set_rarity_rank` non testés (différé).
+- **E2E** : 0 tests Playwright. Différé depuis Phase 1.13.
 
 ### Comment lancer
 
@@ -703,17 +703,21 @@ Ces fichiers existent localement mais ne sont jamais committés :
 
 Voir CLAUDE.md pour le bilan. Résumé : cron pricing TCGdex quotidien (Phase 3a), lots Vinted bundles (Phase 3b1), bulk import 100% web avec enchaînement CardScanForm (Phase 3b2 v2). 242 tests vitest, 0 lint, 0 type error.
 
+### Phase 3c — TODO 🚧
+
+**Objectif** : Bulk vendu (sélecteur multi-cartes vendues ensemble + division du prix de vente entre les cartes pour avoir le prix unitaire) + Refining Gemini tokens (audit du nombre de tokens entrant et sortant + optimisation pour réduire le coût de la pipeline).
+
+Brief : [PHASE_3.md](PHASE_3.md) à la racine.
+
 ### Phase 4 — TODO 🚧
 
-**Objectif** : Bulk vendu (selecteur multi-cartes vendues ensemble + division du prix de vente entre les cartes) + Refining Gemini tokens (audit du nombre de tokens entrant et sortant + optimisation pour réduire le coût de la pipeline).
+**Objectif** : Passage à 2 users (RLS multi-tenant Supabase) + Import one-shot du profil Vinted existant (parser le HTML de la page profil pour ingester les annonces existantes — CDN Vinted source d'images).
+
+Brief : [PHASE_4.md](PHASE_4.md) à la racine.
 
 ### Phase 5 — TODO 🚧
 
-**Objectif** : Passage à 2 users (RLS multi-tenant Supabase) + Import one-shot du profil Vinted existant (parser le HTML de la page profil pour ingester les annonces existantes).
-
-### Phase 6 — TODO 🚧
-
-**Objectif** : Dashboard (KPIs valeur stock, top cartes rares, alertes restock, **+ tracking tokens consommés et coût/jour app**) + polish PWA (install prompt, icônes 192/512, manifest).
+**Objectif** : Dashboard (KPIs valeur stock, top cartes rares, alertes restock, **+ tracking tokens consommés et coût/jour app**) + polish PWA (install prompt, icônes 192/512, manifest fine-tune).
 
 ---
 
