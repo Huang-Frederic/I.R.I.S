@@ -454,10 +454,62 @@ describe('gemini-vision', () => {
     expect(result?._usage).toBeDefined();
     expect(result?._usage?.tokens_in).toBe(350);
     expect(result?._usage?.tokens_out).toBe(80);
-    // tokens_image = 350 (in) - PROMPT_TOKEN_ESTIMATE (220) = 130
-    expect(result?._usage?.tokens_image).toBe(130);
+    // tokens_image = 350 (in) - PROMPT_TOKEN_ESTIMATE (245) = 105
+    expect(result?._usage?.tokens_image).toBe(105);
     // cost: (350 * 0.075 + 80 * 0.30) / 1M = 0.00005025 USD * 0.92 = 0.00004623 EUR
     expect(result?._usage?.cost_eur).toBeCloseTo(0.00004623, 7);
+  });
+
+  it('tolerates a prose preamble before the JSON object', async () => {
+    const validJson = JSON.stringify({
+      card_name: 'Pikachu',
+      set_code: 'SV1',
+      set_number: '1',
+      language: 'EN',
+      confidence: 'high',
+    });
+    const mockResponse = {
+      candidates: [
+        {
+          content: {
+            parts: [{ text: `Here is the JSON:\n\n${validJson}\n` }],
+          },
+        },
+      ],
+    };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse,
+    }) as unknown as typeof fetch;
+
+    const result = await extractCardFromImage(Buffer.from('fake'));
+    expect(result?.card_name).toBe('Pikachu');
+  });
+
+  it('tolerates markdown fences around the JSON object', async () => {
+    const validJson = JSON.stringify({
+      card_name: 'Pikachu',
+      set_code: 'SV1',
+      set_number: '1',
+      language: 'EN',
+      confidence: 'high',
+    });
+    const mockResponse = {
+      candidates: [
+        {
+          content: {
+            parts: [{ text: '```json\n' + validJson + '\n```' }],
+          },
+        },
+      ],
+    };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse,
+    }) as unknown as typeof fetch;
+
+    const result = await extractCardFromImage(Buffer.from('fake'));
+    expect(result?.card_name).toBe('Pikachu');
   });
 
   it('omits _usage when usageMetadata is missing', async () => {

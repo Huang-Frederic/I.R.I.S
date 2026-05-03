@@ -1,7 +1,7 @@
 import 'server-only';
 
 // Gemini Flash Preview pricing (cf. spec §4.1).
-const PROMPT_TOKEN_ESTIMATE = 220; // mesuré post-shortening Task 3
+const PROMPT_TOKEN_ESTIMATE = 245; // mesuré post-shortening + strict JSON prefix
 const COST_USD_PER_M_INPUT = 0.075;
 const COST_USD_PER_M_OUTPUT = 0.30;
 const USD_TO_EUR = 0.92;
@@ -39,7 +39,9 @@ export interface GeminiCardExtraction {
   _usage?: GeminiUsage;
 }
 
-const PROMPT = `Lis une carte Pokémon JCC et retourne le JSON ci-dessous. NE DEVINE PAS — si non lisible, mets null (sauf champs requis).
+const PROMPT = `Réponds UNIQUEMENT avec un objet JSON brut (pas de markdown, pas de texte avant/après, pas de \`\`\`).
+
+Lis une carte Pokémon JCC et retourne le JSON ci-dessous. NE DEVINE PAS — si non lisible, mets null (sauf champs requis).
 
 ZONE BAS : ligne fine sous le texte d'attaque avec illustrateur, numéro XXX/YYY (ex 012/086), et code d'extension court (ex SV11W, BW5, sm8b — casse exacte).
 ZONE HAUT : nom du Pokémon (langue de la carte).
@@ -58,6 +60,18 @@ ZONE HAUT : nom du Pokémon (langue de la carte).
   "set_name": "<nom extension imprimé (ex 'White Flare'), null si invisible>",
   "set_name_fr": "<traduction FR (ex 'Combat de Maîtres'), null si incertain>"
 }`;
+
+/**
+ * Flash Preview occasionally ignores responseMimeType and prepends prose
+ * ("Here is the JSON:" / "```json"). Strip everything outside the first
+ * balanced `{...}` so JSON.parse never sees that noise.
+ */
+function extractJsonObject(text: string): string {
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1 || end === -1 || end < start) return text;
+  return text.slice(start, end + 1);
+}
 
 const SCHEMA = {
   type: 'object',
@@ -147,7 +161,7 @@ export async function extractCardFromImage(
       console.log(`[Gemini] ${tokens_in}in / ${tokens_out}out / ${tokens_image}img — €${cost_eur.toFixed(6)}`);
     }
 
-    const parsed = JSON.parse(text) as Partial<GeminiCardExtraction>;
+    const parsed = JSON.parse(extractJsonObject(text)) as Partial<GeminiCardExtraction>;
 
     // Sanity check: must have set_code + set_number
     if (
