@@ -200,7 +200,7 @@ Toutes les routes sous `(app)/` requièrent authentification — proxy.ts rediri
 - `app/(app)/layout.tsx` (37 lignes) — **Layout principal** : Sidebar desktop (220px fixe gauche) + BottomNav mobile (sticky bottom) + SignOutButton. Structure : `<div class="flex">` (sidebar) + `<main>` (contenu) sur desktop, `<main>` + BottomNav sur mobile.
 - `app/(app)/page.tsx` (14 lignes) — **Dashboard** (TODO Phase 4) : placeholder avec titre "Tableau de bord" + texte "À venir : KPIs, cartes rares, alertes".
 - `app/(app)/pokedex/page.tsx` (37 lignes) — **Page Pokédex** : fetch toutes les cartes (`status` in `pokedex`, `for_sale`, `collection`) via Supabase, affiche `<PokedexGrid cards={data} />`. Gère le cas 0 cartes avec message d'invite au scan.
-- `app/(app)/submit/page.tsx` (23 lignes) — **Page Scan** : affiche `<SubmitTabs />` qui wrape `<MobileSubmit />`. Tab "Lot" et "Script Python" sont des placeholders (Phase 2).
+- `app/(app)/submit/page.tsx` (23 lignes) — **Page Scan** : affiche `<SubmitTabs />`. Tab 'Mobile' (CardScanForm), 'Lot Vinted' (LotForm, Phase 3b1), 'Batch' (BatchForm, Phase 3b2 v2 — enchaînement CardScanForm).
 - `app/(app)/vinted/page.tsx` (11 lignes) — **Page Vinted** (TODO Phase 2) : placeholder avec titre "Stock Vinted" + texte "À venir : liste FIFO, générateur d'annonce".
 
 ### app/api/ — Routes API
@@ -234,7 +234,7 @@ Toutes les routes API sont **protégées par authentification** sauf `/api/price
 - `components/submit/.gitkeep` (0 lignes) — Placeholder pour le dossier.
 - `components/submit/MobileSubmit.tsx` (953 lignes) — **Composant central du scan**. Client Component. Layout 2 colonnes desktop : photo + loupe sticky à gauche, formulaire à droite. États : `phase` (idle → scanning → reviewing → saving → success/error), `previewUrl`, `photoBlob`, `form: FormFields` (incluant `notes`, `variant` Standard/Poké Ball/Master Ball/Reverse Holo/Promo), `confidence`, `suggestion: SuggestionResult`, `candidates: EnrichedCard[]`, `ocrGemini` (champs optionnels FR), `zoomPos` + `imageDimensions` pour la loupe 1.5×. Flow : (1) User clique "Scanner" → input file → resize image 1600px max via `resizeImage`, (2) POST `/api/ocr` → OCR result (avec `pokemonNumber`, `pokemonNameFr`, `setName`, `setNameFr` si Gemini), (3) POST `/api/enrich` propageant ces champs → enriched card avec noms bilingues + candidates, (4) Si plusieurs candidates → modal picker visuel (grille d'images TCG), (5) POST `/api/pokedex/suggest` → suggestion Pokédex, (6) Affiche formulaire pré-rempli (`card_name = "Gruikui (チャオブー)"` etc.) + `<ScanSuggestion />` bandeau + champ `notes` + dropdown `variant`, (7) User confirme → POST `/api/cards` → redirect `/pokedex` ou `/vinted` selon status. Bouton "Re-rechercher" repasse les champs OCR Gemini (FR translations préservées). Helpers locaux : `Field`, `Input`, `Select`, `CandidatePicker`.
 
-- `components/submit/SubmitTabs.tsx` (34 lignes) — Wrapper tabs : 3 onglets (Mobile, Lot ≤20, Script Python). Seul "Mobile" implémenté (`<MobileSubmit />`). Les 2 autres sont placeholders (Phase 2).
+- `components/submit/SubmitTabs.tsx` (34 lignes) — Wrapper tabs : 3 onglets (Mobile, Lot Vinted, Batch). Tous implémentés.
 
 ### components/cards/ — Composants partagés
 
@@ -547,14 +547,14 @@ Fichier `.env.local` (git-ignored, copier depuis `.env.example`) :
 | `SUPABASE_SERVICE_ROLE_KEY` | Scripts scraping (bypass RLS) | Dashboard Supabase > Settings > API > service_role (secret) |
 | `GOOGLE_VISION_API_KEY` | `lib/api/vision.ts` (OCR fallback) | Google Cloud Console > APIs & Services > Credentials > Create API Key, activer Cloud Vision API |
 | `GEMINI_API_KEY` | `lib/api/gemini-vision.ts` (OCR primaire) | Google AI Studio > Get API Key, activer facturation GCP (Tier 1 quotas : 15 req/min, $0.075/1M tokens input) |
-| `CRON_SECRET` | `/api/prices/update` (TODO Phase 3) | Token aléatoire généré (`openssl rand -base64 32`), passer via `Authorization: Bearer ${CRON_SECRET}` |
+| `CRON_SECRET` | `/api/prices/update` (en production depuis Phase 3a) | Token aléatoire généré (`openssl rand -base64 32`), passer via `Authorization: Bearer ${CRON_SECRET}` |
 | `NEXT_PUBLIC_APP_URL` | Metadata (optional) | URL production Vercel (ex: `https://iris.vercel.app`) |
 
 **Setup complet** : lire `docs/setup.md`.
 
 **Note Gemini** : GEMINI_API_KEY requis pour Phase 1.12. Sans lui, OCR fallback Google Vision (fonctionne mais accuracy 63% vs 93%).
 
-**Note Cardmarket** : Les variables `MKM_APP_TOKEN`, `MKM_APP_SECRET`, `MKM_ACCESS_TOKEN`, `MKM_ACCESS_SECRET` mentionnées dans `context.md` sont **obsolètes** (API fermée 2023). Le catalogue est alimenté par scraping LimitlessTCG. Phase 3 (pricing) devra utiliser une autre source (TCGplayer API, ou scraping Cardmarket HTML).
+**Note Cardmarket** : Les variables `MKM_APP_TOKEN`, `MKM_APP_SECRET`, `MKM_ACCESS_TOKEN`, `MKM_ACCESS_SECRET` mentionnées dans `context.md` sont **obsolètes** (API fermée 2023). Le catalogue est alimenté par scraping LimitlessTCG. Phase 3a a finalement utilisé TCGdex (pricing.cardmarket.{low/trend/avg/updated} déjà inclus dans le catalogue gratuit) au lieu d'un scraper Cardmarket direct.
 
 ---
 
@@ -699,35 +699,21 @@ Ces fichiers existent localement mais ne sont jamais committés :
 - Modal avec prix Cardmarket + photo + boutons "Copier titre" / "Copier description"
 - Tests `vinted-template.test.ts`
 
-### Phase 3 — TODO 🚧
+### Phase 3 (3a + 3b1 + 3b2 v2) — TERMINÉE mai 2026
 
-**Objectif** : Pricing Cardmarket (alternative à l'API fermée), cron daily, mode lot.
-
-**Challenges** :
-- Cardmarket API v2.0 fermée → solutions alternatives : (1) TCGplayer API (USA-centric, pricing EUR approximatif), (2) Scraping HTML Cardmarket (robots.txt restrictif, fragile), (3) Manually update pricing (non scalable).
-- Cron Vercel `/api/prices/update` : protégé par `CRON_SECRET`, route SELECT toutes cartes → fetch pricing → UPDATE `cm_price_*` + `suggested_price`.
-- Mode lot (scan multiple cartes) : `BatchSubmit.tsx` (upload ≤20 photos) → OCR parallèle → queue de revue → bulk insert avec `lot_id`.
-
-**Planned** :
-- Route `/api/prices/update` (cron daily 2h AM)
-- Helper `lib/api/cardmarket-scraper.ts` (ou `lib/api/tcgplayer.ts`)
-- Composant `BatchSubmit.tsx` + `ReviewQueue.tsx`
-- Tests integration cron
+Voir CLAUDE.md pour le bilan. Résumé : cron pricing TCGdex quotidien (Phase 3a), lots Vinted bundles (Phase 3b1), bulk import 100% web avec enchaînement CardScanForm (Phase 3b2 v2). 242 tests vitest, 0 lint, 0 type error.
 
 ### Phase 4 — TODO 🚧
 
-**Objectif** : Dashboard, bulk vendu, polish PWA.
+**Objectif** : Bulk vendu (selecteur multi-cartes vendues ensemble + division du prix de vente entre les cartes) + Refining Gemini tokens (audit du nombre de tokens entrant et sortant + optimisation pour réduire le coût de la pipeline).
 
-**Planned** :
-- Dashboard KPIs : valeur stock Vinted, valeur Pokédex, completion %, ventes mois
-- Cartes les plus rares Pokédex (ORDER BY rarity_rank DESC, cm_price_trend DESC)
-- Alertes restock (Pokémon registered avec 0 carte for_sale)
-- Activité récente (10 dernières actions : ajouts, ventes, variations prix)
-- Bulk actions Vinted : sélection multiple → "Tout vendre" modal
-- Tests E2E Playwright (scan → save → Pokédex, generer annonce → copier)
-- PWA manifest icônes (192×192, 512×512) + test install homescreen Android
-- Coverage report Vitest
-- Déploiement Vercel production
+### Phase 5 — TODO 🚧
+
+**Objectif** : Passage à 2 users (RLS multi-tenant Supabase) + Import one-shot du profil Vinted existant (parser le HTML de la page profil pour ingester les annonces existantes).
+
+### Phase 6 — TODO 🚧
+
+**Objectif** : Dashboard (KPIs valeur stock, top cartes rares, alertes restock, **+ tracking tokens consommés et coût/jour app**) + polish PWA (install prompt, icônes 192/512, manifest).
 
 ---
 
@@ -766,7 +752,7 @@ Ces fichiers existent localement mais ne sont jamais committés :
 | Fichier | Lignes | Description |
 |---------|--------|-------------|
 | `components/submit/MobileSubmit.tsx` | 953 | Composant principal scan : layout 2 colonnes desktop (photo+loupe sticky / form), phases (idle → scanning → reviewing → saving → success/error), OCR + enrich calls (passe les 4 champs Gemini), candidate picker, form (notes + variant dropdown Standard/Poké Ball/Master Ball/Reverse Holo/Promo), loupe magnifier 1.5×, Pokédex suggestion, save. |
-| `components/submit/SubmitTabs.tsx` | 34 | Tabs wrapper : Mobile (implémenté), Lot + Script Python (placeholders Phase 2). |
+| `components/submit/SubmitTabs.tsx` | 34 | Tabs wrapper : Mobile, Lot Vinted, Batch — tous implémentés. |
 | `components/cards/ScanSuggestion.tsx` | 109 | Bandeau suggestion Pokédex (label "Match catalogue") : 4 variantes visuelles (no_pokemon_number, no_entry, can_replace, keep_existing), boutons radio actions. |
 
 ### Module Pokédex (9 fichiers, ~900 lignes)

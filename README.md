@@ -1,6 +1,6 @@
 # I.R.I.S
 
-PWA mono-utilisateur de gestion de collection Pokémon TCG.
+PWA mono-utilisateur de gestion de collection Pokémon TCG. **État actuel : Phase 3 terminée** (scan OCR + Pokédex + Vinted + Stock + cron pricing + lots bundles + bulk import web). Voir [CLAUDE.md](CLAUDE.md) pour le bilan détaillé.
 
 - **Spec complète** : [context.md](context.md)
 - **Setup local** : [docs/setup.md](docs/setup.md)

@@ -2,6 +2,15 @@
 
 > **Instructions :** Ce document est la spec complète de l'application PokeManager. Lis-le entièrement avant de commencer. Tu peux démarrer la construction dès la lecture terminée — tout est défini ici, aucune clarification nécessaire.
 
+> ⚠️ **DOCUMENT HISTORIQUE** : ce fichier est la spec d'origine du projet. Plusieurs sections ont divergé en cours de route :
+> - **§9 Script Python CLI** : ABANDONNÉ en Phase 3b2 v2 (UX web suffit, pas de duplication TS↔Python)
+> - **§5.1 Mode 3 Info Script Python** : ABANDONNÉ idem
+> - **§5.1 Mode 2 Lot ≤20 photos** : PIVOT en Phase 3b1 → "lots = entité distincte de cards" (bundle vendu en bloc, pas multi-OCR par carte)
+> - **Cardmarket API** : FERMÉE aux nouvelles inscriptions depuis 2023 (mention dans le doc), pricing alimenté par TCGdex via cron
+> - **§7.3 Cardmarket API + cron** : implémenté en Phase 3a via TCGdex, pas Cardmarket direct
+>
+> Pour l'état réel du projet, voir [CLAUDE.md](CLAUDE.md) (résumé des phases) et [docs/phases-summary.md](docs/phases-summary.md) (bilan détaillé).
+
 ---
 
 ## 1. Vision & Contexte
