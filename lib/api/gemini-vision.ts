@@ -91,8 +91,22 @@ const SCHEMA = {
 };
 
 /**
+ * Result of a Gemini vision call. `extraction` is null when the call failed
+ * (missing key, network error, parse failure, incomplete payload). `usage`
+ * is non-null whenever Gemini actually responded with usageMetadata —
+ * including parse-failure cases where we burned tokens but couldn't read the
+ * JSON. Callers can then attribute the cost even when falling back to Vision.
+ */
+export interface GeminiResult {
+  extraction: GeminiCardExtraction | null;
+  usage: GeminiUsage | null;
+}
+
+/**
  * Send a card image to Gemini 3 Flash Preview and extract structured fields.
- * Returns null on API error, timeout, missing API key, or incomplete response.
+ * Returns `{ extraction: null, usage: null }` on configuration errors and
+ * pre-response failures. Returns `{ extraction: null, usage: <tokens> }` on
+ * post-response failures so the caller can still surface cost.
  *
  * Low-confidence responses are returned as-is — the UI surfaces a warning
  * via the confidence threshold check, but data still flows. We do NOT fall
@@ -100,9 +114,9 @@ const SCHEMA = {
  */
 export async function extractCardFromImage(
   imageBuffer: Buffer,
-): Promise<GeminiCardExtraction | null> {
+): Promise<GeminiResult> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) return { extraction: null, usage: null };
 
   const base64 = imageBuffer.toString('base64');
   try {
@@ -131,7 +145,7 @@ export async function extractCardFromImage(
     if (!response.ok) {
       const body = await response.text();
       console.warn(`Gemini ${response.status}: ${body.slice(0, 200)}`);
-      return null;
+      return { extraction: null, usage: null };
     }
 
     interface GeminiResp {
@@ -143,11 +157,9 @@ export async function extractCardFromImage(
       };
     }
     const data = (await response.json()) as GeminiResp;
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) return null;
 
-    // Extract usage if present. Best-effort — absent if API doesn't return it.
-    let usage: GeminiUsage | undefined;
+    // Extract usage FIRST so we can report it even on downstream failures.
+    let usage: GeminiUsage | null = null;
     const meta = data.usageMetadata;
     if (meta && typeof meta.promptTokenCount === 'number' && typeof meta.candidatesTokenCount === 'number') {
       const tokens_in = meta.promptTokenCount;
@@ -159,6 +171,9 @@ export async function extractCardFromImage(
       console.log(`[Gemini] ${tokens_in}in / ${tokens_out}out / ${tokens_image}img — €${cost_eur.toFixed(6)}`);
     }
 
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) return { extraction: null, usage };
+
     let parsed: Partial<GeminiCardExtraction>;
     try {
       parsed = JSON.parse(extractJsonObject(text)) as Partial<GeminiCardExtraction>;
@@ -169,7 +184,7 @@ export async function extractCardFromImage(
       console.warn(
         `Gemini parse failed (${parseErr instanceof Error ? parseErr.message : 'unknown'}). Raw response: ${JSON.stringify(text).slice(0, 500)}`,
       );
-      return null;
+      return { extraction: null, usage };
     }
 
     // Sanity check: must have set_code + set_number
@@ -181,10 +196,10 @@ export async function extractCardFromImage(
       !parsed.confidence
     ) {
       console.warn('Gemini returned incomplete data:', parsed);
-      return null;
+      return { extraction: null, usage };
     }
 
-    return {
+    const extraction: GeminiCardExtraction = {
       card_name: parsed.card_name,
       pokemon_name: parsed.pokemon_name || null,
       set_code: parsed.set_code,
@@ -200,11 +215,12 @@ export async function extractCardFromImage(
       pokemon_name_fr: parsed.pokemon_name_fr || null,
       set_name: parsed.set_name || null,
       set_name_fr: parsed.set_name_fr || null,
-      _usage: usage,
+      _usage: usage ?? undefined,
     };
+    return { extraction, usage };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn('Gemini extraction failed:', msg);
-    return null;
+    return { extraction: null, usage: null };
   }
 }

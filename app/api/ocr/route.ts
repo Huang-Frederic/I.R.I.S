@@ -20,10 +20,12 @@ export async function POST(request: Request) {
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  // Try Gemini first if API key is set
-  const geminiResult = await extractCardFromImage(buffer);
+  // Try Gemini first if API key is set. The result always carries `usage` if
+  // Gemini responded — even when the extraction itself failed (parse error,
+  // incomplete payload). We propagate that to the client so the user sees the
+  // tokens were burned even though Vision had to step in.
+  const { extraction: geminiResult, usage: geminiUsage } = await extractCardFromImage(buffer);
   if (geminiResult) {
-    // Map Gemini extraction to OcrResult shape
     const ocrResult: OcrResult = {
       text: `${geminiResult.card_name} | ${geminiResult.pokemon_name ?? ''} | ${geminiResult.set_code}-${geminiResult.set_number} | ${geminiResult.language}`,
       confidence:
@@ -51,15 +53,22 @@ export async function POST(request: Request) {
       setName: geminiResult.set_name,
       setNameFr: geminiResult.set_name_fr,
       _usage: geminiResult._usage,
+      _engine: 'gemini',
     };
     return NextResponse.json(ocrResult);
   }
 
-  // Fall back to Google Vision
+  // Fall back to Google Vision. Attach Gemini usage if any tokens were burned
+  // (parse-fail or incomplete payload cases) so the front can still show them.
   const base64 = buffer.toString('base64');
   try {
     const result = await detectText(base64);
-    return NextResponse.json(result);
+    const ocrResult: OcrResult = {
+      ...result,
+      _usage: geminiUsage ?? undefined,
+      _engine: 'vision',
+    };
+    return NextResponse.json(ocrResult);
   } catch (error) {
     console.error('OCR failed:', error);
     return NextResponse.json(
