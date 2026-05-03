@@ -45,12 +45,13 @@ npx supabase link --project-ref <NOUVEAU_PROJECT_REF>
 npx supabase db push --include-all
 ```
 
-Les 5 migrations doivent passer sans erreur :
+Les 6 migrations doivent passer sans erreur :
 1. `20260425224142_initial_schema.sql`
 2. `20260428114538_tcg_catalog.sql`
 3. `20260429142350_add_cards_variant.sql`
 4. `20260430130000_phase21_vinted_unique_listed.sql`
 5. `20260430200000_fix_replace_pokedex_card_3step.sql`
+6. `20260502120000_lots_vinted_bundle.sql`
 
 **Vérification rapide** dans le SQL Editor :
 

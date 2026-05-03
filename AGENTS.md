@@ -13,3 +13,4 @@ This version (Next.js 16) has breaking changes — APIs, conventions, and file s
 - Tailwind v4 — design tokens in `app/globals.css` via `@theme { ... }`, no `tailwind.config.ts` file.
 - Supabase clients : use `@supabase/ssr` (`createServerClient` for RSC/route handlers, `createBrowserClient` for client components). Never import the auth-helpers package — it's deprecated.
 - Always read `context.md` (full spec) and `CLAUDE.md` (orientation) before adding features.
+- L'état d'avancement réel du projet est dans [CLAUDE.md](CLAUDE.md) (mis à jour en continu) et [docs/phases-summary.md](docs/phases-summary.md). Le `context.md` est la spec ORIGINALE — elle a divergé sur plusieurs points (Cardmarket API fermée, Python script abandonné, mode lot pivot vers bundles). Toujours croiser avec CLAUDE.md.

@@ -301,6 +301,77 @@ Décompte des nouveaux tests (≥55 ajoutés depuis Phase 2) : `vinted-filter` (
 5. Pré-compute `has_for_sale` côté DB (vue matérialisée ou trigger) si la perf de la page Stock devient un souci avec 10k+ cartes.
 6. Image bypass plus agressif (rotation 0.3°, noise) si Vinted détecte encore les uploads.
 
-## Prochaine étape : Phase 3
+### Phase 3a — Cron pricing TCGdex
 
-**Objectif** : Source de prix Cardmarket (stratégie à définir : scraper public ou TCGdex pricing existant), cron de rafraîchissement, mode lot ≤ 20 photos, script Python CLI pour l'import en masse.
+**Contexte** : À la sortie de Phase 2.1, le pricing des cartes `for_sale` est renseigné une fois au scan via TCGdex puis JAMAIS rafraîchi. L'utilisateur édite manuellement. Pas de signal visuel de fraîcheur. L'API Cardmarket étant fermée aux nouvelles applications, on utilise TCGdex (qui expose déjà `pricing.cardmarket.{low,trend,avg,updated}`).
+
+**Livrables** :
+- `POST /api/prices/update` — endpoint dual-mode :
+  - Bulk : header `Authorization: Bearer ${CRON_SECRET}`, lit jusqu'à 200 cartes `for_sale` (oldest first via `cm_updated_at ASC NULLS FIRST`), parallélisme 10, écrit `cm_price_*` + `cm_updated_at` + backfill `card_id_tcg`
+  - Single-card : `?card_id=X` derrière auth Supabase normale, retourne le row mis à jour
+- `vercel.json` — cron schedule `0 2 * * *` UTC
+- 2 helpers purs : `lib/utils/categorize-pricing-card.ts` (skip variant ≠ null, skip langues KO/ZH non TCGdex, backfill auto si `card_id_tcg` null), `lib/utils/format-staleness.ts` (4 tons : fresh < 24h, stale 1-7j, old > 7j, never null)
+- 2 composants UI : `<PriceFreshnessBadge>` + `<RefreshPriceButton>` intégrés dans `VintedRow` / `StockRow` / `PokedexDrawer`. Drawer : label "Annonce" pour `suggested_price` (renommé), refresh + badge à droite de la cellule.
+- **Décision clé** : le cron ne touche JAMAIS `suggested_price`. Cette colonne devient "Annonce" en UI, valeur 100% user-définie via `EditablePriceCell`. Le cron écrit uniquement `cm_price_low/trend/avg` + `cm_updated_at` + backfill `card_id_tcg`/`cardmarket_id` si applicable.
+- 218 tests, 0 lint warning, 0 type error. Aucune nouvelle migration (toutes colonnes existaient depuis Phase 1).
+
+**Followups différés** :
+1. Variant-aware pricing si TCGdex finit par exposer les prix Poké Ball / Reverse Holo / Promo séparément.
+2. Monitoring si `gemini-3-flash-preview` (modèle preview) est retiré ou versionné par Google.
+3. Tests E2E Playwright sur le flow refresh + cron (toujours déféré depuis 1.13).
+
+### Phase 3b1 — Lots Vinted (bundles)
+
+**Contexte** : Le plan initial visait un "Mode lot ≤ 20 photos individuelles avec OCR par carte". Test utilisateur révèle que c'est chronophage ET inadapté à l'usage réel : les lots sont vendus en bloc, jamais en pièces détachées, jamais ajoutés au Pokédex. Pivot vers "lot = entité distincte de cards".
+
+**Livrables** :
+- Migration `supabase/migrations/20260502120000_lots_vinted_bundle.sql` — étend la table `lots` (initialement 3 colonnes vides) avec 11 nouvelles colonnes : `name`, `language`, `condition`, `extra_description`, `price`, `status` (`for_sale`|`sold`), `date_sold`, `sold_price`, `vinted_listed_at`, `photo_urls jsonb`, `date_added`. Indexes : `idx_lots_status`, `idx_lots_date_added`, `idx_lots_vinted_listed`.
+- `lib/utils/lot-template.ts` — `buildLotAnnonce({name, language, condition, extra_description})` retourne `{title, description}`. Title = `"Lot de Cartes Pokémon ${name} [${LANG_CODE}]"` (ZH → CN convention user). Description = template fixe basé sur le format Vinted réel (✨ titre, 📘 langue+drapeau, ✅ état, bloc shipping fixe Paris/92/95, 🃏 cross-sell). 7 tests.
+- 3 endpoints : `POST /api/lots` (multipart upload, 5 tests), `PATCH /api/lots/[id]`, `DELETE /api/lots/[id]` (best-effort photo cleanup) — 7 tests combined.
+- Composants nouveaux :
+  - `<LotForm>` : 5 champs (nom + prix + langue + condition + description optionnelle) + multi-photo dropzone, preview live de l'annonce (réutilise `buildLotAnnonce`).
+  - `<LotRow>` : interleavé dans `/vinted` avec badge "Lot" violet (`text-rarity-chr`).
+  - `<LotAnnonceModal>` : carousel chevrons + dot indicators + arrow keys, copy clipboard, Download img anti-bot.
+- Composants étendus :
+  - `<EditablePriceCell>` + `<VintedListedToggle>` : prop `endpoint?` optionnelle (default `/api/cards/[id]`, lots passent `/api/lots/[id]` + `priceField="price"`).
+  - `<SoldModal>` : discriminated union `entity: { kind: 'card'; card } | { kind: 'lot'; lot }`.
+  - `<VintedFilters>` : chip Type (Tout / Cartes / Lots).
+  - `LANGUAGE_FEMALE` + `CONDITION_LABEL` exportés depuis `vinted-template.ts` pour réutilisation.
+- 237 tests (+19 vs Phase 3a : 7 lot-template + 5 POST + 7 PATCH/DELETE). 0 lint, 0 type error.
+- **Pas d'OCR, pas de Pokédex, pas de Stock, pas de cron pricing pour les lots** — entité indépendante.
+
+**Followups différés** :
+1. Cleanup `lots.photo_url` (singular) et `cards.lot_id` FK orphelins (migrations cosmétiques).
+2. Reorder photos après upload (drag & drop).
+3. Cleanup périodique des photos orphelines en Storage si lot supprimé.
+
+### Phase 3b2 v2 — Bulk import web
+
+**Contexte** : Le plan initial 3b2 prévoyait un script Python CLI (`add_cards.py`) avec Gemini Batch API + cache SHA256 pour bulk import 200+ cartes à coût marginal. **Pivot post-implémentation** : user préfère 100% web pour éviter setup Python + maintenance prompt dupliqué TS↔Python. Cap raisonnable 30 photos/batch (Vercel 60s + Gemini Tier 1 15 req/min).
+
+**Livrables** :
+- **Status fallback côté serveur** dans `POST /api/cards` : si requested status='for_sale' viole la contrainte unique partielle `one_for_sale_per_group`, le serveur renvoie 409 actionnable avec le payload `existingCard` (photo + prix + meta) au lieu d'une erreur générique.
+- `<DuplicateForSaleModal>` : modale actionnable affichée quand 409 — montre la carte existante (photo + nom + prix + langue + condition + variant), 2 boutons `[Annuler] / [Ajouter à mon Stock]`. Le clic "Stock" déclenche un re-POST avec status='collection'. Bénéficie au scanner unitaire ET au flow batch (puisque le batch utilise CardScanForm).
+- `lib/utils/resize-image.ts` : default `maxDim = 1600px`. Testé 1024 (15× moins de tokens) mais en prod 8/30 cartes ratées car le set_code/set_number en bas de carte est trop petit. Reverted. Wired dans `CardScanForm` (scanner unitaire), `LotForm` (photos lots), et `BatchForm` (chaque photo avant OCR).
+- `<CardScanForm>` accepte 4 nouveaux props prefill : `initialPhoto`, `initialPhotoFilename`, `initialOcr`, `initialEnrich`. Quand fournis, le composant skip le file picker + OCR + enrich et jump direct en phase `'reviewing'` avec le formulaire pré-rempli (`useEffect` d'init qui mirror le state-flow de `handleFile`). Permet la réutilisation par BatchForm sans dupliquer la logique formulaire.
+- `<BatchForm>` (rewrite complet) : drop zone ≤30 photos → "Analyser" → OCR + enrich pré-batchés en parallèle (concurrency 5 pour respecter Gemini rate limit) → puis affiche **CardScanForm enchaîné carte-par-carte**. Save → next, cancel → skip-current. Récap final.
+- Status passe de 3 boutons radio à un dropdown + champ Quantité à droite (Mobile + Batch identiques car même composant). Boucle POST × N : 1ère iter avec status demandé, suivantes avec status='collection' si Pokédex (qui ne supporte qu'1 exemplaire).
+- Search Vinted étendu aux lots : matche `name` + `extra_description` + `language` (helper `matchesLotSearch` dans `VintedList`).
+- **Drop entièrement** : `BatchReviewQueue.tsx` (obsolète après refactor), `app/api/pokedex/registered/route.ts` (BatchReviewQueue était son seul consumer), `scripts/add_cards.py`, `scripts/lib/`, `scripts/tests/`, `scripts/.env.example`, `scripts/requirements.txt`, `scripts/.gitignore`, `scripts/README.md` (le script Python en entier).
+- 242 tests (240 baseline + 2 nouveaux pour le 409 actionnable, -2 supprimés pour l'auto-fallback), 0 lint, 0 type error.
+
+**Décisions clés** :
+- **Pas d'auto-fallback côté serveur** (initialement implémenté puis reverted v2) : user préfère contrôle explicite via la modale actionnable. Backend renvoie 409 + `existingCard`, frontend décide.
+- **Resize 1600 et pas 1024** : économie tokens marginale ne vaut pas le 8/30 cartes ratées.
+- **Batch = enchaînement de CardScanForm** : 1 source de vérité pour le formulaire de scan, mêmes erreurs/Pokédex replace/conflict modal partout.
+
+**Followups différés** :
+1. Compression progressive client-side si image > 1MB après resize (edge case).
+2. Resume-from-CSV si user kill le batch mid-process (pas critique, le user re-drop les photos).
+3. Audit + optimisation des tokens Gemini (déféré en Phase 4 — la pipeline coût trop chère selon le user, à investiguer).
+
+## Prochaine étape : Phases 4 / 5 / 6
+
+- **Phase 4** — Bulk vendu (selecteur multi-cartes vendues ensemble + division du prix de vente entre les cartes) + Refining Gemini tokens (audit du nombre de tokens entrant et sortant + optimisation pour réduire le coût de la pipeline).
+- **Phase 5** — Passage à 2 users (RLS multi-tenant Supabase) + Import one-shot du profil Vinted existant (parser le HTML de la page profil pour ingester les annonces existantes).
+- **Phase 6** — Dashboard (KPIs valeur stock, top cartes rares, alertes restock, **+ tracking tokens consommés et coût/jour app**) + polish PWA (install prompt, icônes 192/512, manifest).

@@ -143,7 +143,7 @@ Ne pas activer pour l'usage runtime — pure devtool.
 
 ## 5. Variable `CRON_SECRET`
 
-Pour protéger l'endpoint `/api/prices/update` (Phase 3), génère un token aléatoire :
+Pour protéger l'endpoint `/api/prices/update` (en production depuis Phase 3a), génère un token aléatoire :
 
 ```bash
 openssl rand -hex 32
@@ -171,7 +171,7 @@ GEMINI_API_KEY=AIzaSy...          # OCR primaire (Phase 1.12)
 ANTHROPIC_API_KEY=                # optionnel (scripts uniquement)
 POKEMON_TCG_API_KEY=              # legacy, plus utilisé en runtime
 
-CRON_SECRET=                      # Phase 3
+CRON_SECRET=                      # Phase 3a (en production)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
