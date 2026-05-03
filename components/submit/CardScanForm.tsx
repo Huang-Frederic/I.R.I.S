@@ -10,6 +10,7 @@ import type {
   CardStatus,
   EnrichedCard,
   EnrichResult,
+  GeminiUsage,
   OcrResult,
 } from '@/lib/types';
 import {
@@ -167,6 +168,7 @@ export default function CardScanForm({
   const [researching, setResearching] = useState(false);
   const [researchMsg, setResearchMsg] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<EnrichedCard[]>([]);
+  const [ocrUsage, setOcrUsage] = useState<GeminiUsage | null>(null);
   const [ocrGemini, setOcrGemini] = useState<{
     pokemonNumber?: number | null;
     pokemonNameFr?: string | null;
@@ -225,6 +227,7 @@ export default function CardScanForm({
       setName: initialOcr.setName,
       setNameFr: initialOcr.setNameFr,
     });
+    setOcrUsage(initialOcr._usage ?? null);
 
     // Mirror enrich state from handleFile
     setEnrichFound(initialEnrich.bestMatch !== null);
@@ -478,6 +481,7 @@ export default function CardScanForm({
   async function handleFile(file: File) {
     setPhase('scanning');
     setErrorMsg(null);
+    setOcrUsage(null);
     try {
       const blob = await resizeImage(file);
       setPhotoBlob(blob);
@@ -502,6 +506,7 @@ export default function CardScanForm({
         setName: ocr.setName,
         setNameFr: ocr.setNameFr,
       });
+      setOcrUsage(ocr._usage ?? null);
 
       // Smart extraction: if Vision pinned the set number / set code in the
       // bottom-left footer, pre-fill them and let the server resolve the card.
@@ -945,6 +950,14 @@ export default function CardScanForm({
                     <p className="text-text-muted font-mono text-xs">
                       Match catalogue : <span className="text-text">{form.card_id_tcg}</span>
                     </p>
+                  )}
+                  {ocrUsage && (
+                    <>
+                      <hr className="border-border my-2" />
+                      <p className="text-text-faint font-mono text-xs">
+                        {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image} img · €{ocrUsage.cost_eur.toFixed(6)}
+                      </p>
+                    </>
                   )}
                 </div>
               </div>
