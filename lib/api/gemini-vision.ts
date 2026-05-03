@@ -137,6 +137,11 @@ export async function extractCardFromImage(
           responseMimeType: 'application/json',
           responseSchema: SCHEMA,
           maxOutputTokens: 300,
+          // Gemini 3 Flash is a reasoning model — by default it burns the
+          // output budget on internal "thinking" tokens before producing the
+          // JSON, hitting MAX_TOKENS with content: {}. OCR extraction is a
+          // structural task that needs zero reasoning, so disable it entirely.
+          thinkingConfig: { thinkingBudget: 0 },
         },
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
