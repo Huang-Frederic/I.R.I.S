@@ -1,15 +1,14 @@
 import 'server-only';
 
-// Gemini 3 Flash Preview pricing (paid tier, per 1M tokens, source:
+// Gemini 3.1 Flash Lite Preview pricing (paid tier, per 1M tokens, source:
 // https://ai.google.dev/gemini-api/docs/pricing — verified 2026-05).
-// IMPORTANT: ne pas confondre avec Gemini 1.5/2.0 Flash ($0.075 in / $0.30 out)
-// — Gemini 3 est 6-10x plus cher.
+// Bench 5/5 same as gemini-3-flash-preview at -43% cost / -35% latency.
 const PROMPT_TOKEN_ESTIMATE = 220; // mesuré post-shortening Task 3
-const COST_USD_PER_M_INPUT = 0.50;  // text / image / video
-const COST_USD_PER_M_OUTPUT = 3.00; // including thinking tokens (we set thinkingBudget=0 → 0 charged)
+const COST_USD_PER_M_INPUT = 0.25;  // text / image / video
+const COST_USD_PER_M_OUTPUT = 1.50; // including thinking tokens (we set thinkingBudget=0 → 0 charged)
 const USD_TO_EUR = 0.92;
 
-const GEMINI_MODEL = 'gemini-3-flash-preview';
+const GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const TIMEOUT_MS = 15000;
 
