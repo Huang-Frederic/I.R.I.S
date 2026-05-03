@@ -1,7 +1,7 @@
 import 'server-only';
 
 // Gemini Flash Preview pricing (cf. spec §4.1).
-const PROMPT_TOKEN_ESTIMATE = 300; // mesuré post-shortening (Task 3), ajuster si bench différe
+const PROMPT_TOKEN_ESTIMATE = 220; // mesuré post-shortening Task 3
 const COST_USD_PER_M_INPUT = 0.075;
 const COST_USD_PER_M_OUTPUT = 0.30;
 const USD_TO_EUR = 0.92;
@@ -39,30 +39,24 @@ export interface GeminiCardExtraction {
   _usage?: GeminiUsage;
 }
 
-const PROMPT = `Tu regardes la photo d'une carte Pokémon JCC. Extrais les informations imprimées sur la carte.
+const PROMPT = `Lis une carte Pokémon JCC et retourne le JSON ci-dessous. NE DEVINE PAS — si non lisible, mets null (sauf champs requis).
 
-EN BAS DE LA CARTE (sous le texte d'attaque/description), une ligne en petit contient typiquement :
-1. Nom de l'illustrateur (ex: "Illus. Tecziro")
-2. Numéro de carte au format XXX/YYY (ex: "012/086", "111/172")
-3. Code d'extension court (ex: "SV11W", "BW5", "sm8b", "XY8b") — minuscules/majuscules sensibles, lis exactement comme imprimé
-
-EN HAUT DE LA CARTE : nom du Pokémon (en JP/EN/FR/etc selon la langue de la carte).
-
-Retourne le JSON suivant. NE DEVINE PAS, lis ce qui est imprimé. Si tu ne peux pas lire un champ, mets null sauf pour les requis.
+ZONE BAS : ligne fine sous le texte d'attaque avec illustrateur, numéro XXX/YYY (ex 012/086), et code d'extension court (ex SV11W, BW5, sm8b — casse exacte).
+ZONE HAUT : nom du Pokémon (langue de la carte).
 
 {
-  "card_name": "<nom complet imprimé en haut, ex: 'チャオブー', 'Pikachu ex'>",
-  "pokemon_name": "<nom Pokémon sans suffixe ex/V/VMAX, ex: 'チャオブー', 'Pikachu'>",
-  "set_code": "<code extension exact, ex: 'SV11W', 'BW5n'>",
-  "set_number": "<XXX du XXX/YYY, sans zéros initiaux: '12' pas '012'>",
-  "set_total": <YYY integer ou null>,
-  "language": "<JP|EN|FR|DE|IT|ES|PT|KO|ZH selon la langue imprimée>",
+  "card_name": "<nom haut, ex 'チャオブー' ou 'Pikachu ex'>",
+  "pokemon_name": "<sans suffixe ex/V/VMAX, ex 'Pikachu'>",
+  "set_code": "<code exact, casse sensible>",
+  "set_number": "<XXX sans zéros initiaux: '12' pas '012'>",
+  "set_total": <YYY ou null>,
+  "language": "<JP|EN|FR|DE|IT|ES|PT|KO|ZH>",
   "rarity": "<Common|Uncommon|Rare|Holo Rare|Double Rare|Ultra Rare|Art Rare|Special Art Rare|Secret Rare|Hyper Rare|Promo|Other ou null>",
   "confidence": "high|medium|low",
-  "pokemon_number": <numéro national du Pokédex (1-1025) si c'est une carte Pokémon, null pour Trainers/Energies/Stadium/etc>,
-  "pokemon_name_fr": "<nom français standard du Pokémon (ex: 'Gruikui' pour チャオブー / Tepig), null si non-Pokémon ou si tu n'es pas sûr du nom français>",
-  "set_name": "<nom de l'extension tel qu'imprimé en bas de la carte si visible (ex: 'ホワイトフレア', 'White Flare', 'Battle Partners'), null si non visible>",
-  "set_name_fr": "<nom français de cette extension (ex: 'Combat de Maîtres'), null si tu n'es pas sûr>"
+  "pokemon_number": <national dex 1-1025 si carte Pokémon, null pour Trainer/Energy/Stadium>,
+  "pokemon_name_fr": "<nom FR standard (ex 'Gruikui'), null si non-Pokémon ou incertain>",
+  "set_name": "<nom extension imprimé (ex 'White Flare'), null si invisible>",
+  "set_name_fr": "<traduction FR (ex 'Combat de Maîtres'), null si incertain>"
 }`;
 
 const SCHEMA = {
