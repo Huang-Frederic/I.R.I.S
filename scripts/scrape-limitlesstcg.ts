@@ -55,16 +55,17 @@ async function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms));
 // Mappings — LimitlessTCG vocabulary → our enums
 // ---------------------------------------------------------------------------
 
-/** LimitlessTCG path codes → our card_language enum. */
+/** LimitlessTCG path codes → our card_language enum.
+ *
+ * NOTE: DE/IT/ES/PT are intentionally excluded — user only collects JP/EN/FR
+ * (and KO/ZH which LimitlessTCG doesn't have anyway). Keeping them would add
+ * ~58k rows of dead weight to the catalog. To re-enable, just add the entry. */
 const LANG_MAP: Record<string, string> = {
   jp: 'JP',
   en: 'EN',
   fr: 'FR',
-  de: 'DE',
-  it: 'IT',
-  es: 'ES',
-  pt: 'PT',
   // ko / zh not catalogued on LimitlessTCG (verified — both 404)
+  // de / it / es / pt — disabled per user (unused in their collection)
 };
 
 /** LimitlessTCG rarity strings → our card_rarity enum.

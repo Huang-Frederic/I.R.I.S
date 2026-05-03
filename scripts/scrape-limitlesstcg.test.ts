@@ -2,14 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { mapLanguage, mapRarity, parseSetIndex } from './scrape-limitlesstcg';
 
 describe('mapLanguage', () => {
-  it('maps known LimitlessTCG codes to our enum', () => {
+  it('maps actively-scraped LimitlessTCG codes (JP/EN/FR — user collection languages)', () => {
     expect(mapLanguage('jp')).toBe('JP');
     expect(mapLanguage('en')).toBe('EN');
     expect(mapLanguage('fr')).toBe('FR');
-    expect(mapLanguage('pt')).toBe('PT');
   });
 
-  it('returns null for unsupported codes (ko/zh not on LimitlessTCG)', () => {
+  it('returns null for codes intentionally disabled (de/it/es/pt unused) or unsupported (ko/zh 404 on LimitlessTCG)', () => {
+    expect(mapLanguage('de')).toBeNull();
+    expect(mapLanguage('it')).toBeNull();
+    expect(mapLanguage('es')).toBeNull();
+    expect(mapLanguage('pt')).toBeNull();
     expect(mapLanguage('ko')).toBeNull();
     expect(mapLanguage('zh')).toBeNull();
     expect(mapLanguage('ru')).toBeNull();
