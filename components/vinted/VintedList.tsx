@@ -22,6 +22,9 @@ import { passesStateChips, shouldHideForSalePile } from '@/lib/utils/vinted-filt
 import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
 import LotRow from '@/components/lots/LotRow';
 import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
+import BulkSelectionBottomBar from './BulkSelectionBottomBar';
+import BulkSoldModal, { type BulkSoldItem } from './BulkSoldModal';
+import { splitPrice } from '@/lib/utils/split-bulk-price';
 
 export interface VintedListProps {
   cards: Card[];
@@ -67,6 +70,9 @@ export default function VintedList({ cards: initial, lots: initialLots, register
   const [lots, setLots] = useState<Lot[]>(initialLots);
   const [filters, setFilters] = useState<VintedFilterState>(INITIAL_FILTERS);
   const [now] = useState(() => Date.now());
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkSoldOpen, setBulkSoldOpen] = useState(false);
 
   const storagePublicUrl = (path: string) =>
     `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/lot-photos/${path}`;
@@ -141,6 +147,81 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     router.refresh();
   };
 
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectionMode() {
+    setSelectionMode((m) => {
+      if (m) {
+        // Exiting selection mode → clear selection
+        setSelectedIds(new Set());
+      }
+      return !m;
+    });
+  }
+
+  function cancelSelection() {
+    setSelectedIds(new Set());
+    setSelectionMode(false);
+  }
+
+  async function handleBulkSold(items: BulkSoldItem[], totalPrice: number, dateSoldIso: string) {
+    const prices = splitPrice(totalPrice, items.length);
+    let successCount = 0;
+    let failCount = 0;
+    let restockCount = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const sold_price = prices[i];
+      const id = item.kind === 'card' ? item.card.id : item.lot.id;
+      const endpoint = item.kind === 'card' ? `/api/cards/${id}` : `/api/lots/${id}`;
+      try {
+        const res = await fetch(endpoint, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            status: 'sold',
+            sold_price,
+            date_sold: dateSoldIso,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          failCount += 1;
+          errors.push(`${item.kind === 'card' ? item.card.card_name : item.lot.name}: ${json.error ?? 'erreur'}`);
+          continue;
+        }
+        successCount += 1;
+        if (item.kind === 'card') {
+          setCards((prev) => prev.map((c) => (c.id === id ? { ...c, status: 'sold' as const, sold_price, date_sold: dateSoldIso } : c)));
+          if (json.restock) restockCount += 1;
+        } else {
+          setLots((prev) => prev.map((l) => (l.id === id ? { ...l, status: 'sold' as const, sold_price, date_sold: dateSoldIso } : l)));
+        }
+      } catch (e) {
+        failCount += 1;
+        errors.push(`${item.kind === 'card' ? item.card.card_name : item.lot.name}: ${e instanceof Error ? e.message : 'network'}`);
+      }
+    }
+
+    const restockSuffix = restockCount > 0 ? ` · ${restockCount} alerte${restockCount > 1 ? 's' : ''} restock — voir Pokédex` : '';
+    if (failCount === 0) {
+      console.log(`[bulk-sold] ${successCount} vendus${restockSuffix}`);
+      alert(`✓ ${successCount} items vendus${restockSuffix}`);
+    } else {
+      console.warn(`[bulk-sold] ${successCount} vendus, ${failCount} échec(s)`, errors);
+      alert(`${successCount} vendus, ${failCount} échec(s)${restockSuffix}\n\n${errors.join('\n')}`);
+    }
+  }
+
   const { groups, soldRows, forSaleLots, soldLotsList, totalVisible } = useMemo(() => {
     const showCards = filters.kindFilter !== 'lots';
     const showLots = filters.kindFilter !== 'cards';
@@ -200,8 +281,8 @@ export default function VintedList({ cards: initial, lots: initialLots, register
         onChange={setFilters}
         visibleCards={totalVisible}
         totalCards={cards.length}
-        selectionMode={false}
-        onToggleSelectionMode={() => {}}
+        selectionMode={selectionMode}
+        onToggleSelectionMode={toggleSelectionMode}
       />
 
       {isEmpty ? (
@@ -227,6 +308,9 @@ export default function VintedList({ cards: initial, lots: initialLots, register
               onListedToggled={updateCardListed}
               onImageClick={() => setZoomCard(g.head)}
               onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}
+              selectionMode={selectionMode}
+              selected={selectedIds.has(g.head.id)}
+              onToggleSelect={() => toggleSelect(g.head.id)}
             />
           ))}
           {forSaleLots.map((l) => (
@@ -238,6 +322,9 @@ export default function VintedList({ cards: initial, lots: initialLots, register
               onSoldClick={(lot) => setSoldTarget({ kind: 'lot', lot })}
               onPriceSaved={updateLotPrice}
               onListedToggled={updateLotListed}
+              selectionMode={selectionMode}
+              selected={selectedIds.has(l.id)}
+              onToggleSelect={() => toggleSelect(l.id)}
             />
           ))}
           {soldRows.map((c) => (
@@ -258,6 +345,39 @@ export default function VintedList({ cards: initial, lots: initialLots, register
           ))}
         </ul>
       )}
+
+      {selectionMode && (() => {
+        const selectedCards = cards.filter((c) => c.status === 'for_sale' && selectedIds.has(c.id));
+        const selectedLots = lots.filter((l) => l.status === 'for_sale' && selectedIds.has(l.id));
+        return (
+          <BulkSelectionBottomBar
+            cardCount={selectedCards.length}
+            lotCount={selectedLots.length}
+            onCancel={cancelSelection}
+            onConfirm={() => setBulkSoldOpen(true)}
+          />
+        );
+      })()}
+
+      {bulkSoldOpen && (() => {
+        const selectedCards = cards.filter((c) => c.status === 'for_sale' && selectedIds.has(c.id));
+        const selectedLots = lots.filter((l) => l.status === 'for_sale' && selectedIds.has(l.id));
+        const items: BulkSoldItem[] = [
+          ...selectedCards.map((c) => ({ kind: 'card' as const, card: c })),
+          ...selectedLots.map((l) => ({ kind: 'lot' as const, lot: l })),
+        ];
+        return (
+          <BulkSoldModal
+            items={items}
+            onClose={() => setBulkSoldOpen(false)}
+            onConfirm={async (totalPrice, dateSoldIso) => {
+              await handleBulkSold(items, totalPrice, dateSoldIso);
+              setBulkSoldOpen(false);
+              cancelSelection();
+            }}
+          />
+        );
+      })()}
 
       {soldTarget && (
         <SoldModal entity={soldTarget} onClose={() => setSoldTarget(null)} onSold={handleSold} />

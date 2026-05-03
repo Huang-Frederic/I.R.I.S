@@ -14,16 +14,30 @@ interface Props {
   onPriceSaved: (lotId: string, newPrice: number | null) => void;
   onListedToggled: (lotId: string, listedAt: string | null) => void;
   onImageClick?: (lot: Lot) => void;
+  /** When true, show a checkbox on the left and disable Annonce/Vendu buttons. */
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 export default function LotRow({
-  lot, storagePublicUrl, onAnnonceClick, onSoldClick, onPriceSaved, onListedToggled, onImageClick,
+  lot, storagePublicUrl, onAnnonceClick, onSoldClick, onPriceSaved, onListedToggled, onImageClick, selectionMode, selected, onToggleSelect,
 }: Props) {
   const thumb = lot.photo_urls.length > 0 ? storagePublicUrl(lot.photo_urls[0]) : null;
 
   return (
     <li className="bg-surface border-border flex flex-col gap-3 rounded-lg border p-3 text-sm sm:flex-row sm:items-center">
       <div className="flex items-center gap-3">
+        {selectionMode && (
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={onToggleSelect}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={selected ? 'Désélectionner' : 'Sélectionner'}
+            className="h-5 w-5 shrink-0 cursor-pointer"
+          />
+        )}
         {thumb ? (
           <button
             type="button"
@@ -86,7 +100,8 @@ export default function LotRow({
         <button
           type="button"
           onClick={() => onAnnonceClick(lot)}
-          className="bg-surface-2 hover:bg-surface-off border-border shrink-0 rounded border px-3 py-1.5 text-xs"
+          disabled={selectionMode}
+          className="bg-surface-2 hover:bg-surface-off border-border shrink-0 rounded border px-3 py-1.5 text-xs disabled:opacity-40"
         >
           <Tag className="mr-1 inline h-3.5 w-3.5" />
           Annonce
@@ -95,7 +110,8 @@ export default function LotRow({
         <button
           type="button"
           onClick={() => onSoldClick(lot)}
-          className="bg-red text-bg shrink-0 rounded px-3 py-1.5 text-xs font-medium hover:opacity-90"
+          disabled={selectionMode}
+          className="bg-red text-bg shrink-0 rounded px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-40"
         >
           Vendu
         </button>

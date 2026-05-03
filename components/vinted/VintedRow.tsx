@@ -46,10 +46,14 @@ interface Props {
    * the card is already registered.
    */
   onMoveToPokedexClick?: (card: Card) => void;
+  /** When true, show a checkbox on the left and disable Annonce/Vendu buttons. */
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 export default function VintedRow({
-  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, onListedToggled, onImageClick, onMoveToPokedexClick,
+  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, onListedToggled, onImageClick, onMoveToPokedexClick, selectionMode, selected, onToggleSelect,
 }: Props) {
   const card = group.head;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
@@ -57,6 +61,16 @@ export default function VintedRow({
   return (
     <li className="bg-surface border-border flex flex-col gap-3 rounded-lg border p-3 text-sm sm:flex-row sm:items-center">
       <div className="flex items-center gap-3">
+        {selectionMode && (
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={onToggleSelect}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={selected ? 'Désélectionner' : 'Sélectionner'}
+            className="h-5 w-5 shrink-0 cursor-pointer"
+          />
+        )}
         <button
           type="button"
           onClick={() => onImageClick?.(card)}
@@ -133,7 +147,8 @@ export default function VintedRow({
         <button
           type="button"
           onClick={onAnnonceClick}
-          className="bg-surface-2 hover:bg-surface-off border-border shrink-0 rounded border px-3 py-1.5 text-xs"
+          disabled={selectionMode}
+          className="bg-surface-2 hover:bg-surface-off border-border shrink-0 rounded border px-3 py-1.5 text-xs disabled:opacity-40"
         >
           <Tag className="mr-1 inline h-3.5 w-3.5" />
           Annonce
@@ -142,7 +157,8 @@ export default function VintedRow({
         <button
           type="button"
           onClick={onSoldClick}
-          className="bg-red text-bg shrink-0 rounded px-3 py-1.5 text-xs font-medium hover:opacity-90"
+          disabled={selectionMode}
+          className="bg-red text-bg shrink-0 rounded px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-40"
         >
           Vendu
         </button>
