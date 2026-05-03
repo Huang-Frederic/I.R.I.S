@@ -9,8 +9,9 @@ export async function resizeImage(
   file: File,
   options: { maxDim?: number; quality?: number } = {},
 ): Promise<Blob> {
-  // 1600 is the sweet spot — bottom-of-card text (set_code/set_number, ~5pt) is OCR-readable; 1024 dropped 8/30 cards in user testing.
-  const { maxDim = 1600, quality = 0.85 } = options;
+  // 1400 is a tested middle ground: 1024 dropped 8/30 cards (set_code/set_number unreadable),
+  // 1600 worked everywhere but burned more Gemini image tokens. 1400 ≈ -25% image tokens vs 1600.
+  const { maxDim = 1400, quality = 0.85 } = options;
   if (typeof document === 'undefined') {
     throw new Error('resizeImage must run in the browser');
   }
