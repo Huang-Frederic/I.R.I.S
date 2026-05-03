@@ -368,10 +368,10 @@ Décompte des nouveaux tests (≥55 ajoutés depuis Phase 2) : `vinted-filter` (
 **Followups différés** :
 1. Compression progressive client-side si image > 1MB après resize (edge case).
 2. Resume-from-CSV si user kill le batch mid-process (pas critique, le user re-drop les photos).
-3. Audit + optimisation des tokens Gemini (déféré en Phase 4 — la pipeline coût trop chère selon le user, à investiguer).
+3. Audit + optimisation des tokens Gemini (déféré en Phase 3c — la pipeline coût trop chère selon le user, à investiguer).
 
-## Prochaine étape : Phases 4 / 5 / 6
+## Prochaines étapes : Phase 3c / 4 / 5
 
-- **Phase 4** — Bulk vendu (selecteur multi-cartes vendues ensemble + division du prix de vente entre les cartes) + Refining Gemini tokens (audit du nombre de tokens entrant et sortant + optimisation pour réduire le coût de la pipeline).
-- **Phase 5** — Passage à 2 users (RLS multi-tenant Supabase) + Import one-shot du profil Vinted existant (parser le HTML de la page profil pour ingester les annonces existantes).
-- **Phase 6** — Dashboard (KPIs valeur stock, top cartes rares, alertes restock, **+ tracking tokens consommés et coût/jour app**) + polish PWA (install prompt, icônes 192/512, manifest).
+- **Phase 3c** — Bulk vendu (sélecteur multi-cartes vendues ensemble + division du prix de vente entre les cartes pour avoir le prix unitaire) + Refining Gemini tokens (audit du nombre de tokens entrant et sortant + optimisation pour réduire le coût de la pipeline). Brief : [PHASE_3.md](../PHASE_3.md).
+- **Phase 4** — Passage à 2 users (RLS multi-tenant Supabase) + Import one-shot du profil Vinted existant (parser le HTML de la page profil pour ingester les annonces existantes — CDN Vinted comme source d'images, pas de re-saisie). Brief : [PHASE_4.md](../PHASE_4.md).
+- **Phase 5** — Dashboard (KPIs valeur stock, top cartes rares, alertes restock, **+ tracking tokens consommés et coût/jour app**) + polish PWA (install prompt, icônes 192/512, manifest fine-tune).
