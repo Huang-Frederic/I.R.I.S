@@ -68,7 +68,7 @@ export default function VintedRow({
             onChange={onToggleSelect}
             onClick={(e) => e.stopPropagation()}
             aria-label={selected ? 'Désélectionner' : 'Sélectionner'}
-            className="h-5 w-5 shrink-0 cursor-pointer"
+            className="accent-red h-5 w-5 shrink-0 cursor-pointer"
           />
         )}
         <button

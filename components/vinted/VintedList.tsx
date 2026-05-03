@@ -24,6 +24,7 @@ import LotRow from '@/components/lots/LotRow';
 import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
 import BulkSelectionBottomBar from './BulkSelectionBottomBar';
 import BulkSoldModal, { type BulkSoldItem } from './BulkSoldModal';
+import BulkSoldRecapModal from './BulkSoldRecapModal';
 import { splitPrice } from '@/lib/utils/split-bulk-price';
 
 export interface VintedListProps {
@@ -96,6 +97,13 @@ export default function VintedList({ cards: initial, lots: initialLots, register
   const [soldTarget, setSoldTarget] = useState<SoldEntity | null>(null);
   const [restockAlert, setRestockAlert] = useState<RestockAlert | null>(null);
   const [promoteCandidate, setPromoteCandidate] = useState<PromoteCandidate | null>(null);
+  const [bulkRecap, setBulkRecap] = useState<{
+    items: BulkSoldItem[];
+    restocks: RestockAlert[];
+    promotes: PromoteCandidate[];
+  } | null>(null);
+  /** Promote candidates from a bulk-sold batch, drained one-by-one after the recap modal closes. */
+  const [bulkPromoteQueue, setBulkPromoteQueue] = useState<PromoteCandidate[]>([]);
   const [annonceTarget, setAnnonceTarget] = useState<Card | null>(null);
   const [lotAnnonceTarget, setLotAnnonceTarget] = useState<Lot | null>(null);
   const [zoomCard, setZoomCard] = useState<Card | null>(null);
@@ -173,9 +181,10 @@ export default function VintedList({ cards: initial, lots: initialLots, register
 
   async function handleBulkSold(items: BulkSoldItem[], totalPrice: number, dateSoldIso: string) {
     const prices = splitPrice(totalPrice, items.length);
-    let successCount = 0;
+    const soldItems: BulkSoldItem[] = [];
+    const restocks: RestockAlert[] = [];
+    const promotes: PromoteCandidate[] = [];
     let failCount = 0;
-    let restockCount = 0;
     const errors: string[] = [];
 
     for (let i = 0; i < items.length; i++) {
@@ -193,16 +202,21 @@ export default function VintedList({ cards: initial, lots: initialLots, register
             date_sold: dateSoldIso,
           }),
         });
-        const json = await res.json();
+        const json = (await res.json()) as {
+          error?: string;
+          restock?: RestockAlert | null;
+          promote?: PromoteCandidate | null;
+        };
         if (!res.ok) {
           failCount += 1;
           errors.push(`${item.kind === 'card' ? item.card.card_name : item.lot.name}: ${json.error ?? 'erreur'}`);
           continue;
         }
-        successCount += 1;
+        soldItems.push(item);
         if (item.kind === 'card') {
           setCards((prev) => prev.map((c) => (c.id === id ? { ...c, status: 'sold' as const, sold_price, date_sold: dateSoldIso } : c)));
-          if (json.restock) restockCount += 1;
+          if (json.restock) restocks.push(json.restock);
+          if (json.promote) promotes.push(json.promote);
         } else {
           setLots((prev) => prev.map((l) => (l.id === id ? { ...l, status: 'sold' as const, sold_price, date_sold: dateSoldIso } : l)));
         }
@@ -212,15 +226,35 @@ export default function VintedList({ cards: initial, lots: initialLots, register
       }
     }
 
-    const restockSuffix = restockCount > 0 ? ` · ${restockCount} alerte${restockCount > 1 ? 's' : ''} restock — voir Pokédex` : '';
-    if (failCount === 0) {
-      console.log(`[bulk-sold] ${successCount} vendus${restockSuffix}`);
-      alert(`✓ ${successCount} items vendus${restockSuffix}`);
+    if (failCount > 0) {
+      console.warn(`[bulk-sold] ${soldItems.length} vendus, ${failCount} échec(s)`, errors);
     } else {
-      console.warn(`[bulk-sold] ${successCount} vendus, ${failCount} échec(s)`, errors);
-      alert(`${successCount} vendus, ${failCount} échec(s)${restockSuffix}\n\n${errors.join('\n')}`);
+      console.log(`[bulk-sold] ${soldItems.length} vendus`);
+    }
+
+    if (soldItems.length > 0) {
+      setBulkRecap({ items: soldItems, restocks, promotes });
+    } else if (failCount > 0) {
+      // No success at all — surface errors directly since the recap modal won't open.
+      alert(`Aucune vente enregistrée. ${failCount} échec(s) :\n\n${errors.join('\n')}`);
     }
   }
+
+  // After the bulk recap modal closes, drain the promote queue one-by-one. The
+  // existing <PromoteAfterSoldModal> handles each candidate; on close/promote
+  // we shift the queue so the next render shows the next one.
+  function dismissBulkRecap() {
+    if (!bulkRecap) return;
+    const queue = [...bulkRecap.promotes];
+    setBulkRecap(null);
+    setBulkPromoteQueue(queue);
+  }
+
+  function shiftBulkPromoteQueue() {
+    setBulkPromoteQueue((q) => q.slice(1));
+  }
+
+  const currentBulkPromote = bulkPromoteQueue[0] ?? null;
 
   const { groups, soldRows, forSaleLots, soldLotsList, totalVisible } = useMemo(() => {
     const showCards = filters.kindFilter !== 'lots';
@@ -252,10 +286,18 @@ export default function VintedList({ cards: initial, lots: initialLots, register
       position: i + 1,
     }));
 
-    // Lots: no grouping, each lot is unique. Apply search filter to lot name + extra_description.
-    const forSaleLots = !showLots
+    // Lots: no grouping, each lot is unique. Apply search filter to lot name +
+    // extra_description AND state chips (En ligne / Pas en ligne / À rafraîchir
+    // / Vendus). Lots have `vinted_listed_at` so they implement the same
+    // ListingShape interface as cards.
+    const forSaleLots = !showLots || shouldHideForSalePile(filters)
       ? []
-      : lots.filter((l) => l.status === 'for_sale' && matchesLotSearch(l, filters.search));
+      : lots.filter(
+          (l) =>
+            l.status === 'for_sale' &&
+            matchesLotSearch(l, filters.search) &&
+            passesStateChips(l, filters, now),
+        );
 
     const soldLotsList = !showLots || !filters.showSold
       ? []
@@ -378,6 +420,27 @@ export default function VintedList({ cards: initial, lots: initialLots, register
           />
         );
       })()}
+
+      {bulkRecap && (
+        <BulkSoldRecapModal
+          items={bulkRecap.items}
+          restocks={bulkRecap.restocks}
+          onClose={dismissBulkRecap}
+        />
+      )}
+
+      {/* Drain bulk-promote queue: shown after the recap modal closes. Each
+        decision shifts the queue, exposing the next candidate. */}
+      {!bulkRecap && currentBulkPromote && (
+        <PromoteAfterSoldModal
+          candidate={currentBulkPromote}
+          onClose={shiftBulkPromoteQueue}
+          onPromoted={() => {
+            shiftBulkPromoteQueue();
+            router.refresh();
+          }}
+        />
+      )}
 
       {soldTarget && (
         <SoldModal entity={soldTarget} onClose={() => setSoldTarget(null)} onSold={handleSold} />
