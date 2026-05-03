@@ -215,12 +215,17 @@ export async function PATCH(
   // Restock check only when this update marked the card sold
   let restock = null;
   if (update.status === 'sold' && updated.pokemon_number) {
-    const [{ data: stillForSale }, { data: pokedex }] = await Promise.all([
+    const [{ data: stillForSale }, { data: stillInStock }, { data: pokedex }] = await Promise.all([
       supabase
         .from('cards')
         .select('id')
         .eq('pokemon_number', updated.pokemon_number)
         .eq('status', 'for_sale'),
+      supabase
+        .from('cards')
+        .select('id')
+        .eq('pokemon_number', updated.pokemon_number)
+        .eq('status', 'collection'),
       supabase
         .from('cards')
         .select('pokemon_name')
@@ -233,6 +238,7 @@ export async function PATCH(
       pokemonNumber: updated.pokemon_number,
       pokedexCard: pokedex,
       remainingForSaleCount: stillForSale?.length ?? 0,
+      remainingStockCount: stillInStock?.length ?? 0,
     });
   }
 

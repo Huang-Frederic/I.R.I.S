@@ -118,7 +118,13 @@ describe('PATCH /api/cards/[id]', () => {
     const forSaleEq1 = vi.fn(() => ({ eq: forSaleEq2 }));
     const forSaleSelect = vi.fn(() => ({ eq: forSaleEq1 }));
 
-    // 3rd: pokedex card exists
+    // 3rd: count remaining stock (collection) = 0 → restock allowed to fire
+    const stockResp = { data: [], error: null };
+    const stockEq2 = vi.fn(() => Promise.resolve(stockResp));
+    const stockEq1 = vi.fn(() => ({ eq: stockEq2 }));
+    const stockSelect = vi.fn(() => ({ eq: stockEq1 }));
+
+    // 4th: pokedex card exists
     const pokedexResp = { data: { pokemon_name: 'Pikachu' }, error: null };
     const pokedexMaybe = vi.fn(() => Promise.resolve(pokedexResp));
     const pokedexEq2 = vi.fn(() => ({ maybeSingle: pokedexMaybe }));
@@ -126,9 +132,10 @@ describe('PATCH /api/cards/[id]', () => {
     const pokedexSelect = vi.fn(() => ({ eq: pokedexEq1 }));
 
     supabaseMock.from
-      .mockReturnValueOnce({ update })          // PATCH
-      .mockReturnValueOnce({ select: forSaleSelect })   // count for_sale
-      .mockReturnValueOnce({ select: pokedexSelect });  // get pokedex
+      .mockReturnValueOnce({ update })                    // PATCH
+      .mockReturnValueOnce({ select: forSaleSelect })     // count for_sale
+      .mockReturnValueOnce({ select: stockSelect })       // count collection
+      .mockReturnValueOnce({ select: pokedexSelect });    // get pokedex
 
     const res = await PATCH(
       makeRequest({ status: 'sold', sold_price: 8 }),
@@ -151,12 +158,16 @@ describe('PATCH /api/cards/[id]', () => {
     const forSaleEq2 = vi.fn(() => Promise.resolve({ data: [], error: null }));
     const forSaleSelect = vi.fn(() => ({ eq: () => ({ eq: forSaleEq2 }) }));
 
+    const stockEq2 = vi.fn(() => Promise.resolve({ data: [], error: null }));
+    const stockSelect = vi.fn(() => ({ eq: () => ({ eq: stockEq2 }) }));
+
     const pokedexMaybe = vi.fn(() => Promise.resolve({ data: null, error: null }));
     const pokedexSelect = vi.fn(() => ({ eq: () => ({ eq: () => ({ maybeSingle: pokedexMaybe }) }) }));
 
     supabaseMock.from
       .mockReturnValueOnce({ update })
       .mockReturnValueOnce({ select: forSaleSelect })
+      .mockReturnValueOnce({ select: stockSelect })
       .mockReturnValueOnce({ select: pokedexSelect });
 
     const res = await PATCH(
