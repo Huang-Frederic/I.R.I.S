@@ -50,6 +50,7 @@ export async function POST(request: Request) {
       pokemonNameFr: geminiResult.pokemon_name_fr,
       setName: geminiResult.set_name,
       setNameFr: geminiResult.set_name_fr,
+      _usage: geminiResult._usage,
     };
     return NextResponse.json(ocrResult);
   }
