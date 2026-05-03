@@ -220,6 +220,84 @@ export async function lookupById(
   return (await response.json()) as TCGdexCard;
 }
 
+/**
+ * Subseries codes (Trainer Gallery, Galarian Gallery) printed on cards.
+ * On the card you see "TG/3" or "GG/45", but TCGdex stores these inside the
+ * parent set with localId formatted as "<code><padded>" (TG03, GG45).
+ *
+ * GG only exists in Crown Zenith (swsh12.5).
+ * TG spans 4 SwSh-era sets (Brilliant Stars to Silver Tempest); we probe each
+ * and disambiguate by card name when multiple sets return a match.
+ */
+const SUBSERIES_PARENTS: Record<string, string[]> = {
+  GG: ['swsh12.5'],
+  TG: ['swsh9', 'swsh10', 'swsh11', 'swsh12'],
+};
+
+/**
+ * Promo set patterns. The user-printed code IS the localId in TCGdex's
+ * promo set (e.g. card prints "SWSH201" → TCGdex `swshp-SWSH201`).
+ * Gemini extracts this as setCode (because that's where it's printed),
+ * but for TCGdex it's actually the localId within a promo parent set.
+ */
+const PROMO_PATTERNS: Array<{ regex: RegExp; promoSet: string }> = [
+  { regex: /^SWSH\d+$/i, promoSet: 'swshp' },
+  { regex: /^XY\d+$/i, promoSet: 'xyp' },
+  { regex: /^SM\d+$/i, promoSet: 'smp' },
+  { regex: /^SVP\d+$/i, promoSet: 'svp' },
+  { regex: /^BW\d+$/i, promoSet: 'bwp' },
+  { regex: /^HGSS\d+$/i, promoSet: 'hgssp' },
+];
+
+/**
+ * Looks up a card on TCGdex when Gemini's `set_code` is actually a subseries
+ * indicator (TG/GG) or a promo card identifier (SWSH201, XY41, …) rather than
+ * a standalone set code. Returns null when no pattern matches or no probe hits.
+ *
+ * Disambiguates multi-set TG probes by fuzzy-matching `cardName` (Pokémon
+ * name often suffices since TG cards across sets feature different species).
+ */
+export async function lookupSubseries(
+  setCode: string,
+  localId: string,
+  cardName: string | undefined,
+  lang: TCGdexLang = 'en',
+): Promise<TCGdexCard | null> {
+  const code = setCode.toUpperCase();
+
+  // Pattern 1: Subseries codes (TG, GG)
+  if (SUBSERIES_PARENTS[code]) {
+    const parents = SUBSERIES_PARENTS[code];
+    const num = localId.replace(/^0+/, '') || '0';
+    const padded = num.padStart(2, '0');
+    const compositeLocalId = `${code}${padded}`;
+    const probes = await Promise.all(
+      parents.map((parent) => lookupById(parent, compositeLocalId, lang).catch(() => null)),
+    );
+    const hits = probes.filter((c): c is TCGdexCard => c !== null);
+    if (hits.length === 0) return null;
+    if (hits.length === 1) return hits[0];
+    // Multiple hits — disambiguate by card_name (Pokémon name typically suffices)
+    if (cardName) {
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const target = norm(cardName);
+      const named = hits.find((c) => target && c.name && (norm(c.name).includes(target) || target.includes(norm(c.name))));
+      if (named) return named;
+    }
+    return hits[0]; // best-effort fallback
+  }
+
+  // Pattern 2: Promo identifiers (SWSH201, XY41, SM12, …)
+  for (const { regex, promoSet } of PROMO_PATTERNS) {
+    if (regex.test(setCode)) {
+      // The full setCode IS the TCGdex localId for the promo set
+      return lookupById(promoSet, setCode, lang).catch(() => null);
+    }
+  }
+
+  return null;
+}
+
 /* ===== Set catalog cache + total-based card resolution =====
  *
  * The OCR can't reliably read the set code on a stylized Pokémon card (we've

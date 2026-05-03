@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, afterEach } from 'vitest';
 import {
   extractPokemonName,
+  lookupSubseries,
   mapRarity,
   toEnrichedCard,
   toTCGdexLang,
@@ -127,5 +128,76 @@ describe('toEnrichedCard', () => {
   it('returns empty image URL when no image base is provided', () => {
     const out = toEnrichedCard(makeTCGdexCard({ image: undefined }));
     expect(out.tcg_image_url).toBe('');
+  });
+});
+
+describe('lookupSubseries — TG/GG/Promo card lookup on TCGdex', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  function mockResponses(map: Record<string, { name?: string } | null>) {
+    global.fetch = vi.fn((url: string) => {
+      // Find matching key (key = setCode-localId path segment)
+      for (const [key, value] of Object.entries(map)) {
+        if (url.includes(`/cards/${key}`)) {
+          if (value === null) return Promise.resolve({ status: 404, ok: false } as Response);
+          return Promise.resolve({
+            status: 200, ok: true,
+            json: async () => value,
+          } as Response);
+        }
+      }
+      return Promise.resolve({ status: 404, ok: false } as Response);
+    }) as unknown as typeof fetch;
+  }
+
+  it('finds GG cards in Crown Zenith (single parent)', async () => {
+    mockResponses({ 'swsh12.5-GG45': { name: 'Deoxys VMAX' } });
+    const card = await lookupSubseries('GG', '45', 'Deoxys VMAX', 'en');
+    expect(card?.name).toBe('Deoxys VMAX');
+  });
+
+  it('zero-pads single-digit localIds (TG/3 → TG03)', async () => {
+    mockResponses({ 'swsh11-TG03': { name: 'Dracaufeu' } });
+    const card = await lookupSubseries('TG', '3', 'Dracaufeu', 'fr');
+    expect(card?.name).toBe('Dracaufeu');
+  });
+
+  it('disambiguates multi-set TG probes by card_name', async () => {
+    // TG03 exists in 4 sets with different Pokémon — pick the one matching name
+    mockResponses({
+      'swsh9-TG03': { name: 'Octillery' },
+      'swsh10-TG03': { name: 'Hyporoi' },
+      'swsh11-TG03': { name: 'Dracaufeu' },
+      'swsh12-TG03': { name: 'Lainergie' },
+    });
+    const card = await lookupSubseries('TG', '3', 'Dracaufeu', 'fr');
+    expect(card?.name).toBe('Dracaufeu');
+  });
+
+  it('returns null when no parent set has the TG card', async () => {
+    mockResponses({}); // all 404
+    const card = await lookupSubseries('TG', '99', 'Anything', 'fr');
+    expect(card).toBeNull();
+  });
+
+  it('handles SWSH promo identifiers (SWSH201 → swshp-SWSH201)', async () => {
+    mockResponses({ 'swshp-SWSH201': { name: 'Mentali V' } });
+    const card = await lookupSubseries('SWSH201', '201', 'MentaliV', 'fr');
+    expect(card?.name).toBe('Mentali V');
+  });
+
+  it('handles XY promo identifiers (XY41 → xyp-XY41)', async () => {
+    mockResponses({ 'xyp-XY41': { name: 'Kyogre EX' } });
+    const card = await lookupSubseries('XY41', '41', 'Kyogre EX', 'fr');
+    expect(card?.name).toBe('Kyogre EX');
+  });
+
+  it('returns null for non-subseries codes', async () => {
+    mockResponses({});
+    const card = await lookupSubseries('OBF', '15', 'Charizard', 'en');
+    expect(card).toBeNull();
   });
 });
