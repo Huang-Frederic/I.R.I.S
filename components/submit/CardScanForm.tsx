@@ -813,7 +813,10 @@ export default function CardScanForm({
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
+        // No `capture` attribute → on mobile (Samsung Internet, Chrome Android),
+        // the system shows a chooser sheet (Camera + Files + Photos) instead of
+        // jumping straight into the camera. User can still take a photo from
+        // the chooser, AND has the option to pick a gallery image.
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
