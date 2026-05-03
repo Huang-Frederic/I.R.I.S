@@ -14,6 +14,7 @@ import {
   findCardsByTotalAndLocalId,
   listSets,
   lookupById as tcgdexLookupById,
+  lookupSubseries as tcgdexLookupSubseries,
   toEnrichedCard as tcgdexToEnrichedCard,
   toTCGdexLang,
   type TCGdexCard,
@@ -142,7 +143,15 @@ export async function POST(request: Request) {
     // Strategy 3: TCGdex live fallback (newest cards not yet scraped)
     const tcgdexLang = toTCGdexLang(cardLang);
     let tcgdexCard: TCGdexCard | null = null;
-    if (body.text && localId) {
+
+    // Strategy 3a: subseries probe — handles TG/GG/SWSH+/XY+/SM+ promo
+    // patterns where the printed code maps to a parent set in TCGdex
+    // (e.g. TG/3 → swsh11-TG03, SWSH201/201 → swshp-SWSH201).
+    if (setCode && localId) {
+      tcgdexCard = await tcgdexLookupSubseries(setCode, localId, body.text, tcgdexLang);
+    }
+
+    if (!tcgdexCard && body.text && localId) {
       const sets = await listSets(tcgdexLang);
       const fuzzyCode = findKnownSetCodeInText(body.text, sets.map((s) => s.id));
       if (fuzzyCode) tcgdexCard = await tcgdexLookupById(fuzzyCode, localId, tcgdexLang);
