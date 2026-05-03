@@ -276,8 +276,8 @@ describe('gemini-vision', () => {
     expect(result.usage?.tokens_out).toBe(80);
     // tokens_image = 350 (in) - PROMPT_TOKEN_ESTIMATE (220) = 130
     expect(result.usage?.tokens_image).toBe(130);
-    // cost: (350 * 0.075 + 80 * 0.30) / 1M = 0.00005025 USD * 0.92 = 0.00004623 EUR
-    expect(result.usage?.cost_eur).toBeCloseTo(0.00004623, 7);
+    // cost: (350 * 0.50 + 80 * 3.00) / 1M = 0.000415 USD * 0.92 = 0.0003818 EUR
+    expect(result.usage?.cost_eur).toBeCloseTo(0.0003818, 6);
     // _usage is also mirrored on the extraction object for back-compat
     expect(result.extraction?._usage).toEqual(result.usage);
   });
