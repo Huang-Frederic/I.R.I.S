@@ -200,6 +200,8 @@ export default function VintedList({ cards: initial, lots: initialLots, register
         onChange={setFilters}
         visibleCards={totalVisible}
         totalCards={cards.length}
+        selectionMode={false}
+        onToggleSelectionMode={() => {}}
       />
 
       {isEmpty ? (
