@@ -123,8 +123,19 @@ export interface OcrResult {
   setName?: string | null;
   setNameFr?: string | null;
 
-  /** Gemini token usage + EUR cost. Absent if Vision fallback was used. */
+  /**
+   * Gemini token usage + EUR cost. Present when Gemini was reached, even when
+   * its extraction failed (parse error, incomplete payload) and Vision had to
+   * pick up the slack — so the caller can still attribute the cost.
+   */
   _usage?: GeminiUsage;
+
+  /**
+   * Which OCR engine actually produced the values above. 'gemini' = Gemini
+   * extraction succeeded. 'vision' = Vision fallback was used (Gemini either
+   * never responded or its parse failed). Absent only on legacy/test responses.
+   */
+  _engine?: 'gemini' | 'vision';
 }
 
 export interface EnrichedCard {

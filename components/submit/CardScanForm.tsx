@@ -169,6 +169,7 @@ export default function CardScanForm({
   const [researchMsg, setResearchMsg] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<EnrichedCard[]>([]);
   const [ocrUsage, setOcrUsage] = useState<GeminiUsage | null>(null);
+  const [ocrEngine, setOcrEngine] = useState<'gemini' | 'vision' | null>(null);
   const [ocrGemini, setOcrGemini] = useState<{
     pokemonNumber?: number | null;
     pokemonNameFr?: string | null;
@@ -228,6 +229,7 @@ export default function CardScanForm({
       setNameFr: initialOcr.setNameFr,
     });
     setOcrUsage(initialOcr._usage ?? null);
+    setOcrEngine(initialOcr._engine ?? null);
 
     // Mirror enrich state from handleFile
     setEnrichFound(initialEnrich.bestMatch !== null);
@@ -484,6 +486,7 @@ export default function CardScanForm({
     setPhase('scanning');
     setErrorMsg(null);
     setOcrUsage(null);
+    setOcrEngine(null);
     try {
       const blob = await resizeImage(file);
       setPhotoBlob(blob);
@@ -509,6 +512,7 @@ export default function CardScanForm({
         setNameFr: ocr.setNameFr,
       });
       setOcrUsage(ocr._usage ?? null);
+      setOcrEngine(ocr._engine ?? null);
 
       // Smart extraction: if Vision pinned the set number / set code in the
       // bottom-left footer, pre-fill them and let the server resolve the card.
@@ -953,11 +957,30 @@ export default function CardScanForm({
                       Match catalogue : <span className="text-text">{form.card_id_tcg}</span>
                     </p>
                   )}
-                  {ocrUsage && (
+                  {(ocrUsage || ocrEngine) && (
                     <>
                       <hr className="border-border my-2" />
                       <p className="text-text-faint font-mono text-xs">
-                        {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image} img · €{ocrUsage.cost_eur.toFixed(6)}
+                        {ocrEngine === 'gemini' && ocrUsage && (
+                          <>
+                            <span className="text-rarity-rr">[Gemini]</span> {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image} img · €{ocrUsage.cost_eur.toFixed(6)}
+                          </>
+                        )}
+                        {ocrEngine === 'vision' && ocrUsage && (
+                          <>
+                            <span className="text-rarity-ar">[Gemini→Vision]</span> {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image} img · €{ocrUsage.cost_eur.toFixed(6)} <span className="opacity-70">(fallback Vision)</span>
+                          </>
+                        )}
+                        {ocrEngine === 'vision' && !ocrUsage && (
+                          <>
+                            <span className="text-rarity-ar">[Vision]</span> <span className="opacity-70">(Gemini indisponible)</span>
+                          </>
+                        )}
+                        {!ocrEngine && ocrUsage && (
+                          <>
+                            {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image} img · €{ocrUsage.cost_eur.toFixed(6)}
+                          </>
+                        )}
                       </p>
                     </>
                   )}
