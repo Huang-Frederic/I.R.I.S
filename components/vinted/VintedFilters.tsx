@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Globe, GlobeLock, Tag, RefreshCw } from 'lucide-react';
+import { Search, Globe, GlobeLock, Tag, RefreshCw, CheckSquare, Square } from 'lucide-react';
 import type { CardLanguage, CardRarity } from '@/lib/types';
 
 export interface VintedFilterState {
@@ -44,6 +44,8 @@ interface Props {
   onChange: (next: VintedFilterState) => void;
   visibleCards: number;
   totalCards: number;
+  selectionMode: boolean;
+  onToggleSelectionMode: () => void;
 }
 
 interface Chip {
@@ -59,7 +61,7 @@ const CHIPS: Chip[] = [
   { key: 'showStale', label: 'À rafraîchir', icon: RefreshCw },
 ];
 
-export default function VintedFilters({ value, onChange, visibleCards, totalCards }: Props) {
+export default function VintedFilters({ value, onChange, visibleCards, totalCards, selectionMode, onToggleSelectionMode }: Props) {
   const toggleChip = (key: Chip['key']) => onChange({ ...value, [key]: !value[key] });
 
   return (
@@ -123,6 +125,19 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
             {k === 'all' ? 'Tout' : k === 'cards' ? 'Cartes' : 'Lots'}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={onToggleSelectionMode}
+          className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs ${
+            selectionMode
+              ? 'bg-red text-bg'
+              : 'bg-surface-2 text-text-muted hover:text-text'
+          }`}
+          title={selectionMode ? 'Annuler la sélection' : 'Activer la sélection multiple'}
+        >
+          {selectionMode ? <CheckSquare className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
+          {selectionMode ? 'Annuler la sélection' : 'Sélection multiple'}
+        </button>
       </div>
 
       <div className="flex flex-wrap gap-2">
