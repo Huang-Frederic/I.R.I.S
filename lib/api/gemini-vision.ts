@@ -1,7 +1,7 @@
 import 'server-only';
 
 // Gemini Flash Preview pricing (cf. spec §4.1).
-const PROMPT_TOKEN_ESTIMATE = 245; // mesuré post-shortening + strict JSON prefix
+const PROMPT_TOKEN_ESTIMATE = 220; // mesuré post-shortening Task 3
 const COST_USD_PER_M_INPUT = 0.075;
 const COST_USD_PER_M_OUTPUT = 0.30;
 const USD_TO_EUR = 0.92;
@@ -39,9 +39,7 @@ export interface GeminiCardExtraction {
   _usage?: GeminiUsage;
 }
 
-const PROMPT = `Réponds UNIQUEMENT avec un objet JSON brut (pas de markdown, pas de texte avant/après, pas de \`\`\`).
-
-Lis une carte Pokémon JCC et retourne le JSON ci-dessous. NE DEVINE PAS — si non lisible, mets null (sauf champs requis).
+const PROMPT = `Lis une carte Pokémon JCC et retourne le JSON ci-dessous. NE DEVINE PAS — si non lisible, mets null (sauf champs requis).
 
 ZONE BAS : ligne fine sous le texte d'attaque avec illustrateur, numéro XXX/YYY (ex 012/086), et code d'extension court (ex SV11W, BW5, sm8b — casse exacte).
 ZONE HAUT : nom du Pokémon (langue de la carte).
@@ -161,7 +159,18 @@ export async function extractCardFromImage(
       console.log(`[Gemini] ${tokens_in}in / ${tokens_out}out / ${tokens_image}img — €${cost_eur.toFixed(6)}`);
     }
 
-    const parsed = JSON.parse(extractJsonObject(text)) as Partial<GeminiCardExtraction>;
+    let parsed: Partial<GeminiCardExtraction>;
+    try {
+      parsed = JSON.parse(extractJsonObject(text)) as Partial<GeminiCardExtraction>;
+    } catch (parseErr) {
+      // Flash Preview occasionally returns prose-only ("Here is the JSON:") and
+      // hits maxOutputTokens before producing the object. Log the full raw text
+      // so we can diagnose recurring failures from the server logs.
+      console.warn(
+        `Gemini parse failed (${parseErr instanceof Error ? parseErr.message : 'unknown'}). Raw response: ${JSON.stringify(text).slice(0, 500)}`,
+      );
+      return null;
+    }
 
     // Sanity check: must have set_code + set_number
     if (

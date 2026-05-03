@@ -454,8 +454,8 @@ describe('gemini-vision', () => {
     expect(result?._usage).toBeDefined();
     expect(result?._usage?.tokens_in).toBe(350);
     expect(result?._usage?.tokens_out).toBe(80);
-    // tokens_image = 350 (in) - PROMPT_TOKEN_ESTIMATE (245) = 105
-    expect(result?._usage?.tokens_image).toBe(105);
+    // tokens_image = 350 (in) - PROMPT_TOKEN_ESTIMATE (220) = 130
+    expect(result?._usage?.tokens_image).toBe(130);
     // cost: (350 * 0.075 + 80 * 0.30) / 1M = 0.00005025 USD * 0.92 = 0.00004623 EUR
     expect(result?._usage?.cost_eur).toBeCloseTo(0.00004623, 7);
   });
