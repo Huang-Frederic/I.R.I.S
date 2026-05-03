@@ -370,8 +370,60 @@ Décompte des nouveaux tests (≥55 ajoutés depuis Phase 2) : `vinted-filter` (
 2. Resume-from-CSV si user kill le batch mid-process (pas critique, le user re-drop les photos).
 3. Audit + optimisation des tokens Gemini (déféré en Phase 3c — la pipeline coût trop chère selon le user, à investiguer).
 
-## Prochaines étapes : Phase 3c / 4 / 5
+## Phase 3c (terminée) — Bulk vendu + Gemini tokens optim
 
-- **Phase 3c** — Bulk vendu (sélecteur multi-cartes vendues ensemble + division du prix de vente entre les cartes pour avoir le prix unitaire) + Refining Gemini tokens (audit du nombre de tokens entrant et sortant + optimisation pour réduire le coût de la pipeline). Brief : [PHASE_3.md](../PHASE_3.md).
+Brief : [PHASE_3.md](../PHASE_3.md). 22 commits.
+
+### Volet 1 — Bulk vendu sur `/vinted`
+
+- Mode "Sélection multiple" : toggle dans `<VintedFilters>` (bouton CheckSquare/Square). Quand actif, checkbox `accent-red` apparaît sur chaque ligne for_sale (cartes + lots) ; les boutons Annonce/Vendu individuels sont disabled.
+- `<BulkSelectionBottomBar>` : fixed-bottom, `md:left-[220px]` pour offset sidebar. Affiche `cardCount`, `lotCount` et "X items au total" + boutons Annuler / Vendre la sélection.
+- `<BulkSoldModal>` : liste items (thumb + badge "Lot" + langue/condition), input prix total, date picker, **preview live de la répartition** via `splitPrice(total, n)`. Le `submit` est disabled tant que `submitting === true` (anti-double-click).
+- `splitPrice` (nouveau helper `lib/utils/split-bulk-price.ts`) : math en cents-int, dernière carte absorbe le remainder. 6 tests couvrent round / decimal / n=1 / n=0 throw / 99.99÷3 / 50÷3.
+- `handleBulkSold` séquentiel : PATCH chaque item (cards → `/api/cards/[id]`, lots → `/api/lots/[id]`), capture `restock` + `promote` arrays côté success, comptage failures.
+- `<BulkSoldRecapModal>` (nouveau composant) : carousel chevrons + dot indicators + clavier ←→, montre la liste des items vendus + section "X alertes restock" inline avec lien `/pokedex`. Remplace le `alert()` initial.
+- Sur recap close → drain de la **promote queue** : chaque candidate ouvre un `<PromoteAfterSoldModal>` (réutilise le composant existant), tu décides Stock ou Mettre en vente carte par carte.
+- Lots respectent maintenant les chips d'état (En ligne / Pas en ligne / À rafraîchir / Vendus). `passesStateChips` + `shouldHideForSalePile` partagés (Lot implémente `ListingShape` via `vinted_listed_at`). Bug pré-Phase-3c : tous les lots s'affichaient peu importe le filtre, comme la search avant.
+- **Restock alert ne fire plus si copies stock présentes** : ajout `remainingStockCount` au détecteur (`detectRestock` skip si > 0). Endpoint `app/api/cards/[id]/route.ts` fait 3 queries en parallèle (for_sale + collection + pokedex) au lieu de 2. Avant : "Pokédex exposé pour Simiabraz" même quand l'user avait 2 copies stock prêtes à promote.
+
+### Volet 2 — Gemini tokens optim (`lib/api/gemini-vision.ts`)
+
+- usageMetadata extracté (`promptTokenCount`, `candidatesTokenCount`) AVANT le parse JSON, donc le compteur est rempli même si l'extraction échoue.
+- Cost calculé en EUR avec `USD_TO_EUR = 0.92` fixe, `COST_USD_PER_M_INPUT = 0.25`, `COST_USD_PER_M_OUTPUT = 1.50` (tarif `gemini-3.1-flash-lite-preview` paid tier vérifié sur ai.google.dev/gemini-api/docs/pricing).
+- `maxOutputTokens: 300` cap pour borner le coût output.
+- `thinkingConfig: { thinkingBudget: 0 }` **fix critique** : Gemini 3.x est un reasoning model qui par défaut consomme tout le budget en `thoughtsTokenCount` invisible avant de produire la réponse → `finishReason: MAX_TOKENS`, `content: {}`, fallback Vision systématique. Désactiver le thinking règle le problème (et c'est moins cher : pas de tokens facturés en pensée).
+- Prompt 500→220 tokens (raccourci sans perdre l'accuracy bench).
+- `extractJsonObject(text)` : slice du premier `{` au dernier `}` avant `JSON.parse`, tolère "Here is the JSON:" et ` ```json ... ``` ` que Flash Preview sort parfois en violation de `responseMimeType`.
+- Refacto signature `extractCardFromImage(buffer): Promise<{ extraction, usage }>` : `usage` est non-null dès que Gemini a répondu, même si l'extraction a foiré → on capture la consommation réelle pour la facturation. Endpoint propage usage au response Vision fallback aussi.
+- Nouveau champ `_engine: 'gemini' | 'vision'` sur `OcrResult`. CardScanForm rend une ligne debug **engine-aware** :
+  - `[Gemini] tokens · €cost` (succès complet)
+  - `[Gemini→Vision] tokens · €cost (fallback Vision)` (parse-fail mais tokens consommés)
+  - `[Vision] (Gemini indisponible)` (fetch fail)
+- Resize default 1600→1400px dans `lib/utils/resize-image.ts` (~−25% image tokens vs 1600). 1024 reste exclu (8/30 cartes ratées, déjà testé).
+- **Switch modèle** `gemini-3-flash-preview` → `gemini-3.1-flash-lite-preview` après bench multi-modèles. Bench script `scripts/bench-multi-model.ts` (nouveau) test 4 modèles × 5 cartes avec config prod identique (prompt + thinkingBudget=0 + responseSchema). Résultats :
+
+| Modèle | Acc | Coût/scan | Latence |
+|---|---|---|---|
+| gemini-3-flash-preview *(was)* | 5/5 | €0.000921 | 4202ms |
+| **gemini-3.1-flash-lite-preview** *(now)* | **5/5** | **€0.000525** | **2749ms** |
+| gemini-2.5-flash | 4/5 | €0.000502 | 5476ms |
+| gemini-2.5-flash-lite | 0/5 | €0.000112 | 8378ms |
+
+- Coût par scan en prod : **~€0.000420** (avec resize 1400px) vs **€0.000921** avant Phase 3c = **−55%**.
+
+### Bug fix bonus : CardScanForm crash en batch
+
+`initialEnrich.candidates` peut être `undefined` si `/api/enrich` répond 200 mais avec un payload partiel (catalog timeout). Crash JS au prefill. Guard simple `?? []`.
+
+### Tests
+
+253 vitest (242 baseline + 6 splitPrice + 1 stock-aware restock + 4 Gemini parse-tolerance/usage), 0 lint, 0 type error.
+
+### Aucune nouvelle migration
+
+Phase 3c full code, no schema changes. La persistence des tokens (table `gemini_usage_log` ou équivalent) a été **délibérément déférée à Phase 5** (le dashboard l'inclura déjà au planning).
+
+## Prochaines étapes : Phase 4 / 5
+
 - **Phase 4** — Passage à 2 users (RLS multi-tenant Supabase) + Import one-shot du profil Vinted existant (parser le HTML de la page profil pour ingester les annonces existantes — CDN Vinted comme source d'images, pas de re-saisie). Brief : [PHASE_4.md](../PHASE_4.md).
-- **Phase 5** — Dashboard (KPIs valeur stock, top cartes rares, alertes restock, **+ tracking tokens consommés et coût/jour app**) + polish PWA (install prompt, icônes 192/512, manifest fine-tune).
+- **Phase 5** — Dashboard (KPIs valeur stock, top cartes rares, alertes restock, **+ tracking tokens consommés et coût/jour app** — table `gemini_usage_log` à créer ici) + polish PWA (install prompt, icônes 192/512, manifest fine-tune).

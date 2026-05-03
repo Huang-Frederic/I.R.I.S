@@ -103,7 +103,7 @@ Le projet en est à la **Phase 1.13** (terminée) — 116 tests passing, 0 lint 
 | **Langage** | TypeScript | ^5 (strict mode) |
 | **Styling** | Tailwind CSS | v4 (config via `@theme` dans `app/globals.css`) |
 | **Base de données** | Supabase | PostgreSQL + Storage + Auth via `@supabase/ssr` |
-| **OCR primaire** | Google Gemini | 3 Flash Preview (`gemini-3-flash-preview`, JSON structuré) |
+| **OCR primaire** | Google Gemini | 3.1 Flash Lite Preview (`gemini-3.1-flash-lite-preview`, JSON structuré, `thinkingBudget: 0`) |
 | **OCR fallback** | Google Cloud Vision | `DOCUMENT_TEXT_DETECTION` + `languageHints: ['ja', 'en']` |
 | **Catalogue local** | LimitlessTCG scraping | 111K cartes (JP/EN/FR/DE/IT/ES/PT), table `tcg_catalog` |
 | **API TCG live** | TCGdex | Fallback pour les nouveaux sets non scrapés |
@@ -330,7 +330,8 @@ Tous les scripts utilisent `tsx` (TypeScript execution) ou `npx tsx`. Aucun n'es
 
 - `scripts/test-bench-claude.ts` (191 lignes) — Variant test-bench avec Claude Haiku 4.5 (via Anthropic SDK). Conclusion bench : 0/30 success (Claude refuse d'extraire info sans contexte additionnel, ou hallucine). Abandonné.
 
-- `scripts/test-bench-gemini.ts` (234 lignes) — Variant test-bench avec plusieurs modèles Gemini (gemini-3-flash-preview, gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite). Résultat best : `gemini-3-flash-preview` 28/30 (93%) @ $0.0006/scan.
+- `scripts/test-bench-gemini.ts` — Bench OCR sur 30 cartes pour 1 modèle (`GEMINI_MODEL` env, default `gemini-flash-latest`). Output CSV `results/test-bench-gemini.csv`.
+- `scripts/bench-multi-model.ts` (Phase 3c) — Bench OCR sur N cartes × M modèles avec config prod identique (prompt, schema, `thinkingBudget=0`). Sortie tableau markdown avec accuracy / avg tokens / avg coût EUR / avg latence. Utilisé pour valider le switch vers `gemini-3.1-flash-lite-preview` (5/5 acc, −43% coût vs `gemini-3-flash-preview`).
 
 - `scripts/inspect-ocr.ts` (119 lignes) — Outil debug OCR : upload 1 photo, affiche texte brut + words avec bounding boxes + candidates extracted (setNumber, setCode). CLI interactif. Usage : `npx tsx scripts/inspect-ocr.ts path/to/card.jpg`.
 
@@ -430,7 +431,7 @@ Config dans `app/globals.css` via `@theme { ... }` (nouveau système Tailwind v4
    - Appelle `extractCardFromImage(buffer)` (Gemini)
    - **Gemini 3 Flash Preview** (si `GEMINI_API_KEY` présent) :
      - Encode buffer → base64
-     - POST `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent`
+     - POST `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent`
      - Body : prompt structuré + image inline_data + responseSchema JSON
      - Timeout 15s
      - Retourne `{ card_name: "チャオブー", set_code: "BW5n", set_number: "12", set_total: 86, language: "JP", confidence: "high", pokemon_number: 499, pokemon_name_fr: "Gruikui", set_name: "ホワイトフレア", set_name_fr: "Combat de Maîtres" }`
@@ -699,15 +700,9 @@ Ces fichiers existent localement mais ne sont jamais committés :
 - Modal avec prix Cardmarket + photo + boutons "Copier titre" / "Copier description"
 - Tests `vinted-template.test.ts`
 
-### Phase 3 (3a + 3b1 + 3b2 v2) — TERMINÉE mai 2026
+### Phase 3 (3a + 3b1 + 3b2 v2 + 3c) — TERMINÉE mai 2026
 
-Voir CLAUDE.md pour le bilan. Résumé : cron pricing TCGdex quotidien (Phase 3a), lots Vinted bundles (Phase 3b1), bulk import 100% web avec enchaînement CardScanForm (Phase 3b2 v2). 242 tests vitest, 0 lint, 0 type error.
-
-### Phase 3c — TODO 🚧
-
-**Objectif** : Bulk vendu (sélecteur multi-cartes vendues ensemble + division du prix de vente entre les cartes pour avoir le prix unitaire) + Refining Gemini tokens (audit du nombre de tokens entrant et sortant + optimisation pour réduire le coût de la pipeline).
-
-Brief : [PHASE_3.md](PHASE_3.md) à la racine.
+Voir CLAUDE.md pour le bilan. Résumé : cron pricing TCGdex quotidien (Phase 3a), lots Vinted bundles (Phase 3b1), bulk import 100% web avec enchaînement CardScanForm (Phase 3b2 v2), bulk vendu sur `/vinted` + Gemini tokens optim (Phase 3c — switch modèle vers `gemini-3.1-flash-lite-preview`, `thinkingConfig.thinkingBudget=0` pour stopper le fallback Vision systématique, debug ligne engine-aware sur le scanner, resize 1400px). 253 tests vitest, 0 lint, 0 type error.
 
 ### Phase 4 — TODO 🚧
 
