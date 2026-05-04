@@ -20,13 +20,15 @@ interface Props {
     restock: RestockAlert | null;
     promote: PromoteCandidate | null;
   }) => void;
+  partnerListing: { user_id: string; listed_at: string } | null;
+  partnerName: string | null;
 }
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function SoldModal({ entity, onClose, onSold }: Props) {
+export default function SoldModal({ entity, onClose, onSold, partnerListing, partnerName }: Props) {
   const [price, setPrice] = useState<string>('');
   const [date, setDate] = useState<string>(todayIso());
   const [submitting, setSubmitting] = useState(false);
@@ -85,6 +87,15 @@ export default function SoldModal({ entity, onClose, onSold }: Props) {
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {partnerListing && partnerName && (
+          <div className="bg-red-bg border-red mb-4 rounded border px-3 py-2 text-sm">
+            <p className="text-red font-medium">⚠ {partnerName} a aussi cette carte en ligne sur Vinted.</p>
+            <p className="text-text-muted mt-1 text-xs">
+              Si tu ne remets pas un autre exemplaire en vente, {partnerName} devra retirer son annonce manuellement.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={submit} className="space-y-3">
           <label className="block">
