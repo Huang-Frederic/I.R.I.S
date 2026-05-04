@@ -4,7 +4,7 @@
 // of the same card in their collection. The clone shares the source card's
 // image_url and metadata — they're indistinguishable as data, only the row
 // id and date_added differ. The clone always lands in 'collection' and clears
-// vinted_listed_at + sold fields so it starts in a clean state.
+// sold fields so it starts in a clean state. Per-user listings live in card_listings (Phase 4) — clone never copies them, the new card starts with no listings.
 //
 // We do NOT copy 'pokedex' or 'for_sale' status: those are guarded by partial
 // unique indexes, and the user almost certainly wants the new copy in Stock.
@@ -40,19 +40,17 @@ export async function POST(
   const {
     id: _id,
     date_added: _date,
-    vinted_listed_at: _listed,
     date_sold: _sold,
     sold_price: _price,
     lot_id: _lot,
     ...rest
   } = source;
-  void _id; void _date; void _listed; void _sold; void _price; void _lot;
+  void _id; void _date; void _sold; void _price; void _lot;
 
   const insertRow = {
     ...rest,
     status: 'collection' as const,
     date_added: new Date().toISOString(),
-    vinted_listed_at: null,
     date_sold: null,
     sold_price: null,
     lot_id: null,

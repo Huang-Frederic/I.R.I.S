@@ -42,7 +42,6 @@ describe('POST /api/cards — for_sale conflict handling', () => {
         tcg_image_url: null,
         suggested_price: 5.0,
         date_added: '2024-01-01',
-        vinted_listed_at: null,
         language: 'JP',
         condition: 'NM',
         variant: null,
