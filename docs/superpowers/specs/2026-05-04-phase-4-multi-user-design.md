@@ -17,7 +17,8 @@
 ### 2.1 Migration unique `20260505000000_phase4_multi_user.sql`
 
 ```sql
--- 1. Per-user listings table
+-- 1. Per-user listings tables (cards + lots, identical shape — lots are also
+-- cross-listable car la copine peut aussi mettre les lots sur son Vinted).
 create table card_listings (
   card_id uuid not null references cards(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -27,36 +28,58 @@ create table card_listings (
 create index idx_card_listings_user_listed
   on card_listings (user_id, listed_at desc);
 
+create table lot_listings (
+  lot_id uuid not null references lots(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  listed_at timestamptz not null default now(),
+  primary key (lot_id, user_id)
+);
+create index idx_lot_listings_user_listed
+  on lot_listings (user_id, listed_at desc);
+
 -- 2. Display names table
 create table user_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null
 );
 
--- 3. Backfill from cards.vinted_listed_at to card_listings (Hisshiden's user_id)
+-- 3. Backfill from cards.vinted_listed_at + lots.vinted_listed_at to listings tables (Hisshiden's user_id)
 insert into card_listings (card_id, user_id, listed_at)
-select id, '<HISSHIDEN_USER_ID>'::uuid, vinted_listed_at
+select id, '35385d3c-5966-4a10-8568-8d92d1be47e7'::uuid, vinted_listed_at
 from cards
 where vinted_listed_at is not null;
 
--- 4. Seed user_profiles (toi + copine)
-insert into user_profiles (user_id, display_name) values
-  ('<HISSHIDEN_USER_ID>'::uuid, 'Hisshiden'),
-  ('<COPINE_USER_ID>'::uuid, 'Copine');
+insert into lot_listings (lot_id, user_id, listed_at)
+select id, '35385d3c-5966-4a10-8568-8d92d1be47e7'::uuid, vinted_listed_at
+from lots
+where vinted_listed_at is not null;
 
--- 5. Drop the old per-card vinted_listed_at column + index
+-- 4. Seed user_profiles (Hisshiden + Hilyna)
+insert into user_profiles (user_id, display_name) values
+  ('35385d3c-5966-4a10-8568-8d92d1be47e7'::uuid, 'Lui'),
+  ('a018a4ef-e02e-4a67-9732-9fafe3167e10'::uuid, 'Elle');
+
+-- 5. Drop the old per-card / per-lot vinted_listed_at columns + indexes
 drop index if exists idx_cards_vinted_listed_at;
 alter table cards drop column vinted_listed_at;
+alter table lots drop column vinted_listed_at;
 
 -- 6. RLS
 alter table card_listings enable row level security;
+alter table lot_listings enable row level security;
 alter table user_profiles enable row level security;
 
--- card_listings: tous les authenticated lisent ; un user n'écrit QUE ses propres lignes
+-- card_listings: all authenticated read ; un user n'écrit QUE ses propres lignes
 create policy card_listings_select on card_listings for select to authenticated using (true);
 create policy card_listings_insert on card_listings for insert to authenticated with check (user_id = auth.uid());
 create policy card_listings_update on card_listings for update to authenticated using (user_id = auth.uid());
 create policy card_listings_delete on card_listings for delete to authenticated using (user_id = auth.uid());
+
+-- lot_listings: même politique
+create policy lot_listings_select on lot_listings for select to authenticated using (true);
+create policy lot_listings_insert on lot_listings for insert to authenticated with check (user_id = auth.uid());
+create policy lot_listings_update on lot_listings for update to authenticated using (user_id = auth.uid());
+create policy lot_listings_delete on lot_listings for delete to authenticated using (user_id = auth.uid());
 
 -- user_profiles: tous lisent ; chacun écrit que son propre profile
 create policy user_profiles_select on user_profiles for select to authenticated using (true);
@@ -64,14 +87,16 @@ create policy user_profiles_insert on user_profiles for insert to authenticated 
 create policy user_profiles_update on user_profiles for update to authenticated using (user_id = auth.uid());
 ```
 
-**Pré-requis** : Hisshiden fournit son `user_id` Supabase (visible dans Studio → Auth → Users) + le `user_id` de la copine (créé manuellement avant la migration). Les UUIDs sont substitués dans le SQL avant apply.
+**UUIDs hardcodés** dans le SQL ci-dessus :
+- Hisshiden (Lui) : `35385d3c-5966-4a10-8568-8d92d1be47e7`
+- Hilyna (Elle) : `a018a4ef-e02e-4a67-9732-9fafe3167e10`
 
-**Sécurité du backfill** : la table `cards` a actuellement 0 lignes (post-wipe Phase 3c) → backfill no-op et triviale. Si à terme des cartes existent au moment du re-deploy de cette migration, le SQL est idempotent et safe.
+**Sécurité du backfill** : les tables `cards` et `lots` ont actuellement 0 lignes (post-wipe Phase 3c) → backfills no-op et triviaux. Si à terme des cartes/lots existent au moment du re-deploy de cette migration, le SQL est idempotent et safe.
 
 ### 2.2 RLS rationale
 
 - `cards` / `lots` / `tcg_catalog` / `config` / `rarity_ranks` : RLS existant inchangé. Tout reste partagé en lecture/écriture entre users authentifiés (le brief dit "tout est rigoureusement partagé").
-- `card_listings` : SELECT all (chaque user voit les annonces de l'autre pour les badges) + write per-user (l'un n'efface jamais l'annonce de l'autre).
+- `card_listings` + `lot_listings` : SELECT all (chaque user voit les annonces de l'autre pour les badges) + write per-user (l'un n'efface jamais l'annonce de l'autre).
 - `user_profiles` : SELECT all + write per-user.
 
 ### 2.3 Auth setup (action utilisateur, hors migration)
@@ -86,40 +111,56 @@ create policy user_profiles_update on user_profiles for update to authenticated 
 
 ```ts
 // lib/types/index.ts
-// SUPPRIMER : `vinted_listed_at?: string | null` sur Card et CardRow
+// SUPPRIMER : `vinted_listed_at?: string | null` sur Card, CardRow, Lot
 ```
 
 ### 3.2 Ajouts
 
 ```ts
-export interface CardListing {
-  card_id: string;
+/** Common shape for both card_listings and lot_listings rows. */
+export interface BaseListing {
   user_id: string;
   listed_at: string; // ISO timestamp
 }
+export interface CardListing extends BaseListing { card_id: string; }
+export interface LotListing extends BaseListing { lot_id: string; }
 
 export interface UserProfile {
   user_id: string;
   display_name: string;
 }
 
-/** Card hydrated avec ses listings (chargés en parallèle côté server). */
+/** Card / Lot hydrated avec leurs listings (chargés en parallèle côté server). */
 export interface CardWithListings extends Card {
   listings: CardListing[];
 }
+export interface LotWithListings extends Lot {
+  listings: LotListing[];
+}
 ```
+
+**Modifications types existants** : remove `vinted_listed_at?: string | null` sur `Card` ET `Lot`.
 
 ## 4. Helpers purs (lib/utils)
 
 ### 4.1 `lib/utils/listings.ts` (nouveau fichier)
 
+Helpers génériques sur n'importe quelle collection de listings (cards ou lots) :
+
 ```ts
-export function getMyListing(card: CardWithListings, myUserId: string): CardListing | null;
-export function getPartnerListing(card: CardWithListings, partnerUserId: string): CardListing | null;
-export function isStaleForUser(card: CardWithListings, userId: string, now: number): boolean;
+export function getMyListing<L extends BaseListing>(listings: L[], myUserId: string): L | null;
+export function getPartnerListing<L extends BaseListing>(listings: L[], partnerUserId: string | null): L | null;
+export function isStaleForListing(listing: BaseListing | null, now: number): boolean;
 ```
 
-Tests : 4 (`getMyListing`/`getPartnerListing`), 3 (`isStaleForUser`).
+Wrapper convenience par item-type :
+
+```ts
+export function getMyListingForCard(card: CardWithListings, myUserId: string): CardListing | null;
+export function getMyListingForLot(lot: LotWithListings, myUserId: string): LotListing | null;
+```
+
+Tests : 4 (`getMyListing`/`getPartnerListing` génériques avec edge cases), 3 (`isStaleForListing`).
 
 ### 4.2 `lib/utils/vinted-filter.ts` (extension)
 
@@ -133,11 +174,12 @@ export interface VintedFilterState {
   multiUserChip: MultiUserChip; // default 'all'
 }
 
+/** Generic — works for both cards and lots (both have listings + status). */
 export function passesMultiUserChip(
-  card: CardWithListings,
+  item: { status: string; listings: BaseListing[] },
   chip: MultiUserChip,
   myUserId: string,
-  partnerUserId: string,
+  partnerUserId: string | null,
 ): boolean;
 ```
 
@@ -166,18 +208,18 @@ Tests : 6 (1 par chip, edge cases : `partner` avec partnerId null = false).
 
 ### 5.1 Nouveaux
 
-- `POST /api/listings` — body `{ card_id: string }` → INSERT `card_listings(card_id, auth.uid(), now())` ON CONFLICT (card_id, user_id) DO NOTHING. Renvoie 200 avec la ligne créée (ou existante).
-- `DELETE /api/listings/[card_id]` → DELETE WHERE card_id = X AND user_id = auth.uid(). Renvoie 200 + count.
+- `POST /api/listings` — body `{ kind: 'card' | 'lot'; id: string }` → INSERT dans `card_listings` ou `lot_listings` selon `kind`, ON CONFLICT DO NOTHING. Renvoie 200 avec la ligne créée (ou existante).
+- `DELETE /api/listings/[kind]/[id]` — DELETE WHERE id = X AND user_id = auth.uid() dans la table correspondante. Renvoie 200 + count.
 
-Les 2 endpoints utilisent le client Supabase server-side standard (RLS s'applique automatiquement).
+Routes physiques : `app/api/listings/route.ts` (POST) et `app/api/listings/[kind]/[id]/route.ts` (DELETE). `kind` ∈ {`card`, `lot`}, validé en début de handler. Les 2 endpoints utilisent le client Supabase server-side standard (RLS s'applique automatiquement).
 
 ### 5.2 Modifications endpoint existant
 
 `PATCH /api/cards/[id]` : retirer toute logique référençant `vinted_listed_at`. Le body n'accepte plus ce champ.
 
-### 5.3 Endpoint listings + lots
+### 5.3 PATCH `/api/lots/[id]` — modifications similaires
 
-Lots ne sont PAS dans le scope multi-user (un lot = produit unique non cross-listable, vendu une seule fois sur une plateforme). Le toggle `<VintedListedToggle>` actuel des lots reste sur `lots.vinted_listed_at` (colonne distincte de la `cards.vinted_listed_at` qu'on drop).
+Retirer toute logique référençant `vinted_listed_at` côté lots (le body PATCH n'accepte plus ce champ). La gestion online/offline d'un lot passe désormais par les mêmes endpoints `/api/listings` que les cards (avec `kind: 'lot'`).
 
 ## 6. Frontend
 
@@ -202,16 +244,19 @@ Fallback : si `user_profiles` row manquante pour un user, `display_name` = email
 
 ### 6.2 Composant `<ListingBadges>` (nouveau)
 
-`components/vinted/ListingBadges.tsx` :
+`components/vinted/ListingBadges.tsx` — generic, works for both cards et lots :
 
 ```tsx
 interface Props {
-  card: CardWithListings;
+  itemKind: 'card' | 'lot';
+  itemId: string;
+  itemStatus: string;        // 'for_sale' | 'sold' | 'pokedex' | 'collection'
+  listings: BaseListing[];   // card.listings ou lot.listings
   myUserId: string;
   partnerUserId: string | null;
   partnerName: string | null;
-  onToggle: () => Promise<void>; // POST /api/listings
-  onDelete: () => Promise<void>; // DELETE /api/listings/[card_id]
+  onToggle: () => Promise<void>; // POST /api/listings { kind, id }
+  onDelete: () => Promise<void>; // DELETE /api/listings/[kind]/[id]
 }
 ```
 
@@ -225,9 +270,9 @@ Les 4 cas peuvent coexister (ex: badge vert + badge bleu + badge rouge si la car
 
 ### 6.3 `<VintedRow>` et `<LotRow>`
 
-Remplacent leur `<VintedListedToggle>` actuel par `<ListingBadges>`. Reçoivent `myUserId` + `partnerUserId` + `partnerName` en props depuis `<VintedList>`.
+Les 2 remplacent leur `<VintedListedToggle>` actuel par `<ListingBadges>` (avec `itemKind='card'` ou `'lot'`). Reçoivent `myUserId` + `partnerUserId` + `partnerName` en props depuis `<VintedList>`.
 
-`<VintedListedToggle>` : conservé uniquement pour les lots (pas dans scope multi-user). Pour les cards, sera unused → drop le composant.
+`<VintedListedToggle>` : composant entièrement obsolète après ce refactor → **drop** (cf. section 8 Cleanup).
 
 ### 6.4 `<VintedFilters>` extension
 
@@ -269,24 +314,31 @@ Pareil que `<SoldModal>` mais agrégé : si N items du bulk ont un partnerListin
 
 ### 6.7 Page `/vinted` query
 
-Server-side (`app/(app)/vinted/page.tsx`) :
+Server-side (`app/(app)/vinted/page.tsx`) — charge cards + lots + leurs listings + user_profiles en parallèle :
 
 ```ts
-// Charge cards + listings + user_profiles en parallèle
-const [{ data: cards }, { data: listings }, { data: profiles }] = await Promise.all([
+const [
+  { data: cards }, { data: lots },
+  { data: cardListings }, { data: lotListings },
+  { data: profiles },
+] = await Promise.all([
   supabase.from('cards').select('*').in('status', ['for_sale', 'sold']),
+  supabase.from('lots').select('*').in('status', ['for_sale', 'sold']),
   supabase.from('card_listings').select('*'),
+  supabase.from('lot_listings').select('*'),
   supabase.from('user_profiles').select('*'),
 ]);
 
 // Hydrate côté client
 const cardsWithListings: CardWithListings[] = cards.map((c) => ({
-  ...c,
-  listings: listings.filter((l) => l.card_id === c.id),
+  ...c, listings: cardListings.filter((l) => l.card_id === c.id),
+}));
+const lotsWithListings: LotWithListings[] = lots.map((l) => ({
+  ...l, listings: lotListings.filter((ll) => ll.lot_id === l.id),
 }));
 ```
 
-`<VintedList>` reçoit `cardsWithListings` + `userContext`.
+`<VintedList>` reçoit `cardsWithListings` + `lotsWithListings` + `userContext`.
 
 ### 6.8 Page `/stock`
 
@@ -322,10 +374,10 @@ Pas de test SQL automatisé (pattern projet). Validation manuelle :
 
 Fichiers/exports à supprimer après refactor livré :
 
-- `components/vinted/VintedListedToggle.tsx` — **conservé** car encore utilisé par `<LotRow>` (lots ne sont pas dans le scope multi-user — un lot = produit unique non cross-listable). Aucune modif.
-- `cards.vinted_listed_at` : drop par la migration → tous les `select '*'` ne le sélectionneront plus naturellement.
-- Tous les `card.vinted_listed_at` dans les types, mappers, API (PATCH route, etc.) à enlever proprement (TS strict catch toutes les références après le drop sur le type `Card`).
-- Tests/références à `vinted_listed_at` côté cards (pas lots) à mettre à jour ou supprimer.
+- `components/vinted/VintedListedToggle.tsx` — **drop entièrement**. Remplacé par `<ListingBadges>` côté cards ET côté lots.
+- `cards.vinted_listed_at` + `lots.vinted_listed_at` : drop par la migration → tous les `select '*'` ne les sélectionneront plus naturellement.
+- Tous les `card.vinted_listed_at` / `lot.vinted_listed_at` dans les types, mappers, API (PATCH routes, etc.) à enlever proprement (TS strict catch toutes les références après le drop sur les types `Card` et `Lot`).
+- Tests/références à `vinted_listed_at` à mettre à jour ou supprimer.
 
 ## 9. Hors scope (Feature 1 ou plus tard)
 
@@ -360,16 +412,17 @@ Fichiers/exports à supprimer après refactor livré :
 
 ## 12. Ordre d'implémentation recommandé (pour le plan)
 
-1. Migration SQL + RLS + backfill (paramétré, attend les 2 UUIDs au moment de l'apply)
-2. Types TypeScript (CardListing, UserProfile, CardWithListings)
-3. Helpers purs (getMyListing, getPartnerListing, isStaleForUser, passesMultiUserChip) — TDD
-4. Endpoints API (POST /listings, DELETE /listings/[card_id])
-5. useUserContext hook + Provider
-6. `<ListingBadges>` composant
-7. `<VintedRow>` + `<LotRow>` refactor (passer du toggle aux badges)
-8. `<VintedFilters>` extension (chips multi-user)
-9. `<VintedList>` query + hydration `CardWithListings`
-10. `<SoldModal>` + `<BulkSoldModal>` + `<BulkSoldRecapModal>` bandeaux partner
-11. Cleanup `<VintedListedToggle>` côté cards
-12. Lint + tests + build
-13. Smoke test handoff
+1. Migration SQL + RLS + backfill (UUIDs hardcodés Hisshiden + Hilyna déjà inscrits)
+2. Types TypeScript (BaseListing, CardListing, LotListing, UserProfile, CardWithListings, LotWithListings)
+3. Helpers purs (`getMyListing`, `getPartnerListing`, `isStaleForListing` génériques, `passesMultiUserChip`) — TDD
+4. Endpoints API (`POST /api/listings` avec `kind`, `DELETE /api/listings/[kind]/[id]`)
+5. `useUserContext` hook + Provider chargé au layout `app/(app)/layout.tsx`
+6. `<ListingBadges>` composant générique (kind: 'card' | 'lot')
+7. `<VintedRow>` + `<LotRow>` refactor (toggle → badges)
+8. `<VintedFilters>` extension (chips multi-user, hide partner chips si pas de partner)
+9. `<VintedList>` query + hydration `CardWithListings` + `LotWithListings`
+10. `<SoldModal>` + `<BulkSoldModal>` + `<BulkSoldRecapModal>` bandeaux partner + side-effect DELETE my listing
+11. PATCH `/api/cards/[id]` + PATCH `/api/lots/[id]` cleanup (no more vinted_listed_at)
+12. Drop `<VintedListedToggle>` + références
+13. Lint + tests + build
+14. Smoke test handoff
