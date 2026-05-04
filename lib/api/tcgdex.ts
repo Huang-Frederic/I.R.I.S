@@ -26,6 +26,7 @@ export function toTCGdexLang(lang: CardLanguage): TCGdexLang {
     case 'PT':
       return 'pt';
     case 'ZH':
+    case 'CN':
       return 'zh-tw';
   }
 }
@@ -307,6 +308,53 @@ export async function lookupSubseries(
   }
 
   return null;
+}
+
+/**
+ * Last-chance subseries probe used when Gemini hallucinates the set_code
+ * (e.g. returns "DRM" for a Dracaufeu TG card from Lost Origin). We probe
+ * TG and GG parent sets blind with the given localId and disambiguate by
+ * pokemonNumber. Cheap (~5 parallel HTTP calls) and safe — without a dex
+ * match across 4 sets the result is a confident pick.
+ *
+ * Only call this AFTER the standard set_code-based lookups have failed,
+ * because dex match alone could pick a wrong card if the printed localId
+ * happens to coincide with a TG/GG card of the same Pokémon.
+ */
+export async function probeSubseriesByDex(
+  localId: string,
+  pokemonNumber: number,
+  lang: TCGdexLang = 'en',
+): Promise<TCGdexCard | null> {
+  const num = localId.replace(/^0+/, '') || '0';
+  const numInt = Number(num);
+  if (!Number.isFinite(numInt) || numInt < 1) return null;
+
+  const probes: Array<Promise<TCGdexCard | null>> = [];
+
+  // TG: 30 cards per parent set (swsh9..swsh12). Try only if localId could fit.
+  if (numInt <= 30) {
+    const tgLocal = `TG${num.padStart(2, '0')}`;
+    for (const parent of SUBSERIES_PARENTS.TG) {
+      probes.push(lookupById(parent, tgLocal, lang).catch(() => null));
+    }
+  }
+
+  // GG: ~70 cards in swsh12.5 only. Try if localId fits.
+  if (numInt <= 75) {
+    const ggLocal = `GG${num.padStart(2, '0')}`;
+    for (const parent of SUBSERIES_PARENTS.GG) {
+      probes.push(lookupById(parent, ggLocal, lang).catch(() => null));
+    }
+  }
+
+  if (probes.length === 0) return null;
+  const hits = (await Promise.all(probes)).filter((c): c is TCGdexCard => c !== null);
+  if (hits.length === 0) return null;
+
+  // Strict dex match (no fallback to "first hit" — that would reintroduce false positives)
+  const byDex = hits.find((c) => Array.isArray(c.dexId) && c.dexId.includes(pokemonNumber));
+  return byDex ?? null;
 }
 
 /* ===== Set catalog cache + total-based card resolution =====

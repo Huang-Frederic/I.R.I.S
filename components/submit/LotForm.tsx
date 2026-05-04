@@ -14,7 +14,7 @@ const LANGUAGES: { value: CardLanguage; label: string }[] = [
   { value: 'EN', label: 'Anglaise 🇬🇧' },
   { value: 'FR', label: 'Française 🇫🇷' },
   { value: 'KO', label: 'Coréenne 🇰🇷' },
-  { value: 'ZH', label: 'Chinoise 🇨🇳' },
+  { value: 'CN', label: 'Chinoise 🇨🇳' },
 ];
 
 const CONDITIONS: { value: CardCondition; label: string }[] = [
@@ -109,7 +109,7 @@ export default function LotForm() {
 
         <label className="block">
           <span className="text-text-muted text-xs">
-            Titre — partie centrale uniquement ({titleLength}/{TITLE_MAX} avec préfixe + [{language === 'ZH' ? 'CN' : language}])
+            Titre — partie centrale uniquement ({titleLength}/{TITLE_MAX} avec préfixe + [{language}])
           </span>
           <input
             type="text"

@@ -52,7 +52,7 @@ CODES DE SET PAR LANGUE — extrais ce qui est imprimé, JAMAIS l'équivalent d'
 - JP : codes mixed-case avec suffixes lettres → sv11W, s12a, BW4, sm8b, sv8a, XY9, smp, xyp
 - EN : codes uppercase 3 lettres → OBF, MEW, JTG, SCR, PRE, PAL, BKP, BKT, AOR, STS, GEN, FCO, EVO, SVI
 - FR/DE/IT/ES/PT : MÊMES codes uppercase 3 lettres que EN (BKP, OBF, MEW, SCR, PRE, JTG, …)
-- ZH : codes 'cs'+suffixe → cs4bc, cs4aC, cs1c
+- CN (chinois) : codes 'cs'+suffixe → cs4bc, cs4aC, cs1c, csm1a (équivalent ZH)
 - KO : codes similaires à JP ou EN selon la série
 
 ⚠️ ANTI-PIÈGE : si la carte est en alphabet latin (Pikachu, Dracaufeu, …), le set_code est OBLIGATOIREMENT en format EN/FR (3 lettres UPPERCASE comme BKP, OBF, MEW). N'INVENTE PAS de code JP (XY9, sv11W, BW5) sur une carte FR/EN — ce serait une hallucination.
@@ -63,7 +63,7 @@ CODES DE SET PAR LANGUE — extrais ce qui est imprimé, JAMAIS l'équivalent d'
   "set_code": "<code exact tel qu'imprimé, casse sensible>",
   "set_number": "<XXX sans zéros initiaux: '12' pas '012'>",
   "set_total": <YYY ou null>,
-  "language": "<JP|EN|FR|DE|IT|ES|PT|KO|ZH>",
+  "language": "<JP|EN|FR|KO|CN (utilise CN pour chinois, pas ZH)>",
   "rarity": "<Common|Uncommon|Rare|Holo Rare|Double Rare|Ultra Rare|Art Rare|Special Art Rare|Secret Rare|Hyper Rare|Promo|Other ou null>",
   "confidence": "high|medium|low",
   "pokemon_number": <national dex 1-1025 si Pokémon, null pour Trainer/Energy/Stadium>,

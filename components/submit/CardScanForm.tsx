@@ -3,15 +3,16 @@
 import { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { ScanLine, AlertTriangle, CheckCircle2, XCircle, X, Camera } from 'lucide-react';
-import type {
-  CardCondition,
-  CardLanguage,
-  CardRarity,
-  CardStatus,
-  EnrichedCard,
-  EnrichResult,
-  GeminiUsage,
-  OcrResult,
+import {
+  UI_LANGUAGES,
+  type CardCondition,
+  type CardLanguage,
+  type CardRarity,
+  type CardStatus,
+  type EnrichedCard,
+  type EnrichResult,
+  type GeminiUsage,
+  type OcrResult,
 } from '@/lib/types';
 import {
   actionToStatus,
@@ -25,7 +26,7 @@ import DuplicateForSaleModal from '@/components/cards/DuplicateForSaleModal';
 import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
 import { detectNumberMismatch } from '@/lib/utils/pokedex-mismatch';
 
-const LANGUAGES: CardLanguage[] = ['JP', 'EN', 'FR', 'DE', 'IT', 'ES', 'KO', 'PT', 'ZH'];
+const LANGUAGES: readonly CardLanguage[] = UI_LANGUAGES;
 const CONDITIONS: CardCondition[] = ['NM', 'EX', 'GD', 'PL', 'PO'];
 const STATUSES: { value: CardStatus; label: string }[] = [
   { value: 'for_sale', label: 'Vinted' },

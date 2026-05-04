@@ -15,6 +15,7 @@ import {
   listSets,
   lookupById as tcgdexLookupById,
   lookupSubseries as tcgdexLookupSubseries,
+  probeSubseriesByDex as tcgdexProbeSubseriesByDex,
   toEnrichedCard as tcgdexToEnrichedCard,
   toTCGdexLang,
   type TCGdexCard,
@@ -229,6 +230,14 @@ export async function POST(request: Request) {
     if (!tcgdexCard && total != null && localId) {
       tcgdexCandidates = await findCardsByTotalAndLocalId(total, localId, tcgdexLang);
       tcgdexCard = tcgdexCandidates[0] ?? null;
+    }
+
+    // Strategy 3b: subseries dex probe — last-chance attempt when Gemini
+    // hallucinated the set_code (e.g. "DRM" for a Lost Origin Trainer Gallery
+    // card). If pokemon_number is present, blind-probe TG/GG parents and only
+    // accept a strict dex match.
+    if (!tcgdexCard && body.pokemonNumber && localId) {
+      tcgdexCard = await tcgdexProbeSubseriesByDex(localId, body.pokemonNumber, tcgdexLang);
     }
     if (tcgdexCard) {
       const enriched = await enrichWithFrenchNames(tcgdexToEnrichedCard(tcgdexCard), tcgdexLang);

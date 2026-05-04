@@ -3,6 +3,7 @@ import {
   extractPokemonName,
   lookupSubseries,
   mapRarity,
+  probeSubseriesByDex,
   toEnrichedCard,
   toTCGdexLang,
   type TCGdexCard,
@@ -220,6 +221,60 @@ describe('lookupSubseries — TG/GG/Promo card lookup on TCGdex', () => {
   it('returns null for non-subseries codes', async () => {
     mockResponses({});
     const card = await lookupSubseries('OBF', '15', 'Charizard', 'en');
+    expect(card).toBeNull();
+  });
+});
+
+describe('probeSubseriesByDex — last-chance probe when set_code is wrong', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  function mockResponses(map: Record<string, { name?: string; dexId?: number[] } | null>) {
+    global.fetch = vi.fn((url: string) => {
+      for (const [key, value] of Object.entries(map)) {
+        if (url.includes(`/cards/${key}`)) {
+          if (value === null) return Promise.resolve({ status: 404, ok: false } as Response);
+          return Promise.resolve({ status: 200, ok: true, json: async () => value } as Response);
+        }
+      }
+      return Promise.resolve({ status: 404, ok: false } as Response);
+    }) as unknown as typeof fetch;
+  }
+
+  it('finds the correct TG card by dex when Gemini hallucinated set_code (DRM → Lost Origin)', async () => {
+    // User's bug: Gemini said set_code=DRM for a TG/3 Charizard from Lost Origin
+    // Without dex probe we miss it. With dex probe we hit swsh11-TG03 by Charizard's dex.
+    mockResponses({
+      'swsh9-TG03': { name: 'Octillery', dexId: [224] },
+      'swsh10-TG03': { name: 'Hyporoi', dexId: [224] },
+      'swsh11-TG03': { name: 'Dracaufeu', dexId: [6] },
+      'swsh12-TG03': { name: 'Lainergie', dexId: [479] },
+    });
+    const card = await probeSubseriesByDex('3', 6, 'fr');
+    expect(card?.name).toBe('Dracaufeu');
+  });
+
+  it('finds GG cards by dex too', async () => {
+    mockResponses({ 'swsh12.5-GG45': { name: 'Deoxys VMAX', dexId: [386] } });
+    const card = await probeSubseriesByDex('45', 386, 'en');
+    expect(card?.name).toBe('Deoxys VMAX');
+  });
+
+  it('returns null when no probe matches the dex (avoids false positives)', async () => {
+    mockResponses({
+      'swsh11-TG03': { name: 'Dracaufeu', dexId: [6] },
+    });
+    // User says dex=25 (Pikachu) but TG03 is Charizard everywhere — refuse
+    const card = await probeSubseriesByDex('3', 25, 'fr');
+    expect(card).toBeNull();
+  });
+
+  it('skips probes when localId is too large for any subseries', async () => {
+    // localId=200 cannot be TG (max 30) nor GG (max ~70). Skip entirely.
+    mockResponses({}); // shouldn't be called
+    const card = await probeSubseriesByDex('200', 6, 'en');
     expect(card).toBeNull();
   });
 });
