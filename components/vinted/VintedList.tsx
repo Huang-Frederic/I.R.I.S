@@ -20,6 +20,7 @@ import type { RestockAlert } from '@/lib/utils/restock-detection';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 import type { VintedConfig } from '@/lib/utils/vinted-template';
 import { passesStateChips, shouldHideForSalePile, passesMultiUserChip } from '@/lib/utils/vinted-filter';
+import { getMyListing } from '@/lib/utils/listings';
 import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
 import LotRow from '@/components/lots/LotRow';
 import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
@@ -286,7 +287,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     // shared helper keeps the UI semantics in lockstep with the test suite.
     const finalForSale = !showCards || shouldHideForSalePile(filters)
       ? []
-      : forSale.filter((c) => passesCommon(c) && passesStateChips(c, filters, now) && passesMultiUserChip(c as { status: string; listings: BaseListing[] }, filters.multiUserChip, myUserId, partnerUserId));
+      : forSale.filter((c) => passesCommon(c) && passesStateChips(getMyListing(c.listings, myUserId), filters, now) && passesMultiUserChip(c as { status: string; listings: BaseListing[] }, filters.multiUserChip, myUserId, partnerUserId));
 
     // Sold pile is independent: included only when the Vendus chip is on.
     const soldSubset = !showCards || !filters.showSold
@@ -295,10 +296,10 @@ export default function VintedList({ cards: initial, lots: initialLots, register
           .filter(passesCommon)
           .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''));
 
-    const sorted = sortVintedGroups(groupCards(finalForSale), now).map((g, i) => ({
+    const sorted = sortVintedGroups(groupCards(finalForSale) as CardGroupWithListings[], now, myUserId).map((g, i) => ({
       ...g,
       position: i + 1,
-    })) as CardGroupWithListings[];
+    }));
 
     // Lots: no grouping, each lot is unique. Apply search filter to lot name +
     // extra_description AND state chips (En ligne / Pas en ligne / À rafraîchir
@@ -309,7 +310,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
           (l) =>
             l.status === 'for_sale' &&
             matchesLotSearch(l, filters.search) &&
-            passesStateChips(l, filters, now) &&
+            passesStateChips(getMyListing(l.listings, myUserId), filters, now) &&
             passesMultiUserChip(l as { status: string; listings: BaseListing[] }, filters.multiUserChip, myUserId, partnerUserId),
         );
 

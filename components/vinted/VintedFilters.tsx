@@ -12,8 +12,8 @@ export interface VintedFilterState {
   /** Type of listings to show: all (cards+lots), cards only, or lots only. */
   kindFilter: 'all' | 'cards' | 'lots';
   // Cumulative chips
-  showOnline: boolean;     // include for_sale where vinted_listed_at != null
-  showOffline: boolean;    // include for_sale where vinted_listed_at == null
+  showOnline: boolean;     // include for_sale where I have a listing (fresh)
+  showOffline: boolean;    // include for_sale where I have no listing
   showSold: boolean;       // include sold cards (individual rows)
   showStale: boolean;      // restrict to "à rafraîchir" (>21j)
   multiUserChip: MultiUserChip;

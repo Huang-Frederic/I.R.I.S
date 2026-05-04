@@ -13,9 +13,9 @@ const NONE: ChipState = {
   showSold: false,
 };
 
-const offline = { vinted_listed_at: null };
-const fresh = { vinted_listed_at: isoDaysAgo(5) };
-const stale = { vinted_listed_at: isoDaysAgo(40) };
+const offline = null;
+const fresh = { user_id: 'u', listed_at: isoDaysAgo(5) };
+const stale = { user_id: 'u', listed_at: isoDaysAgo(40) };
 
 describe('passesStateChips', () => {
   it('with no state chip active, every for_sale card passes', () => {

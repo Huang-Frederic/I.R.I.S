@@ -14,7 +14,6 @@ interface PatchBody {
   status?: 'for_sale' | 'sold';
   date_sold?: string | null;
   sold_price?: number | null;
-  vinted_listed_at?: string | null;
 }
 
 function bad(msg: string, status = 400): NextResponse {
@@ -73,7 +72,6 @@ export async function PATCH(
     }
   }
   if (body.date_sold !== undefined) update.date_sold = body.date_sold;
-  if (body.vinted_listed_at !== undefined) update.vinted_listed_at = body.vinted_listed_at;
 
   if (Object.keys(update).length === 0) return bad('no fields to update');
 

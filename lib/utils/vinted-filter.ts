@@ -4,7 +4,7 @@
  * The three state chips correspond to MUTUALLY EXCLUSIVE buckets — every
  * for_sale card belongs to exactly one. Combinations are unions.
  *
- *   - Pas en ligne (showOffline) → vinted_listed_at === null
+ *   - Pas en ligne (showOffline) → user has no listing
  *   - À rafraîchir (showStale)   → listed for more than 21 days
  *   - En ligne     (showOnline)  → listed within the last 21 days (FRESH only)
  *
@@ -32,25 +32,21 @@ export interface ChipState {
   showSold: boolean;
 }
 
-export interface ListingShape {
-  vinted_listed_at: string | null;
-}
-
 /**
  * Decides whether a for_sale card passes the active state chips. The `showSold`
  * chip is independent and ignored here — sold rows are gathered separately by
  * the caller.
  */
 export function passesStateChips(
-  card: ListingShape,
+  myListing: BaseListing | null,
   chips: ChipState,
   now: number,
 ): boolean {
   const noStateChip = !chips.showOnline && !chips.showOffline && !chips.showStale;
   if (noStateChip) return true; // "Tous" — show every for_sale row
 
-  const isOnline = card.vinted_listed_at !== null;
-  const isStale = isOnline && isListingStale(card.vinted_listed_at, now);
+  const isOnline = myListing !== null;
+  const isStale = isOnline && isListingStale(myListing.listed_at, now);
   const isFresh = isOnline && !isStale;
   const isOffline = !isOnline;
 

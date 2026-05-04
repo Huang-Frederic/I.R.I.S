@@ -16,7 +16,6 @@ interface PatchBody {
   cm_price_trend?: number | null;
   cm_price_avg?: number | null;
   notes?: string | null;
-  vinted_listed_at?: string | null;
 }
 
 const ALLOWED_STATUSES: ReadonlySet<CardStatus> = new Set([
@@ -85,21 +84,6 @@ export async function PATCH(
 
   if (body.notes !== undefined) update.notes = body.notes;
 
-  // vinted_listed_at: validated as ISO timestamp string or explicit null.
-  if (body.vinted_listed_at !== undefined) {
-    if (body.vinted_listed_at === null) {
-      update.vinted_listed_at = null;
-    } else if (typeof body.vinted_listed_at === 'string') {
-      const parsed = new Date(body.vinted_listed_at);
-      if (isNaN(parsed.getTime())) {
-        return NextResponse.json({ error: 'vinted_listed_at invalide' }, { status: 400 });
-      }
-      update.vinted_listed_at = parsed.toISOString();
-    } else {
-      return NextResponse.json({ error: 'vinted_listed_at invalide' }, { status: 400 });
-    }
-  }
-
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: 'aucun champ à mettre à jour' }, { status: 400 });
   }
@@ -156,7 +140,7 @@ export async function PATCH(
     if (target.status !== 'for_sale' && target.card_id_tcg) {
       const { data: conflicts } = await supabase
         .from('cards')
-        .select('id, variant, image_url, tcg_image_url, card_name, set_name, set_code, set_number, language, condition, rarity, pokemon_number, pokemon_name, vinted_listed_at')
+        .select('id, variant, image_url, tcg_image_url, card_name, set_name, set_code, set_number, language, condition, rarity, pokemon_number, pokemon_name')
         .eq('card_id_tcg', target.card_id_tcg)
         .eq('language', target.language)
         .eq('condition', target.condition)
