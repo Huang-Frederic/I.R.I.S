@@ -2,6 +2,7 @@
 
 import { Search, Globe, GlobeLock, Tag, RefreshCw, CheckSquare, Square } from 'lucide-react';
 import { UI_LANGUAGES, type CardLanguage, type CardRarity } from '@/lib/types';
+import { type MultiUserChip } from '@/lib/utils/vinted-filter';
 
 export interface VintedFilterState {
   search: string;
@@ -15,6 +16,7 @@ export interface VintedFilterState {
   showOffline: boolean;    // include for_sale where vinted_listed_at == null
   showSold: boolean;       // include sold cards (individual rows)
   showStale: boolean;      // restrict to "à rafraîchir" (>21j)
+  multiUserChip: MultiUserChip;
 }
 
 export const INITIAL_FILTERS: VintedFilterState = {
@@ -27,6 +29,7 @@ export const INITIAL_FILTERS: VintedFilterState = {
   showOffline: false,
   showSold: false,
   showStale: false,
+  multiUserChip: 'all',
 };
 
 const LANGUAGES: ReadonlyArray<CardLanguage> = UI_LANGUAGES;
