@@ -137,7 +137,7 @@ describe('lookupSubseries — TG/GG/Promo card lookup on TCGdex', () => {
     global.fetch = originalFetch;
   });
 
-  function mockResponses(map: Record<string, { name?: string } | null>) {
+  function mockResponses(map: Record<string, { name?: string; dexId?: number[] } | null>) {
     global.fetch = vi.fn((url: string) => {
       // Find matching key (key = setCode-localId path segment)
       for (const [key, value] of Object.entries(map)) {
@@ -168,13 +168,35 @@ describe('lookupSubseries — TG/GG/Promo card lookup on TCGdex', () => {
   it('disambiguates multi-set TG probes by card_name', async () => {
     // TG03 exists in 4 sets with different Pokémon — pick the one matching name
     mockResponses({
-      'swsh9-TG03': { name: 'Octillery' },
-      'swsh10-TG03': { name: 'Hyporoi' },
-      'swsh11-TG03': { name: 'Dracaufeu' },
-      'swsh12-TG03': { name: 'Lainergie' },
+      'swsh9-TG03': { name: 'Octillery', dexId: [224] },
+      'swsh10-TG03': { name: 'Hyporoi', dexId: [224] },
+      'swsh11-TG03': { name: 'Dracaufeu', dexId: [6] },
+      'swsh12-TG03': { name: 'Lainergie', dexId: [479] },
     });
     const card = await lookupSubseries('TG', '3', 'Dracaufeu', 'fr');
     expect(card?.name).toBe('Dracaufeu');
+  });
+
+  it('prefers pokemon_number over card_name when disambiguating TG probes', async () => {
+    // Same setup; user's Gemini hallucinated a wrong card_name (Octillery)
+    // but provided a correct pokemon_number (6 = Charizard). dex match wins.
+    mockResponses({
+      'swsh9-TG03': { name: 'Octillery', dexId: [224] },
+      'swsh10-TG03': { name: 'Hyporoi', dexId: [224] },
+      'swsh11-TG03': { name: 'Dracaufeu', dexId: [6] },
+      'swsh12-TG03': { name: 'Lainergie', dexId: [479] },
+    });
+    const card = await lookupSubseries('TG', '3', 'Octillery', 'fr', 6);
+    expect(card?.name).toBe('Dracaufeu');
+  });
+
+  it('falls back to first hit when neither pokemon_number nor card_name matches', async () => {
+    mockResponses({
+      'swsh9-TG03': { name: 'Octillery', dexId: [224] },
+      'swsh11-TG03': { name: 'Dracaufeu', dexId: [6] },
+    });
+    const card = await lookupSubseries('TG', '3', 'Mewtwo', 'fr', 150);
+    expect(card?.name).toBe('Octillery'); // first hit
   });
 
   it('returns null when no parent set has the TG card', async () => {

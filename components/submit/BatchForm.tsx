@@ -69,6 +69,10 @@ export default function BatchForm() {
               pokemonNameFr: ocr.pokemonNameFr,
               setName: ocr.setName,
               setNameFr: ocr.setNameFr,
+              // Strategy 5 fallback inputs (Plan D++)
+              cardName: ocr.cardName,
+              pokemonName: ocr.pokemonName,
+              rarity: ocr.rarity,
             }),
           });
           const enrich = (await enrichRes.json()) as EnrichResult;

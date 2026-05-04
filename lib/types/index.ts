@@ -123,6 +123,13 @@ export interface OcrResult {
   setName?: string | null;
   setNameFr?: string | null;
 
+  // Raw card identity from Gemini — used by the enrich Strategy 5 (Gemini-only
+  // fallback) when no catalog source has the card, so the form can pre-fill
+  // these fields instead of forcing the user to re-type them.
+  cardName?: string | null;
+  pokemonName?: string | null;
+  rarity?: string | null;
+
   /**
    * Gemini token usage + EUR cost. Present when Gemini was reached, even when
    * its extraction failed (parse error, incomplete payload) and Vision had to
