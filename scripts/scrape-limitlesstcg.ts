@@ -39,6 +39,8 @@ if (fs.existsSync(envPath)) {
 const BASE_URL = 'https://limitlesstcg.com';
 const RATE_LIMIT_MS = 500;
 const USER_AGENT = 'I.R.I.S Bootstrap/1.0 (https://github.com/personal-use; mono-user PWA)';
+/** When true, fetch each card-detail page to extract illustrator. ~5x slower (one fetch per card). */
+const SCRAPE_ILLUSTRATOR = process.env.SCRAPE_ILLUSTRATOR === '1';
 
 const MODE = process.env.MODE ?? 'probe';
 const PROBE_SET = process.env.SET ?? 'SV11W';
@@ -138,6 +140,18 @@ interface ScrapedCard {
   rarity: string | null;
   imageUrl: string;
   language: string;
+  /** Populated by a follow-up card-detail fetch when SCRAPE_ILLUSTRATOR=1. */
+  illustrator?: string | null;
+}
+
+/**
+ * Extract illustrator from a single LimitlessTCG card-detail page.
+ * Pattern observed: `Illustrated by\n<a href="/cards?q=!artist:NAME">NAME</a>`.
+ * Returns null when the line is absent (some old / Trainer cards).
+ */
+export function parseIllustrator(html: string): string | null {
+  const m = html.match(/Illustrated by\s*<a\s+href="\/cards\?q=!artist:[^"]+"\s*>\s*([^<]+?)\s*<\/a>/i);
+  return m ? m[1].trim() : null;
 }
 
 /**
@@ -231,6 +245,36 @@ async function fetchSetPage(setCode: string, language: string): Promise<string> 
   }
 
   return res.body;
+}
+
+/**
+ * Fetch illustrator for every card in a set, with bounded concurrency.
+ * One HTTP call per card — expensive (~52k requests for full JP/EN/FR scrape)
+ * so we parallelize at CARD_FETCH_CONCURRENCY (5 by default, polite enough
+ * for LimitlessTCG without an explicit rate limit).
+ */
+const CARD_FETCH_CONCURRENCY = 5;
+
+async function enrichWithIllustrators(cards: ScrapedCard[]): Promise<void> {
+  let cursor = 0;
+  async function worker() {
+    while (cursor < cards.length) {
+      const i = cursor++;
+      const c = cards[i];
+      const url = `${BASE_URL}/cards/${c.language}/${encodeURIComponent(c.setCode)}/${c.setNumber}`;
+      try {
+        const res = await httpRequest(url, 'GET');
+        if (res.status === 200) {
+          c.illustrator = parseIllustrator(res.body);
+        } else {
+          c.illustrator = null;
+        }
+      } catch {
+        c.illustrator = null;
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: CARD_FETCH_CONCURRENCY }, () => worker()));
 }
 
 async function probe() {
@@ -380,6 +424,13 @@ async function full() {
           continue;
         }
 
+        // Optional: fetch each card-detail page to extract illustrator. Costly
+        // (1 HTTP per card, parallelized at concurrency 5) but worth it once for
+        // disambiguation in /api/enrich Strategy 2.5. Toggle via env var.
+        if (SCRAPE_ILLUSTRATOR) {
+          await enrichWithIllustrators(cards);
+        }
+
         // Build catalog rows (denormalize set_total = count of cards in this set)
         const setTotal = cards.length;
         const rows = cards.map((c) => {
@@ -396,6 +447,7 @@ async function full() {
             set_name: c.setName,
             rarity: mapRarity(c.rarity),
             image_url: c.imageUrl,
+            illustrator: c.illustrator ?? null,
           };
         });
 

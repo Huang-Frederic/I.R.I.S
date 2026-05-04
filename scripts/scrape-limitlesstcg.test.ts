@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapLanguage, mapRarity, parseSetIndex } from './scrape-limitlesstcg';
+import { mapLanguage, mapRarity, parseIllustrator, parseSetIndex } from './scrape-limitlesstcg';
 
 describe('mapLanguage', () => {
   it('maps actively-scraped LimitlessTCG codes (JP/EN/FR — user collection languages)', () => {
@@ -61,5 +61,35 @@ describe('parseSetIndex', () => {
   it('handles set codes with dots and hyphens (some sets have these)', () => {
     const html = `<a href="/cards/jp/sm3.5">SM3.5</a><a href="/cards/jp/swsh-promos">promos</a>`;
     expect(parseSetIndex(html, 'jp')).toEqual(['sm3.5', 'swsh-promos']);
+  });
+});
+
+describe('parseIllustrator', () => {
+  it('extracts the artist name from a card page', () => {
+    const html = `
+      <p>Some text</p>
+      <p>
+        Illustrated by
+        <a href="/cards?q=!artist:nisimono">
+          nisimono
+        </a>
+      </p>
+    `;
+    expect(parseIllustrator(html)).toBe('nisimono');
+  });
+
+  it('extracts artist with spaces and unicode characters', () => {
+    const html = `Illustrated by <a href="/cards?q=!artist:Ryuta%20Fuse">Ryuta Fuse</a>`;
+    expect(parseIllustrator(html)).toBe('Ryuta Fuse');
+  });
+
+  it('handles Japanese illustrator names', () => {
+    const html = `Illustrated by <a href="/cards?q=!artist:YASHIRO">YASHIRO Nanaco</a>`;
+    expect(parseIllustrator(html)).toBe('YASHIRO Nanaco');
+  });
+
+  it('returns null when no illustrator credit is present', () => {
+    const html = `<p>Some other content</p><p>HP 110</p>`;
+    expect(parseIllustrator(html)).toBeNull();
   });
 });

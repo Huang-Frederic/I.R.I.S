@@ -69,10 +69,11 @@ export default function BatchForm() {
               pokemonNameFr: ocr.pokemonNameFr,
               setName: ocr.setName,
               setNameFr: ocr.setNameFr,
-              // Strategy 5 fallback inputs (Plan D++)
+              // Strategy 5 fallback inputs (Plan D++) + Strategy 2.5 illustrator
               cardName: ocr.cardName,
               pokemonName: ocr.pokemonName,
               rarity: ocr.rarity,
+              illustrator: ocr.illustrator,
             }),
           });
           const enrich = (await enrichRes.json()) as EnrichResult;

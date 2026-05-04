@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   rowToEnrichedCard,
+  disambiguateByIllustrator,
   disambiguateByName,
   normalizeSetNumber,
   normalizeSetCode,
@@ -26,6 +27,7 @@ const baseRow: CatalogRow = {
   set_name: 'Battle Partners',
   rarity: 'C',
   image_url: 'https://product-images.s3.cardmarket.com/12345.jpg',
+  illustrator: null,
   scraped_at: '2026-04-28T12:00:00Z',
 };
 
@@ -180,6 +182,52 @@ describe('lookupByCode', () => {
 
     const result = await lookupByCode(mockSupabase, '---', '12', 'JP');
     expect(result).toBeNull();
+  });
+});
+
+describe('disambiguateByIllustrator', () => {
+  it('returns null when geminiIllustrator is null/empty', () => {
+    const rows = [{ ...baseRow, illustrator: 'Ryuta Fuse' }];
+    expect(disambiguateByIllustrator(rows, null)).toBeNull();
+    expect(disambiguateByIllustrator(rows, '')).toBeNull();
+    expect(disambiguateByIllustrator(rows, undefined)).toBeNull();
+  });
+
+  it('returns null on empty rows', () => {
+    expect(disambiguateByIllustrator([], 'Ryuta Fuse')).toBeNull();
+  });
+
+  it('matches case-insensitively + ignores whitespace', () => {
+    const rows = [
+      { ...baseRow, set_code: 'A', illustrator: 'Mitsuhiro Arita' },
+      { ...baseRow, set_code: 'B', illustrator: 'Ryuta Fuse' },
+    ];
+    expect(disambiguateByIllustrator(rows, 'RYUTAFUSE')?.set_code).toBe('B');
+    expect(disambiguateByIllustrator(rows, 'mitsuhiro arita')?.set_code).toBe('A');
+  });
+
+  it('matches via substring (Gemini may return partial name)', () => {
+    const rows = [
+      { ...baseRow, set_code: 'A', illustrator: 'YASHIRO Nanaco' },
+    ];
+    expect(disambiguateByIllustrator(rows, 'YASHIRO')?.set_code).toBe('A');
+    expect(disambiguateByIllustrator(rows, 'yashiro nanaco')?.set_code).toBe('A');
+  });
+
+  it('returns null when no row has a matching illustrator', () => {
+    const rows = [
+      { ...baseRow, illustrator: 'Mitsuhiro Arita' },
+      { ...baseRow, illustrator: 'Ryuta Fuse' },
+    ];
+    expect(disambiguateByIllustrator(rows, 'Ken Sugimori')).toBeNull();
+  });
+
+  it('skips rows with null illustrator (not yet scraped)', () => {
+    const rows = [
+      { ...baseRow, set_code: 'A', illustrator: null },
+      { ...baseRow, set_code: 'B', illustrator: 'kirisAki' },
+    ];
+    expect(disambiguateByIllustrator(rows, 'kirisAki')?.set_code).toBe('B');
   });
 });
 
