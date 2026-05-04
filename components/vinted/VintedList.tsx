@@ -327,7 +327,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
       soldLotsList,
       totalVisible: finalForSale.length + soldSubset.length + forSaleLots.length + soldLotsList.length,
     };
-  }, [cards, lots, filters, now]);
+  }, [cards, lots, filters, now, myUserId, partnerUserId]);
 
   const isEmpty = groups.length === 0 && soldRows.length === 0 && forSaleLots.length === 0 && soldLotsList.length === 0;
 
