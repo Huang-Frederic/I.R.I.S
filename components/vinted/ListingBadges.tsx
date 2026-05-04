@@ -82,7 +82,7 @@ export default function ListingBadges({
     <>
       <div className="flex flex-wrap items-center gap-1.5 text-xs">
         {mine && (
-          <span className="bg-green/20 text-green inline-flex items-center gap-1 rounded px-1.5 py-0.5">
+          <span className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5">
             <Globe className="h-3 w-3" />
             Listée par Moi · {daysSince(mine.listed_at, now)}j
             {stale && (
@@ -94,7 +94,7 @@ export default function ListingBadges({
         )}
 
         {partner && partnerName && (
-          <span className="bg-blue/20 text-blue inline-flex items-center gap-1 rounded px-1.5 py-0.5">
+          <span className="bg-rarity-rr/20 text-rarity-rr inline-flex items-center gap-1 rounded px-1.5 py-0.5">
             <Globe className="h-3 w-3" />
             Listée par {partnerName}
           </span>
