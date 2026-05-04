@@ -25,7 +25,6 @@ function makeCard(over: Partial<Card> = {}): Card {
     cm_price_avg: null,
     suggested_price: null,
     cm_updated_at: null,
-    vinted_listed_at: null,
     lot_id: null,
     date_added: '2026-05-01T00:00:00Z',
     date_sold: null,

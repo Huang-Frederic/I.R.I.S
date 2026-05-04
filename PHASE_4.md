@@ -1,25 +1,16 @@
-Phase 4 :  Passage à 2 users + Import from Vinted profile (once)
--> J'ai un readme aussi 
-
-Brief : Vinted import (one-shot) + passage multi-user
-
-Projet : I.R.I.S, PWA Pokémon TCG décrite dans CLAUDE.md (Next.js 16 / Supabase
-/ Tailwind v4, mono-utilisateur aujourd'hui). Phase 3a tout juste finie. Ce
-brief couvre 2 features liées qui doivent être livrées ensemble (Feature 2
-d'abord parce que Feature 1 dépend de son schéma).
+Phase 4 :  Passage à 2 users + Import from Vinted profile (one-shot)
 
 ==============================================================================
 FEATURE 1 — Bootstrap one-shot des annonces Vinted (UTILISATEUR UNIQUE)
 ==============================================================================
+-> Ptet que la feature 1 devra être fait après la feature 2. Pour des raisons d'adaptibilité, je suis pas sûr.
 
 Objectif : récupérer en une fois TOUTES les annonces actuellement en ligne
-sur le compte Vinted de Florent (uniquement) pour seeder le stock IRIS sans
-tout re-saisir à la main. Les images notamment ne sont plus en local — la
-seule source restante est le CDN Vinted.
+sur le compte Vinted de Hisshiden (C'est moi, le mec qui dev là) (uniquement) pour seeder le stock IRIS sans tout re-saisir à la main. Les images notamment ne sont plus en local — la seule source restante est le CDN Vinted. Ce script a pour objectif de populer la base de donnée A VIDE, donc pas de logique de merge ou d'update, juste un insert pur et dur. C'est un one-shot, pas besoin de le rendre réutilisable ou générique pour d'autres users.
 
 IMPORTANT — qui importe :
-- SEUL Florent fait tourner ce script. Sa copine n'utilisera JAMAIS le script.
-- Workflow validé par l'utilisateur : Florent importe son Vinted → IRIS est
+- SEUL Hisshiden (C'est moi, le mec qui dev là) fait tourner ce script. Sa copine n'utilisera JAMAIS le script.
+- Workflow validé par l'utilisateur : Hisshiden (C'est moi, le mec qui dev là) importe son Vinted → IRIS est
   seedée → la copine NETTOIE son propre compte Vinted (supprime ses
   annonces) → puis re-publie manuellement les cartes en se basant sur l'état
   IRIS, et toggle `VintedListedToggle` au fur et à mesure depuis l'UI (ce qui
@@ -65,7 +56,7 @@ Pipeline d'enrichissement (à respecter strictement) :
   + app/api/enrich/route.ts).
 - Pour chaque annonce :
     1. Parser la description avec une regex sur `\((jpn|eng|fra|...)_([a-z0-9]+)-(\d+)\)`
-       pour extraire language + set_code + set_number. (Florent a 99% de JP
+       pour extraire language + set_code + set_number. (Hisshiden (C'est moi, le mec qui dev là) a 99% de JP
        aujourd'hui mais le parser doit être générique pour les autres langues
        au cas où.)
     2. Réutiliser la même chaîne d'enrichissement que l'OCR : lookup
@@ -78,7 +69,7 @@ Pipeline d'enrichissement (à respecter strictement) :
        les faux positifs coûtent cher.
     4. Si confirmé : insert ligne `cards` (status='for_sale', prix repris du
        champ `price` de l'annonce Vinted) + insert ligne `card_listings`
-       pour le user_id de Florent, avec listed_at = NOW() (ou idéalement la
+       pour le user_id de Hisshiden (C'est moi, le mec qui dev là), avec listed_at = NOW() (ou idéalement la
        date de création de l'annonce Vinted si présente dans le JSON).
 - Si le parser échoue sur une description (format ancien, format custom) :
   prompt manuel pour saisir set_code + set_number à la main, puis pipeline
@@ -112,7 +103,7 @@ Décision de schéma actée :
   X jours, refresh recommandé"). Le calcul de staleness existant (helper
   listing-stale.ts) doit être appliqué par-user, pas globalement.
 - Migration : créer la table → backfill (chaque ligne cards.vinted_listed_at
-  actuelle devient une ligne pour l'user_id de Florent) → drop la colonne
+  actuelle devient une ligne pour l'user_id de Hisshiden (C'est moi, le mec qui dev là)) → drop la colonne
   cards.vinted_listed_at.
 - RLS : cards reste partagé en lecture/écriture (status quo).
   card_listings : SELECT pour tous les authentifiés, INSERT/UPDATE/DELETE
@@ -164,7 +155,7 @@ discuter avec l'utilisateur si ambiguë.
 
 Auth :
 - Whitelist 2 emails dans Supabase Auth, rien d'autre côté auth.
-- Confirmer l'user_id Supabase de Florent (pour le backfill de la migration)
+- Confirmer l'user_id Supabase de Hisshiden (C'est moi, le mec qui dev là) (pour le backfill de la migration)
   et créer le compte de la copine.
 
 ==============================================================================
