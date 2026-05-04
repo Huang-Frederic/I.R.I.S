@@ -125,23 +125,13 @@ Le free tier de Gemini limite à 5 requêtes/min, ce qui est trop peu pour un us
 
 ### 3.3 Note sur le modèle
 
-Le code utilise `gemini-3-flash-preview` (pinné dans `lib/api/gemini-vision.ts`). C'est un modèle **preview** — Google peut le renommer ou le retirer sans préavis. Si l'OCR commence à retourner null en boucle, vérifier la disponibilité du modèle ou basculer sur l'alias `gemini-flash-latest`.
+Le code utilise `gemini-3.1-flash-lite-preview` (pinné dans `lib/api/gemini-vision.ts`, switch validé Phase 3c via `scripts/bench-multi-model.ts` : 5/5 acc, −43% coût vs `gemini-3-flash-preview`). C'est un modèle **preview** — Google peut le renommer ou le retirer sans préavis. Si l'OCR commence à retourner null en boucle, vérifier la disponibilité du modèle ou basculer sur l'alias `gemini-flash-latest` ou re-bencher avec `bench-multi-model.ts`.
+
+Bonus : `thinkingConfig: { thinkingBudget: 0 }` est critique sur les modèles 3.x reasoning — sans ça le budget output est consommé en thinking invisible et la réponse est tronquée vide.
 
 ---
 
-## 4. Anthropic API (optionnel — uniquement pour les benchmarks)
-
-`scripts/test-bench-claude.ts` utilise Claude Haiku 4.5 pour comparer les modèles vision. Bench abandonné (Claude refuse d'extraire l'info), mais le script reste pour traçabilité.
-
-```env
-ANTHROPIC_API_KEY=sk-ant-...
-```
-
-Ne pas activer pour l'usage runtime — pure devtool.
-
----
-
-## 5. Variable `CRON_SECRET`
+## 4. Variable `CRON_SECRET`
 
 Pour protéger l'endpoint `/api/prices/update` (en production depuis Phase 3a), génère un token aléatoire :
 
@@ -157,7 +147,7 @@ CRON_SECRET=abc123def456...
 
 ---
 
-## 6. Récapitulatif `.env.local`
+## 5. Récapitulatif `.env.local`
 
 Une fois la Phase 1 prête, ton fichier doit ressembler à ça :
 
@@ -167,9 +157,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...
 
 GOOGLE_VISION_API_KEY=AIzaSy...   # OCR fallback
-GEMINI_API_KEY=AIzaSy...          # OCR primaire (Phase 1.12)
-ANTHROPIC_API_KEY=                # optionnel (scripts uniquement)
-POKEMON_TCG_API_KEY=              # legacy, plus utilisé en runtime
+GEMINI_API_KEY=AIzaSy...          # OCR primaire (Phase 1.12, modèle Phase 3c)
 
 CRON_SECRET=                      # Phase 3a (en production)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -183,7 +171,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ---
 
-## 7. Appliquer les migrations Supabase
+## 6. Appliquer les migrations Supabase
 
 Toutes les migrations dans `supabase/migrations/` doivent être appliquées dans l'ordre :
 
@@ -218,7 +206,7 @@ Pour repartir de zéro sur un nouveau projet Supabase (changement de region par 
 
 ---
 
-## 8. Lancement local
+## 7. Lancement local
 
 Une fois les comptes Supabase et Google Vision configurés, et la migration Supabase appliquée (étape 7) :
 

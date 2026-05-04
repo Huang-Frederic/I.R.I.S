@@ -38,7 +38,7 @@ const MAX_DIM = 1600;
 const RATE_LIMIT_MS = Number(process.env.RATE_LIMIT_MS ?? 7000); // Default 7s = ~8 RPM safety margin
 
 // ---------------------------------------------------------------------------
-// Ground truth parser (same as test-bench.ts)
+// Ground truth parser — extracts {set}_{localId}_{rarity} from filename
 // ---------------------------------------------------------------------------
 
 interface GroundTruth {
