@@ -322,18 +322,21 @@ Toutes les routes API sont **protégées par authentification** sauf `/api/price
 
 Tous les scripts utilisent `tsx` (TypeScript execution) ou `npx tsx`. Aucun n'est dans `package.json` scripts — lancés manuellement.
 
-- `scripts/scrape-limitlesstcg.ts` (631 lignes) — **Scraper LimitlessTCG** pour peupler `tcg_catalog`. Modes : `MODE=probe` (default, scrape 1 set + dump parsed rows, no DB writes), `MODE=full` (crawl 7 langues × 1163 sets = ~111K cartes, upsert Supabase). Variables env : `SET`, `PROBE_LANG`, `INSECURE_HTTPS=1` (bypass SSL cert check pour proxies corporate). Stratégie : fetch HTML `/cards/{lang}/{setId}`, parse table rows via regex (pas de DOM parser), map rarity/language vers enums, upsert via service role Supabase client. Rate limit 500ms entre requêtes. Durée full crawl : ~12 minutes. Export `mapLanguage`, `mapRarity`, `normalizeSetCode`, `scrapeSet`.
+- `scripts/scrape-limitlesstcg.ts` — **Scraper LimitlessTCG** qui alimente `tcg_catalog`. Modes : `MODE=probe` (default, scrape 1 set + dump rows, no DB writes), `MODE=full` (crawl JP+EN+FR par défaut — DE/IT/ES/PT désactivés, KO/ZH 404 chez LimitlessTCG). Variables env : `SET`, `PROBE_LANG`, `LANGUAGES`, `ONLY_SETS`, `INSECURE_HTTPS=1` (cert WSL2), `SCRAPE_ILLUSTRATOR=1` (Phase 3c — fetch chaque card-detail page pour extraire l'illustrateur, ~5× plus lent), `FORCE_RESCRAPE=1` (override le resume DB-driven). Stratégie : fetch HTML `/cards/{lang}/{setId}`, parse via regex (pas de DOM parser), upsert via service role. Rate limit 500ms entre fetches set ; concurrence 5 pour les fetches card-detail. Durée : ~12 min full crawl sans illustrator, ~3h avec. Resume automatique : skip les sets dont toutes les rows ont déjà l'illustrator (DB-driven, survit aux crashes/Ctrl+C). Exports : `mapLanguage`, `mapRarity`, `parseSetIndex`, `parseIllustrator`.
 
-- `scripts/scrape-limitlesstcg.test.ts` (77 lignes) — Tests scraper : mapLanguage, mapRarity, normalizeSetCode. 6 tests. Scraping HTML non testé (ferait des vraies requêtes réseau).
+- `scripts/scrape-limitlesstcg.test.ts` — Tests scraper : mapLanguage, mapRarity, parseSetIndex, parseIllustrator. ~12 tests purs (HTML parsing offline, pas de fetch réseau).
 
-- `scripts/test-bench.ts` (220 lignes) — **Benchmark OCR → enrichissement** : teste 30 vraies photos de cartes (stockées dans `cards_assets/`) via pipeline complet OCR + enrich. Compare baseline (Vision + catalogue) vs Gemini. Génère rapport `results/bench-{timestamp}.json` + log console. Calcule accuracy (set_code + set_number corrects), cost/scan, enrichment success rate. Utilisé pour valider Phase 1.11 (catalogue) et 1.12 (Gemini).
+- `scripts/test-bench-gemini.ts` — Bench OCR sur 30 cartes pour 1 modèle (`GEMINI_MODEL` env, default `gemini-flash-latest`). Output CSV `results/test-bench-gemini.csv`. Utile pour valider la qualité d'extraction d'un nouveau modèle.
 
-- `scripts/test-bench-claude.ts` (191 lignes) — Variant test-bench avec Claude Haiku 4.5 (via Anthropic SDK). Conclusion bench : 0/30 success (Claude refuse d'extraire info sans contexte additionnel, ou hallucine). Abandonné.
-
-- `scripts/test-bench-gemini.ts` — Bench OCR sur 30 cartes pour 1 modèle (`GEMINI_MODEL` env, default `gemini-flash-latest`). Output CSV `results/test-bench-gemini.csv`.
 - `scripts/bench-multi-model.ts` (Phase 3c) — Bench OCR sur N cartes × M modèles avec config prod identique (prompt, schema, `thinkingBudget=0`). Sortie tableau markdown avec accuracy / avg tokens / avg coût EUR / avg latence. Utilisé pour valider le switch vers `gemini-3.1-flash-lite-preview` (5/5 acc, −43% coût vs `gemini-3-flash-preview`).
 
-- `scripts/inspect-ocr.ts` (119 lignes) — Outil debug OCR : upload 1 photo, affiche texte brut + words avec bounding boxes + candidates extracted (setNumber, setCode). CLI interactif. Usage : `npx tsx scripts/inspect-ocr.ts path/to/card.jpg`.
+- `scripts/bench-multilang.ts` (Phase 3c) — Bench multilang sans annotation ground-truth : run le pipeline sur les images `cards_assets/`, group par `language` détectée par Gemini, mesure le hit rate du catalog. Permit le diagnostic du bug "0% hit EN/FR" qui a déclenché le rewrite du prompt.
+
+- `scripts/probe-tcgdex-fails.ts` (Phase 3c) — One-off diagnostic pour valider que TCGdex a bien certaines cartes que le catalog ne couvre pas (TG/GG/Promo). Conservé pour ré-investigation future si besoin.
+
+- `scripts/inspect-ocr.ts` — Outil debug OCR : upload 1 photo, affiche texte brut + words avec bounding boxes + candidates (setNumber, setCode). CLI : `npx tsx scripts/inspect-ocr.ts path/to/card.jpg`.
+
+- `scripts/fetch-pokemon-names.ts` — One-shot generator pour `lib/data/pokemon-names.ts` (1025 Pokémon FR+EN via PokeAPI). À re-run si nouvelle gen Pokémon sortie.
 
 ---
 
@@ -347,7 +350,17 @@ Tous les scripts utilisent `tsx` (TypeScript execution) ou `npx tsx`. Aucun n'es
 
 - `supabase/migrations/20260428114538_tcg_catalog.sql` (44 lignes) — **Migration catalogue** : table `tcg_catalog` (id, cardmarket_id, set_code, set_number, set_total, language, card_name, pokemon_name, pokemon_number, set_name, rarity, image_url, scraped_at), contrainte unique `(set_code, set_number, language)`, 3 index (lookup, cardmarket, total), RLS read-only authenticated.
 
-- `supabase/migrations/20260429142350_add_cards_variant.sql` (6 lignes) — **Migration variant** : `alter table cards add column variant text` (NULL = standard, free text pour Poké Ball / Master Ball / Reverse Holo / Promo / futur sans nouveau schema).
+- `supabase/migrations/20260429142350_add_cards_variant.sql` — **Variant** : colonne `variant text` sur `cards` (Poké Ball / Master Ball / Reverse Holo / Promo, free text).
+
+- `supabase/migrations/20260430130000_phase21_vinted_unique_listed.sql` — **Phase 2.1** : colonne `vinted_listed_at` + index unique partiel pour le toggle "publié sur Vinted".
+
+- `supabase/migrations/20260430200000_fix_replace_pokedex_card_3step.sql` — **Phase 2.1 fix** : RPC `replace_pokedex_card` réécrite en 3-step pour éviter la collision unicité `for_sale`.
+
+- `supabase/migrations/20260502120000_lots_vinted_bundle.sql` — **Phase 3b1** : table `lots` étendue (11 colonnes : name, language, condition, extra_description, price, status, date_sold, sold_price, vinted_listed_at, photo_urls jsonb, date_added). Storage bucket `lot-photos`.
+
+- `supabase/migrations/20260504000000_rename_zh_to_cn.sql` — **Phase 3c** : `ALTER TYPE card_language ADD VALUE 'CN' BEFORE 'ZH'` + UPDATE pour migrer cards/tcg_catalog. ZH gardé comme deprecated (Postgres ne permet pas DROP de valeurs d'enum).
+
+- `supabase/migrations/20260504100000_tcg_catalog_illustrator.sql` — **Phase 3c** : `ALTER TABLE tcg_catalog ADD COLUMN illustrator TEXT` + index. Populé par re-scrape `SCRAPE_ILLUSTRATOR=1`. Sert à `disambiguateByIllustrator` dans Strategy 2.5 de l'enrich pipeline.
 
 ---
 
@@ -613,7 +626,7 @@ Ces fichiers existent localement mais ne sont jamais committés :
 - `.env` — Même chose
 - `node_modules/` — 300+ MB de dépendances npm
 - `.next/` — Build artifacts Next.js (~50 MB)
-- `cards_assets/` — Photos de benchmark (30 JPEGs, ~10 MB) — utilisées par `scripts/test-bench*.ts`
+- `cards_assets/` — Photos de benchmark (multilingues, ~40 JPEGs) — utilisées par `scripts/bench-multi-model.ts`, `scripts/bench-multilang.ts`, `scripts/test-bench-gemini.ts`
 - `results/` — Outputs de benchmarks JSON (`bench-*.json`, `scrape-*.json`)
 - `supabase/.temp/` — Fichiers temporaires Supabase CLI
 
@@ -686,23 +699,13 @@ Ces fichiers existent localement mais ne sont jamais committés :
 
 **Followups différés** : pricing Cardmarket par variant (les Poké Ball valent souvent 2× le standard mais le scraper actuel ne distingue pas), wiring Pokédex auto-suggestion sur changement manuel de `pokemon_number`.
 
-### Phase 2 — TODO 🚧
+### Phase 2 — TERMINEE ✅
 
-**Objectif** : Module Vinted — liste FIFO, générateur d'annonce, action "vendu".
-
-**Planned** :
-- Page `/vinted` : `SELECT * WHERE status='for_sale' ORDER BY date_added ASC`
-- Composants `VintedList.tsx`, `VintedRow.tsx`
-- Groupement doublons (card_id_tcg + language + condition) avec badge "×N"
-- Recherche + filtres chips (langue, rareté, registered/not)
-- Action "Vendu" → modal prix → UPDATE status='sold' → alerte restock si dernière carte for_sale d'un Pokémon registered
-- Générateur d'annonce (`lib/utils/vinted-template.ts`) : titre max 80 chars + description template
-- Modal avec prix Cardmarket + photo + boutons "Copier titre" / "Copier description"
-- Tests `vinted-template.test.ts`
+Module Vinted complet : liste FIFO + groupement variant-aware, édit prix inline, action "Vendu" + restock toast, générateur d'annonce avec smart-truncate titre 80 chars + clipboard. Phase 2.1 a ajouté `vinted_listed_at` + tag toggle + restructuration Stock/Vinted en 2 pages.
 
 ### Phase 3 (3a + 3b1 + 3b2 v2 + 3c) — TERMINÉE mai 2026
 
-Voir CLAUDE.md pour le bilan. Résumé : cron pricing TCGdex quotidien (Phase 3a), lots Vinted bundles (Phase 3b1), bulk import 100% web avec enchaînement CardScanForm (Phase 3b2 v2), bulk vendu sur `/vinted` + Gemini tokens optim (Phase 3c — switch modèle vers `gemini-3.1-flash-lite-preview`, `thinkingConfig.thinkingBudget=0` pour stopper le fallback Vision systématique, debug ligne engine-aware sur le scanner, resize 1400px). 253 tests vitest, 0 lint, 0 type error.
+Voir CLAUDE.md pour le bilan. Résumé : cron pricing TCGdex quotidien (Phase 3a), lots Vinted bundles (Phase 3b1), bulk import 100% web avec enchaînement CardScanForm (Phase 3b2 v2), bulk vendu sur `/vinted` + Gemini tokens optim (Phase 3c — switch modèle `gemini-3.1-flash-lite-preview`, `thinkingConfig.thinkingBudget=0` critique, debug ligne engine-aware, resize 1400px, `lookupSubseries` pour TG/GG/Promo, `probeSubseriesByDex` last-chance, Strategy 2.5 catalog by name + localId avec disambiguation par illustrator, Strategy 5 Gemini-only fallback, scraper avec illustrator + resume DB-driven, ZH→CN rename, UI lang filter aux 5 utilisées). 279 tests vitest, 0 lint, 0 type error.
 
 ### Phase 4 — TODO 🚧
 

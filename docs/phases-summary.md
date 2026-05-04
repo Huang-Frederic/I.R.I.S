@@ -415,13 +415,51 @@ Brief : [PHASE_3.md](../PHASE_3.md). 22 commits.
 
 `initialEnrich.candidates` peut être `undefined` si `/api/enrich` répond 200 mais avec un payload partiel (catalog timeout). Crash JS au prefill. Guard simple `?? []`.
 
-### Tests
+### Volet 3 — Resilience enrichissement multilang
 
-253 vitest (242 baseline + 6 splitPrice + 1 stock-aware restock + 4 Gemini parse-tolerance/usage), 0 lint, 0 type error.
+Bug observé en prod : carte FR Dracaufeu Trainer Gallery → Gemini envoie `set_code=DRM` (Dragon Majesty, hallucination), catalog rate, TCGdex direct rate, fallback Gemini affiche `DRM` bêtement.
 
-### Aucune nouvelle migration
+- **Strategy 2.5** : `lookupByNameAndLocalId(supabase, pokemonName, setNumber, language)` — search catalog par `pokemon_name ILIKE '%X%'` + `set_number` + `language`, jusqu'à 15 candidats. Si Gemini a fourni `illustrator` → `disambiguateByIllustrator` auto-pick l'unique match. Sinon picker visuel.
+- **Strategy 3a** : `lookupSubseries(setCode, localId, text, lang, pokemonNumber)` dans `lib/api/tcgdex.ts` — détecte les patterns subseries (TG, GG) et promo (SWSH+, XY+, SM+, SVP+, BW+, HGSS+), probe les parent sets en parallèle, désambiguise par dex national (plus robuste que name match — Gemini peut halluciner le nom mais retourne le bon dex).
+- **Strategy 3b** : `probeSubseriesByDex(localId, pokemonNumber, lang)` — last-chance probe TG (swsh9-12) + GG (swsh12.5) en aveugle quand setCode est totalement bidon. Match strict par dex (refuse la fallback "first hit" pour éviter faux positifs).
+- **Strategy 5** : Gemini-only fallback — `buildGeminiOnlyCard(body, setCode, localId, total, language)` construit un EnrichedCard depuis Gemini quand catalog + TCGdex ratent. Couvre KO/CN Crown Series et tout autre cas exotique.
+- **`language` Gemini propagé au front** : avant ce fix, `detectLanguage(text)` faisait juste un regex JP-vs-non-JP, donc KO/CN/FR tombaient tous sur EN par défaut. Maintenant `OcrResult.language` populé depuis `geminiResult.language`, normalisé via `normalizeGeminiLanguage` (mappe ZH→CN, valide contre l'enum). `resolveLanguage(ocr)` dans CardScanForm prefer `ocr.language` sinon fallback regex.
 
-Phase 3c full code, no schema changes. La persistence des tokens (table `gemini_usage_log` ou équivalent) a été **délibérément déférée à Phase 5** (le dashboard l'inclura déjà au planning).
+### Volet 4 — UI polish
+
+- **Mobile camera/gallery picker** : drop `capture="environment"` sur le file input. Sur Samsung Internet / Chrome Android, le système montre maintenant Camera + Files + Photos au choix.
+- **`UI_LANGUAGES = ['JP', 'EN', 'FR', 'KO', 'CN']`** exporté depuis `lib/types`. Les 4 dropdowns (CardScanForm, LotForm, VintedFilters, StockFilters) consomment ce subset. DE/IT/PT/ES restent dans le type/enum DB pour backward compat mais cachés UI.
+- **ZH → CN rename end-to-end** : Gemini prompt demande CN, `normalizeGeminiLanguage` mappe ZH→CN à la frontière, type `CardLanguage` accepte les 2 (legacy ZH + nouveau CN), templates Vinted/lot supportent les 2, dropdown affiche CN. Migration Postgres `20260504000000_rename_zh_to_cn.sql` (ADD VALUE 'CN', UPDATE rows).
+- **Illustrator extracté + affiché** dans le snippet OCR : ligne "Extraits : set_code = X · set_number = Y · illustrator = Z". Signature unique par carte+langue, sert aussi à l'auto-disambig Strategy 2.5.
+
+### Volet 5 — Catalog scraper Phase 3c
+
+- `parseIllustrator(html)` : extrait `Illustrated by <a href="...artist:NAME">NAME</a>` depuis les pages card-detail LimitlessTCG.
+- `enrichWithIllustrators(cards)` : fetch chaque card-detail page en parallèle (concurrence 5). Toggle via `SCRAPE_ILLUSTRATOR=1`. ~5× plus lent que le scrape "set-only" classique, donc opt-in.
+- **Resume DB-driven** : avant chaque set, query `count(*)` total + `count(*) WHERE illustrator IS NULL`. Si total > 0 ET missing == 0 → SKIP. Survit aux crashes / Ctrl+C / re-runs sans state file. Override avec `FORCE_RESCRAPE=1`.
+- **Catalog DE/IT/ES/PT wipé** (~58k rows). LANG_MAP du scraper réduit à JP/EN/FR.
+- Migration `20260504100000_tcg_catalog_illustrator.sql` ajoute la colonne + index.
+
+### Volet 6 — Pricing & cost
+
+- Pricing constants corrigés : `COST_USD_PER_M_INPUT = 0.25`, `COST_USD_PER_M_OUTPUT = 1.50` (étaient à $0.075/$0.30 — Gemini 1.5 Flash, 7× sous le réel).
+- `USD_TO_EUR = 0.92` fixe.
+- **Coût par scan en prod : ~€0.000420** (avec resize 1400px + gemini-3.1-flash-lite-preview) vs €0.000921 avant Phase 3c = **−55%**.
+
+### Tests + qualité
+
+**279 vitest** (242 baseline + 37 nouveaux : splitPrice 6, restock stock-aware 1, Gemini parse-tolerance 4, Gemini usage 1, lookupSubseries 7, probeSubseriesByDex 4, lookupByNameAndLocalId 3, disambiguateByIllustrator 6, parseIllustrator 4, language normalize 1). 0 lint, 0 type error.
+
+### Migrations Phase 3c
+
+- `20260504000000_rename_zh_to_cn.sql` — ADD VALUE 'CN' à enum + UPDATE rows ZH→CN
+- `20260504100000_tcg_catalog_illustrator.sql` — ADD COLUMN illustrator + index
+
+### Cleanup Phase 3c
+
+- Drop `scripts/test-bench.ts` (Vision baseline, obsolète post-Gemini)
+- Drop `scripts/test-bench-claude.ts` (Claude vision bench, abandonné 0/30)
+- Drop `_clearSetsCache` (no callers)
 
 ## Prochaines étapes : Phase 4 / 5
 

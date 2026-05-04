@@ -1,6 +1,6 @@
 # I.R.I.S
 
-PWA mono-utilisateur de gestion de collection Pokémon TCG. **État actuel : Phase 3 terminée** (scan OCR + Pokédex + Vinted + Stock + cron pricing + lots bundles + bulk import web + bulk vendu + Gemini tokens optim). Voir [CLAUDE.md](CLAUDE.md) pour le bilan détaillé.
+PWA mono-utilisateur de gestion de collection Pokémon TCG. **État actuel : Phase 3 terminée** (scan OCR multilang JP/EN/FR/KO/CN avec Gemini 3.1 Flash Lite Preview, Pokédex + Vinted + Stock + bulk vendu + cron pricing + lots bundles + bulk import web). Voir [CLAUDE.md](CLAUDE.md) pour le bilan détaillé.
 
 - **Spec complète** : [context.md](context.md)
 - **Setup local** : [docs/setup.md](docs/setup.md)

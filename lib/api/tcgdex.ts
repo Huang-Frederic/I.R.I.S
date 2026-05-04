@@ -441,8 +441,3 @@ export async function findCardsByTotalAndLocalId(
 
   return lookupAll(loose.slice(0, 20));
 }
-
-/** Test-only: drop the in-memory cache so unit tests get a deterministic state. */
-export function _clearSetsCache(): void {
-  SETS_CACHE.clear();
-}

@@ -23,7 +23,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import https from 'node:https';
 
-// Load .env.local (no dotenv dep — same pattern as test-bench.ts / cardmarket-ping.ts)
+// Load .env.local (no dotenv dep — same pattern used across all scripts/)
 const envPath = path.resolve(__dirname, '../.env.local');
 if (fs.existsSync(envPath)) {
   for (const line of fs.readFileSync(envPath, 'utf-8').split('\n')) {
