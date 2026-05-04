@@ -86,6 +86,7 @@ const RARITY_MAP: Record<string, string> = {
   'Uncommon': 'UC',
   'Rare': 'R',
   'Double Rare': 'RR',
+  'Triple Rare': 'RR',
   'Ultra Rare': 'SR',
   'Art Rare': 'AR',
   'Special Art Rare': 'SAR',
@@ -94,15 +95,27 @@ const RARITY_MAP: Record<string, string> = {
   // Older eras
   'Rare Holo': 'R_HOLO',
   'Holo Rare': 'R_HOLO',
+  'Radiant Rare': 'RR',
+  'Amazing Rare': 'SR',
+  'Rainbow Rare': 'SAR',
   'Trainer Gallery Rare Holo': 'CHR',
   'Trainer Gallery Holo Rare': 'CHR',
   'Character Rare': 'CHR',
+  'Character Holo Rare': 'CHR',
   'Character Super Rare': 'CHR',
   // Promo / one-offs
   'Promo': 'OTHER',
   'Black Star Promo': 'OTHER',
   'Shiny Rare': 'SR',
   'Shiny Ultra Rare': 'SAR',
+  // Trainer/Energy categories — LimitlessTCG met le type de carte dans la
+  // colonne "rareté" pour les non-Pokémon. Pas de tier — toutes en OTHER.
+  'Item': 'OTHER',
+  'Supporter': 'OTHER',
+  'Tool': 'OTHER',
+  'Stadium': 'OTHER',
+  'Basic Energy': 'OTHER',
+  'Special Energy': 'OTHER',
 };
 
 export function mapLanguage(limitlessLang: string): string | null {
