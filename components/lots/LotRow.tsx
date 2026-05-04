@@ -2,9 +2,9 @@
 'use client';
 
 import { Tag, Package } from 'lucide-react';
-import type { Lot } from '@/lib/types';
+import type { Lot, BaseListing } from '@/lib/types';
 import EditablePriceCell from '@/components/vinted/EditablePriceCell';
-import VintedListedToggle from '@/components/vinted/VintedListedToggle';
+import ListingBadges from '@/components/vinted/ListingBadges';
 
 interface Props {
   lot: Lot;
@@ -12,7 +12,11 @@ interface Props {
   onAnnonceClick: (lot: Lot) => void;
   onSoldClick: (lot: Lot) => void;
   onPriceSaved: (lotId: string, newPrice: number | null) => void;
-  onListedToggled: (lotId: string, listedAt: string | null) => void;
+  listings: BaseListing[];
+  myUserId: string;
+  partnerUserId: string | null;
+  partnerName: string | null;
+  onListingsChanged: () => void;
   onImageClick?: (lot: Lot) => void;
   /** When true, show a checkbox on the left and disable Annonce/Vendu buttons. */
   selectionMode?: boolean;
@@ -21,7 +25,7 @@ interface Props {
 }
 
 export default function LotRow({
-  lot, storagePublicUrl, onAnnonceClick, onSoldClick, onPriceSaved, onListedToggled, onImageClick, selectionMode, selected, onToggleSelect,
+  lot, storagePublicUrl, onAnnonceClick, onSoldClick, onPriceSaved, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onImageClick, selectionMode, selected, onToggleSelect,
 }: Props) {
   const thumb = lot.photo_urls.length > 0 ? storagePublicUrl(lot.photo_urls[0]) : null;
 
@@ -76,11 +80,16 @@ export default function LotRow({
                 <span>{lot.photo_urls.length} photos</span>
               </>
             )}
-            <VintedListedToggle
-              cardId={lot.id}
-              currentListedAt={lot.vinted_listed_at}
-              onToggled={(listedAt) => onListedToggled(lot.id, listedAt)}
-              endpoint={`/api/lots/${lot.id}`}
+            <ListingBadges
+              itemKind="lot"
+              itemId={lot.id}
+              itemStatus={lot.status}
+              listings={listings}
+              myUserId={myUserId}
+              partnerUserId={partnerUserId}
+              partnerName={partnerName}
+              onListed={onListingsChanged}
+              onUnlisted={onListingsChanged}
             />
           </div>
         </div>
