@@ -41,6 +41,13 @@ const RATE_LIMIT_MS = 500;
 const USER_AGENT = 'I.R.I.S Bootstrap/1.0 (https://github.com/personal-use; mono-user PWA)';
 /** When true, fetch each card-detail page to extract illustrator. ~5x slower (one fetch per card). */
 const SCRAPE_ILLUSTRATOR = process.env.SCRAPE_ILLUSTRATOR === '1';
+/**
+ * When true, ignore the resume-by-illustrator check and re-fetch every set
+ * even if already populated. Default false — re-runs are idempotent and skip
+ * completed sets, so a crashed scrape can be resumed by just re-running the
+ * same command.
+ */
+const FORCE_RESCRAPE = process.env.FORCE_RESCRAPE === '1';
 
 const MODE = process.env.MODE ?? 'probe';
 const PROBE_SET = process.env.SET ?? 'SV11W';
@@ -409,6 +416,26 @@ async function full() {
       const setCode = setCodes[i];
       const tag = `[${i + 1}/${setCodes.length}] ${lang}/${setCode}`;
       stats.setsAttempted++;
+
+      // Resume support: when SCRAPE_ILLUSTRATOR is on, skip sets where every
+      // existing row already has illustrator populated. If ANY row is missing
+      // it (mid-batch crash, new set published since last run), redo. Override
+      // with FORCE_RESCRAPE=1 to redo everything regardless.
+      // DB-driven, survives crashes / Ctrl-C / re-runs without state files.
+      if (SCRAPE_ILLUSTRATOR && !FORCE_RESCRAPE) {
+        const [{ count: total }, { count: missing }] = await Promise.all([
+          supabase.from('tcg_catalog').select('*', { head: true, count: 'exact' })
+            .eq('language', ourLang).eq('set_code', setCode),
+          supabase.from('tcg_catalog').select('*', { head: true, count: 'exact' })
+            .eq('language', ourLang).eq('set_code', setCode)
+            .is('illustrator', null),
+        ]);
+        if ((total ?? 0) > 0 && (missing ?? 0) === 0) {
+          console.log(`${tag} — SKIP (${total} cards, all have illustrators)`);
+          stats.setsSucceeded++;
+          continue;
+        }
+      }
 
       try {
         await sleep(RATE_LIMIT_MS);
