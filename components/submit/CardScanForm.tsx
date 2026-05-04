@@ -183,6 +183,7 @@ export default function CardScanForm({
   const [candidates, setCandidates] = useState<EnrichedCard[]>([]);
   const [ocrUsage, setOcrUsage] = useState<GeminiUsage | null>(null);
   const [ocrEngine, setOcrEngine] = useState<'gemini' | 'vision' | null>(null);
+  const [ocrIllustrator, setOcrIllustrator] = useState<string | null>(null);
   const [ocrGemini, setOcrGemini] = useState<{
     pokemonNumber?: number | null;
     pokemonNameFr?: string | null;
@@ -243,6 +244,7 @@ export default function CardScanForm({
     });
     setOcrUsage(initialOcr._usage ?? null);
     setOcrEngine(initialOcr._engine ?? null);
+    setOcrIllustrator(initialOcr.illustrator ?? null);
 
     // Mirror enrich state from handleFile
     setEnrichFound(initialEnrich.bestMatch !== null);
@@ -500,6 +502,7 @@ export default function CardScanForm({
     setErrorMsg(null);
     setOcrUsage(null);
     setOcrEngine(null);
+    setOcrIllustrator(null);
     try {
       const blob = await resizeImage(file);
       setPhotoBlob(blob);
@@ -526,6 +529,7 @@ export default function CardScanForm({
       });
       setOcrUsage(ocr._usage ?? null);
       setOcrEngine(ocr._engine ?? null);
+      setOcrIllustrator(ocr.illustrator ?? null);
 
       // Smart extraction: if Vision pinned the set number / set code in the
       // bottom-left footer, pre-fill them and let the server resolve the card.
@@ -1040,6 +1044,14 @@ export default function CardScanForm({
                   <span className={extractedSetNumber ? 'text-text' : 'text-text-faint'}>
                     set_number = {extractedSetNumber ?? 'aucun'}
                   </span>
+                  {ocrIllustrator && (
+                    <>
+                      {' '}·{' '}
+                      <span className="text-text">
+                        illustrator = {ocrIllustrator}
+                      </span>
+                    </>
+                  )}
                 </p>
                 <pre className="text-text max-h-48 overflow-auto whitespace-pre-wrap font-mono">
                   {ocrText}

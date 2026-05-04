@@ -16,6 +16,7 @@ const FULL_EXTRACTION = {
   pokemon_name_fr: 'Pikachu',
   set_name: 'Battle Partners',
   set_name_fr: 'Partenaires de Combat',
+  illustrator: 'Ryuta Fuse',
 };
 
 describe('gemini-vision', () => {

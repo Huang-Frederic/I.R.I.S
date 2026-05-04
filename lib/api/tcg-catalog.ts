@@ -110,6 +110,45 @@ export async function lookupByCode(
 }
 
 /**
+ * Cap on candidate rows returned by name-based searches. Picker UX gets
+ * unwieldy past ~15 entries; if there are more matches, the user is better
+ * served by typing the set_code manually.
+ */
+const NAME_SEARCH_LIMIT = 15;
+
+/**
+ * Last-resort catalog lookup when set_code is unknown but pokemon_name +
+ * localId are reliable (typical for old cards that don't print the set code
+ * prominently — the user OCRs "Raichu" + "50/100" and we shortlist all
+ * Raichu cards with localId 50 in the requested language).
+ *
+ * Returns up to NAME_SEARCH_LIMIT candidates so the existing CandidatePicker
+ * UI can let the user choose visually.
+ */
+export async function lookupByNameAndLocalId(
+  supabase: SupabaseClient,
+  pokemonName: string,
+  setNumber: string,
+  language: CardLanguage,
+): Promise<CatalogRow[]> {
+  const normNum = normalizeSetNumber(setNumber);
+  const cleanName = pokemonName.trim();
+  if (!cleanName) return [];
+
+  // ILIKE handles suffix variations (e.g. user OCRs "Raichu" but catalog has
+  // "Raichu-GX" or "M Raichu EX"). Bound the wildcard with the bare name.
+  const { data, error } = await supabase
+    .from('tcg_catalog')
+    .select('*')
+    .eq('set_number', normNum)
+    .eq('language', language)
+    .or(`pokemon_name.ilike.%${cleanName}%,card_name.ilike.%${cleanName}%`)
+    .limit(NAME_SEARCH_LIMIT);
+  if (error) throw new Error(`tcg_catalog lookupByNameAndLocalId: ${error.message}`);
+  return (data as CatalogRow[]) ?? [];
+}
+
+/**
  * Fallback lookup when set_code OCR was unreliable: find every row matching
  * the printed denominator + localId in the requested language. Same idea as
  * the TCGdex `findCardsByTotalAndLocalId` — handles JP cards where the

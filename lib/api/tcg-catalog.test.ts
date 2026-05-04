@@ -7,6 +7,7 @@ import {
   normalizeSetNumber,
   normalizeSetCode,
   lookupByCode,
+  lookupByNameAndLocalId,
   formatBilingualName,
   deriveCardNameFr,
   type CatalogRow,
@@ -179,6 +180,45 @@ describe('lookupByCode', () => {
 
     const result = await lookupByCode(mockSupabase, '---', '12', 'JP');
     expect(result).toBeNull();
+  });
+});
+
+describe('lookupByNameAndLocalId', () => {
+  it('returns empty array on blank pokemon name', async () => {
+    const mockSupabase = {} as unknown as SupabaseClient;
+    const result = await lookupByNameAndLocalId(mockSupabase, '   ', '50', 'FR');
+    expect(result).toEqual([]);
+  });
+
+  it('queries by normalized set_number + language with name ILIKE pattern', async () => {
+    const matches = [
+      { ...baseRow, card_name: 'Raichu-GX', pokemon_name: 'Raichu', set_code: 'BUS', set_number: '50' },
+      { ...baseRow, card_name: 'Raichu', pokemon_name: 'Raichu', set_code: 'XY9', set_number: '50' },
+    ];
+    const limitFn = vi.fn().mockResolvedValue({ data: matches, error: null });
+    const orFn = vi.fn(() => ({ limit: limitFn }));
+    const eq2 = vi.fn(() => ({ or: orFn }));
+    const eq1 = vi.fn(() => ({ eq: eq2 }));
+    const select = vi.fn(() => ({ eq: eq1 }));
+    const mockSupabase = { from: vi.fn(() => ({ select })) } as unknown as SupabaseClient;
+
+    const result = await lookupByNameAndLocalId(mockSupabase, 'Raichu', '050', 'FR');
+    expect(result).toEqual(matches);
+    expect(eq1).toHaveBeenCalledWith('set_number', '50'); // zero-stripped
+    expect(eq2).toHaveBeenCalledWith('language', 'FR');
+    // OR clause searches both pokemon_name and card_name
+    expect(orFn).toHaveBeenCalledWith(expect.stringContaining('pokemon_name.ilike.%Raichu%'));
+    expect(orFn).toHaveBeenCalledWith(expect.stringContaining('card_name.ilike.%Raichu%'));
+  });
+
+  it('throws on supabase error', async () => {
+    const limitFn = vi.fn().mockResolvedValue({ data: null, error: { message: 'oops' } });
+    const orFn = vi.fn(() => ({ limit: limitFn }));
+    const eq2 = vi.fn(() => ({ or: orFn }));
+    const eq1 = vi.fn(() => ({ eq: eq2 }));
+    const select = vi.fn(() => ({ eq: eq1 }));
+    const mockSupabase = { from: vi.fn(() => ({ select })) } as unknown as SupabaseClient;
+    await expect(lookupByNameAndLocalId(mockSupabase, 'Raichu', '50', 'FR')).rejects.toThrow(/oops/);
   });
 });
 

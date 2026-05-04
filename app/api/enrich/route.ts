@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import {
   disambiguateByName,
   lookupByCode,
+  lookupByNameAndLocalId,
   lookupByTotal,
   rowToEnrichedCard,
   formatBilingualName,
@@ -201,6 +202,33 @@ export async function POST(request: Request) {
       }
     } catch (e) {
       console.error('Strategy 2 (catalog by total) failed, falling through:', e);
+    }
+  }
+
+  // Strategy 2.5: catalog search by pokemon_name + localId. Useful for old
+  // cards that don't print a recognizable set_code, where Gemini correctly
+  // extracts the Pokémon name + the localId. Returns up to 15 candidates and
+  // surfaces them via the existing CandidatePicker so the user picks visually.
+  if (body.pokemonName && localId) {
+    try {
+      const rows = await withTimeout(
+        lookupByNameAndLocalId(supabase, body.pokemonName, localId, cardLang),
+        2000,
+        'catalog lookupByNameAndLocalId',
+      );
+      if (rows && rows.length > 0) {
+        const result = body.text && rows.length > 1
+          ? disambiguateByName(rows, body.text)
+          : { best: rows[0]!, candidates: rows };
+        if (result.best) {
+          return NextResponse.json({
+            bestMatch: applyGeminiEnrichments(rowToEnrichedCard(result.best), body, cardLang),
+            candidates: result.candidates.map((r) => applyGeminiEnrichments(rowToEnrichedCard(r), body, cardLang)),
+          } satisfies EnrichResult);
+        }
+      }
+    } catch (e) {
+      console.error('Strategy 2.5 (catalog by name+localId) failed, falling through:', e);
     }
   }
 
