@@ -166,11 +166,13 @@ interface ScrapedCard {
 
 /**
  * Extract illustrator from a single LimitlessTCG card-detail page.
- * Pattern observed: `Illustrated by\n<a href="/cards?q=!artist:NAME">NAME</a>`.
+ * Real markup: `Illustrated by\n<a href="/cards/{lang}?q=!artist:slug">Name</a>`
+ * The `/{lang}` segment is present on real pages but optional in the regex
+ * to keep tolerance for any legacy/admin URL shape.
  * Returns null when the line is absent (some old / Trainer cards).
  */
 export function parseIllustrator(html: string): string | null {
-  const m = html.match(/Illustrated by\s*<a\s+href="\/cards\?q=!artist:[^"]+"\s*>\s*([^<]+?)\s*<\/a>/i);
+  const m = html.match(/Illustrated by\s*<a\s+href="\/cards(?:\/[a-z]{2})?\?q=!artist:[^"]+"\s*>\s*([^<]+?)\s*<\/a>/i);
   return m ? m[1].trim() : null;
 }
 

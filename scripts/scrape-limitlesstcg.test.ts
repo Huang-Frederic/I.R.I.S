@@ -65,26 +65,30 @@ describe('parseSetIndex', () => {
 });
 
 describe('parseIllustrator', () => {
-  it('extracts the artist name from a card page', () => {
+  it('extracts the artist name from a real LimitlessTCG card page (with /{lang} URL prefix)', () => {
+    // Verbatim from https://limitlesstcg.com/cards/jp/20th/1
     const html = `
-      <p>Some text</p>
-      <p>
-        Illustrated by
-        <a href="/cards?q=!artist:nisimono">
-          nisimono
-        </a>
-      </p>
+            Illustrated by
+            <a href="/cards/jp?q=!artist:eske_yoshinob">
+                Eske Yoshinob
+            </a>
+        </div>
     `;
+    expect(parseIllustrator(html)).toBe('Eske Yoshinob');
+  });
+
+  it('also accepts the legacy/admin URL shape without /{lang}', () => {
+    const html = `Illustrated by <a href="/cards?q=!artist:nisimono">nisimono</a>`;
     expect(parseIllustrator(html)).toBe('nisimono');
   });
 
   it('extracts artist with spaces and unicode characters', () => {
-    const html = `Illustrated by <a href="/cards?q=!artist:Ryuta%20Fuse">Ryuta Fuse</a>`;
+    const html = `Illustrated by <a href="/cards/en?q=!artist:Ryuta%20Fuse">Ryuta Fuse</a>`;
     expect(parseIllustrator(html)).toBe('Ryuta Fuse');
   });
 
   it('handles Japanese illustrator names', () => {
-    const html = `Illustrated by <a href="/cards?q=!artist:YASHIRO">YASHIRO Nanaco</a>`;
+    const html = `Illustrated by <a href="/cards/jp?q=!artist:YASHIRO">YASHIRO Nanaco</a>`;
     expect(parseIllustrator(html)).toBe('YASHIRO Nanaco');
   });
 
