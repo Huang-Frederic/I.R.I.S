@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import {
+  disambiguateByIllustrator,
   disambiguateByName,
   lookupByCode,
   lookupByNameAndLocalId,
@@ -47,6 +48,12 @@ interface EnrichBody {
   cardName?: string | null;
   pokemonName?: string | null;
   rarity?: string | null;
+
+  /**
+   * Illustrator credit from Gemini. Used by Strategy 2.5 to auto-disambiguate
+   * when multiple catalog rows match (pokemon_name + localId + language).
+   */
+  illustrator?: string | null;
 }
 
 /**
@@ -207,8 +214,9 @@ export async function POST(request: Request) {
 
   // Strategy 2.5: catalog search by pokemon_name + localId. Useful for old
   // cards that don't print a recognizable set_code, where Gemini correctly
-  // extracts the Pokémon name + the localId. Returns up to 15 candidates and
-  // surfaces them via the existing CandidatePicker so the user picks visually.
+  // extracts the Pokémon name + the localId. Returns up to 15 candidates;
+  // illustrator from Gemini auto-disambiguates when available, otherwise the
+  // existing CandidatePicker UI lets the user pick visually.
   if (body.pokemonName && localId) {
     try {
       const rows = await withTimeout(
@@ -217,6 +225,15 @@ export async function POST(request: Request) {
         'catalog lookupByNameAndLocalId',
       );
       if (rows && rows.length > 0) {
+        // Try illustrator-based auto-disambiguation FIRST (most reliable).
+        const byIllustrator = disambiguateByIllustrator(rows, body.illustrator);
+        if (byIllustrator) {
+          return NextResponse.json({
+            bestMatch: applyGeminiEnrichments(rowToEnrichedCard(byIllustrator), body, cardLang),
+            candidates: [applyGeminiEnrichments(rowToEnrichedCard(byIllustrator), body, cardLang)],
+          } satisfies EnrichResult);
+        }
+        // Fallback: name substring + picker
         const result = body.text && rows.length > 1
           ? disambiguateByName(rows, body.text)
           : { best: rows[0]!, candidates: rows };

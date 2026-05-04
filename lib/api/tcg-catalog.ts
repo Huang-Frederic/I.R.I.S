@@ -38,7 +38,30 @@ export interface CatalogRow {
   set_name: string;
   rarity: string | null;
   image_url: string | null;
+  illustrator: string | null;
   scraped_at: string;
+}
+
+/**
+ * Pick the catalog row whose illustrator matches the Gemini-extracted one.
+ * Case-insensitive substring match — accommodates OCR variants ("Ryuta Fuse"
+ * vs "RYUTA FUSE", or "kirisAki" vs "KIRISAKI"). Returns null if Gemini
+ * provided no illustrator or none of the rows match.
+ */
+export function disambiguateByIllustrator(
+  rows: CatalogRow[],
+  geminiIllustrator: string | null | undefined,
+): CatalogRow | null {
+  if (!geminiIllustrator || rows.length === 0) return null;
+  const target = geminiIllustrator.toLowerCase().replace(/\s+/g, '');
+  for (const row of rows) {
+    if (!row.illustrator) continue;
+    const candidate = row.illustrator.toLowerCase().replace(/\s+/g, '');
+    if (candidate === target) return row;
+    // Partial match (substring either direction) — handles OCR variations
+    if (candidate.includes(target) || target.includes(candidate)) return row;
+  }
+  return null;
 }
 
 /**

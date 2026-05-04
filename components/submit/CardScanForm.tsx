@@ -552,6 +552,7 @@ export default function CardScanForm({
         cardName: ocr.cardName,
         pokemonName: ocr.pokemonName,
         rarity: ocr.rarity,
+        illustrator: ocr.illustrator,
       };
       const enrichBody = setNumberParsed
         ? {
