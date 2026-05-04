@@ -393,7 +393,9 @@ async function full() {
 
   console.log(`Starting full crawl of LimitlessTCG.`);
   console.log(`Languages: ${languages.join(', ')}${onlySets ? ` (filtered to sets: ${[...onlySets].join(',')})` : ''}`);
-  console.log(`Rate limit: ${RATE_LIMIT_MS}ms between requests.\n`);
+  console.log(`Rate limit: ${RATE_LIMIT_MS}ms between requests.`);
+  console.log(`Illustrator scrape: ${SCRAPE_ILLUSTRATOR ? `ON (1 fetch/card, concurrency ${CARD_FETCH_CONCURRENCY}, ~3h for full crawl)` : 'OFF (set SCRAPE_ILLUSTRATOR=1 to enable)'}`);
+  console.log(`Force rescrape: ${FORCE_RESCRAPE ? 'ON (ignores resume)' : 'OFF (skip sets fully populated)'}\n`);
 
   const stats = {
     setsAttempted: 0,
