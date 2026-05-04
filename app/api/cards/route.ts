@@ -201,7 +201,7 @@ export async function POST(request: Request) {
       // Fetch the existing for_sale card so the frontend can display it in the modal.
       const { data: existingCard } = await supabase
         .from('cards')
-        .select('id, card_name, image_url, tcg_image_url, suggested_price, date_added, vinted_listed_at, language, condition, variant, set_name, set_code')
+        .select('id, card_name, image_url, tcg_image_url, suggested_price, date_added, language, condition, variant, set_name, set_code')
         .eq('card_id_tcg', row.card_id_tcg)
         .eq('language', row.language)
         .eq('condition', row.condition)

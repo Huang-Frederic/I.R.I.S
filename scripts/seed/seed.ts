@@ -153,10 +153,14 @@ function daysAgo(d: number): string {
 
 interface StatusMeta {
   status: string;
-  vinted_listed_at: string | null;
+  /** When non-null, the seeder will INSERT a card_listings row for HISSHIDEN_USER_ID with this timestamp post-insert (Phase 4 — listings are per-user, not per-card). */
+  listed_at: string | null;
   date_sold: string | null;
   sold_price: number | null;
 }
+
+/** Hisshiden's user_id — owns all seeded listings. */
+const HISSHIDEN_USER_ID = '35385d3c-5966-4a10-8568-8d92d1be47e7';
 
 function pickStatus(idx: number): StatusMeta {
   // Spread cards across statuses to look "lived in" + cover all UI states:
@@ -169,7 +173,7 @@ function pickStatus(idx: number): StatusMeta {
   if (idx < 2) {
     return {
       status: 'sold',
-      vinted_listed_at: null,
+      listed_at: null,
       date_sold: daysAgo(Math.floor(Math.random() * 14) + 1),
       sold_price: Math.floor(Math.random() * 30) + 5,
     };
@@ -177,7 +181,7 @@ function pickStatus(idx: number): StatusMeta {
   if (idx < 7) {
     return {
       status: 'pokedex',
-      vinted_listed_at: null,
+      listed_at: null,
       date_sold: null,
       sold_price: null,
     };
@@ -185,7 +189,7 @@ function pickStatus(idx: number): StatusMeta {
   if (idx < 12) {
     return {
       status: 'collection',
-      vinted_listed_at: null,
+      listed_at: null,
       date_sold: null,
       sold_price: null,
     };
@@ -194,7 +198,7 @@ function pickStatus(idx: number): StatusMeta {
   if (idx < 15) {
     return {
       status: 'for_sale',
-      vinted_listed_at: daysAgo(25 + Math.floor(Math.random() * 10)),  // 25-34 days ago
+      listed_at: daysAgo(25 + Math.floor(Math.random() * 10)),  // 25-34 days ago
       date_sold: null,
       sold_price: null,
     };
@@ -203,7 +207,7 @@ function pickStatus(idx: number): StatusMeta {
   if (idx < 18) {
     return {
       status: 'for_sale',
-      vinted_listed_at: daysAgo(Math.floor(Math.random() * 14)),
+      listed_at: daysAgo(Math.floor(Math.random() * 14)),
       date_sold: null,
       sold_price: null,
     };
@@ -211,7 +215,7 @@ function pickStatus(idx: number): StatusMeta {
   // The rest: for_sale offline (vinted_listed_at = null)
   return {
     status: 'for_sale',
-    vinted_listed_at: null,
+    listed_at: null,
     date_sold: null,
     sold_price: null,
   };
@@ -234,6 +238,8 @@ async function main() {
 
   // 3. Process each card
   const rows: Record<string, unknown>[] = [];
+  /** Per-row listing metadata, attached after the bulk insert returns IDs. */
+  const listingMeta: Array<string | null> = [];
   const usedDexIds = new Set<number>();
 
   for (const [idx, filename] of filenames.entries()) {
@@ -288,7 +294,6 @@ async function main() {
       tcg_image_url: tcgImageUrl,
       variant,
       date_added: dateAdded,
-      vinted_listed_at: meta.vinted_listed_at,
       date_sold: meta.date_sold,
       sold_price: meta.sold_price,
       suggested_price: meta.status === 'sold' ? null : Math.floor(Math.random() * 45) + 5,
@@ -296,10 +301,11 @@ async function main() {
     };
 
     rows.push(row);
+    listingMeta.push(meta.listed_at);
     console.log(`${meta.status} (${rarity}${variant ? ` ${variant}` : ''})`);
   }
 
-  // 4. Bulk insert
+  // 4. Bulk insert cards
   console.log(`\n💾 Inserting ${rows.length} rows...`);
   const { data: inserted, error: insertErr } = await supabase
     .from('cards')
@@ -312,7 +318,26 @@ async function main() {
   }
   console.log(`✅ Inserted ${inserted?.length ?? 0} rows.`);
 
-  // 5. Summary
+  // 5. Insert per-user listings (Phase 4) — Hisshiden owns all seeded listings.
+  const listingRows = (inserted ?? [])
+    .map((card, i) => {
+      const listedAt = listingMeta[i];
+      if (!listedAt) return null;
+      return { card_id: card.id, user_id: HISSHIDEN_USER_ID, listed_at: listedAt };
+    })
+    .filter((r): r is { card_id: string; user_id: string; listed_at: string } => r !== null);
+
+  if (listingRows.length > 0) {
+    console.log(`\n📌 Inserting ${listingRows.length} card_listings rows...`);
+    const { error: listErr } = await supabase.from('card_listings').insert(listingRows);
+    if (listErr) {
+      console.error('❌ card_listings insert failed:', listErr.message);
+      process.exit(1);
+    }
+    console.log(`✅ Inserted ${listingRows.length} listings.`);
+  }
+
+  // 6. Summary
   const counts: Record<string, number> = {};
   for (const r of rows) {
     counts[r.status as string] = (counts[r.status as string] ?? 0) + 1;
