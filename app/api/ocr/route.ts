@@ -70,6 +70,7 @@ export async function POST(request: Request) {
       cardName: geminiResult.card_name,
       pokemonName: geminiResult.pokemon_name,
       rarity: geminiResult.rarity,
+      illustrator: geminiResult.illustrator,
       _usage: geminiResult._usage,
       _engine: 'gemini',
     };

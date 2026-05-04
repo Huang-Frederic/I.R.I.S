@@ -150,6 +150,13 @@ export interface OcrResult {
   rarity?: string | null;
 
   /**
+   * Illustrator credit printed at the bottom of the card. Displayed in the OCR
+   * snippet to give the user a unique disambiguation signal when set_code is
+   * unclear (e.g. old cards with no printed code).
+   */
+  illustrator?: string | null;
+
+  /**
    * Gemini token usage + EUR cost. Present when Gemini was reached, even when
    * its extraction failed (parse error, incomplete payload) and Vision had to
    * pick up the slack — so the caller can still attribute the cost.

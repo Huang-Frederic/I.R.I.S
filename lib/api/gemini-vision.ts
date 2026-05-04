@@ -26,7 +26,7 @@ export interface GeminiCardExtraction {
   set_code: string;
   set_number: string;
   set_total: number | null;
-  language: string; // 2-letter code: JP, EN, FR, DE, IT, ES, PT, KO, ZH
+  language: string; // 2-letter code: JP, EN, FR, DE, IT, ES, PT, KO, CN
   rarity: string | null;
   confidence: 'high' | 'medium' | 'low';
 
@@ -37,6 +37,12 @@ export interface GeminiCardExtraction {
   // Set translation
   set_name: string | null; // Set name as printed on card (in card's language)
   set_name_fr: string | null; // French translation of set name from training data
+
+  // Illustrator credit printed at the bottom of the card. Unique per card +
+  // language combination — useful as a disambiguation signal when set_code is
+  // ambiguous (currently displayed in the OCR debug snippet; future versions
+  // could match it against catalog if we re-scrape with that field).
+  illustrator: string | null;
 
   _usage?: GeminiUsage;
 }
@@ -69,7 +75,8 @@ CODES DE SET PAR LANGUE — extrais ce qui est imprimé, JAMAIS l'équivalent d'
   "pokemon_number": <national dex 1-1025 si Pokémon, null pour Trainer/Energy/Stadium>,
   "pokemon_name_fr": "<nom FR standard (ex 'Gruikui', 'Dracaufeu'), null si non-Pokémon ou incertain>",
   "set_name": "<nom extension imprimé (ex 'White Flare', 'BREAKpoint'), null si invisible>",
-  "set_name_fr": "<traduction FR (ex 'Combat de Maîtres', 'Rupture Turbo'), null si incertain>"
+  "set_name_fr": "<traduction FR (ex 'Combat de Maîtres', 'Rupture Turbo'), null si incertain>",
+  "illustrator": "<crédit illustrateur en bas de carte (ex 'Ryuta Fuse', 'YASHIRO Nanaco', 'kirisAki'), null si illisible>"
 }`;
 
 /**
@@ -99,6 +106,7 @@ const SCHEMA = {
     pokemon_name_fr: { type: 'string' },
     set_name: { type: 'string' },
     set_name_fr: { type: 'string' },
+    illustrator: { type: 'string' },
   },
   required: ['card_name', 'set_code', 'set_number', 'language', 'confidence'],
 };
@@ -233,6 +241,7 @@ export async function extractCardFromImage(
       pokemon_name_fr: parsed.pokemon_name_fr || null,
       set_name: parsed.set_name || null,
       set_name_fr: parsed.set_name_fr || null,
+      illustrator: parsed.illustrator || null,
       _usage: usage ?? undefined,
     };
     return { extraction, usage };
