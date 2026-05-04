@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server';
 import { detectText } from '@/lib/api/vision';
 import { extractCardFromImage } from '@/lib/api/gemini-vision';
-import type { OcrResult } from '@/lib/types';
+import type { CardLanguage, OcrResult } from '@/lib/types';
 
 export const runtime = 'nodejs';
+
+const VALID_LANGUAGES = new Set<CardLanguage>(['JP', 'EN', 'FR', 'DE', 'IT', 'ES', 'KO', 'PT', 'ZH']);
+
+/** Coerce Gemini's free-form language string into our CardLanguage enum. */
+function normalizeGeminiLanguage(raw: string | null | undefined): CardLanguage | undefined {
+  if (!raw) return undefined;
+  const upper = raw.trim().toUpperCase() as CardLanguage;
+  return VALID_LANGUAGES.has(upper) ? upper : undefined;
+}
 
 export async function POST(request: Request) {
   let formData: FormData;
@@ -52,6 +61,7 @@ export async function POST(request: Request) {
       pokemonNameFr: geminiResult.pokemon_name_fr,
       setName: geminiResult.set_name,
       setNameFr: geminiResult.set_name_fr,
+      language: normalizeGeminiLanguage(geminiResult.language),
       cardName: geminiResult.card_name,
       pokemonName: geminiResult.pokemon_name,
       rarity: geminiResult.rarity,

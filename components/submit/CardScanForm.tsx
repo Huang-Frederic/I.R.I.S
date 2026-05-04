@@ -102,8 +102,20 @@ const EMPTY: FormFields = {
 const CONFIDENCE_THRESHOLD = 0.8;
 
 function detectLanguage(text: string): CardLanguage {
-  // Match Hiragana, Katakana, or CJK ideographs.
+  // Last-resort sniff used only on the Vision-fallback path (no Gemini language
+  // field available). Returns 'JP' when CJK characters are present, else 'EN'.
+  // For accurate KO/FR/DE/IT/ES/PT/ZH, prefer `ocr.language` from Gemini.
   return /[぀-ゟ゠-ヿ一-龿]/.test(text) ? 'JP' : 'EN';
+}
+
+/**
+ * Resolve the card's language from an OCR result. Prefers the explicit
+ * `language` field from Gemini extraction (covers all 9 supported languages),
+ * falls back to `detectLanguage` regex sniffing only when Gemini didn't set it
+ * (Vision fallback path or legacy responses).
+ */
+function resolveLanguage(ocr: { language?: CardLanguage; text: string }): CardLanguage {
+  return ocr.language ?? detectLanguage(ocr.text);
 }
 
 export interface CardScanFormProps {
@@ -243,7 +255,7 @@ export default function CardScanForm({
     const candidatesList = initialEnrich.candidates ?? [];
     if (candidatesList.length > 1) {
       setCandidates(candidatesList);
-      const language = detectLanguage(initialOcr.text);
+      const language = resolveLanguage(initialOcr);
       const baseForm = {
         ...EMPTY,
         language,
@@ -262,7 +274,7 @@ export default function CardScanForm({
 
     // Single match or none → auto-fill
     const match = initialEnrich.bestMatch;
-    const language = detectLanguage(initialOcr.text);
+    const language = resolveLanguage(initialOcr);
     const setCode = initialOcr.setCodeCandidate ?? '';
     const setNumber = initialOcr.setNumberCandidate?.raw ?? '';
     const prefill: FormFields = {
@@ -518,7 +530,7 @@ export default function CardScanForm({
       // bottom-left footer, pre-fill them and let the server resolve the card.
       // Server uses setCode if provided, otherwise falls back to scanning sets
       // with matching `total`.
-      const language = detectLanguage(ocr.text);
+      const language = resolveLanguage(ocr);
       const setNumberParsed = ocr.setNumberCandidate;
       const setCode = ocr.setCodeCandidate ?? '';
       const setNumber = setNumberParsed?.raw ?? '';
