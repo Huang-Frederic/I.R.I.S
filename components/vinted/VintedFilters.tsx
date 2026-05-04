@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Globe, GlobeLock, Tag, RefreshCw, CheckSquare, Square } from 'lucide-react';
+import { Search, Globe, GlobeLock, Tag, RefreshCw, CheckSquare, Square, User } from 'lucide-react';
 import { UI_LANGUAGES, type CardLanguage, type CardRarity } from '@/lib/types';
 import { type MultiUserChip } from '@/lib/utils/vinted-filter';
 
@@ -49,6 +49,7 @@ interface Props {
   totalCards: number;
   selectionMode: boolean;
   onToggleSelectionMode: () => void;
+  hasPartner: boolean;
 }
 
 interface Chip {
@@ -64,7 +65,7 @@ const CHIPS: Chip[] = [
   { key: 'showStale', label: 'À rafraîchir', icon: RefreshCw },
 ];
 
-export default function VintedFilters({ value, onChange, visibleCards, totalCards, selectionMode, onToggleSelectionMode }: Props) {
+export default function VintedFilters({ value, onChange, visibleCards, totalCards, selectionMode, onToggleSelectionMode, hasPartner }: Props) {
   const toggleChip = (key: Chip['key']) => onChange({ ...value, [key]: !value[key] });
 
   return (
@@ -167,6 +168,85 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
       <p className="text-text-muted text-xs">
         {visibleCards} sur {totalCards}
       </p>
+
+      <div className="border-border my-1 border-t" />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onChange({ ...value, multiUserChip: 'all' })}
+          className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${
+            value.multiUserChip === 'all'
+              ? 'bg-red-bg border-red text-red font-medium'
+              : 'bg-surface-2 border-border text-text-muted hover:text-text'
+          }`}
+        >
+          Tous
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange({ ...value, multiUserChip: 'mine' })}
+          className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${
+            value.multiUserChip === 'mine'
+              ? 'bg-red-bg border-red text-red font-medium'
+              : 'bg-surface-2 border-border text-text-muted hover:text-text'
+          }`}
+        >
+          <User className="h-3.5 w-3.5" />
+          Mes annonces
+        </button>
+        {hasPartner && (
+          <button
+            type="button"
+            onClick={() => onChange({ ...value, multiUserChip: 'partner' })}
+            className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${
+              value.multiUserChip === 'partner'
+                ? 'bg-red-bg border-red text-red font-medium'
+                : 'bg-surface-2 border-border text-text-muted hover:text-text'
+            }`}
+          >
+            <User className="h-3.5 w-3.5" />
+            Ses annonces
+          </button>
+        )}
+        {hasPartner && (
+          <button
+            type="button"
+            onClick={() => onChange({ ...value, multiUserChip: 'cross' })}
+            className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${
+              value.multiUserChip === 'cross'
+                ? 'bg-red-bg border-red text-red font-medium'
+                : 'bg-surface-2 border-border text-text-muted hover:text-text'
+            }`}
+          >
+            Cross-listées
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => onChange({ ...value, multiUserChip: 'none' })}
+          className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${
+            value.multiUserChip === 'none'
+              ? 'bg-red-bg border-red text-red font-medium'
+              : 'bg-surface-2 border-border text-text-muted hover:text-text'
+          }`}
+        >
+          Non listées
+        </button>
+        {hasPartner && (
+          <button
+            type="button"
+            onClick={() => onChange({ ...value, multiUserChip: 'to_delete' })}
+            className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${
+              value.multiUserChip === 'to_delete'
+                ? 'bg-red-bg border-red text-red font-medium'
+                : 'bg-surface-2 border-border text-text-muted hover:text-text'
+            }`}
+          >
+            À retirer
+          </button>
+        )}
+      </div>
     </div>
   );
 }
