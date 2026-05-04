@@ -1,7 +1,7 @@
 // app/(app)/vinted/page.tsx
 import { createClient } from '@/lib/supabase/server';
 import VintedList from '@/components/vinted/VintedList';
-import type { Card, Lot } from '@/lib/types';
+import type { Card, Lot, CardListing, LotListing } from '@/lib/types';
 
 export const metadata = {
   title: 'Vinted — I.R.I.S',
@@ -10,7 +10,7 @@ export const metadata = {
 export default async function VintedPage() {
   const supabase = await createClient();
 
-  const [forSaleResult, pokedexResult, configResult, lotsResult] = await Promise.all([
+  const [forSaleResult, pokedexResult, configResult, lotsResult, cardListingsResult, lotListingsResult] = await Promise.all([
     supabase
       .from('cards')
       .select('*')
@@ -26,10 +26,12 @@ export default async function VintedPage() {
       .select('*')
       .in('status', ['for_sale', 'sold'])
       .order('date_added', { ascending: true }),
+    supabase.from('card_listings').select('*'),
+    supabase.from('lot_listings').select('*'),
   ]);
 
   const fetchError =
-    forSaleResult.error ?? pokedexResult.error ?? configResult.error ?? lotsResult.error;
+    forSaleResult.error ?? pokedexResult.error ?? configResult.error ?? lotsResult.error ?? cardListingsResult.error ?? lotListingsResult.error;
   if (fetchError) {
     return (
       <section>
@@ -41,12 +43,23 @@ export default async function VintedPage() {
 
   const cards = (forSaleResult.data ?? []) as Card[];
   const lots = (lotsResult.data ?? []) as Lot[];
+  const cardListings = (cardListingsResult.data ?? []) as CardListing[];
+  const lotListings = (lotListingsResult.data ?? []) as LotListing[];
   const registered = new Set<number>(
     (pokedexResult.data ?? []).map((r: { pokemon_number: number }) => r.pokemon_number),
   );
   const config = Object.fromEntries(
     (configResult.data ?? []).map((r: { key: string; value: string }) => [r.key, r.value]),
   ) as Record<string, string>;
+
+  const cardsWithListings = cards.map((c) => ({
+    ...c,
+    listings: cardListings.filter((l) => l.card_id === c.id),
+  }));
+  const lotsWithListings = lots.map((l) => ({
+    ...l,
+    listings: lotListings.filter((ll) => ll.lot_id === l.id),
+  }));
 
   return (
     <section>
@@ -57,7 +70,7 @@ export default async function VintedPage() {
         </p>
       </div>
       <div className="mt-6">
-        <VintedList cards={cards} lots={lots} registered={registered} config={config} />
+        <VintedList cards={cardsWithListings} lots={lotsWithListings} registered={registered} config={config} />
       </div>
     </section>
   );

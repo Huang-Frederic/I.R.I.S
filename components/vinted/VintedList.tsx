@@ -3,8 +3,8 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Card, Lot } from '@/lib/types';
-import { groupCards } from '@/lib/utils/group-cards';
+import type { Card, Lot, CardWithListings, LotWithListings } from '@/lib/types';
+import { groupCards, type CardGroup } from '@/lib/utils/group-cards';
 import { sortVintedGroups } from '@/lib/utils/vinted-sort';
 import VintedFilters, { INITIAL_FILTERS, type VintedFilterState } from './VintedFilters';
 import VintedRow from './VintedRow';
@@ -18,7 +18,7 @@ import CardZoomModal from './CardZoomModal';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 import type { VintedConfig } from '@/lib/utils/vinted-template';
-import { passesStateChips, shouldHideForSalePile } from '@/lib/utils/vinted-filter';
+import { passesStateChips, shouldHideForSalePile, passesMultiUserChip } from '@/lib/utils/vinted-filter';
 import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
 import LotRow from '@/components/lots/LotRow';
 import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
@@ -26,19 +26,27 @@ import BulkSelectionBottomBar from './BulkSelectionBottomBar';
 import BulkSoldModal, { type BulkSoldItem } from './BulkSoldModal';
 import BulkSoldRecapModal from './BulkSoldRecapModal';
 import { splitPrice } from '@/lib/utils/split-bulk-price';
+import { useUserContext } from '@/lib/hooks/useUserContext';
 
 export interface VintedListProps {
-  cards: Card[];
-  lots: Lot[];
+  cards: CardWithListings[];
+  lots: LotWithListings[];
   registered: Set<number>;
   config: Record<string, string>;
 }
+
+/** Type helper: CardGroup with CardWithListings instead of Card. */
+type CardGroupWithListings = Omit<CardGroup, 'head' | 'cards'> & {
+  head: CardWithListings;
+  cards: CardWithListings[];
+  position?: number;
+};
 
 function normalize(s: string): string {
   return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 }
 
-function matchesSearch(card: Card, query: string): boolean {
+function matchesSearch(card: CardWithListings, query: string): boolean {
   if (!query) return true;
   const q = normalize(query);
   const fields = [
@@ -48,14 +56,14 @@ function matchesSearch(card: Card, query: string): boolean {
   return fields.some((f) => f && normalize(f).includes(q));
 }
 
-function matchesLotSearch(lot: Lot, query: string): boolean {
+function matchesLotSearch(lot: LotWithListings, query: string): boolean {
   if (!query) return true;
   const q = normalize(query);
   const fields = [lot.name, lot.extra_description ?? '', lot.language ?? ''];
   return fields.some((f) => f && normalize(f).includes(q));
 }
 
-function matchesAttrFilters(card: Card, f: VintedFilterState): boolean {
+function matchesAttrFilters(card: CardWithListings, f: VintedFilterState): boolean {
   if (f.language !== 'all' && card.language !== f.language) return false;
   if (f.rarity !== 'all' && card.rarity !== f.rarity) return false;
   if (f.variant !== 'all') {
@@ -67,8 +75,9 @@ function matchesAttrFilters(card: Card, f: VintedFilterState): boolean {
 
 export default function VintedList({ cards: initial, lots: initialLots, registered, config }: VintedListProps) {
   const router = useRouter();
-  const [cards, setCards] = useState<Card[]>(initial);
-  const [lots, setLots] = useState<Lot[]>(initialLots);
+  const { myUserId, partnerUserId, partnerName } = useUserContext();
+  const [cards, setCards] = useState<CardWithListings[]>(initial);
+  const [lots, setLots] = useState<LotWithListings[]>(initialLots);
   const [filters, setFilters] = useState<VintedFilterState>(INITIAL_FILTERS);
   const [now] = useState(() => Date.now());
   const [selectionMode, setSelectionMode] = useState(false);
@@ -79,20 +88,14 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/lot-photos/${path}`;
 
   const updateCardPrice = (cardId: string, newPrice: number | null) => {
-    setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, suggested_price: newPrice } : c)));
-  };
-
-  const updateCardListed = (cardId: string, listedAt: string | null) => {
-    setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, vinted_listed_at: listedAt } : c)));
+    setCards((prev) => prev.map((c): CardWithListings => (c.id === cardId ? { ...c, suggested_price: newPrice } : c)));
   };
 
   const updateLotPrice = (lotId: string, newPrice: number | null) => {
-    setLots((prev) => prev.map((l) => (l.id === lotId ? { ...l, price: newPrice } : l)));
+    setLots((prev) => prev.map((l): LotWithListings => (l.id === lotId ? { ...l, price: newPrice } : l)));
   };
 
-  const updateLotListed = (lotId: string, listedAt: string | null) => {
-    setLots((prev) => prev.map((l) => (l.id === lotId ? { ...l, vinted_listed_at: listedAt } : l)));
-  };
+  const onListingsChanged = () => router.refresh();
 
   const [soldTarget, setSoldTarget] = useState<SoldEntity | null>(null);
   const [restockAlert, setRestockAlert] = useState<RestockAlert | null>(null);
@@ -129,7 +132,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     if (info.kind === 'card') {
       // Mark the card as sold in local state instead of removing it (so it shows up under Vendus filter).
       setCards((prev) =>
-        prev.map((c) =>
+        prev.map((c): CardWithListings =>
           c.id === info.soldId
             ? { ...c, status: 'sold' as const, date_sold: new Date().toISOString() }
             : c,
@@ -140,7 +143,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     } else {
       // Lot branch: mark the lot as sold in local state (so it appears under Vendus filter).
       setLots((prev) =>
-        prev.map((l) =>
+        prev.map((l): LotWithListings =>
           l.id === info.soldId
             ? { ...l, status: 'sold' as const, date_sold: new Date().toISOString() }
             : l,
@@ -214,11 +217,11 @@ export default function VintedList({ cards: initial, lots: initialLots, register
         }
         soldItems.push(item);
         if (item.kind === 'card') {
-          setCards((prev) => prev.map((c) => (c.id === id ? { ...c, status: 'sold' as const, sold_price, date_sold: dateSoldIso } : c)));
+          setCards((prev) => prev.map((c): CardWithListings => (c.id === id ? { ...c, status: 'sold' as const, sold_price, date_sold: dateSoldIso } : c)));
           if (json.restock) restocks.push(json.restock);
           if (json.promote) promotes.push(json.promote);
         } else {
-          setLots((prev) => prev.map((l) => (l.id === id ? { ...l, status: 'sold' as const, sold_price, date_sold: dateSoldIso } : l)));
+          setLots((prev) => prev.map((l): LotWithListings => (l.id === id ? { ...l, status: 'sold' as const, sold_price, date_sold: dateSoldIso } : l)));
         }
       } catch (e) {
         failCount += 1;
@@ -264,7 +267,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     const sold = cards.filter((c) => c.status === 'sold');
 
     // Common: search + attribute filters apply to every pile.
-    const passesCommon = (c: Card) =>
+    const passesCommon = (c: CardWithListings) =>
       matchesSearch(c, filters.search) && matchesAttrFilters(c, filters);
 
     // The state chips (En ligne / Pas en ligne / À rafraîchir) combine
@@ -272,7 +275,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     // shared helper keeps the UI semantics in lockstep with the test suite.
     const finalForSale = !showCards || shouldHideForSalePile(filters)
       ? []
-      : forSale.filter((c) => passesCommon(c) && passesStateChips(c, filters, now));
+      : forSale.filter((c) => passesCommon(c) && passesStateChips(c, filters, now) && passesMultiUserChip(c, filters.multiUserChip, myUserId, partnerUserId));
 
     // Sold pile is independent: included only when the Vendus chip is on.
     const soldSubset = !showCards || !filters.showSold
@@ -284,19 +287,19 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     const sorted = sortVintedGroups(groupCards(finalForSale), now).map((g, i) => ({
       ...g,
       position: i + 1,
-    }));
+    })) as CardGroupWithListings[];
 
     // Lots: no grouping, each lot is unique. Apply search filter to lot name +
     // extra_description AND state chips (En ligne / Pas en ligne / À rafraîchir
-    // / Vendus). Lots have `vinted_listed_at` so they implement the same
-    // ListingShape interface as cards.
+    // / Vendus). Lots have listings just like cards.
     const forSaleLots = !showLots || shouldHideForSalePile(filters)
       ? []
       : lots.filter(
           (l) =>
             l.status === 'for_sale' &&
             matchesLotSearch(l, filters.search) &&
-            passesStateChips(l, filters, now),
+            passesStateChips(l, filters, now) &&
+            passesMultiUserChip(l, filters.multiUserChip, myUserId, partnerUserId),
         );
 
     const soldLotsList = !showLots || !filters.showSold
@@ -325,6 +328,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
         totalCards={cards.length}
         selectionMode={selectionMode}
         onToggleSelectionMode={toggleSelectionMode}
+        hasPartner={partnerUserId !== null}
       />
 
       {isEmpty ? (
@@ -347,7 +351,11 @@ export default function VintedList({ cards: initial, lots: initialLots, register
               }
               onAnnonceClick={() => setAnnonceTarget(g.head)}
               onSoldClick={() => setSoldTarget({ kind: 'card', card: g.head })}
-              onListedToggled={updateCardListed}
+              listings={g.head.listings ?? []}
+              myUserId={myUserId}
+              partnerUserId={partnerUserId}
+              partnerName={partnerName}
+              onListingsChanged={onListingsChanged}
               onImageClick={() => setZoomCard(g.head)}
               onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}
               selectionMode={selectionMode}
@@ -363,7 +371,11 @@ export default function VintedList({ cards: initial, lots: initialLots, register
               onAnnonceClick={(lot) => setLotAnnonceTarget(lot)}
               onSoldClick={(lot) => setSoldTarget({ kind: 'lot', lot })}
               onPriceSaved={updateLotPrice}
-              onListedToggled={updateLotListed}
+              listings={l.listings ?? []}
+              myUserId={myUserId}
+              partnerUserId={partnerUserId}
+              partnerName={partnerName}
+              onListingsChanged={onListingsChanged}
               selectionMode={selectionMode}
               selected={selectedIds.has(l.id)}
               onToggleSelect={() => toggleSelect(l.id)}
@@ -382,7 +394,11 @@ export default function VintedList({ cards: initial, lots: initialLots, register
                 /* already sold */
               }}
               onPriceSaved={updateLotPrice}
-              onListedToggled={updateLotListed}
+              listings={l.listings ?? []}
+              myUserId={myUserId}
+              partnerUserId={partnerUserId}
+              partnerName={partnerName}
+              onListingsChanged={onListingsChanged}
             />
           ))}
         </ul>
@@ -460,7 +476,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
           onClose={() => setAnnonceTarget(null)}
           onPriceSaved={updateCardPrice}
           onCardRefreshed={(updated) => {
-            setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+            setCards((prev) => prev.map((c): CardWithListings => (c.id === updated.id ? { ...updated, listings: c.listings } : c)));
             setAnnonceTarget(updated);
           }}
         />
@@ -494,7 +510,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
             // The card has left for_sale → drop it from local state and refresh
             // so the Pokédex slot reflects the change.
             const promotedId = moveToPokedexCard.id;
-            setCards((prev) => prev.filter((c) => c.id !== promotedId));
+            setCards((prev) => prev.filter((c) => c.id !== promotedId) as CardWithListings[]);
             setMoveToPokedexCard(null);
             router.refresh();
           }}
