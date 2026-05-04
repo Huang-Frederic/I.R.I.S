@@ -277,6 +277,8 @@ const CARD_FETCH_CONCURRENCY = 5;
 
 async function enrichWithIllustrators(cards: ScrapedCard[]): Promise<void> {
   let cursor = 0;
+  let withIllu = 0;
+  let nullIllu = 0;
   async function worker() {
     while (cursor < cards.length) {
       const i = cursor++;
@@ -292,9 +294,18 @@ async function enrichWithIllustrators(cards: ScrapedCard[]): Promise<void> {
       } catch {
         c.illustrator = null;
       }
+      const tag = `${c.setCode}/${c.setNumber}`;
+      if (c.illustrator) {
+        withIllu++;
+        console.log(`    ${tag} → "${c.illustrator}"`);
+      } else {
+        nullIllu++;
+        console.log(`    ${tag} → (null)`);
+      }
     }
   }
   await Promise.all(Array.from({ length: CARD_FETCH_CONCURRENCY }, () => worker()));
+  console.log(`  → ${withIllu}/${cards.length} cards with illustrator (${nullIllu} null)`);
 }
 
 async function probe() {
