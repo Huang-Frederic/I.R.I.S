@@ -5,13 +5,18 @@ import type { CardLanguage, OcrResult } from '@/lib/types';
 
 export const runtime = 'nodejs';
 
-const VALID_LANGUAGES = new Set<CardLanguage>(['JP', 'EN', 'FR', 'DE', 'IT', 'ES', 'KO', 'PT', 'ZH']);
+const VALID_LANGUAGES = new Set<CardLanguage>(['JP', 'EN', 'FR', 'DE', 'IT', 'ES', 'KO', 'PT', 'ZH', 'CN']);
 
-/** Coerce Gemini's free-form language string into our CardLanguage enum. */
+/**
+ * Coerce Gemini's free-form language string into our CardLanguage enum.
+ * Maps ZH → CN since Gemini still emits 'ZH' (per its prompt enum) but the
+ * app standardized on 'CN' after the 2026-05-04 migration.
+ */
 function normalizeGeminiLanguage(raw: string | null | undefined): CardLanguage | undefined {
   if (!raw) return undefined;
-  const upper = raw.trim().toUpperCase() as CardLanguage;
-  return VALID_LANGUAGES.has(upper) ? upper : undefined;
+  const upper = raw.trim().toUpperCase();
+  if (upper === 'ZH' || upper === 'CN') return 'CN';
+  return VALID_LANGUAGES.has(upper as CardLanguage) ? (upper as CardLanguage) : undefined;
 }
 
 export async function POST(request: Request) {

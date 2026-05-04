@@ -16,12 +16,12 @@ export interface LotAnnonce {
 }
 
 /**
- * Title suffix code per language. Mostly = the enum value, except ZH → "CN"
- * (user's convention: Chinese cards labeled with the country code).
+ * Title suffix code per language. Same as enum value (CN replaced ZH after the
+ * 2026-05-04 enum migration). ZH kept as alias for legacy rows.
  */
 const LANGUAGE_TITLE_CODE: Record<CardLanguage, string> = {
   JP: 'JP', EN: 'EN', FR: 'FR', DE: 'DE', IT: 'IT',
-  ES: 'ES', KO: 'KO', PT: 'PT', ZH: 'CN',
+  ES: 'ES', KO: 'KO', PT: 'PT', ZH: 'CN', CN: 'CN',
 };
 
 const TITLE_PREFIX = 'Lot de Cartes Pokémon ';

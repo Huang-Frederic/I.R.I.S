@@ -3,7 +3,19 @@
  * supabase/migrations/0001_initial_schema.sql (cf. context.md section 4).
  */
 
-export type CardLanguage = 'JP' | 'EN' | 'FR' | 'DE' | 'IT' | 'ES' | 'KO' | 'PT' | 'ZH';
+/**
+ * All language codes the DB enum supports, in their canonical form. Note:
+ *   - 'CN' is preferred over 'ZH' (display + new inserts use CN).
+ *   - 'ZH' is kept for backward-compat with existing rows; never written by
+ *     the app post-2026-05-04 migration.
+ *   - 'DE', 'IT', 'ES', 'PT' are accepted by the type/DB but UI hides them
+ *     (per user collection scope: JP/EN/FR/KO/CN only).
+ */
+export type CardLanguage = 'JP' | 'EN' | 'FR' | 'DE' | 'IT' | 'ES' | 'KO' | 'PT' | 'ZH' | 'CN';
+
+/** UI-facing subset — what the user can pick in dropdowns. */
+export const UI_LANGUAGES = ['JP', 'EN', 'FR', 'KO', 'CN'] as const satisfies readonly CardLanguage[];
+export type UILanguage = (typeof UI_LANGUAGES)[number];
 
 export type CardCondition = 'NM' | 'EX' | 'GD' | 'PL' | 'PO';
 

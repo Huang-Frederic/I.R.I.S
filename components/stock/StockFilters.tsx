@@ -1,7 +1,7 @@
 'use client';
 
 import { Search, PackageCheck, PackageOpen } from 'lucide-react';
-import type { CardLanguage, CardRarity } from '@/lib/types';
+import { UI_LANGUAGES, type CardLanguage, type CardRarity } from '@/lib/types';
 
 export interface StockFilterState {
   search: string;
@@ -19,7 +19,7 @@ export const INITIAL_STOCK_FILTERS: StockFilterState = {
   forSaleStatus: 'all',
 };
 
-const LANGUAGES: ReadonlyArray<CardLanguage> = ['JP', 'EN', 'FR', 'DE', 'IT', 'ES', 'KO', 'PT', 'ZH'];
+const LANGUAGES: ReadonlyArray<CardLanguage> = UI_LANGUAGES;
 const RARITIES: ReadonlyArray<CardRarity> = ['SAR', 'AR', 'SR', 'CHR', 'RR', 'R_HOLO', 'R', 'UC', 'C', 'OTHER'];
 const VARIANTS = [
   { value: 'standard' as const, label: 'Standard' },

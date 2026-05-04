@@ -5,12 +5,12 @@ export const MAX_TITLE_LENGTH = 80;
 
 export const LANGUAGE_FLAGS: Record<CardLanguage, string> = {
   JP: '🇯🇵', EN: '🇬🇧', FR: '🇫🇷', DE: '🇩🇪', IT: '🇮🇹',
-  ES: '🇪🇸', KO: '🇰🇷', PT: '🇵🇹', ZH: '🇨🇳',
+  ES: '🇪🇸', KO: '🇰🇷', PT: '🇵🇹', ZH: '🇨🇳', CN: '🇨🇳',
 };
 
 export const LANGUAGE_FEMALE: Record<CardLanguage, string> = {
   JP: 'Japonaise', EN: 'Anglaise', FR: 'Française', DE: 'Allemande',
-  IT: 'Italienne', ES: 'Espagnole', KO: 'Coréenne', PT: 'Portugaise', ZH: 'Chinoise',
+  IT: 'Italienne', ES: 'Espagnole', KO: 'Coréenne', PT: 'Portugaise', ZH: 'Chinoise', CN: 'Chinoise',
 };
 
 export const CONDITION_LABEL: Record<CardCondition, string> = {
