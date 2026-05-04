@@ -523,6 +523,19 @@ export default function CardScanForm({
       const setCode = ocr.setCodeCandidate ?? '';
       const setNumber = setNumberParsed?.raw ?? '';
 
+      // Common Gemini fields piped to /api/enrich. Includes Strategy 5
+      // fallback inputs (cardName, pokemonName, rarity) so the route can
+      // build a usable EnrichedCard when no catalog source has the card
+      // (typical for KO/ZH Crown Series).
+      const geminiFields = {
+        pokemonNumber: ocr.pokemonNumber,
+        pokemonNameFr: ocr.pokemonNameFr,
+        setName: ocr.setName,
+        setNameFr: ocr.setNameFr,
+        cardName: ocr.cardName,
+        pokemonName: ocr.pokemonName,
+        rarity: ocr.rarity,
+      };
       const enrichBody = setNumberParsed
         ? {
             setCode: setCode || undefined,
@@ -530,19 +543,11 @@ export default function CardScanForm({
             total: Number(setNumberParsed.total),
             language,
             text: ocr.text,
-            // NEW — from Gemini extraction (Chunk 1)
-            pokemonNumber: ocr.pokemonNumber,
-            pokemonNameFr: ocr.pokemonNameFr,
-            setName: ocr.setName,
-            setNameFr: ocr.setNameFr,
+            ...geminiFields,
           }
         : {
             text: ocr.text,
-            // NEW — from Gemini extraction (Chunk 1)
-            pokemonNumber: ocr.pokemonNumber,
-            pokemonNameFr: ocr.pokemonNameFr,
-            setName: ocr.setName,
-            setNameFr: ocr.setNameFr,
+            ...geminiFields,
           };
 
       const enrichRes = await fetch('/api/enrich', {

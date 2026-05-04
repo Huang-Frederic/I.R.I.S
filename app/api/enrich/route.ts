@@ -37,6 +37,70 @@ interface EnrichBody {
   pokemonNameFr?: string | null;
   setName?: string | null;
   setNameFr?: string | null;
+
+  // Strategy 5 (Gemini-only fallback) inputs — used when catalog + TCGdex
+  // both miss (typically KO/ZH cards or exotic Crown Series sets that no
+  // open data source covers). Lets the client pre-fill the form from raw
+  // Gemini extraction without forcing the user to re-type everything.
+  cardName?: string | null;
+  pokemonName?: string | null;
+  rarity?: string | null;
+}
+
+/**
+ * Map Gemini's free-form rarity strings to our CardRarity enum. Same vocabulary
+ * as the TCGdex/LimitlessTCG mappers but lighter — only the values Gemini
+ * actually returns from its prompt's rarity enum.
+ */
+function mapGeminiRarity(rarity: string | null | undefined): EnrichedCard['rarity'] {
+  if (!rarity) return 'OTHER';
+  const r = rarity.toLowerCase().trim();
+  if (r === 'common') return 'C';
+  if (r === 'uncommon') return 'UC';
+  if (r === 'rare') return 'R';
+  if (r === 'holo rare') return 'R_HOLO';
+  if (r === 'double rare') return 'RR';
+  if (r === 'ultra rare') return 'SR';
+  if (r === 'art rare') return 'AR';
+  if (r === 'special art rare') return 'SAR';
+  if (r === 'secret rare') return 'SAR';
+  if (r === 'hyper rare') return 'SAR';
+  if (r === 'promo') return 'OTHER';
+  return 'OTHER';
+}
+
+/**
+ * Synthesize an EnrichedCard from Gemini's raw extraction when no catalog
+ * source has the card. Pricing + cardmarket_id are null (no source for KO/ZH
+ * Crown Series anyway). image_url is empty — frontend falls back to the
+ * PokeAPI sprite via cardImageUrl helper.
+ */
+function buildGeminiOnlyCard(
+  body: EnrichBody,
+  setCode: string,
+  localId: string,
+  total: number | null,
+  language: CardLanguage,
+): EnrichedCard {
+  const localIdNorm = localId.replace(/^0+/, '') || '0';
+  const setNumberFmt = total != null ? `${localIdNorm}/${total}` : localIdNorm;
+  const cardName = body.cardName ?? '';
+  const pokemonName = body.pokemonName ?? cardName;
+  return {
+    card_id_tcg: `${setCode}-${localIdNorm}`,
+    card_name: formatBilingualName(cardName, deriveCardNameFr(cardName, body.pokemonNameFr), language),
+    pokemon_name: formatBilingualName(pokemonName, body.pokemonNameFr, language),
+    pokemon_number: body.pokemonNumber ?? null,
+    set_name: formatBilingualName(body.setName ?? setCode, body.setNameFr, language),
+    set_code: setCode,
+    set_number: setNumberFmt,
+    rarity: mapGeminiRarity(body.rarity),
+    tcg_image_url: '',
+    cardmarket_id: null,
+    cm_price_low: null,
+    cm_price_trend: null,
+    cm_price_avg: null,
+  };
 }
 
 /** Helper: race a promise against a timeout, returning null instead of rejecting on timeout. */
@@ -147,8 +211,10 @@ export async function POST(request: Request) {
     // Strategy 3a: subseries probe — handles TG/GG/SWSH+/XY+/SM+ promo
     // patterns where the printed code maps to a parent set in TCGdex
     // (e.g. TG/3 → swsh11-TG03, SWSH201/201 → swshp-SWSH201).
+    // Disambiguation prefers `pokemonNumber` (national dex from Gemini) which
+    // is more reliable than card_name substring match across multi-set probes.
     if (setCode && localId) {
-      tcgdexCard = await tcgdexLookupSubseries(setCode, localId, body.text, tcgdexLang);
+      tcgdexCard = await tcgdexLookupSubseries(setCode, localId, body.text, tcgdexLang, body.pokemonNumber);
     }
 
     if (!tcgdexCard && body.text && localId) {
@@ -185,7 +251,16 @@ export async function POST(request: Request) {
       } satisfies EnrichResult);
     }
 
-    // Strategy 4: nothing found
+    // Strategy 5: Gemini-only fallback. Catalog + TCGdex both miss but Gemini
+    // has produced enough data to build a usable EnrichedCard (typical for
+    // KO/ZH Crown Series, exotic promos, brand-new sets). User completes the
+    // form from a pre-filled state instead of re-typing everything.
+    if (body.cardName && setCode && localId) {
+      const fallback = buildGeminiOnlyCard(body, setCode, localId, total, cardLang);
+      return NextResponse.json({ bestMatch: fallback, candidates: [fallback] } satisfies EnrichResult);
+    }
+
+    // Strategy 6: nothing usable — caller falls back to bare OCR fields.
     return NextResponse.json({ bestMatch: null, candidates: [] } satisfies EnrichResult);
   } catch (error) {
     console.error('Enrich failed:', error);

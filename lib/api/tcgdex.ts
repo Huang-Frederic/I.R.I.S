@@ -254,14 +254,19 @@ const PROMO_PATTERNS: Array<{ regex: RegExp; promoSet: string }> = [
  * indicator (TG/GG) or a promo card identifier (SWSH201, XY41, …) rather than
  * a standalone set code. Returns null when no pattern matches or no probe hits.
  *
- * Disambiguates multi-set TG probes by fuzzy-matching `cardName` (Pokémon
- * name often suffices since TG cards across sets feature different species).
+ * Disambiguates multi-set TG probes by:
+ *   1. `pokemonNumber` (national dex) when provided — most reliable since
+ *      different TG numbers across sets feature different Pokémon species
+ *      (e.g. TG03 = Octillery in swsh9, but Charizard in swsh11).
+ *   2. `cardName` substring match as fallback.
+ *   3. First hit as last-resort guess.
  */
 export async function lookupSubseries(
   setCode: string,
   localId: string,
   cardName: string | undefined,
   lang: TCGdexLang = 'en',
+  pokemonNumber?: number | null,
 ): Promise<TCGdexCard | null> {
   const code = setCode.toUpperCase();
 
@@ -277,7 +282,13 @@ export async function lookupSubseries(
     const hits = probes.filter((c): c is TCGdexCard => c !== null);
     if (hits.length === 0) return null;
     if (hits.length === 1) return hits[0];
-    // Multiple hits — disambiguate by card_name (Pokémon name typically suffices)
+
+    // Multiple hits — disambiguate by pokemon_number (national dex). Most reliable.
+    if (typeof pokemonNumber === 'number') {
+      const byDex = hits.find((c) => Array.isArray(c.dexId) && c.dexId.includes(pokemonNumber));
+      if (byDex) return byDex;
+    }
+    // Fallback: substring match on cardName (Pokémon species name)
     if (cardName) {
       const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
       const target = norm(cardName);

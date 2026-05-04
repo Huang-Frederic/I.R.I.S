@@ -52,6 +52,9 @@ export async function POST(request: Request) {
       pokemonNameFr: geminiResult.pokemon_name_fr,
       setName: geminiResult.set_name,
       setNameFr: geminiResult.set_name_fr,
+      cardName: geminiResult.card_name,
+      pokemonName: geminiResult.pokemon_name,
+      rarity: geminiResult.rarity,
       _usage: geminiResult._usage,
       _engine: 'gemini',
     };
