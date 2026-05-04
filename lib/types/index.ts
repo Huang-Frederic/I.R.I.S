@@ -55,7 +55,6 @@ export interface Card {
   cm_price_avg: number | null;
   suggested_price: number | null;
   cm_updated_at: string | null;
-  vinted_listed_at: string | null;
   lot_id: string | null;
   date_added: string;
   date_sold: string | null;
@@ -79,7 +78,6 @@ export interface Lot {
   status: 'for_sale' | 'sold';
   date_sold: string | null;
   sold_price: number | null;
-  vinted_listed_at: string | null;
   /** Array of Storage paths relative to the lot-photos bucket, e.g. ["{lot_id}/0.jpg"]. */
   photo_urls: string[];
   date_added: string;
@@ -192,4 +190,33 @@ export interface EnrichResult {
   bestMatch: EnrichedCard | null;
   /** Up to 10 alternatives the user can pick if the best match is wrong. */
   candidates: EnrichedCard[];
+}
+
+/** Common shape for both card_listings and lot_listings rows. */
+export interface BaseListing {
+  user_id: string;
+  listed_at: string;
+}
+
+export interface CardListing extends BaseListing {
+  card_id: string;
+}
+
+export interface LotListing extends BaseListing {
+  lot_id: string;
+}
+
+export interface UserProfile {
+  user_id: string;
+  display_name: string;
+}
+
+/** Card hydrated avec ses card_listings (chargés en parallèle côté server). */
+export interface CardWithListings extends Card {
+  listings: CardListing[];
+}
+
+/** Lot hydrated avec ses lot_listings. */
+export interface LotWithListings extends Lot {
+  listings: LotListing[];
 }
