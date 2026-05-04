@@ -2,9 +2,9 @@
 'use client';
 
 import { BookmarkCheck, Bookmark, Tag } from 'lucide-react';
-import type { Card } from '@/lib/types';
+import type { Card, BaseListing } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
-import VintedListedToggle from './VintedListedToggle';
+import ListingBadges from './ListingBadges';
 
 const VARIANT_LABEL: Record<string, string> = {
   pokeball: 'Poké Ball',
@@ -38,7 +38,11 @@ interface Props {
   priceCell: React.ReactNode;
   onAnnonceClick: () => void;
   onSoldClick: () => void;
-  onListedToggled: (cardId: string, listedAt: string | null) => void;
+  listings: BaseListing[];
+  myUserId: string;
+  partnerUserId: string | null;
+  partnerName: string | null;
+  onListingsChanged: () => void;
   onImageClick?: (card: Card) => void;
   /**
    * Called when the user clicks the "Pas Pokédex" badge — invitation to
@@ -53,7 +57,7 @@ interface Props {
 }
 
 export default function VintedRow({
-  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, onListedToggled, onImageClick, onMoveToPokedexClick, selectionMode, selected, onToggleSelect,
+  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onImageClick, onMoveToPokedexClick, selectionMode, selected, onToggleSelect,
 }: Props) {
   const card = group.head;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
@@ -126,10 +130,16 @@ export default function VintedRow({
                 Pas Pokédex
               </button>
             )}
-            <VintedListedToggle
-              cardId={card.id}
-              currentListedAt={card.vinted_listed_at}
-              onToggled={(listedAt) => onListedToggled(card.id, listedAt)}
+            <ListingBadges
+              itemKind="card"
+              itemId={card.id}
+              itemStatus={card.status}
+              listings={listings}
+              myUserId={myUserId}
+              partnerUserId={partnerUserId}
+              partnerName={partnerName}
+              onListed={onListingsChanged}
+              onUnlisted={onListingsChanged}
             />
           </div>
         </div>
