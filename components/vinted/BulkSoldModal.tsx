@@ -14,6 +14,8 @@ interface Props {
   items: BulkSoldItem[];
   onClose: () => void;
   onConfirm: (totalPrice: number, dateSold: string) => Promise<void>;
+  partnerName: string | null;
+  partnerListedItems: Array<{ name: string }>;
 }
 
 function todayIso(): string {
@@ -43,7 +45,7 @@ function displaySubText(item: BulkSoldItem): string {
   return `Lot${item.lot.language ? ' · ' + item.lot.language : ''}${item.lot.condition ? ' · ' + item.lot.condition : ''}`;
 }
 
-export default function BulkSoldModal({ items, onClose, onConfirm }: Props) {
+export default function BulkSoldModal({ items, onClose, onConfirm, partnerName, partnerListedItems }: Props) {
   const [priceStr, setPriceStr] = useState('');
   const [date, setDate] = useState(todayIso());
   const [submitting, setSubmitting] = useState(false);
@@ -91,6 +93,22 @@ export default function BulkSoldModal({ items, onClose, onConfirm }: Props) {
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {partnerName && partnerListedItems.length > 0 && (
+          <div className="bg-red-bg border-red mb-4 rounded border px-3 py-2 text-sm">
+            <p className="text-red font-medium">
+              ⚠ {partnerName} a aussi {partnerListedItems.length} de ces cartes en ligne sur Vinted.
+            </p>
+            <ul className="text-text-muted mt-1 list-disc pl-5 text-xs">
+              {partnerListedItems.slice(0, 5).map((it, i) => (
+                <li key={i}>{it.name}</li>
+              ))}
+              {partnerListedItems.length > 5 && (
+                <li>… et {partnerListedItems.length - 5} autres.</li>
+              )}
+            </ul>
+          </div>
+        )}
 
         <ul className="mb-4 max-h-60 space-y-1.5 overflow-y-auto pr-1">
           {items.map((item, i) => {

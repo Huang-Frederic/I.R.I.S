@@ -3,9 +3,10 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Card, Lot, CardWithListings, LotWithListings } from '@/lib/types';
+import type { Card, Lot, CardWithListings, LotWithListings, BaseListing } from '@/lib/types';
 import { groupCards, type CardGroup } from '@/lib/utils/group-cards';
 import { sortVintedGroups } from '@/lib/utils/vinted-sort';
+import { getPartnerListing } from '@/lib/utils/listings';
 import VintedFilters, { INITIAL_FILTERS, type VintedFilterState } from './VintedFilters';
 import VintedRow from './VintedRow';
 import SoldRow from './SoldRow';
@@ -151,6 +152,11 @@ export default function VintedList({ cards: initial, lots: initialLots, register
       );
     }
     setSoldTarget(null);
+    // Side-effect: DELETE my listing after sale
+    const kind = info.kind === 'card' ? 'card' : 'lot';
+    fetch(`/api/listings/${kind}/${info.soldId}`, { method: 'DELETE' }).catch(() => {
+      // Silent — RLS allows me to delete only my own listings, error is non-fatal.
+    });
   };
 
   const handlePromoted = () => {
@@ -223,6 +229,11 @@ export default function VintedList({ cards: initial, lots: initialLots, register
         } else {
           setLots((prev) => prev.map((l): LotWithListings => (l.id === id ? { ...l, status: 'sold' as const, sold_price, date_sold: dateSoldIso } : l)));
         }
+        // Side-effect: DELETE my listing after sale
+        const kind = item.kind === 'card' ? 'card' : 'lot';
+        fetch(`/api/listings/${kind}/${id}`, { method: 'DELETE' }).catch(() => {
+          // Silent — best-effort
+        });
       } catch (e) {
         failCount += 1;
         errors.push(`${item.kind === 'card' ? item.card.card_name : item.lot.name}: ${e instanceof Error ? e.message : 'network'}`);
@@ -275,7 +286,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     // shared helper keeps the UI semantics in lockstep with the test suite.
     const finalForSale = !showCards || shouldHideForSalePile(filters)
       ? []
-      : forSale.filter((c) => passesCommon(c) && passesStateChips(c, filters, now) && passesMultiUserChip(c, filters.multiUserChip, myUserId, partnerUserId));
+      : forSale.filter((c) => passesCommon(c) && passesStateChips(c, filters, now) && passesMultiUserChip(c as { status: string; listings: BaseListing[] }, filters.multiUserChip, myUserId, partnerUserId));
 
     // Sold pile is independent: included only when the Vendus chip is on.
     const soldSubset = !showCards || !filters.showSold
@@ -299,7 +310,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
             l.status === 'for_sale' &&
             matchesLotSearch(l, filters.search) &&
             passesStateChips(l, filters, now) &&
-            passesMultiUserChip(l, filters.multiUserChip, myUserId, partnerUserId),
+            passesMultiUserChip(l as { status: string; listings: BaseListing[] }, filters.multiUserChip, myUserId, partnerUserId),
         );
 
     const soldLotsList = !showLots || !filters.showSold
@@ -424,6 +435,14 @@ export default function VintedList({ cards: initial, lots: initialLots, register
           ...selectedCards.map((c) => ({ kind: 'card' as const, card: c })),
           ...selectedLots.map((l) => ({ kind: 'lot' as const, lot: l })),
         ];
+        const partnerListedItems: Array<{ name: string }> = [
+          ...selectedCards
+            .filter((c) => getPartnerListing(c.listings, partnerUserId))
+            .map((c) => ({ name: c.card_name })),
+          ...selectedLots
+            .filter((l) => getPartnerListing(l.listings, partnerUserId))
+            .map((l) => ({ name: l.name })),
+        ];
         return (
           <BulkSoldModal
             items={items}
@@ -433,17 +452,37 @@ export default function VintedList({ cards: initial, lots: initialLots, register
               setBulkSoldOpen(false);
               cancelSelection();
             }}
+            partnerName={partnerName}
+            partnerListedItems={partnerListedItems}
           />
         );
       })()}
 
-      {bulkRecap && (
-        <BulkSoldRecapModal
-          items={bulkRecap.items}
-          restocks={bulkRecap.restocks}
-          onClose={dismissBulkRecap}
-        />
-      )}
+      {bulkRecap && (() => {
+        // Build partner-listed items from the recap items (which come from selectedCards/selectedLots, preserving listings at runtime)
+        const partnerListedItems: Array<{ name: string }> = bulkRecap.items
+          .map((it) => {
+            // Runtime: card/lot have listings because they came from CardWithListings/LotWithListings
+            if (it.kind === 'card') {
+              const listings = (it.card as CardWithListings).listings ?? [];
+              if (getPartnerListing(listings, partnerUserId)) return { name: it.card.card_name };
+            } else {
+              const listings = (it.lot as LotWithListings).listings ?? [];
+              if (getPartnerListing(listings, partnerUserId)) return { name: it.lot.name };
+            }
+            return null;
+          })
+          .filter((x): x is { name: string } => x !== null);
+        return (
+          <BulkSoldRecapModal
+            items={bulkRecap.items}
+            restocks={bulkRecap.restocks}
+            onClose={dismissBulkRecap}
+            partnerName={partnerName}
+            partnerListedItems={partnerListedItems}
+          />
+        );
+      })()}
 
       {/* Drain bulk-promote queue: shown after the recap modal closes. Each
         decision shifts the queue, exposing the next candidate. */}
@@ -459,7 +498,17 @@ export default function VintedList({ cards: initial, lots: initialLots, register
       )}
 
       {soldTarget && (
-        <SoldModal entity={soldTarget} onClose={() => setSoldTarget(null)} onSold={handleSold} />
+        <SoldModal
+          entity={soldTarget}
+          onClose={() => setSoldTarget(null)}
+          onSold={handleSold}
+          partnerListing={
+            soldTarget.kind === 'card'
+              ? getPartnerListing((soldTarget.card as CardWithListings).listings ?? [], partnerUserId)
+              : getPartnerListing((soldTarget.lot as LotWithListings).listings ?? [], partnerUserId)
+          }
+          partnerName={partnerName}
+        />
       )}
       {restockAlert && <RestockToast alert={restockAlert} onDismiss={() => setRestockAlert(null)} />}
       {promoteCandidate && (
