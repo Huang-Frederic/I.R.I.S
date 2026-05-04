@@ -123,6 +123,13 @@ export interface OcrResult {
   setName?: string | null;
   setNameFr?: string | null;
 
+  /**
+   * Language detected by Gemini (the structured `language` field from the
+   * extraction). Authoritative when present — frontend should NOT fall back to
+   * regex sniffing of `text` which only distinguishes JP from "not JP".
+   */
+  language?: CardLanguage;
+
   // Raw card identity from Gemini — used by the enrich Strategy 5 (Gemini-only
   // fallback) when no catalog source has the card, so the form can pre-fill
   // these fields instead of forcing the user to re-type them.

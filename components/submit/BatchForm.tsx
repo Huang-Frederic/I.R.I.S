@@ -64,7 +64,7 @@ export default function BatchForm() {
               text: ocr.text,
               setCode: ocr.setCodeCandidate,
               localId: ocr.setNumberCandidate?.card,
-              language: 'JP',
+              language: ocr.language ?? 'JP',
               pokemonNumber: ocr.pokemonNumber,
               pokemonNameFr: ocr.pokemonNameFr,
               setName: ocr.setName,
