@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { passesStateChips, shouldHideForSalePile, type ChipState } from './vinted-filter';
+import { passesStateChips, shouldHideForSalePile, passesMultiUserChip, type ChipState } from './vinted-filter';
+import type { BaseListing } from '@/lib/types';
 
 const NOW = new Date('2026-04-30T12:00:00Z').getTime();
 const dayMs = 24 * 60 * 60 * 1000;
@@ -97,5 +98,69 @@ describe('shouldHideForSalePile', () => {
   it('returns false when only state chips (no showSold) are active', () => {
     expect(shouldHideForSalePile({ ...NONE, showOnline: true })).toBe(false);
     expect(shouldHideForSalePile({ ...NONE, showStale: true })).toBe(false);
+  });
+});
+
+const MY_ID = 'my-uuid';
+const PARTNER_ID = 'partner-uuid';
+
+interface FakeItem {
+  status: string;
+  listings: BaseListing[];
+}
+
+const noListings: FakeItem = { status: 'for_sale', listings: [] };
+const onlyMine: FakeItem = {
+  status: 'for_sale',
+  listings: [{ user_id: MY_ID, listed_at: '2026-05-01T00:00:00Z' }],
+};
+const onlyPartner: FakeItem = {
+  status: 'for_sale',
+  listings: [{ user_id: PARTNER_ID, listed_at: '2026-04-15T00:00:00Z' }],
+};
+const cross: FakeItem = {
+  status: 'for_sale',
+  listings: [
+    { user_id: MY_ID, listed_at: '2026-05-01T00:00:00Z' },
+    { user_id: PARTNER_ID, listed_at: '2026-04-15T00:00:00Z' },
+  ],
+};
+const mineButSold: FakeItem = {
+  status: 'sold',
+  listings: [{ user_id: MY_ID, listed_at: '2026-05-01T00:00:00Z' }],
+};
+
+describe('passesMultiUserChip', () => {
+  it('chip "all" → always true', () => {
+    expect(passesMultiUserChip(noListings, 'all', MY_ID, PARTNER_ID)).toBe(true);
+    expect(passesMultiUserChip(onlyMine, 'all', MY_ID, PARTNER_ID)).toBe(true);
+  });
+
+  it('chip "mine" → true when I have a listing', () => {
+    expect(passesMultiUserChip(onlyMine, 'mine', MY_ID, PARTNER_ID)).toBe(true);
+    expect(passesMultiUserChip(onlyPartner, 'mine', MY_ID, PARTNER_ID)).toBe(false);
+  });
+
+  it('chip "partner" → true only when partner has a listing AND partnerUserId is set', () => {
+    expect(passesMultiUserChip(onlyPartner, 'partner', MY_ID, PARTNER_ID)).toBe(true);
+    expect(passesMultiUserChip(onlyMine, 'partner', MY_ID, PARTNER_ID)).toBe(false);
+    expect(passesMultiUserChip(onlyPartner, 'partner', MY_ID, null)).toBe(false);
+  });
+
+  it('chip "cross" → true only when both have a listing', () => {
+    expect(passesMultiUserChip(cross, 'cross', MY_ID, PARTNER_ID)).toBe(true);
+    expect(passesMultiUserChip(onlyMine, 'cross', MY_ID, PARTNER_ID)).toBe(false);
+    expect(passesMultiUserChip(onlyPartner, 'cross', MY_ID, PARTNER_ID)).toBe(false);
+  });
+
+  it('chip "none" → true only when nobody has a listing', () => {
+    expect(passesMultiUserChip(noListings, 'none', MY_ID, PARTNER_ID)).toBe(true);
+    expect(passesMultiUserChip(onlyMine, 'none', MY_ID, PARTNER_ID)).toBe(false);
+  });
+
+  it('chip "to_delete" → true when I have a listing AND status != for_sale', () => {
+    expect(passesMultiUserChip(mineButSold, 'to_delete', MY_ID, PARTNER_ID)).toBe(true);
+    expect(passesMultiUserChip(onlyMine, 'to_delete', MY_ID, PARTNER_ID)).toBe(false);
+    expect(passesMultiUserChip(noListings, 'to_delete', MY_ID, PARTNER_ID)).toBe(false);
   });
 });
