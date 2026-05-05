@@ -1,3 +1,5 @@
+> **Brief historique — TERMINÉ.** Phase 3c shippé en plusieurs volets non prévus initialement (Volet 3 multilang resilience, Volet 5 catalog scraper illustrator, switch modèle gemini-3.1-flash-lite-preview). Voir `docs/phases-summary.md` pour ce qui a réellement été livré.
+
 # Phase 3 : bulk vendu + Gemini Tokens Optimisation
 
 ## Bulk Vendu 

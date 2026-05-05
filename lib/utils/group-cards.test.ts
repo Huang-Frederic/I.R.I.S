@@ -93,4 +93,24 @@ describe('groupCards', () => {
     const groups = groupCards([c3, c1, c2]);
     expect(groups[0].cards.map((c) => c.id)).toEqual(['c1', 'c2', 'c3']);
   });
+
+  it('picks the for_sale card as head over an older sold card', () => {
+    // Scenario: partner already sold the original (Card1), I promoted my
+    // stock copy (Card2). The for_sale row should drive what the user sees.
+    const oldSold = makeCard({ id: 'old-sold', status: 'sold', date_added: '2026-01-01T00:00:00Z' });
+    const newForSale = makeCard({ id: 'new-fs', status: 'for_sale', date_added: '2026-02-01T00:00:00Z' });
+    const groups = groupCards([oldSold, newForSale]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].head.id).toBe('new-fs');
+    // Count excludes the historical sold card so the row doesn't display "x2".
+    expect(groups[0].count).toBe(1);
+  });
+
+  it('count excludes sold rows but keeps active stock copies', () => {
+    const sold = makeCard({ id: 'sold', status: 'sold', date_added: '2026-01-01T00:00:00Z' });
+    const stock1 = makeCard({ id: 'stock1', status: 'collection', date_added: '2026-02-01T00:00:00Z' });
+    const stock2 = makeCard({ id: 'stock2', status: 'collection', date_added: '2026-03-01T00:00:00Z' });
+    const groups = groupCards([sold, stock1, stock2]);
+    expect(groups[0].count).toBe(2);
+  });
 });

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X, BookmarkCheck, Package, Tag } from 'lucide-react';
+import { VARIANT_LABEL } from '@/lib/utils/labels';
 
 interface ExistingPokedexCard {
   id: string;
@@ -15,14 +16,6 @@ interface ExistingPokedexCard {
   rarity: string;
   variant: string | null;
 }
-
-const VARIANT_LABEL: Record<string, string> = {
-  pokeball: 'Poké Ball',
-  masterball: 'Master Ball',
-  reverse_holo: 'Reverse Holo',
-  stamp: 'Stamp',
-  promo: 'Promo',
-};
 
 interface Props {
   /** The card the user wants to promote into the Pokédex slot. */

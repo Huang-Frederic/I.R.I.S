@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { X, ScanLine, Sparkles, RefreshCcw, Trash2, Package, Tag } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import { getPokemonName } from '@/lib/data/pokemon-names';
+import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
 import PokedexScanModal from './PokedexScanModal';
 import PokedexCardActionsModal from './PokedexCardActionsModal';
 import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
@@ -21,27 +22,6 @@ interface PokedexDrawerProps {
 
 const SPRITE_BASE =
   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
-
-const VARIANT_LABEL: Record<string, string> = {
-  pokeball: 'Poké Ball',
-  masterball: 'Master Ball',
-  reverse_holo: 'Reverse Holo',
-  stamp: 'Stamp',
-  promo: 'Promo',
-};
-
-const RARITY_CLASS: Record<string, string> = {
-  SAR: 'text-rarity-sar',
-  AR: 'text-rarity-ar',
-  SR: 'text-rarity-sr',
-  CHR: 'text-rarity-chr',
-  RR: 'text-rarity-rr',
-  R_HOLO: 'text-rarity-r-holo',
-  R: 'text-rarity-r',
-  UC: 'text-rarity-uc',
-  C: 'text-rarity-c',
-  OTHER: 'text-text-muted',
-};
 
 export default function PokedexDrawer({
   open,
@@ -138,7 +118,7 @@ function PokedexCardDetails({ card, availableCards }: { card: Card; availableCar
         </Row>
         <Row label="N° set">{card.set_number ?? '—'}</Row>
         <Row label="Rareté">
-          <span className={RARITY_CLASS[card.rarity] ?? 'text-text-muted'}>{card.rarity}</span>
+          <span className={RARITY_COLOR[card.rarity] ?? 'text-text-muted'}>{card.rarity}</span>
           {card.variant && (
             <span className="bg-surface-off text-text-muted ml-2 inline-flex items-center rounded px-1.5 py-0.5 font-mono text-xs">
               {VARIANT_LABEL[card.variant] ?? card.variant}
@@ -293,7 +273,7 @@ function ReplaceList({
           <Sparkles className="text-rarity-ar h-4 w-4 shrink-0" />
           <div className="flex-1 truncate">
             <p className="truncate">
-              <span className={RARITY_CLASS[c.rarity]}>{c.rarity}</span> · {c.language} · {c.condition}
+              <span className={RARITY_COLOR[c.rarity]}>{c.rarity}</span> · {c.language} · {c.condition}
             </p>
             <p className="text-text-faint truncate font-mono text-xs">
               {c.set_code ?? '—'} {c.set_number ?? ''} ·{' '}

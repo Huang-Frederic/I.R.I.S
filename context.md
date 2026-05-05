@@ -863,4 +863,4 @@ Le script doit être **entièrement implémenté** (pas de pseudo-code). Utilise
 - Ne pas faire de pagination complexe sur la liste Vinted — infinite scroll ou "charger plus" suffisent
 - Ne pas créer de table séparée pour les alertes restock — calculées à la volée
 - Ne pas stocker les prix Cardmarket historiques — seulement le dernier update (pas de time series)
-- Ne pas implémenter de partage ou multi-utilisateur — app strictement mono-utilisateur
+- ~~Ne pas implémenter de partage ou multi-utilisateur~~ — **obsolète Phase 4** : app 2-users (Lui = Hisshiden, Elle = Hilyna) avec RLS Supabase scopée par `auth.uid()` sur `card_listings` / `lot_listings`. Pokédex + stock physique restent partagés ; chaque user a sa propre annonce sur son Vinted.

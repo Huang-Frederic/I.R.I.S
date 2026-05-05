@@ -44,13 +44,14 @@ Une fois le projet créé, dans le dashboard Supabase :
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` : ligne **Project API keys → anon public**
    - `SUPABASE_SERVICE_ROLE_KEY` : ligne **Project API keys → service_role secret** ⚠️ **JAMAIS exposée côté client, JAMAIS commitée**
 
-### 1.3 Créer le user mono-utilisateur
+### 1.3 Créer les users (2 comptes)
 
-L'app I.R.I.S est mono-utilisateur. Crée ton compte :
+Depuis Phase 4, l'app gère 2 users (Lui = Hisshiden, Elle = Hilyna). Crée les 2 comptes :
 
-1. Dans le dashboard Supabase → **Authentication** → **Users** → **Add user → Create new user**.
-2. Renseigne email + mot de passe. Désactive l'envoi d'email d'invitation.
-3. Note ces credentials — c'est avec ça que tu te connecteras à I.R.I.S.
+1. Dashboard Supabase → **Authentication** → **Users** → **Add user → Create new user**, ×2 (un email pour Lui, un pour Elle). Désactive l'envoi d'email d'invitation.
+2. Note les `auth.uid()` retournés — la migration `20260505000000_phase4_multi_user.sql` seede `user_profiles` avec ces ids (display_name "Lui"/"Elle"). Si tes UIDs diffèrent, update la table `user_profiles` après l'apply.
+3. Note les credentials pour login.
+4. **Désactive le signup public** : Authentication → Settings → décoche "Enable email signups". L'app est en whitelist 2-users.
 
 ### 1.4 Storage buckets
 
@@ -118,7 +119,7 @@ Phase 1.12 — **bloquant pour atteindre les 93% accuracy OCR**. Sans Gemini, l'
 
 ### 3.2 Activer la facturation Tier 1
 
-Le free tier de Gemini limite à 5 requêtes/min, ce qui est trop peu pour un usage scan répété. Activer la facturation passe automatiquement en **Tier 1** (15 req/min, suffisant pour usage mono-utilisateur).
+Le free tier de Gemini limite à 5 requêtes/min, ce qui est trop peu pour un usage scan répété. Activer la facturation passe automatiquement en **Tier 1** (15 req/min, suffisant pour 2 users avec scan séquentiel).
 
 1. Dans la GCP console → **Facturation** → vérifie que ton projet est rattaché à un compte de facturation valide (le même que pour Vision).
 2. Coût estimé : **~6¢/mois pour 100 scans** (input ~200 tokens + output ~50 tokens à $0.075/$0.030 par 1M tokens). Reste largement dans le free tier facturé.
@@ -180,8 +181,13 @@ Toutes les migrations dans `supabase/migrations/` doivent être appliquées dans
 | 1 | `20260425224142_initial_schema.sql` | Enums + 4 tables (`rarity_ranks`, `lots`, `cards`, `config`), index unique partiel `one_pokedex_per_pokemon`, trigger rarity_rank, RPC `replace_pokedex_card` (sera réécrite par migration 5), buckets Storage `card-photos` / `lot-photos` + RLS |
 | 2 | `20260428114538_tcg_catalog.sql` | Table `tcg_catalog` pour les 111K cartes scrapées LimitlessTCG (Phase 1.11) |
 | 3 | `20260429142350_add_cards_variant.sql` | Colonne `variant text` sur `cards` (Phase 1.13) |
-| 4 | `20260430130000_phase21_vinted_unique_listed.sql` | Index partiel unique `one_for_sale_per_group` + colonne `vinted_listed_at` + index sort (Phase 2.1) |
+| 4 | `20260430130000_phase21_vinted_unique_listed.sql` | Index partiel unique `one_for_sale_per_group` + colonne `vinted_listed_at` (sera dropée Phase 4) + index sort (Phase 2.1) |
 | 5 | `20260430200000_fix_replace_pokedex_card_3step.sql` | Réécrit `replace_pokedex_card` en 3-step pour gérer la collision unicité for_sale (Phase 2.1) |
+| 6 | `20260502120000_lots_vinted_bundle.sql` | Étend `lots` (11 colonnes) + storage bucket `lot-photos` (Phase 3b1) |
+| 7 | `20260504000000_rename_zh_to_cn.sql` | Renomme enum `ZH` → `CN` end-to-end (Phase 3c) |
+| 8 | `20260504100000_tcg_catalog_illustrator.sql` | Colonne `illustrator` sur `tcg_catalog` + index (Phase 3c) |
+| 9 | `20260505000000_phase4_multi_user.sql` | Tables `user_profiles`, `card_listings`, `lot_listings` ; backfill depuis `vinted_listed_at` puis DROP des deux colonnes ; RLS scopée par `auth.uid()` ; seed `user_profiles` avec Lui (Hisshiden) / Elle (Hilyna) (Phase 4) |
+| 10 | `20260505100000_sold_by_user.sql` | Colonne `sold_by_user_id uuid REFERENCES auth.users` sur `cards` + `lots`, backfill vers Hisshiden pour les ventes pré-Phase-4 (Phase 4 follow-up). `IF NOT EXISTS` → idempotent |
 
 ### Option A — via la CLI Supabase (recommandé)
 
