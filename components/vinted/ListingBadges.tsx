@@ -10,7 +10,6 @@ import {
   isStaleForListing,
 } from '@/lib/utils/listings';
 import { badgeClassesForColor, colorForUserName } from '@/lib/utils/user-colors';
-import { useUserContext } from '@/lib/hooks/useUserContext';
 import ConfirmDialog from './ConfirmDialog';
 
 interface Props {
@@ -46,12 +45,13 @@ export default function ListingBadges({
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { myName } = useUserContext();
   const mine = getMyListing(listings, myUserId);
   const partner = getPartnerListing(listings, partnerUserId);
   const stale = isStaleForListing(mine, now);
   const toDelete = mine !== null && itemStatus !== 'for_sale';
-  const myColor = colorForUserName(myName);
+  // Per design: my own badge is always the default green ("Moi"); only the
+  // partner badge is tinted with their identity color (Lui blue / Elle pink).
+  // From my POV I'm always "Moi" — never my own display name.
   const partnerColor = colorForUserName(partnerName);
 
   async function postListing() {
@@ -87,9 +87,9 @@ export default function ListingBadges({
     <>
       <div className="flex flex-wrap items-center gap-1.5 text-xs">
         {mine && (
-          <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 ${badgeClassesForColor(myColor)}`}>
+          <span className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5">
             <Globe className="h-3 w-3" />
-            Listée par {myName ?? 'Moi'} · {daysSince(mine.listed_at, now)}j
+            Listée par Moi · {daysSince(mine.listed_at, now)}j
             {stale && (
               <span className="bg-red text-bg ml-1 rounded px-1 py-0.5 text-[10px] font-medium">
                 Stale

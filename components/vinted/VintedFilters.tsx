@@ -68,8 +68,10 @@ const CHIPS: Chip[] = [
 ];
 
 export default function VintedFilters({ value, onChange, visibleCards, totalCards, selectionMode, onToggleSelectionMode, hasPartner }: Props) {
-  const { myName, partnerName } = useUserContext();
-  const myColor = colorForUserName(myName);
+  // Per design: my own chip is the default tint ('Moi'); only the partner
+  // chip is colored by their identity. From my POV I'm always 'Moi', never
+  // my own display name.
+  const { partnerName } = useUserContext();
   const partnerColor = colorForUserName(partnerName);
   const toggleChip = (key: Chip['key']) => onChange({ ...value, [key]: !value[key] });
 
@@ -191,10 +193,10 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
         <button
           type="button"
           onClick={() => onChange({ ...value, multiUserChip: 'mine' })}
-          className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${chipClassesForColor(myColor, value.multiUserChip === 'mine')}`}
+          className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${chipClassesForColor('neutral', value.multiUserChip === 'mine')}`}
         >
           <User className="h-3.5 w-3.5" />
-          Par {myName ?? 'moi'}
+          Par moi
         </button>
         {hasPartner && partnerName && (
           <button

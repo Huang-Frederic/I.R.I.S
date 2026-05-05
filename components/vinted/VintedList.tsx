@@ -170,22 +170,38 @@ export default function VintedList({ cards: initial, lots: initialLots, register
       : '';
 
     if (info.kind === 'card') {
-      // Mark the card as sold in local state instead of removing it (so it shows up under Vendus filter).
+      // Mark sold + drop my listing optimistically so inActionPile() returns
+      // false and the card immediately moves to the Vendus pile. Without this
+      // the row stays in for-sale with the À retirer + Listée par X badges
+      // until the user reloads the page.
       setCards((prev) =>
         prev.map((c): CardWithListings =>
           c.id === info.soldId
-            ? { ...c, status: 'sold' as const, date_sold: new Date().toISOString() }
+            ? {
+                ...c,
+                status: 'sold' as const,
+                date_sold: new Date().toISOString(),
+                sold_by_user_id: myUserId,
+                listings: c.listings.filter((l) => l.user_id !== myUserId),
+              }
             : c,
         ),
       );
       if (info.restock) setRestockAlert(info.restock);
       if (info.promote) setPromoteCandidate(info.promote);
     } else {
-      // Lot branch: mark the lot as sold in local state (so it appears under Vendus filter).
+      // Lot branch: same optimistic listing-prune so the row leaves the
+      // for-sale pile right after sold.
       setLots((prev) =>
         prev.map((l): LotWithListings =>
           l.id === info.soldId
-            ? { ...l, status: 'sold' as const, date_sold: new Date().toISOString() }
+            ? {
+                ...l,
+                status: 'sold' as const,
+                date_sold: new Date().toISOString(),
+                sold_by_user_id: myUserId,
+                listings: l.listings.filter((l2) => l2.user_id !== myUserId),
+              }
             : l,
         ),
       );
@@ -281,11 +297,11 @@ export default function VintedList({ cards: initial, lots: initialLots, register
         soldItems.push(item);
         partnerListedFlags.push(hadPartnerListing);
         if (item.kind === 'card') {
-          setCards((prev) => prev.map((c): CardWithListings => (c.id === id ? { ...c, status: 'sold' as const, sold_price, date_sold: dateSoldIso } : c)));
+          setCards((prev) => prev.map((c): CardWithListings => (c.id === id ? { ...c, status: 'sold' as const, sold_price, date_sold: dateSoldIso, sold_by_user_id: myUserId, listings: c.listings.filter((l) => l.user_id !== myUserId) } : c)));
           if (json.restock) restocks.push(json.restock);
           if (json.promote) promotes.push(json.promote);
         } else {
-          setLots((prev) => prev.map((l): LotWithListings => (l.id === id ? { ...l, status: 'sold' as const, sold_price, date_sold: dateSoldIso } : l)));
+          setLots((prev) => prev.map((l): LotWithListings => (l.id === id ? { ...l, status: 'sold' as const, sold_price, date_sold: dateSoldIso, sold_by_user_id: myUserId, listings: l.listings.filter((l2) => l2.user_id !== myUserId) } : l)));
         }
         // Side-effect: DELETE my listing after sale
         const kind = item.kind === 'card' ? 'card' : 'lot';
@@ -480,7 +496,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
             />
           ))}
           {soldRows.map((c) => (
-            <SoldRow key={c.id} card={c} />
+            <SoldRow key={c.id} card={c} onAnnonceClick={(card) => setAnnonceTarget(card)} />
           ))}
           {soldLotsList.map((l) => (
             <LotSoldRow

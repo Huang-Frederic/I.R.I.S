@@ -144,16 +144,13 @@ export default function StockRow({
                 Vinted
               </span>
             ) : (
-              <button
-                type="button"
-                onClick={() => onListForSaleClick(card)}
-                disabled={busy}
-                title="Mettre cette carte en vente sur Vinted"
-                className="bg-rarity-ar/20 text-rarity-ar hover:bg-rarity-ar/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors disabled:opacity-50"
+              <span
+                className="bg-rarity-ar/20 text-rarity-ar inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
+                title="Cette carte n'est pas en vente — utilise le bouton « Mettre en vente »"
               >
                 <GlobeLock className="h-3 w-3" />
                 Pas Vinted
-              </button>
+              </span>
             )}
           </div>
         </div>

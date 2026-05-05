@@ -1,8 +1,6 @@
 'use client';
 
-import { useState } from 'react';
 import type { Card } from '@/lib/types';
-import CardZoomModal from '@/components/vinted/CardZoomModal';
 import { useUserContext } from '@/lib/hooks/useUserContext';
 import { badgeClassesForColor, colorForUserName } from '@/lib/utils/user-colors';
 
@@ -39,22 +37,26 @@ function formatDate(iso: string | null): string {
 
 interface Props {
   card: Card;
+  /** Click on the image opens the AnnonceModal (read-only listing preview).
+   * Same handler as the for-sale row, kept centralized in VintedList. */
+  onAnnonceClick: (card: Card) => void;
 }
 
-export default function SoldRow({ card }: Props) {
-  const [zoomSrc, setZoomSrc] = useState<string | null>(null);
-  const { myUserId, myName, partnerName } = useUserContext();
+export default function SoldRow({ card, onAnnonceClick }: Props) {
+  const { myUserId, partnerName } = useUserContext();
   const soldBySelf = card.sold_by_user_id === myUserId;
-  const sellerName = soldBySelf ? myName : (card.sold_by_user_id ? partnerName : null);
-  const sellerColor = colorForUserName(sellerName);
+  // From my POV the seller label is always 'Moi' or the partner's name.
+  // Color: default for self, identity color for the partner.
+  const sellerLabel = soldBySelf ? 'Moi' : (card.sold_by_user_id ? partnerName : null);
+  const sellerColor = soldBySelf ? 'neutral' : colorForUserName(partnerName);
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
   return (
     <li className="bg-surface-off border-border flex items-center gap-3 rounded-lg border p-3 text-sm opacity-90">
       <button
         type="button"
-        onClick={() => setZoomSrc(thumbUrl(card))}
+        onClick={() => onAnnonceClick(card)}
         className="hover:ring-red shrink-0 rounded transition-shadow hover:ring-2"
-        aria-label={`Voir ${card.card_name} en grand`}
+        aria-label={`Voir l'annonce ${card.card_name}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -91,19 +93,15 @@ export default function SoldRow({ card }: Props) {
       </div>
 
       <div className="flex shrink-0 flex-col items-end gap-1">
-        {sellerName && (
-          <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClassesForColor(sellerColor)}`} title={`Vendu par ${sellerName}`}>
-            {sellerName}
+        {sellerLabel && (
+          <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClassesForColor(sellerColor)}`} title={`Vendu par ${sellerLabel}`}>
+            {sellerLabel}
           </span>
         )}
         <span className="text-rarity-sr font-mono text-sm font-bold">
           {card.sold_price !== null ? `${card.sold_price.toFixed(2)} €` : '—'}
         </span>
       </div>
-
-      {zoomSrc && (
-        <CardZoomModal src={zoomSrc} alt="" onClose={() => setZoomSrc(null)} />
-      )}
     </li>
   );
 }
