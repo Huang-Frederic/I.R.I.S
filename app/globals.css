@@ -39,6 +39,12 @@
   --color-staleness-old:   #e8942a;
   --color-staleness-never: #55524f;
 
+  /* Per-user identity colors (Phase 4 — Lui = Hisshiden, Elle = Hilyna).
+     Used by ListingBadges + multi-user filter chips so the same person is
+     always the same color across the UI, regardless of who's logged in. */
+  --color-user-lui: #5591c7; /* blue (matches rarity-rr) */
+  --color-user-elle: #d97aa6; /* pink */
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
