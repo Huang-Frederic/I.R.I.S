@@ -25,6 +25,7 @@ const VARIANT_LABEL: Record<string, string> = {
   pokeball: 'Poké Ball',
   masterball: 'Master Ball',
   reverse_holo: 'Reverse Holo',
+  stamp: 'Stamp',
   promo: 'Promo',
 };
 
@@ -59,14 +60,18 @@ function composeTitle(parts: TitleParts): string {
 
 /**
  * Compose the Vinted ad title (≤ 80 chars). Smart truncate ladder:
- *   1. Full bilingual format
- *   2. Drop bilingual paren in card_name + set_name
- *   3. Drop variant
- *   4. Drop "Carte Pokémon " prefix
- *   5. set_name → set_code only
- *   6. Drop set entirely
+ *   1. Full bilingual + variant + full set name
+ *   2. Drop bilingual paren in card_name + set_name (keep variant)
+ *   3. Drop "Carte Pokémon " prefix (keep variant)
+ *   4. set_name → set_code only (keep variant)
+ *   5. Drop set entirely (keep variant)
+ *   6. Drop variant as last resort
  *
- * Invariants: card_name, set_code, language ALWAYS retained.
+ * Variant is preserved as long as possible — it changes the card identity
+ * (a Reverse Holo and a Standard are different items on Vinted) so cutting
+ * set details first is the right trade-off.
+ *
+ * Invariants: card_name, language ALWAYS retained.
  */
 export function buildTitle(card: Card): string {
   const variant = variantLabel(card.variant);
@@ -89,15 +94,15 @@ export function buildTitle(card: Card): string {
   const ladder: string[] = [
     // 1. Full bilingual + variant + full set
     composeTitle({ carteSuffix: 'Carte Pokémon ', cardName: fullName, variant: variantSeg, setSegment: setSegFull, language: langSeg }),
-    // 2. Drop bilingual paren
+    // 2. Drop bilingual paren (keep variant)
     composeTitle({ carteSuffix: 'Carte Pokémon ', cardName: strippedName, variant: variantSeg, setSegment: setSegFull, language: langSeg }),
-    // 3. Drop variant
-    composeTitle({ carteSuffix: 'Carte Pokémon ', cardName: strippedName, variant: '', setSegment: setSegFull, language: langSeg }),
-    // 4. Drop "Carte Pokémon " prefix
-    composeTitle({ carteSuffix: '', cardName: strippedName, variant: '', setSegment: setSegFull, language: langSeg }),
-    // 5. set_name → set_code only
-    composeTitle({ carteSuffix: '', cardName: strippedName, variant: '', setSegment: setSegCodeOnly, language: langSeg }),
-    // 6. Drop set entirely
+    // 3. Drop "Carte Pokémon " prefix (keep variant)
+    composeTitle({ carteSuffix: '', cardName: strippedName, variant: variantSeg, setSegment: setSegFull, language: langSeg }),
+    // 4. set_name → set_code only (keep variant)
+    composeTitle({ carteSuffix: '', cardName: strippedName, variant: variantSeg, setSegment: setSegCodeOnly, language: langSeg }),
+    // 5. Drop set entirely (keep variant)
+    composeTitle({ carteSuffix: '', cardName: strippedName, variant: variantSeg, setSegment: '', language: langSeg }),
+    // 6. Drop variant as last resort
     composeTitle({ carteSuffix: '', cardName: strippedName, variant: '', setSegment: '', language: langSeg }),
   ];
 

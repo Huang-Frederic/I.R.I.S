@@ -55,11 +55,22 @@ export function groupCards(cards: Card[]): CardGroup[] {
   const groups: Omit<CardGroup, 'position'>[] = [];
   for (const [key, bucket] of buckets) {
     bucket.sort(sortByDate);
+    // Head = the card that best represents the group's current state.
+    // Prefer status='for_sale' (the active listing — what the user actually
+    // acts on) over historical sold rows. Without this, a group with
+    // [oldSold, newForSale] would render as the oldSold (showing "À retirer"
+    // and the partner's stale listing) when it should render as the active
+    // for-sale row. Falls back to oldest when no for_sale is present.
+    const activeForSale = bucket.find((c) => c.status === 'for_sale');
+    // Count = active rows only (exclude sold history). Otherwise a group
+    // with [1 sold, 1 for_sale] would display "x2" when only 1 copy is
+    // actually present right now.
+    const activeCount = bucket.filter((c) => c.status !== 'sold').length;
     groups.push({
       key,
       cards: bucket,
-      head: bucket[0],
-      count: bucket.length,
+      head: activeForSale ?? bucket[0],
+      count: activeCount > 0 ? activeCount : bucket.length,
     });
   }
 

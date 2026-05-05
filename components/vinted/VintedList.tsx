@@ -367,12 +367,15 @@ export default function VintedList({ cards: initial, lots: initialLots, register
 
     // "Pile à actionner" = items the user can still act on:
     //   - status='for_sale' (normal)
-    //   - status='sold' WITH my listing still up — partner sold it but my
-    //     Vinted listing is still online and needs cleanup. Treated like a
-    //     listed item (mine !== null), so passesStateChips routes it through
-    //     the En ligne / À rafraîchir chips like a normal listing.
+    //   - any other status WITH my listing still up — typically:
+    //       sold: partner sold it but my listing is still online (cleanup)
+    //       pokedex: I moved the card to my Pokédex but my Vinted listing
+    //         is still up (cleanup)
+    //       collection: card moved back to stock, listing not pruned
+    //     All routed via passesStateChips (mine !== null → isOnline)
+    //     so the En ligne / À rafraîchir chips work as expected.
     const inActionPile = (c: CardWithListings) =>
-      c.status === 'for_sale' || (c.status === 'sold' && getMyListing(c.listings, myUserId) !== null);
+      c.status === 'for_sale' || getMyListing(c.listings, myUserId) !== null;
     const forSale = cards.filter(inActionPile);
     // Sold pile excludes items also in the action pile (no double-rendering).
     const sold = cards.filter((c) => c.status === 'sold' && !inActionPile(c));
@@ -401,10 +404,12 @@ export default function VintedList({ cards: initial, lots: initialLots, register
       position: i + 1,
     }));
 
-    // Lots: same logic as cards. A sold lot with my listing still up belongs
-    // to the action pile (À retirer), not the sold pile.
+    // Lots: same logic as cards. Any non-for_sale status with my listing up
+    // belongs to the action pile (À retirer), not the sold pile. Lots only
+    // have for_sale | sold (no pokedex/collection), but we keep the same
+    // shape for symmetry.
     const lotInActionPile = (l: LotWithListings) =>
-      l.status === 'for_sale' || (l.status === 'sold' && getMyListing(l.listings, myUserId) !== null);
+      l.status === 'for_sale' || getMyListing(l.listings, myUserId) !== null;
 
     const forSaleLots = !showLots || shouldHideForSalePile(filters)
       ? []
@@ -551,9 +556,14 @@ export default function VintedList({ cards: initial, lots: initialLots, register
       )}
 
       {/* Drain bulk-promote queue: shown after the recap modal closes. Each
-        decision shifts the queue, exposing the next candidate. */}
+        decision shifts the queue, exposing the next candidate.
+        `key={cardId}` forces React to remount the modal between candidates
+        — without it, the same instance is reused and its `submitting`
+        useState stays true from the previous successful PATCH, so the
+        2nd+ modal shows "Patientez…" forever. */}
       {!bulkRecap && currentBulkPromote && (
         <PromoteAfterSoldModal
+          key={currentBulkPromote.cardId}
           candidate={currentBulkPromote}
           onClose={shiftBulkPromoteQueue}
           onPromoted={() => {
