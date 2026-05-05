@@ -10,7 +10,6 @@ interface ExistingCardLite {
   tcg_image_url: string | null;
   suggested_price: number | null;
   date_added: string;
-  vinted_listed_at: string | null;
   language: string;
   condition: string;
   variant: string | null;

@@ -9,10 +9,10 @@
 -- migration — the UI shows '?' or omits the badge in that case.
 
 ALTER TABLE cards
-  ADD COLUMN sold_by_user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS sold_by_user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL;
 
 ALTER TABLE lots
-  ADD COLUMN sold_by_user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS sold_by_user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL;
 
 -- Backfill: any pre-existing sold items get attributed to Hisshiden, who
 -- owned the data before the multi-user migration. Safe heuristic since

@@ -212,7 +212,7 @@ function pickStatus(idx: number): StatusMeta {
       sold_price: null,
     };
   }
-  // The rest: for_sale offline (vinted_listed_at = null)
+  // The rest: for_sale offline (no card_listings row inserted)
   return {
     status: 'for_sale',
     listed_at: null,

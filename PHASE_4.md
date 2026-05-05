@@ -1,3 +1,5 @@
+> **TERMINÉE — voir `docs/phases-summary.md` section "Phase 4".** La spec ci-dessous est le brief original. Livré conforme sauf : (a) `lot_listings` ajoutée en parallèle de `card_listings` (les lots aussi sont per-user-listés, cross-listing supporté) ; (b) `sold_by_user_id` ajouté sur cards + lots pour tracker qui a vendu (badge Moi/Lui/Elle dans les vendus, non prévu initialement) ; (c) Feature 1 (import HTML profil Vinted Hisshiden) non livrée — ré-saisie via scanner batch suffit.
+
 Phase 4 :  Passage à 2 users + Import from Vinted profile (one-shot)
 
 ==============================================================================

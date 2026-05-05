@@ -3,16 +3,9 @@
 import { X, Tag } from 'lucide-react';
 import { useState } from 'react';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
+import { VARIANT_LABEL } from '@/lib/utils/labels';
 import CardZoomModal from '@/components/vinted/CardZoomModal';
 import ExchangeOnConflictModal, { type ExchangeConflictCard } from '@/components/vinted/ExchangeOnConflictModal';
-
-const VARIANT_LABEL: Record<string, string> = {
-  pokeball: 'Poké Ball',
-  masterball: 'Master Ball',
-  reverse_holo: 'Reverse Holo',
-  stamp: 'Stamp',
-  promo: 'Promo',
-};
 
 interface Props {
   candidate: PromoteCandidate;

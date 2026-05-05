@@ -1,6 +1,6 @@
 # I.R.I.S
 
-PWA mono-utilisateur de gestion de collection Pokémon TCG. **État actuel : Phase 3 terminée** (scan OCR multilang JP/EN/FR/KO/CN avec Gemini 3.1 Flash Lite Preview, Pokédex + Vinted + Stock + bulk vendu + cron pricing + lots bundles + bulk import web). Voir [CLAUDE.md](CLAUDE.md) pour le bilan détaillé.
+PWA 2-users (Lui + Elle) de gestion de collection Pokémon TCG partagée. **État actuel : Phase 4 terminée** (multi-user RLS via `card_listings` + `lot_listings`, identités Hisshiden/Hilyna avec couleurs distinctes, cross-listing per-user sur 2 comptes Vinted ; scan OCR multilang JP/EN/FR/KO/CN avec Gemini 3.1 Flash Lite Preview, Pokédex + Vinted + Stock + bulk vendu + cron pricing + lots bundles + bulk import web). 302 tests passing. Voir [CLAUDE.md](CLAUDE.md) pour le bilan détaillé.
 
 - **Spec complète** : [context.md](context.md)
 - **Setup local** : [docs/setup.md](docs/setup.md)

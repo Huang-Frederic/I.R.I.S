@@ -3,27 +3,7 @@
 import type { Card } from '@/lib/types';
 import { useUserContext } from '@/lib/hooks/useUserContext';
 import { badgeClassesForColor, colorForUserName } from '@/lib/utils/user-colors';
-
-const VARIANT_LABEL: Record<string, string> = {
-  pokeball: 'Poké Ball',
-  masterball: 'Master Ball',
-  reverse_holo: 'Reverse Holo',
-  stamp: 'Stamp',
-  promo: 'Promo',
-};
-
-const RARITY_COLOR: Record<string, string> = {
-  SAR: 'text-rarity-sar',
-  AR: 'text-rarity-ar',
-  SR: 'text-rarity-sr',
-  CHR: 'text-rarity-chr',
-  RR: 'text-rarity-rr',
-  R_HOLO: 'text-rarity-r-holo',
-  R: 'text-rarity-r',
-  UC: 'text-rarity-uc',
-  C: 'text-rarity-c',
-  OTHER: 'text-text-muted',
-};
+import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
 
 function thumbUrl(card: Card): string {
   if (card.image_url) return card.image_url;

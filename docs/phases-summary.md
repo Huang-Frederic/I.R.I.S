@@ -461,7 +461,49 @@ Bug observé en prod : carte FR Dracaufeu Trainer Gallery → Gemini envoie `set
 - Drop `scripts/test-bench-claude.ts` (Claude vision bench, abandonné 0/30)
 - Drop `_clearSetsCache` (no callers)
 
-## Prochaines étapes : Phase 4 / 5
+## Phase 4 — Multi-user (terminée)
 
-- **Phase 4** — Passage à 2 users (RLS multi-tenant Supabase) + Import one-shot du profil Vinted existant (parser le HTML de la page profil pour ingester les annonces existantes — CDN Vinted comme source d'images, pas de re-saisie). Brief : [PHASE_4.md](../PHASE_4.md).
+Migration mono → 2-users (Lui = Hisshiden, Elle = Hilyna) sans dégrader l'UX existante. Pokédex + stock physique restent partagés ; seul l'état "en ligne sur Vinted" est désormais per-user (chaque user a son propre compte Vinted, donc ses propres annonces).
+
+**Schéma**
+
+- **Tables nouvelles** (migration `20260505000000_phase4_multi_user`) :
+  - `card_listings` (`card_id`, `user_id`, `listed_at`) — remplace `cards.vinted_listed_at` par une row per-user-per-card.
+  - `lot_listings` (`lot_id`, `user_id`, `listed_at`) — pareil pour les lots (cross-listing supporté pour les deux entités).
+  - `user_profiles` (`user_id`, `display_name`) — seedée avec Lui/Elle.
+- **Colonnes dropées** : `cards.vinted_listed_at` + `lots.vinted_listed_at` (backfilled vers `card_listings`/`lot_listings` Hisshiden owner avant DROP).
+- **Colonne ajoutée** (migration `20260505100000_sold_by_user`) : `sold_by_user_id uuid REFERENCES auth.users` sur `cards` + `lots`. PATCH route stamp `auth.uid()` au transition status='sold'. Backfill vers Hisshiden pour les ventes pré-Phase-4. `IF NOT EXISTS` → idempotent.
+- **RLS** : reads partagés (les 2 users voient toute la collection), writes sur `card_listings` / `lot_listings` scoped par `auth.uid()`.
+
+**Frontend**
+
+- **Hook `useUserContext`** (`lib/hooks/useUserContext.tsx`) : Provider monté dans `app/(app)/layout.tsx`, expose `myUserId / myName / partnerUserId / partnerName`.
+- **Composants nouveaux** :
+  - `<ListingBadges>` — Listée par Moi (vert default) / Listée par {partnerName} (identity color) / À retirer + bouton X. Per-row dans VintedRow + LotRow. Remplace l'ancien `VintedListedToggle`.
+  - `<PartnerCleanupModal>` — final modal du sold flow : "X devra retirer son annonce manuellement" quand pas de restock ET partner a une annonce.
+  - `<LotSoldRow>` — vue read-only des lots vendus (fond gris, sans bouton, image clic → AnnonceModal). Évite les boutons de la `<LotRow>` for-sale qui n'ont pas de sens en sold.
+  - `<RouteChangeRefresher>` — `usePathname` listener qui appelle `router.refresh()` à chaque nav inter-onglets (Pokédex/Stock/Vinted/...). Combiné avec `useEffect(() => set(initial), [initial])` côté client lists, garde l'UI sync sans reload.
+  - `<SaveSuccessModal>` — modal récap post-scan (`1 sur Vinted · 9 en Stock` + image carte + OK).
+- **Helpers purs nouveaux** (testés) :
+  - `lib/utils/listings.ts` : `getMyListing / getPartnerListing / isStaleForListing` (8 tests).
+  - `lib/utils/user-colors.ts` : `colorForUserName / chipClassesForColor / badgeClassesForColor` (6 tests). Identité hardcodée Lui/Elle → tokens `--color-user-lui` (bleu `#5591c7`) / `--color-user-elle` (rose `#d97aa6`) dans `app/globals.css`.
+  - `lib/utils/labels.ts` : `VARIANT_LABEL` + `RARITY_COLOR` centralisés (ex-9-fois-dupliqués). Déduplique 8 composants.
+- **Endpoints nouveaux** : `POST /api/listings` + `DELETE /api/listings/[kind]/[id]` (per-user listings).
+
+**Logique UX clé**
+
+- **Action pile généralisée** : tout item avec mon listing actif et `status != 'for_sale'` apparaît dans `/vinted` avec le tag À retirer (ex : partner a marqué vendu, ou j'ai déplacé en Pokédex sans retirer le listing). Avant Phase 4, ces items disparaissaient et l'utilisateur ne savait pas qu'il avait du nettoyage à faire.
+- **`groupCards` head priorise `for_sale`** sur les vieux `sold` du même groupe + count exclut `sold`. Évite les artefacts "À retirer x2" parasites quand une carte est promue après vente partenaire.
+- **Sold flow rework** : SoldModal (form simple) → si restock candidate, PromoteAfterSoldModal → si pas de restock + partner a une annonce, PartnerCleanupModal final. Le bandeau partner-warning n'est plus affiché AVANT confirmation de la vente (ne pas effrayer l'user).
+- **Scanner qty>1 sur Pokédex/Vinted** : route automatique vers Stock pour les copies au-delà de la 1ère (1 cible, reste collection). Évite l'échec 409 du unique constraint.
+- **Identity colors** : Lui = bleu, Elle = rose, partout dans l'UI (chips multi-user, badges per-row, badge sold_by). "Moi" garde toujours le vert default côté self (jamais "Lui sur mon compte").
+- **Variant `stamp`** ajoutée à tous les VARIANT_LABEL + dropdowns (5e variant entre `reverse_holo` et `promo`).
+- **AnnonceModal close sur Escape + clic en dehors** + body scroll lock. CardZoomModal z-100 + viewport max-h (réglait clipping mobile par BottomNav).
+- **`-1j` → `0j`** : daysSince clampé à 0 pour l'état "today".
+
+**Tests** : 302 vitest passing (+23 vs Phase 3c : listings 8, user-colors 6, vinted-filter +6 multi-user chips, group-cards +2 head-selection, scrape-limitlesstcg +1 illustrator regex). 0 lint warning, 0 type error. Brief : [PHASE_4.md](../PHASE_4.md).
+
+## Prochaines étapes : Phase 5
+
 - **Phase 5** — Dashboard (KPIs valeur stock, top cartes rares, alertes restock, **+ tracking tokens consommés et coût/jour app** — table `gemini_usage_log` à créer ici) + polish PWA (install prompt, icônes 192/512, manifest fine-tune).
+- **Reporté** : Feature 1 du brief Phase 4 (import one-shot HTML profil Vinted Hisshiden) non livrée — pas urgente vu que les annonces existantes peuvent être ré-saisies via le scanner batch.

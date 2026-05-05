@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X, Package, Tag } from 'lucide-react';
+import { VARIANT_LABEL } from '@/lib/utils/labels';
 
 export interface ExchangeConflictCard {
   id: string;
@@ -25,14 +26,6 @@ interface Props {
   /** Called after the swap succeeds. The parent should refresh. */
   onExchanged: () => void;
 }
-
-const VARIANT_LABEL: Record<string, string> = {
-  pokeball: 'Poké Ball',
-  masterball: 'Master Ball',
-  reverse_holo: 'Reverse Holo',
-  stamp: 'Stamp',
-  promo: 'Promo',
-};
 
 export default function ExchangeOnConflictModal({ newCard, conflictCard, onClose, onExchanged }: Props) {
   const [submitting, setSubmitting] = useState(false);

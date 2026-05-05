@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ArrowRight, X } from 'lucide-react';
+import { VARIANT_LABEL } from '@/lib/utils/labels';
 import CardZoomModal from '@/components/vinted/CardZoomModal';
 
 export interface PokedexReplaceModalCard {
@@ -44,14 +45,6 @@ function thumbUrl(card: PokedexReplaceModalCard | { previewUrl: string | null; t
   }
   return card.image_url ?? card.tcg_image_url;
 }
-
-const VARIANT_LABEL: Record<string, string> = {
-  pokeball: 'Poké Ball',
-  masterball: 'Master Ball',
-  reverse_holo: 'Reverse Holo',
-  stamp: 'Stamp',
-  promo: 'Promo',
-};
 
 function formatVariant(v: string | null): string {
   if (!v) return 'Standard';

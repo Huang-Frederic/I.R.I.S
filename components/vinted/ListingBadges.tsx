@@ -66,7 +66,17 @@ export default function ListingBadges({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ kind: itemKind, id: itemId }),
       });
-      if (res.ok) onListed();
+      if (res.ok) {
+        onListed();
+      } else {
+        // Network/RLS failure is rare here but silent failure leaves the
+        // user wondering why the badge didn't toggle. Surface to console
+        // (visible in DevTools) — the row will reconcile on next refresh.
+        const body = await res.text().catch(() => '');
+        console.error(`POST /api/listings failed (${res.status}):`, body);
+      }
+    } catch (e) {
+      console.error('POST /api/listings network error:', e);
     } finally {
       setBusy(false);
     }
@@ -79,7 +89,14 @@ export default function ListingBadges({
       const res = await fetch(`/api/listings/${itemKind}/${itemId}`, {
         method: 'DELETE',
       });
-      if (res.ok) onUnlisted();
+      if (res.ok) {
+        onUnlisted();
+      } else {
+        const body = await res.text().catch(() => '');
+        console.error(`DELETE /api/listings/${itemKind}/${itemId} failed (${res.status}):`, body);
+      }
+    } catch (e) {
+      console.error('DELETE /api/listings network error:', e);
     } finally {
       setBusy(false);
       setConfirmDelete(false);

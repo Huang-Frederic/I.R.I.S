@@ -1,3 +1,5 @@
+> **DOCUMENT OBSOLÈTE — figé en Phase 1.13.** Sources de vérité actuelles : [CLAUDE.md](CLAUDE.md) + [docs/phases-summary.md](docs/phases-summary.md). À régénérer après Phase 5. Les références ci-dessous au modèle "mono-utilisateur", aux 116 tests, à l'absence de Stock/Lots/Vinted, etc. sont dépassées (Phase 4 a livré 302 tests, multi-user, Stock + Vinted + Options + lots + bulk, etc.).
+
 # I.R.I.S — Architecture du code
 
 ## Vue d'ensemble
