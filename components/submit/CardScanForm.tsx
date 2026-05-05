@@ -158,6 +158,7 @@ export default function CardScanForm({
   initialEnrich,
 }: CardScanFormProps) {
   const [phase, setPhase] = useState<Phase>('idle');
+  const [successSummary, setSuccessSummary] = useState<string>('Carte enregistrée.');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [form, setForm] = useState<FormFields>(() => {
@@ -661,7 +662,9 @@ export default function CardScanForm({
     setErrorMsg(null);
     setDuplicateForSaleConflict(null); // Clear any previous modal
     try {
-      const finalStatus = lockedStatus ?? form.status;
+      // form.status is CardStatus but the UI only allows the 3 mutable buckets
+      // (the API rejects 'sold' anyway). Narrow the type for downstream logic.
+      const finalStatus = (lockedStatus ?? form.status) as 'for_sale' | 'pokedex' | 'collection';
       const totalCount = form.count;
 
       // First iteration potentially triggers replace flow if Pokédex + can_replace
@@ -672,12 +675,22 @@ export default function CardScanForm({
         !!suggestion.existingCard;
 
       let firstCardId: string | null = null;
+      // Track per-bucket inserts so we can show a meaningful summary at the end.
+      const counts = { for_sale: 0, pokedex: 0, collection: 0 };
 
       for (let copy = 0; copy < totalCount; copy++) {
-        // After first iteration, force status='collection' if original was 'pokedex'
-        const statusForThisIteration = (copy === 0)
-          ? (wantsToReplace ? 'for_sale' : finalStatus)
-          : (finalStatus === 'pokedex' ? 'collection' : finalStatus);
+        // Bucket logic for the iteration:
+        //   - copy 0 with wantsToReplace → for_sale (the swap moves the old
+        //     pokedex card to for_sale, the new card takes the pokedex slot)
+        //   - copy 0 otherwise → finalStatus (user choice)
+        //   - copy 1..N-1 → 'collection' when finalStatus is for_sale or
+        //     pokedex (only one of each is allowed by the unique constraints,
+        //     so extra physical copies belong in stock)
+        //   - copy 1..N-1 with finalStatus='collection' → stays collection
+        const statusForThisIteration: 'for_sale' | 'pokedex' | 'collection' =
+          copy === 0
+            ? (wantsToReplace ? 'for_sale' : finalStatus)
+            : (finalStatus === 'pokedex' || finalStatus === 'for_sale' ? 'collection' : finalStatus);
 
         const data = new FormData();
         if (photoBlob) data.append('image', photoBlob, 'card.jpg');
@@ -705,7 +718,9 @@ export default function CardScanForm({
             setPhase('reviewing');
             return;
           }
-          if (res.status === 409 && body.error === 'for_sale_conflict') {
+          if (res.status === 409 && body.error === 'for_sale_conflict' && copy === 0) {
+            // Defer: ask the user to confirm putting ALL N copies in stock
+            // (the modal handler re-runs the loop with status='collection').
             setDuplicateForSaleConflict({ existingCard: (body.existingCard as ExistingCardLite | undefined) ?? null });
             setPhase('reviewing');
             return;
@@ -716,6 +731,7 @@ export default function CardScanForm({
         const inserted = (await res.json()) as {
           card: { id: string };
         };
+        counts[statusForThisIteration]++;
 
         if (copy === 0) firstCardId = inserted.card.id;
 
@@ -737,11 +753,12 @@ export default function CardScanForm({
         }
       }
 
+      setSuccessSummary(buildSuccessSummary(counts));
       setPhase('success');
       if (onSaved) {
         onSaved(firstCardId ?? '');
       } else {
-        setTimeout(reset, 1800);
+        setTimeout(reset, 2400);
       }
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -749,33 +766,52 @@ export default function CardScanForm({
     }
   }
 
+  /** Compose the per-bucket summary string shown after a successful save. */
+  function buildSuccessSummary(counts: { for_sale: number; pokedex: number; collection: number }): string {
+    const parts: string[] = [];
+    if (counts.for_sale > 0) parts.push(`${counts.for_sale} sur Vinted`);
+    if (counts.pokedex > 0) parts.push(`${counts.pokedex} dans le Pokédex`);
+    if (counts.collection > 0) parts.push(`${counts.collection} en Stock`);
+    if (parts.length === 0) return 'Carte enregistrée.';
+    return parts.join(' · ');
+  }
+
   async function handleResaveAsCollection() {
     if (!photoBlob) return;
     setDuplicateForSaleConflict(null);
     setPhase('saving');
     try {
-      const data = new FormData();
-      data.append('image', photoBlob, initialPhotoFilename ?? 'card.jpg');
-      for (const [key, value] of Object.entries(form)) {
-        if (key === 'status' || key === 'count') continue;
-        if (value !== '' && value !== null && value !== undefined) {
-          data.append(key, String(value));
+      // The user just confirmed "this card is already on Vinted, put it in Stock"
+      // — apply that to ALL totalCount copies, not just one (otherwise scanning
+      // 10 copies of an already-listed card only adds 1 to stock).
+      const totalCount = form.count;
+      let firstCardId: string | null = null;
+      for (let copy = 0; copy < totalCount; copy++) {
+        const data = new FormData();
+        if (photoBlob) data.append('image', photoBlob, initialPhotoFilename ?? 'card.jpg');
+        for (const [key, value] of Object.entries(form)) {
+          if (key === 'status' || key === 'count') continue;
+          if (value !== '' && value !== null && value !== undefined) {
+            data.append(key, String(value));
+          }
         }
-      }
-      data.append('status', 'collection');
+        data.append('status', 'collection');
 
-      const res = await fetch('/api/cards', { method: 'POST', body: data });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `Enregistrement a échoué (${res.status})`);
+        const res = await fetch('/api/cards', { method: 'POST', body: data });
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(body.error ?? `Enregistrement a échoué (${res.status})`);
+        }
+        const inserted = (await res.json()) as { card: { id: string } };
+        if (copy === 0) firstCardId = inserted.card.id;
       }
 
-      const inserted = (await res.json()) as { card: { id: string } };
+      setSuccessSummary(buildSuccessSummary({ for_sale: 0, pokedex: 0, collection: totalCount }));
       setPhase('success');
       if (onSaved) {
-        onSaved(inserted.card.id);
+        onSaved(firstCardId ?? '');
       } else {
-        setTimeout(reset, 1800);
+        setTimeout(reset, 2400);
       }
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -798,30 +834,40 @@ export default function CardScanForm({
         throw new Error(body.error ?? 'Démotion échouée');
       }
 
-      // Step 2: Re-submit the original POST (slot is now free)
-      const data = new FormData();
-      if (photoBlob) data.append('image', photoBlob, 'card.jpg');
-      for (const [key, value] of Object.entries(form)) {
-        if (key === 'status') continue;
-        if (value !== '' && value !== null && value !== undefined) {
-          data.append(key, String(value));
+      // Step 2: Insert all N copies — first one takes the now-free pokedex
+      // slot, the rest go to collection (one Pokédex slot per pokemon_number).
+      const totalCount = form.count;
+      const counts = { for_sale: 0, pokedex: 0, collection: 0 };
+      let firstCardId: string | null = null;
+      for (let copy = 0; copy < totalCount; copy++) {
+        const status: 'pokedex' | 'collection' = copy === 0 ? 'pokedex' : 'collection';
+        const data = new FormData();
+        if (photoBlob) data.append('image', photoBlob, 'card.jpg');
+        for (const [key, value] of Object.entries(form)) {
+          if (key === 'status' || key === 'count') continue;
+          if (value !== '' && value !== null && value !== undefined) {
+            data.append(key, String(value));
+          }
         }
-      }
-      data.append('status', 'pokedex');
+        data.append('status', status);
 
-      const res = await fetch('/api/cards', { method: 'POST', body: data });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `Enregistrement a échoué (${res.status})`);
+        const res = await fetch('/api/cards', { method: 'POST', body: data });
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(body.error ?? `Enregistrement a échoué (${res.status})`);
+        }
+        const inserted = (await res.json()) as { card: { id: string } };
+        if (copy === 0) firstCardId = inserted.card.id;
+        counts[status]++;
       }
 
       setReplaceModal(null);
+      setSuccessSummary(buildSuccessSummary(counts));
       setPhase('success');
       if (onSaved) {
-        const inserted = (await res.json()) as { card: { id: string } };
-        onSaved(inserted.card.id);
+        onSaved(firstCardId ?? '');
       } else {
-        setTimeout(reset, 1800);
+        setTimeout(reset, 2400);
       }
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -1212,7 +1258,7 @@ export default function CardScanForm({
           {phase === 'success' && (
             <div className="text-rarity-r bg-surface-2 flex items-center gap-2 rounded-lg p-3 text-sm">
               <CheckCircle2 className="h-4 w-4" aria-hidden />
-              Carte enregistrée.
+              {successSummary}
             </div>
           )}
 
@@ -1249,6 +1295,7 @@ export default function CardScanForm({
           existingCard={duplicateForSaleConflict.existingCard}
           onCancel={() => setDuplicateForSaleConflict(null)}
           onConfirmCollection={handleResaveAsCollection}
+          count={form.count}
           busy={phase === 'saving'}
         />
       )}

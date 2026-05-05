@@ -25,10 +25,12 @@ interface Props {
   onConfirmCollection: () => void;
   /** Called when the user cancels (or clicks the X). */
   onCancel: () => void;
+  /** How many physical copies the scanner is about to insert. Default 1. */
+  count?: number;
   busy?: boolean;
 }
 
-export default function DuplicateForSaleModal({ existingCard, onConfirmCollection, onCancel, busy = false }: Props) {
+export default function DuplicateForSaleModal({ existingCard, onConfirmCollection, onCancel, count = 1, busy = false }: Props) {
   const photoSrc = existingCard?.image_url ?? existingCard?.tcg_image_url ?? null;
 
   return (
@@ -84,7 +86,15 @@ export default function DuplicateForSaleModal({ existingCard, onConfirmCollectio
         )}
 
         <p className="text-text-muted mb-5 text-sm">
-          Tu peux annuler, ou ajouter cet exemplaire à ton <strong>Stock</strong> pour le mettre en vente plus tard.
+          {count > 1 ? (
+            <>
+              Tu peux annuler, ou ajouter ces <strong>{count} exemplaires</strong> à ton <strong>Stock</strong> pour les mettre en vente plus tard.
+            </>
+          ) : (
+            <>
+              Tu peux annuler, ou ajouter cet exemplaire à ton <strong>Stock</strong> pour le mettre en vente plus tard.
+            </>
+          )}
         </p>
 
         <div className="flex justify-end gap-2">
@@ -102,7 +112,7 @@ export default function DuplicateForSaleModal({ existingCard, onConfirmCollectio
             disabled={busy}
             className="bg-red text-bg rounded px-4 py-1.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
-            {busy ? 'Enregistrement…' : 'Ajouter à mon Stock'}
+            {busy ? 'Enregistrement…' : count > 1 ? `Ajouter ${count} au Stock` : 'Ajouter à mon Stock'}
           </button>
         </div>
       </div>
