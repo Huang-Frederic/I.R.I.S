@@ -29,6 +29,7 @@ function makeCard(over: Partial<Card> = {}): Card {
     date_added: '2026-05-01T00:00:00Z',
     date_sold: null,
     sold_price: null,
+    sold_by_user_id: null,
     notes: null,
     variant: null,
     ...over,

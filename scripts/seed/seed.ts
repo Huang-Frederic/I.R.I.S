@@ -296,6 +296,7 @@ async function main() {
       date_added: dateAdded,
       date_sold: meta.date_sold,
       sold_price: meta.sold_price,
+      sold_by_user_id: meta.status === 'sold' ? HISSHIDEN_USER_ID : null,
       suggested_price: meta.status === 'sold' ? null : Math.floor(Math.random() * 45) + 5,
       notes: null,
     };

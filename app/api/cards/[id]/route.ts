@@ -64,6 +64,7 @@ export async function PATCH(
     update.status = body.status;
     if (body.status === 'sold') {
       update.date_sold = body.date_sold ?? new Date().toISOString();
+      update.sold_by_user_id = user.id;
     }
   }
 

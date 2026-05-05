@@ -67,8 +67,11 @@ export async function PATCH(
       return bad('invalid status');
     }
     update.status = body.status;
-    if (body.status === 'sold' && body.date_sold === undefined) {
-      update.date_sold = new Date().toISOString();
+    if (body.status === 'sold') {
+      if (body.date_sold === undefined) {
+        update.date_sold = new Date().toISOString();
+      }
+      update.sold_by_user_id = user.id;
     }
   }
   if (body.date_sold !== undefined) update.date_sold = body.date_sold;

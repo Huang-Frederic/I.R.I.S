@@ -24,6 +24,7 @@ import { passesStateChips, shouldHideForSalePile, passesMultiUserChip } from '@/
 import { getMyListing } from '@/lib/utils/listings';
 import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
 import LotRow from '@/components/lots/LotRow';
+import LotSoldRow from '@/components/lots/LotSoldRow';
 import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
 import BulkSelectionBottomBar from './BulkSelectionBottomBar';
 import BulkSoldModal, { type BulkSoldItem } from './BulkSoldModal';
@@ -482,20 +483,11 @@ export default function VintedList({ cards: initial, lots: initialLots, register
             <SoldRow key={c.id} card={c} />
           ))}
           {soldLotsList.map((l) => (
-            <LotRow
+            <LotSoldRow
               key={`sold-lot-${l.id}`}
               lot={l}
               storagePublicUrl={storagePublicUrl}
-              onAnnonceClick={(lot) => setLotAnnonceTarget(lot)}
-              onSoldClick={() => {
-                /* already sold */
-              }}
-              onPriceSaved={updateLotPrice}
-              listings={l.listings ?? []}
-              myUserId={myUserId}
-              partnerUserId={partnerUserId}
-              partnerName={partnerName}
-              onListingsChanged={onListingsChanged}
+              onImageClick={(lot) => setLotAnnonceTarget(lot)}
             />
           ))}
         </ul>

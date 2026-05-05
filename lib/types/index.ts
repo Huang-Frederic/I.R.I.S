@@ -59,6 +59,9 @@ export interface Card {
   date_added: string;
   date_sold: string | null;
   sold_price: number | null;
+  /** auth.users.id of the user who marked this card sold (Phase 4 follow-up).
+   * NULL for items sold before the migration or never sold. */
+  sold_by_user_id: string | null;
   notes: string | null;
   variant: string | null;
 }
@@ -78,6 +81,8 @@ export interface Lot {
   status: 'for_sale' | 'sold';
   date_sold: string | null;
   sold_price: number | null;
+  /** auth.users.id of the user who marked this lot sold (Phase 4 follow-up). */
+  sold_by_user_id: string | null;
   /** Array of Storage paths relative to the lot-photos bucket, e.g. ["{lot_id}/0.jpg"]. */
   photo_urls: string[];
   date_added: string;

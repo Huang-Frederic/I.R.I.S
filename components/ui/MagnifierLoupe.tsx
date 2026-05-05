@@ -58,7 +58,11 @@ export default function MagnifierLoupe({
         alt={alt}
         width={width}
         height={height}
-        className="w-full object-contain"
+        // max-h-full + object-contain lets a parent constrain height (e.g.
+        // CardZoomModal on a phone with a tall image) without clipping or
+        // stretching. h-auto preserves the aspect ratio when width is the
+        // limiting dimension.
+        className="h-auto w-full max-h-full object-contain"
         unoptimized
         onLoad={(e) => {
           const img = e.currentTarget;
