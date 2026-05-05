@@ -348,8 +348,17 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     const showCards = filters.kindFilter !== 'lots';
     const showLots = filters.kindFilter !== 'cards';
 
-    const forSale = cards.filter((c) => c.status === 'for_sale');
-    const sold = cards.filter((c) => c.status === 'sold');
+    // "Pile à actionner" = items the user can still act on:
+    //   - status='for_sale' (normal)
+    //   - status='sold' WITH my listing still up — partner sold it but my
+    //     Vinted listing is still online and needs cleanup. Treated like a
+    //     listed item (mine !== null), so passesStateChips routes it through
+    //     the En ligne / À rafraîchir chips like a normal listing.
+    const inActionPile = (c: CardWithListings) =>
+      c.status === 'for_sale' || (c.status === 'sold' && getMyListing(c.listings, myUserId) !== null);
+    const forSale = cards.filter(inActionPile);
+    // Sold pile excludes items also in the action pile (no double-rendering).
+    const sold = cards.filter((c) => c.status === 'sold' && !inActionPile(c));
 
     // Common: search + attribute filters apply to every pile.
     const passesCommon = (c: CardWithListings) =>
@@ -363,6 +372,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
       : forSale.filter((c) => passesCommon(c) && passesStateChips(getMyListing(c.listings, myUserId), filters, now) && passesMultiUserChip(c as { status: string; listings: BaseListing[] }, filters.multiUserChip, myUserId, partnerUserId));
 
     // Sold pile is independent: included only when the Vendus chip is on.
+    // Excludes items already in the action pile (sold-with-my-listing-up).
     const soldSubset = !showCards || !filters.showSold
       ? []
       : sold
@@ -374,14 +384,16 @@ export default function VintedList({ cards: initial, lots: initialLots, register
       position: i + 1,
     }));
 
-    // Lots: no grouping, each lot is unique. Apply search filter to lot name +
-    // extra_description AND state chips (En ligne / Pas en ligne / À rafraîchir
-    // / Vendus). Lots have listings just like cards.
+    // Lots: same logic as cards. A sold lot with my listing still up belongs
+    // to the action pile (À retirer), not the sold pile.
+    const lotInActionPile = (l: LotWithListings) =>
+      l.status === 'for_sale' || (l.status === 'sold' && getMyListing(l.listings, myUserId) !== null);
+
     const forSaleLots = !showLots || shouldHideForSalePile(filters)
       ? []
       : lots.filter(
           (l) =>
-            l.status === 'for_sale' &&
+            lotInActionPile(l) &&
             matchesLotSearch(l, filters.search) &&
             passesStateChips(getMyListing(l.listings, myUserId), filters, now) &&
             passesMultiUserChip(l as { status: string; listings: BaseListing[] }, filters.multiUserChip, myUserId, partnerUserId),
@@ -390,7 +402,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     const soldLotsList = !showLots || !filters.showSold
       ? []
       : lots
-          .filter((l) => l.status === 'sold' && matchesLotSearch(l, filters.search))
+          .filter((l) => l.status === 'sold' && !lotInActionPile(l) && matchesLotSearch(l, filters.search))
           .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''));
 
     return {
