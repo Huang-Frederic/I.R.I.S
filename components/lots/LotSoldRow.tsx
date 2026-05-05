@@ -1,10 +1,8 @@
 // components/lots/LotSoldRow.tsx
 'use client';
 
-import { useState } from 'react';
 import { Package } from 'lucide-react';
 import type { Lot } from '@/lib/types';
-import CardZoomModal from '@/components/vinted/CardZoomModal';
 import { useUserContext } from '@/lib/hooks/useUserContext';
 import { badgeClassesForColor, colorForUserName } from '@/lib/utils/user-colors';
 
@@ -32,11 +30,11 @@ function formatDate(iso: string | null): string {
  * surfaces who marked it sold (Phase 4 follow-up — sold_by_user_id).
  */
 export default function LotSoldRow({ lot, storagePublicUrl, onImageClick }: Props) {
-  const [zoomSrc, setZoomSrc] = useState<string | null>(null);
-  const { myUserId, myName, partnerName } = useUserContext();
+  const { myUserId, partnerName } = useUserContext();
   const soldBySelf = lot.sold_by_user_id === myUserId;
-  const sellerName = soldBySelf ? myName : (lot.sold_by_user_id ? partnerName : null);
-  const sellerColor = colorForUserName(sellerName);
+  // 'Moi' for self with default green, partner's name with identity color.
+  const sellerLabel = soldBySelf ? 'Moi' : (lot.sold_by_user_id ? partnerName : null);
+  const sellerColor = soldBySelf ? 'neutral' : colorForUserName(partnerName);
 
   const thumb = lot.photo_urls.length > 0 ? storagePublicUrl(lot.photo_urls[0]) : null;
 
@@ -86,9 +84,9 @@ export default function LotSoldRow({ lot, storagePublicUrl, onImageClick }: Prop
       </div>
 
       <div className="flex shrink-0 flex-col items-end gap-1">
-        {sellerName && (
-          <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClassesForColor(sellerColor)}`} title={`Vendu par ${sellerName}`}>
-            {sellerName}
+        {sellerLabel && (
+          <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClassesForColor(sellerColor)}`} title={`Vendu par ${sellerLabel}`}>
+            {sellerLabel}
           </span>
         )}
         <span className="text-rarity-sr font-mono text-sm font-bold">
@@ -96,7 +94,6 @@ export default function LotSoldRow({ lot, storagePublicUrl, onImageClick }: Prop
         </span>
       </div>
 
-      {zoomSrc && <CardZoomModal src={zoomSrc} alt="" onClose={() => setZoomSrc(null)} />}
     </li>
   );
 }

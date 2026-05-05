@@ -23,6 +23,7 @@ import ScanSuggestion from '@/components/cards/ScanSuggestion';
 import { getPokemonName } from '@/lib/data/pokemon-names';
 import PokedexReplaceModal, { type PokedexReplaceModalCard } from '@/components/cards/PokedexReplaceModal';
 import DuplicateForSaleModal from '@/components/cards/DuplicateForSaleModal';
+import SaveSuccessModal from '@/components/submit/SaveSuccessModal';
 import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
 import { detectNumberMismatch } from '@/lib/utils/pokedex-mismatch';
 
@@ -158,7 +159,7 @@ export default function CardScanForm({
   initialEnrich,
 }: CardScanFormProps) {
   const [phase, setPhase] = useState<Phase>('idle');
-  const [successSummary, setSuccessSummary] = useState<string>('Carte enregistrée.');
+  const [successCounts, setSuccessCounts] = useState<{ for_sale: number; pokedex: number; collection: number }>({ for_sale: 0, pokedex: 0, collection: 0 });
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [form, setForm] = useState<FormFields>(() => {
@@ -192,6 +193,9 @@ export default function CardScanForm({
     setNameFr?: string | null;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /** Stashed firstCardId between save success and SaveSuccessModal dismiss
+   * (needed by onSaved for batch-mode auto-advance). */
+  const pendingFirstCardId = useRef<string | null>(null);
   const [replaceModal, setReplaceModal] = useState<{
     existingCard: PokedexReplaceModalCard;
     hasForSaleConflict: boolean;
@@ -753,27 +757,17 @@ export default function CardScanForm({
         }
       }
 
-      setSuccessSummary(buildSuccessSummary(counts));
+      setSuccessCounts(counts);
       setPhase('success');
-      if (onSaved) {
-        onSaved(firstCardId ?? '');
-      } else {
-        setTimeout(reset, 2400);
-      }
+      // Don't auto-advance here — the SaveSuccessModal needs the user to
+      // dismiss it (so they read the per-bucket breakdown). The modal's
+      // OK button calls handleSuccessClose which then triggers reset()
+      // or onSaved (batch mode). firstCardId stashed via closure capture.
+      pendingFirstCardId.current = firstCardId;
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
       setPhase('error');
     }
-  }
-
-  /** Compose the per-bucket summary string shown after a successful save. */
-  function buildSuccessSummary(counts: { for_sale: number; pokedex: number; collection: number }): string {
-    const parts: string[] = [];
-    if (counts.for_sale > 0) parts.push(`${counts.for_sale} sur Vinted`);
-    if (counts.pokedex > 0) parts.push(`${counts.pokedex} dans le Pokédex`);
-    if (counts.collection > 0) parts.push(`${counts.collection} en Stock`);
-    if (parts.length === 0) return 'Carte enregistrée.';
-    return parts.join(' · ');
   }
 
   async function handleResaveAsCollection() {
@@ -806,16 +800,23 @@ export default function CardScanForm({
         if (copy === 0) firstCardId = inserted.card.id;
       }
 
-      setSuccessSummary(buildSuccessSummary({ for_sale: 0, pokedex: 0, collection: totalCount }));
+      setSuccessCounts({ for_sale: 0, pokedex: 0, collection: totalCount });
       setPhase('success');
-      if (onSaved) {
-        onSaved(firstCardId ?? '');
-      } else {
-        setTimeout(reset, 2400);
-      }
+      pendingFirstCardId.current = firstCardId;
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
       setPhase('error');
+    }
+  }
+
+  /** Called when the user dismisses SaveSuccessModal — completes the flow. */
+  function handleSuccessClose() {
+    const firstCardId = pendingFirstCardId.current ?? '';
+    pendingFirstCardId.current = null;
+    if (onSaved) {
+      onSaved(firstCardId);
+    } else {
+      reset();
     }
   }
 
@@ -862,13 +863,9 @@ export default function CardScanForm({
       }
 
       setReplaceModal(null);
-      setSuccessSummary(buildSuccessSummary(counts));
+      setSuccessCounts(counts);
       setPhase('success');
-      if (onSaved) {
-        onSaved(firstCardId ?? '');
-      } else {
-        setTimeout(reset, 2400);
-      }
+      pendingFirstCardId.current = firstCardId;
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
       setPhase('error');
@@ -1234,10 +1231,9 @@ export default function CardScanForm({
                     type="number"
                     min={1}
                     value={form.count}
-                    disabled={form.status === 'pokedex'}
                     onChange={(e) => update('count', Math.max(1, Number(e.target.value) || 1))}
-                    className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none disabled:opacity-50"
-                    title={form.status === 'pokedex' ? 'Pokédex limité à 1 exemplaire' : undefined}
+                    className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none"
+                    title="1er exemplaire dans la cible choisie, le reste passe en Stock"
                   />
                 </label>
               </div>
@@ -1254,13 +1250,9 @@ export default function CardScanForm({
           />
           </Field>
 
-          {/* Success/error messages */}
-          {phase === 'success' && (
-            <div className="text-rarity-r bg-surface-2 flex items-center gap-2 rounded-lg p-3 text-sm">
-              <CheckCircle2 className="h-4 w-4" aria-hidden />
-              {successSummary}
-            </div>
-          )}
+          {/* Success is now rendered as a modal at the bottom of the form
+            (see SaveSuccessModal mount below) — clearer than the old inline
+            ribbon, especially when qty>1 spreads copies across buckets. */}
 
           {/* Pokemon number mismatch hard block */}
           {numberMismatch && (
@@ -1298,6 +1290,10 @@ export default function CardScanForm({
           count={form.count}
           busy={phase === 'saving'}
         />
+      )}
+
+      {phase === 'success' && (
+        <SaveSuccessModal counts={successCounts} onClose={handleSuccessClose} />
       )}
     </div>
   );
