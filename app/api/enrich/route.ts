@@ -168,8 +168,16 @@ export async function POST(request: Request) {
   const cardLang: CardLanguage = language ?? 'EN';
   const supabase = await createClient();
 
+  // Subseries shortcut: when setCode is a known subseries prefix (TG/GG),
+  // catalog has no set with that code AND lookupByTotal can produce wildly
+  // wrong matches (e.g. DRM-3 for TG-3/30 because Dragon Majesty also has
+  // 30 cards). Skip Strategies 1+2+2.5 entirely and go straight to the
+  // subseries probe in Strategy 3a, which knows how to map TG/GG to their
+  // SwSh-era parent sets and disambiguate by national dex.
+  const isSubseriesPrefix = setCode ? /^(TG|GG)$/i.test(setCode) : false;
+
   // Strategy 1: catalog direct lookup (soft dependency — fall through on error)
-  if (setCode && localId) {
+  if (!isSubseriesPrefix && setCode && localId) {
     try {
       const row = await withTimeout(
         lookupByCode(supabase, setCode, localId, cardLang),
@@ -189,7 +197,7 @@ export async function POST(request: Request) {
   }
 
   // Strategy 2: catalog fallback by total (requires `total` — without it we go to TCGdex)
-  if (total != null && localId) {
+  if (!isSubseriesPrefix && total != null && localId) {
     try {
       const rows = await withTimeout(
         lookupByTotal(supabase, total, localId, cardLang),
@@ -217,7 +225,8 @@ export async function POST(request: Request) {
   // extracts the Pokémon name + the localId. Returns up to 15 candidates;
   // illustrator from Gemini auto-disambiguates when available, otherwise the
   // existing CandidatePicker UI lets the user pick visually.
-  if (body.pokemonName && localId) {
+  // Skipped for subseries prefixes (TG/GG) — Strategy 3a handles those better.
+  if (!isSubseriesPrefix && body.pokemonName && localId) {
     try {
       const rows = await withTimeout(
         lookupByNameAndLocalId(supabase, body.pokemonName, localId, cardLang),
