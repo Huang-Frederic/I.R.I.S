@@ -7,6 +7,18 @@ export const runtime = 'nodejs';
 
 const PHOTO_TIMEOUT_MS = 10_000;
 
+// Defense-in-depth: reject photos from any host that's not the Vinted CDN.
+// Mitigates SSRF if a malicious Vinted listing somehow returns an internal URL.
+const ALLOWED_PHOTO_HOSTS = new Set([
+  'images.vinted.net',
+  'photos.vinted.net',
+  'images1.vinted.net',
+  'images2.vinted.net',
+  'images3.vinted.net',
+  'images4.vinted.net',
+  'images5.vinted.net',
+]);
+
 async function downloadAndUpload(
   photos: ToImport['vintedItem']['photos'],
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -14,6 +26,17 @@ async function downloadAndUpload(
 ): Promise<string | null | 'upload_failed'> {
   for (const photo of photos) {
     try {
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(photo.full_size_url);
+      } catch {
+        console.warn('[import-vinted/commit] malformed photo URL', photo.full_size_url);
+        continue;
+      }
+      if (!ALLOWED_PHOTO_HOSTS.has(parsedUrl.hostname)) {
+        console.warn('[import-vinted/commit] blocked untrusted photo host', parsedUrl.hostname);
+        continue;
+      }
       const res = await fetch(photo.full_size_url, {
         signal: AbortSignal.timeout(PHOTO_TIMEOUT_MS),
       });

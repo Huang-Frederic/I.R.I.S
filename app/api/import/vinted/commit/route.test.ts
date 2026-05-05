@@ -151,4 +151,30 @@ describe('POST /api/import/vinted/commit', () => {
     expect(body.failed).toEqual([{ vintedItemId: 999, reason: 'storage_upload_failed' }]);
     expect(insertCardMock).not.toHaveBeenCalled();
   });
+
+  it('rejects photos from non-Vinted CDN hosts (SSRF defense)', async () => {
+    const item: ToImport = {
+      ...SAMPLE_ITEM,
+      vintedItem: {
+        ...SAMPLE_ITEM.vintedItem,
+        photos: [
+          { id: 1, full_size_url: 'http://169.254.169.254/latest/meta-data/', url: 'thumb' },
+          { id: 2, full_size_url: 'https://evil.example.com/photo.jpg', url: 'thumb' },
+        ],
+      },
+    };
+    insertCardMock.mockReturnValueOnce({
+      select: () => ({ single: async () => ({ data: { id: 'card-uuid-3' }, error: null }) }),
+    });
+    insertListingMock.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(makeReq([item]));
+    const body = await res.json();
+    // No fetch should be called for either photo (both blocked)
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+    // Card still created with image_url=null (treated as photo_unavailable)
+    expect(body.created).toBe(1);
+    expect(body.failed).toEqual([{ vintedItemId: 999, reason: 'photo_unavailable' }]);
+    expect(insertCardMock).toHaveBeenCalledWith(expect.objectContaining({ image_url: null }));
+  });
 });
