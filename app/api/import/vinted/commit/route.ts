@@ -99,6 +99,11 @@ export async function POST(request: Request) {
         failed.push({ vintedItemId, reason: 'listing_already_exists' });
       }
 
+      // Dual-state semantics (intentional, per design spec):
+      // The card IS created with all metadata, but if the photo couldn't be
+      // fetched from Vinted's CDN we ALSO push photo_unavailable to failed[]
+      // as a warning. The frontend can dedupe by vintedItemId to display
+      // "imported with warning" rather than "imported AND failed".
       created.push(card.id);
       if (imageUrl === null) {
         failed.push({ vintedItemId, reason: 'photo_unavailable' });
