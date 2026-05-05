@@ -49,6 +49,7 @@ const VARIANT_LABEL: Record<string, string> = {
   pokeball: 'Poké Ball',
   masterball: 'Master Ball',
   reverse_holo: 'Reverse Holo',
+  stamp: 'Stamp',
   promo: 'Promo',
 };
 

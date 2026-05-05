@@ -24,6 +24,21 @@ function pokeApiSprite(n: number): string {
 }
 
 export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefreshed }: Props) {
+  // Dismiss on Escape, lock body scroll while the modal is open. Same pattern
+  // as the other modals (CardZoomModal, LotAnnonceModal).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
   const [title, setTitle] = useState<string>(() => buildTitle(card));
   const [description, setDescription] = useState<string>(() => buildDescription(card));
   const [copiedField, setCopiedField] = useState<'title' | 'desc' | null>(null);
@@ -110,8 +125,14 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
   const pipThumbAlt = pipMain === 'mine' ? 'Image TCG' : 'Ma photo';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4">
-      <div className="bg-surface border-border my-6 w-full max-w-3xl rounded-lg border shadow-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-surface border-border my-6 w-full max-w-3xl rounded-lg border shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="border-border bg-surface sticky top-0 z-10 flex items-center justify-between border-b px-5 py-3">
           <h2 className="text-base font-semibold">Annonce Vinted</h2>
           <button

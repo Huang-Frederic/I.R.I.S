@@ -51,6 +51,7 @@ const VARIANTS: { value: string; label: string }[] = [
   { value: 'pokeball', label: 'Poké Ball' },
   { value: 'masterball', label: 'Master Ball' },
   { value: 'reverse_holo', label: 'Reverse Holo' },
+  { value: 'stamp', label: 'Stamp' },
   { value: 'promo', label: 'Promo' },
 ];
 
@@ -1293,7 +1294,11 @@ export default function CardScanForm({
       )}
 
       {phase === 'success' && (
-        <SaveSuccessModal counts={successCounts} onClose={handleSuccessClose} />
+        <SaveSuccessModal
+          counts={successCounts}
+          imageUrl={previewUrl ?? form.tcg_image_url ?? null}
+          onClose={handleSuccessClose}
+        />
       )}
     </div>
   );

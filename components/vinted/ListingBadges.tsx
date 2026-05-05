@@ -27,7 +27,10 @@ interface Props {
 }
 
 function daysSince(iso: string, now: number): number {
-  return Math.floor((now - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
+  // A listing created moments ago can show -0 because Math.floor of a tiny
+  // negative number rounds down to -1. Clamp at 0 — '0j' reads better than
+  // '-1j' or '-0j' for "today".
+  return Math.max(0, Math.floor((now - new Date(iso).getTime()) / (1000 * 60 * 60 * 24)));
 }
 
 export default function ListingBadges({

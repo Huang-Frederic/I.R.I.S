@@ -100,8 +100,14 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
   const currentImage = lot.photo_urls.length > 0 ? storagePublicUrl(lot.photo_urls[photoIndex]) : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-surface border-border w-full max-w-3xl overflow-hidden rounded-lg border shadow-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-surface border-border w-full max-w-3xl overflow-hidden rounded-lg border shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="border-border flex items-center justify-between border-b px-5 py-3">
           <h2 className="text-base font-semibold">Annonce Vinted (Lot)</h2>
           <button type="button" onClick={onClose} aria-label="Fermer" className="text-text-muted hover:text-text">

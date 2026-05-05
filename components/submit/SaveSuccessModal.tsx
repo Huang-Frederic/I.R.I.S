@@ -6,6 +6,9 @@ import { CheckCircle2 } from 'lucide-react';
 interface Props {
   /** Per-bucket counts of what was inserted in this save batch. */
   counts: { for_sale: number; pokedex: number; collection: number };
+  /** Thumbnail of the card just saved. Either a remote URL (image_url /
+   * tcg_image_url / PokeAPI sprite) or a blob URL from the local photo. */
+  imageUrl: string | null;
   onClose: () => void;
 }
 
@@ -21,7 +24,7 @@ interface Props {
  * after onSaved fires the batch-mode advance), so the modal is purely
  * presentational.
  */
-export default function SaveSuccessModal({ counts, onClose }: Props) {
+export default function SaveSuccessModal({ counts, imageUrl, onClose }: Props) {
   const lines: string[] = [];
   if (counts.for_sale > 0) lines.push(`${counts.for_sale} sur Vinted`);
   if (counts.pokedex > 0) lines.push(`${counts.pokedex} dans le Pokédex`);
@@ -44,7 +47,7 @@ export default function SaveSuccessModal({ counts, onClose }: Props) {
           </div>
         </div>
 
-        <ul className="mb-5 space-y-1.5">
+        <ul className="mb-4 space-y-1.5">
           {lines.map((line) => (
             <li key={line} className="bg-surface-2 rounded px-3 py-2 text-sm">
               <CheckCircle2 className="text-rarity-r mr-2 inline h-3.5 w-3.5" />
@@ -52,6 +55,17 @@ export default function SaveSuccessModal({ counts, onClose }: Props) {
             </li>
           ))}
         </ul>
+
+        {imageUrl && (
+          <div className="mb-5 flex justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageUrl}
+              alt="Carte enregistrée"
+              className="bg-surface-off h-[180px] w-[130px] rounded object-cover shadow"
+            />
+          </div>
+        )}
 
         <div className="flex justify-end">
           <button

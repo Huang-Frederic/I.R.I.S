@@ -7,7 +7,7 @@ export interface StockFilterState {
   search: string;
   language: CardLanguage | 'all';
   rarity: CardRarity | 'all';
-  variant: 'all' | 'standard' | 'pokeball' | 'masterball' | 'reverse_holo' | 'promo';
+  variant: 'all' | 'standard' | 'pokeball' | 'masterball' | 'reverse_holo' | 'stamp' | 'promo';
   forSaleStatus: 'all' | 'has_for_sale' | 'no_for_sale';
 }
 
@@ -26,6 +26,7 @@ const VARIANTS = [
   { value: 'pokeball' as const, label: 'Poké Ball' },
   { value: 'masterball' as const, label: 'Master Ball' },
   { value: 'reverse_holo' as const, label: 'Reverse Holo' },
+  { value: 'stamp' as const, label: 'Stamp' },
   { value: 'promo' as const, label: 'Promo' },
 ];
 

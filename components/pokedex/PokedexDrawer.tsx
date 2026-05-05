@@ -22,6 +22,14 @@ interface PokedexDrawerProps {
 const SPRITE_BASE =
   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
 
+const VARIANT_LABEL: Record<string, string> = {
+  pokeball: 'Poké Ball',
+  masterball: 'Master Ball',
+  reverse_holo: 'Reverse Holo',
+  stamp: 'Stamp',
+  promo: 'Promo',
+};
+
 const RARITY_CLASS: Record<string, string> = {
   SAR: 'text-rarity-sar',
   AR: 'text-rarity-ar',
@@ -131,6 +139,11 @@ function PokedexCardDetails({ card, availableCards }: { card: Card; availableCar
         <Row label="N° set">{card.set_number ?? '—'}</Row>
         <Row label="Rareté">
           <span className={RARITY_CLASS[card.rarity] ?? 'text-text-muted'}>{card.rarity}</span>
+          {card.variant && (
+            <span className="bg-surface-off text-text-muted ml-2 inline-flex items-center rounded px-1.5 py-0.5 font-mono text-xs">
+              {VARIANT_LABEL[card.variant] ?? card.variant}
+            </span>
+          )}
         </Row>
         <Row label="Langue">{card.language}</Row>
         <Row label="État">{card.condition}</Row>
