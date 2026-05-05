@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { parseVintedListing } from '@/lib/utils/parse-vinted-listing';
+import CardScanForm from '@/components/submit/CardScanForm';
 import type { EnrichedCard } from '@/lib/types';
 import type {
   ImportFailure,
@@ -27,6 +28,7 @@ export function VintedImportFlow() {
   const [phase, setPhase] = useState<Phase>({ kind: 'paste-curl' });
   const [curl, setCurl] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [manualEditingId, setManualEditingId] = useState<string | null>(null);
 
   async function handleFetch() {
     setError(null);
@@ -159,11 +161,44 @@ export function VintedImportFlow() {
                   })
                 }
                 onZoom={() => window.open(item.photos[0]?.full_size_url ?? '#', '_blank')}
-                onEdit={() => alert('Édit manuel — TODO Task 11')}
+                onEdit={() => setManualEditingId(id)}
               />
             );
           })}
         </div>
+        {manualEditingId !== null && (() => {
+          const editingItem = phase.items.find((i) => String(i.id) === manualEditingId);
+          if (!editingItem) return null;
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+              <div className="w-full max-w-2xl overflow-y-auto rounded-lg bg-bg p-4" style={{ maxHeight: '90vh' }}>
+                <div className="mb-2 flex items-center justify-between">
+                  <h2 className="font-semibold">Édit manuel — {editingItem.title.slice(0, 50)}</h2>
+                  <button onClick={() => setManualEditingId(null)} aria-label="Fermer" type="button">✕</button>
+                </div>
+                <p className="mb-2 text-xs text-text-muted">
+                  La carte sera créée dans la DB par CardScanForm directement (status for_sale).
+                  Le bouton d&apos;import du bas peut alors créer un duplicate qui sera ignoré silencieusement.
+                </p>
+                <CardScanForm
+                  compact
+                  lockedStatus="for_sale"
+                  initialOcr={{
+                    cardName: editingItem.title,
+                    text: editingItem.title,
+                    confidence: 0,
+                    words: [],
+                    setNumberCandidate: null,
+                    setCodeCandidate: null,
+                  }}
+                  initialEnrich={{ bestMatch: null, candidates: [] }}
+                  onCancel={() => setManualEditingId(null)}
+                  onSaved={() => setManualEditingId(null)}
+                />
+              </div>
+            </div>
+          );
+        })()}
         <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-bg p-3 md:left-[220px]">
           <button
             type="button"
