@@ -72,6 +72,7 @@ export function VintedImportFlow() {
 
   async function handleCommit() {
     if (phase.kind !== 'select-cards') return;
+    const previousPhase = phase;
     const toImport: ToImport[] = phase.items
       .filter((i) => phase.selected.has(String(i.id)))
       .map((vintedItem) => {
@@ -79,13 +80,25 @@ export function VintedImportFlow() {
         return { vintedItem, parsed, enriched: phase.enriched[String(vintedItem.id)] ?? null };
       });
     setPhase({ kind: 'committing', total: toImport.length, done: 0 });
-    const res = await fetch('/api/import/vinted/commit', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ items: toImport }),
-    });
-    const body = (await res.json()) as { created: number; failed: ImportFailure[] };
-    setPhase({ kind: 'done', created: body.created, failed: body.failed });
+    setError(null);
+    try {
+      const res = await fetch('/api/import/vinted/commit', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ items: toImport }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? `HTTP ${res.status}`);
+        setPhase(previousPhase);
+        return;
+      }
+      const body = (await res.json()) as { created: number; failed: ImportFailure[] };
+      setPhase({ kind: 'done', created: body.created, failed: body.failed });
+    } catch (e) {
+      setError(`Erreur réseau : ${String(e)}`);
+      setPhase(previousPhase);
+    }
   }
 
   if (phase.kind === 'paste-curl') {
@@ -119,6 +132,7 @@ export function VintedImportFlow() {
     const selectedCount = phase.selected.size;
     return (
       <div className="space-y-4 pb-20">
+        {error && <div className="rounded bg-rarity-ar/20 p-2 text-sm text-rarity-ar">Erreur : {error}</div>}
         <div className="sticky top-0 z-10 flex items-center justify-between rounded bg-bg/80 p-3 backdrop-blur">
           <div className="text-sm">
             {phase.items.length} cartes détectées · {phase.skipped} ignorées · <strong>{selectedCount}</strong> sélectionnées
