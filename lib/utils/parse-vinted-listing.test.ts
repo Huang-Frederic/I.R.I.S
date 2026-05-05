@@ -55,15 +55,15 @@ describe('parseVintedListing', () => {
     expect(result?.condition).toBe('NM');
   });
 
-  it('detects "Lightly played" → LP', () => {
+  it('detects "Lightly played" → PL (LP collapsed into PL since no LP enum)', () => {
     const result = parseVintedListing({
       title: '(jpn_s9-31)',
       description: 'État: Lightly played, quelques marques visibles',
     });
-    expect(result?.condition).toBe('LP');
+    expect(result?.condition).toBe('PL');
   });
 
-  it('detects "played" → PL (not LP, order matters)', () => {
+  it('detects "played" → PL', () => {
     const result = parseVintedListing({
       title: '(jpn_s9-31)',
       description: 'État: Played, usée',

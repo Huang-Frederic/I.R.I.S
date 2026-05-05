@@ -13,15 +13,16 @@ const LANG_MAP: Record<string, CardLanguage> = {
 
 /**
  * Detects the condition keyword in the description. First match wins.
- * Order matters: more specific patterns (e.g. "Lightly played") must come
- * before broader ones (e.g. "played").
+ * Order matters: more specific patterns must come before broader ones.
+ * Note: 'LP' (Lightly Played) is collapsed into 'PL' since CardCondition
+ * type does not include LP.
  */
 function detectCondition(text: string): CardCondition {
-  if (/light(ly)?\s+played|\bLP\b/i.test(text)) return 'LP';
   if (/near\s+mint|\bNM\b/i.test(text)) return 'NM';
   if (/excellent|\bEX\b/i.test(text)) return 'EX';
   if (/\bgood\b|\bGD\b/i.test(text)) return 'GD';
-  if (/played|\bPL\b|\bPO\b|poor/i.test(text)) return 'PL';
+  if (/light(ly)?\s+played|\bLP\b|played|\bPL\b/i.test(text)) return 'PL';
+  if (/\bPO\b|poor/i.test(text)) return 'PO';
   return 'NM';
 }
 
