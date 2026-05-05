@@ -1,7 +1,7 @@
 // components/vinted/VintedList.tsx
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Card, Lot, CardWithListings, LotWithListings, BaseListing } from '@/lib/types';
 import { groupCards, type CardGroup } from '@/lib/utils/group-cards';
@@ -15,6 +15,7 @@ import SoldModal, { type SoldEntity } from './SoldModal';
 import RestockToast from './RestockToast';
 import AnnonceModal from './AnnonceModal';
 import PromoteAfterSoldModal from './PromoteAfterSoldModal';
+import PartnerCleanupModal from './PartnerCleanupModal';
 import CardZoomModal from './CardZoomModal';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
@@ -80,6 +81,16 @@ export default function VintedList({ cards: initial, lots: initialLots, register
   const { myUserId, partnerUserId, partnerName } = useUserContext();
   const [cards, setCards] = useState<CardWithListings[]>(initial);
   const [lots, setLots] = useState<LotWithListings[]>(initialLots);
+
+  // Re-sync local state when the server-rendered props change (after a
+  // router.refresh() following a listing toggle / sold action / etc.).
+  // Without this, useState's initial value stays frozen and the UI doesn't
+  // reflect SSR re-fetches. The setState-in-effect cascade fires once per
+  // SSR refetch — that's the explicit goal here, not a bug.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setCards(initial); }, [initial]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setLots(initialLots); }, [initialLots]);
   const [filters, setFilters] = useState<VintedFilterState>(INITIAL_FILTERS);
   const [now] = useState(() => Date.now());
   const [selectionMode, setSelectionMode] = useState(false);
@@ -102,6 +113,20 @@ export default function VintedList({ cards: initial, lots: initialLots, register
   const [soldTarget, setSoldTarget] = useState<SoldEntity | null>(null);
   const [restockAlert, setRestockAlert] = useState<RestockAlert | null>(null);
   const [promoteCandidate, setPromoteCandidate] = useState<PromoteCandidate | null>(null);
+  /**
+   * Queued PartnerCleanup notice — set when a sold item HAD a partner listing
+   * at sale time. Shown either:
+   *   - immediately, if there was no promote candidate (no replacement possible)
+   *   - after the user dismisses PromoteAfterSoldModal without promoting
+   * Cleared when the user accepts the promote (the new for_sale row replaces
+   * the partner's listing semantically) or when they ack the cleanup notice.
+   */
+  const [partnerCleanup, setPartnerCleanup] = useState<{ itemKind: 'card' | 'lot'; itemDisplayName: string } | null>(null);
+  /**
+   * Bulk variant of partnerCleanup — drained one-by-one after BulkSoldRecap
+   * and the bulk-promote queue both finish.
+   */
+  const [partnerCleanupQueue, setPartnerCleanupQueue] = useState<Array<{ itemKind: 'card' | 'lot'; itemDisplayName: string }>>([]);
   const [bulkRecap, setBulkRecap] = useState<{
     items: BulkSoldItem[];
     restocks: RestockAlert[];
@@ -131,6 +156,18 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     restock: RestockAlert | null;
     promote: PromoteCandidate | null;
   }) => {
+    // Capture partner-listing-state at sale time so we can prompt the user
+    // to ask the partner to clean up their Vinted listing if no replacement
+    // is possible (no promote candidate, or user declines the promote).
+    const partnerListed = soldTarget
+      ? (soldTarget.kind === 'card'
+          ? getPartnerListing((soldTarget.card as CardWithListings).listings ?? [], partnerUserId) !== null
+          : getPartnerListing((soldTarget.lot as LotWithListings).listings ?? [], partnerUserId) !== null)
+      : false;
+    const itemDisplayName = soldTarget
+      ? (soldTarget.kind === 'card' ? soldTarget.card.card_name : soldTarget.lot.name)
+      : '';
+
     if (info.kind === 'card') {
       // Mark the card as sold in local state instead of removing it (so it shows up under Vendus filter).
       setCards((prev) =>
@@ -158,10 +195,21 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     fetch(`/api/listings/${kind}/${info.soldId}`, { method: 'DELETE' }).catch(() => {
       // Silent — RLS allows me to delete only my own listings, error is non-fatal.
     });
+
+    // Partner cleanup notice — only relevant when partner had a listing.
+    // Always queued upfront; the render gate hides it while PromoteAfterSold
+    // is open. If the user promotes successfully, handlePromoted clears it
+    // (the new for_sale row replaces the partner's listing semantically).
+    if (partnerListed) {
+      setPartnerCleanup({ itemKind: info.kind, itemDisplayName });
+    }
   };
 
   const handlePromoted = () => {
     setPromoteCandidate(null);
+    // Successful promote → the new for_sale row replaces the partner's
+    // listing in spirit. No need to nag the user about cleanup.
+    setPartnerCleanup(null);
     router.refresh();
   };
 
@@ -194,6 +242,8 @@ export default function VintedList({ cards: initial, lots: initialLots, register
     const soldItems: BulkSoldItem[] = [];
     const restocks: RestockAlert[] = [];
     const promotes: PromoteCandidate[] = [];
+    /** Per-item: did it have a partner listing AT sale time? Lines up by index with `soldItems`. */
+    const partnerListedFlags: boolean[] = [];
     let failCount = 0;
     const errors: string[] = [];
 
@@ -202,6 +252,11 @@ export default function VintedList({ cards: initial, lots: initialLots, register
       const sold_price = prices[i];
       const id = item.kind === 'card' ? item.card.id : item.lot.id;
       const endpoint = item.kind === 'card' ? `/api/cards/${id}` : `/api/lots/${id}`;
+      // Capture partner-listing-state BEFORE the sale (local state still has it).
+      const itemListings: BaseListing[] = item.kind === 'card'
+        ? ((item.card as CardWithListings).listings ?? [])
+        : ((item.lot as LotWithListings).listings ?? []);
+      const hadPartnerListing = getPartnerListing(itemListings, partnerUserId) !== null;
       try {
         const res = await fetch(endpoint, {
           method: 'PATCH',
@@ -223,6 +278,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
           continue;
         }
         soldItems.push(item);
+        partnerListedFlags.push(hadPartnerListing);
         if (item.kind === 'card') {
           setCards((prev) => prev.map((c): CardWithListings => (c.id === id ? { ...c, status: 'sold' as const, sold_price, date_sold: dateSoldIso } : c)));
           if (json.restock) restocks.push(json.restock);
@@ -240,6 +296,23 @@ export default function VintedList({ cards: initial, lots: initialLots, register
         errors.push(`${item.kind === 'card' ? item.card.card_name : item.lot.name}: ${e instanceof Error ? e.message : 'network'}`);
       }
     }
+
+    // Build the partner-cleanup queue: one entry per sold item that HAD a
+    // partner listing. The current bulk shape doesn't track which sold item
+    // produced which promote candidate, so we queue cleanups for ALL items
+    // with partner listings — if the user accepts a related promote, the
+    // cleanup modal will still pop up but they can dismiss it (slight
+    // over-notification, simpler invariant).
+    const cleanupQueue = soldItems
+      .map((item, i) => {
+        if (!partnerListedFlags[i]) return null;
+        return {
+          itemKind: item.kind,
+          itemDisplayName: item.kind === 'card' ? item.card.card_name : item.lot.name,
+        };
+      })
+      .filter((entry): entry is { itemKind: 'card' | 'lot'; itemDisplayName: string } => entry !== null);
+    if (cleanupQueue.length > 0) setPartnerCleanupQueue(cleanupQueue);
 
     if (failCount > 0) {
       console.warn(`[bulk-sold] ${soldItems.length} vendus, ${failCount} échec(s)`, errors);
@@ -436,14 +509,6 @@ export default function VintedList({ cards: initial, lots: initialLots, register
           ...selectedCards.map((c) => ({ kind: 'card' as const, card: c })),
           ...selectedLots.map((l) => ({ kind: 'lot' as const, lot: l })),
         ];
-        const partnerListedItems: Array<{ name: string }> = [
-          ...selectedCards
-            .filter((c) => getPartnerListing(c.listings, partnerUserId))
-            .map((c) => ({ name: c.card_name })),
-          ...selectedLots
-            .filter((l) => getPartnerListing(l.listings, partnerUserId))
-            .map((l) => ({ name: l.name })),
-        ];
         return (
           <BulkSoldModal
             items={items}
@@ -453,37 +518,17 @@ export default function VintedList({ cards: initial, lots: initialLots, register
               setBulkSoldOpen(false);
               cancelSelection();
             }}
-            partnerName={partnerName}
-            partnerListedItems={partnerListedItems}
           />
         );
       })()}
 
-      {bulkRecap && (() => {
-        // Build partner-listed items from the recap items (which come from selectedCards/selectedLots, preserving listings at runtime)
-        const partnerListedItems: Array<{ name: string }> = bulkRecap.items
-          .map((it) => {
-            // Runtime: card/lot have listings because they came from CardWithListings/LotWithListings
-            if (it.kind === 'card') {
-              const listings = (it.card as CardWithListings).listings ?? [];
-              if (getPartnerListing(listings, partnerUserId)) return { name: it.card.card_name };
-            } else {
-              const listings = (it.lot as LotWithListings).listings ?? [];
-              if (getPartnerListing(listings, partnerUserId)) return { name: it.lot.name };
-            }
-            return null;
-          })
-          .filter((x): x is { name: string } => x !== null);
-        return (
-          <BulkSoldRecapModal
-            items={bulkRecap.items}
-            restocks={bulkRecap.restocks}
-            onClose={dismissBulkRecap}
-            partnerName={partnerName}
-            partnerListedItems={partnerListedItems}
-          />
-        );
-      })()}
+      {bulkRecap && (
+        <BulkSoldRecapModal
+          items={bulkRecap.items}
+          restocks={bulkRecap.restocks}
+          onClose={dismissBulkRecap}
+        />
+      )}
 
       {/* Drain bulk-promote queue: shown after the recap modal closes. Each
         decision shifts the queue, exposing the next candidate. */}
@@ -503,12 +548,6 @@ export default function VintedList({ cards: initial, lots: initialLots, register
           entity={soldTarget}
           onClose={() => setSoldTarget(null)}
           onSold={handleSold}
-          partnerListing={
-            soldTarget.kind === 'card'
-              ? getPartnerListing((soldTarget.card as CardWithListings).listings ?? [], partnerUserId)
-              : getPartnerListing((soldTarget.lot as LotWithListings).listings ?? [], partnerUserId)
-          }
-          partnerName={partnerName}
         />
       )}
       {restockAlert && <RestockToast alert={restockAlert} onDismiss={() => setRestockAlert(null)} />}
@@ -517,6 +556,29 @@ export default function VintedList({ cards: initial, lots: initialLots, register
           candidate={promoteCandidate}
           onClose={() => setPromoteCandidate(null)}
           onPromoted={handlePromoted}
+        />
+      )}
+      {/* Partner cleanup — shown only when no PromoteAfterSold is in front of it.
+        If a promote was offered and dismissed (not accepted), this falls through. */}
+      {partnerCleanup && !promoteCandidate && partnerName && (
+        <PartnerCleanupModal
+          partnerName={partnerName}
+          itemDisplayName={partnerCleanup.itemDisplayName}
+          itemKind={partnerCleanup.itemKind}
+          onClose={() => setPartnerCleanup(null)}
+        />
+      )}
+
+      {/* Bulk partner cleanup queue — drained one-by-one AFTER the bulk recap
+        and bulk-promote queue both finish. Same modal as the single-item
+        flow, surfaced for each unreplaced sold item that had a partner
+        listing. */}
+      {!bulkRecap && !currentBulkPromote && partnerCleanupQueue.length > 0 && partnerName && (
+        <PartnerCleanupModal
+          partnerName={partnerName}
+          itemDisplayName={partnerCleanupQueue[0].itemDisplayName}
+          itemKind={partnerCleanupQueue[0].itemKind}
+          onClose={() => setPartnerCleanupQueue((q) => q.slice(1))}
         />
       )}
       {annonceTarget && (

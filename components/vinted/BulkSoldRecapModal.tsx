@@ -11,8 +11,6 @@ interface Props {
   items: BulkSoldItem[];
   restocks: RestockAlert[];
   onClose: () => void;
-  partnerName: string | null;
-  partnerListedItems: Array<{ name: string }>;
 }
 
 function thumbUrl(item: BulkSoldItem): string | null {
@@ -29,7 +27,7 @@ function displayName(item: BulkSoldItem): string {
   return item.kind === 'card' ? item.card.card_name : item.lot.name;
 }
 
-export default function BulkSoldRecapModal({ items, restocks, onClose, partnerName, partnerListedItems }: Props) {
+export default function BulkSoldRecapModal({ items, restocks, onClose }: Props) {
   const [index, setIndex] = useState(0);
   const total = items.length;
 
@@ -142,17 +140,6 @@ export default function BulkSoldRecapModal({ items, restocks, onClose, partnerNa
                 </Link>
               </div>
             </div>
-          </div>
-        )}
-
-        {partnerName && partnerListedItems.length > 0 && (
-          <div className="bg-surface-2 mt-4 rounded p-3 text-sm">
-            <p className="font-medium">À demander à {partnerName} de retirer :</p>
-            <ul className="text-text-muted mt-1 list-disc pl-5 text-xs">
-              {partnerListedItems.map((it, i) => (
-                <li key={i}>{it.name}</li>
-              ))}
-            </ul>
           </div>
         )}
 
