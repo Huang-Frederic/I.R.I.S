@@ -116,14 +116,19 @@ export default function LotRow({
           Annonce
         </button>
 
-        <button
-          type="button"
-          onClick={() => onSoldClick(lot)}
-          disabled={selectionMode}
-          className="bg-red text-bg shrink-0 rounded px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-40"
-        >
-          Vendu
-        </button>
+        {/* Hide the Vendu button when the lot is already sold (status='sold'
+          but my listing is still up — partner sold it). The ListingBadges X
+          button is the right control to retire my listing. */}
+        {lot.status !== 'sold' && (
+          <button
+            type="button"
+            onClick={() => onSoldClick(lot)}
+            disabled={selectionMode}
+            className="bg-red text-bg shrink-0 rounded px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-40"
+          >
+            Vendu
+          </button>
+        )}
       </div>
     </li>
   );
