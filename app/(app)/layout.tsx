@@ -1,5 +1,6 @@
 import Sidebar from '@/components/layout/Sidebar';
 import BottomNav from '@/components/layout/BottomNav';
+import RouteChangeRefresher from '@/components/layout/RouteChangeRefresher';
 import { UserContextProvider, type UserContextValue } from '@/lib/hooks/useUserContext';
 import { createClient } from '@/lib/supabase/server';
 import type { UserProfile } from '@/lib/types';
@@ -31,6 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <UserContextProvider value={userContextValue}>
+      <RouteChangeRefresher />
       <div className="min-h-screen">
         <Sidebar />
         <main className="min-h-screen md:pl-[220px]">

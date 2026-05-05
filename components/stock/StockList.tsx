@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Card } from '@/lib/types';
 import { groupCards, groupKey, type CardGroup } from '@/lib/utils/group-cards';
@@ -50,6 +50,12 @@ function matchesFilters(card: Card, f: StockFilterState, hasForSale: boolean): b
 export default function StockList({ cards: initial, forSaleKeys, registered }: StockListProps) {
   const router = useRouter();
   const [cards, setCards] = useState<Card[]>(initial);
+  // Re-sync local state when SSR re-fetches push new props (after a tab nav
+  // refresh or a mutation followed by router.refresh()). Without this, the
+  // useState initial value stays frozen and the UI doesn't reflect new rows.
+  // The setState-in-effect cascade fires once per refetch — explicit goal.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setCards(initial); }, [initial]);
   const [filters, setFilters] = useState<StockFilterState>(INITIAL_STOCK_FILTERS);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [exchangeModal, setExchangeModal] = useState<{
