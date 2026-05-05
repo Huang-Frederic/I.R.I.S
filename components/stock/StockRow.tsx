@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Tag, BookmarkCheck, Bookmark } from 'lucide-react';
+import { Tag, BookmarkCheck, Bookmark, Globe, GlobeLock } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
 import CardZoomModal from '@/components/vinted/CardZoomModal';
@@ -133,6 +133,26 @@ export default function StockRow({
               >
                 <Bookmark className="h-3 w-3" />
                 Pas Pokédex
+              </button>
+            )}
+            {hasForSaleSibling ? (
+              <span
+                className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
+                title="Un exemplaire de cette carte est déjà en vente sur Vinted"
+              >
+                <Globe className="h-3 w-3" />
+                Vinted
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onListForSaleClick(card)}
+                disabled={busy}
+                title="Mettre cette carte en vente sur Vinted"
+                className="bg-rarity-ar/20 text-rarity-ar hover:bg-rarity-ar/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors disabled:opacity-50"
+              >
+                <GlobeLock className="h-3 w-3" />
+                Pas Vinted
               </button>
             )}
           </div>
