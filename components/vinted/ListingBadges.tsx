@@ -125,7 +125,7 @@ export default function ListingBadges({
             type="button"
             onClick={postListing}
             disabled={busy}
-            className="bg-surface-2 hover:bg-surface-off border-border inline-flex items-center gap-1 rounded border px-1.5 py-0.5 disabled:opacity-50"
+            className="bg-rarity-ar/20 text-rarity-ar hover:bg-rarity-ar/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors disabled:opacity-50"
           >
             <GlobeLock className="h-3 w-3" />
             Mettre en ligne
