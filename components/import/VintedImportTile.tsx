@@ -55,7 +55,7 @@ export function VintedImportTile({
       <button
         type="button"
         onClick={onZoom}
-        className="block w-full overflow-hidden rounded bg-muted"
+        className="block w-full overflow-hidden rounded bg-surface-off"
         aria-label="Zoom photo"
       >
         {photo ? (
@@ -68,7 +68,7 @@ export function VintedImportTile({
             unoptimized
           />
         ) : (
-          <div className="flex h-40 items-center justify-center text-xs text-muted-foreground">
+          <div className="flex h-40 items-center justify-center text-xs text-text-faint">
             Pas de photo
           </div>
         )}
@@ -76,13 +76,13 @@ export function VintedImportTile({
       <div className="mt-2 space-y-1 text-xs">
         <div className="font-semibold">{displayName}</div>
         {parsed ? (
-          <div className="text-muted-foreground">
+          <div className="text-text-muted">
             {parsed.setCode}-{parsed.setNumber} · {parsed.condition} · {parsed.language}
           </div>
         ) : (
           <div className="text-rarity-ar">Pattern non détecté</div>
         )}
-        <div className="text-muted-foreground">
+        <div className="text-text-muted">
           €{Number(item.price.amount).toFixed(2)} · en ligne {days}j
         </div>
         {!parsed && (
