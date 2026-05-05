@@ -63,6 +63,14 @@ describe('parseVintedListing', () => {
     expect(result?.condition).toBe('LP');
   });
 
+  it('detects "played" → PL (not LP, order matters)', () => {
+    const result = parseVintedListing({
+      title: '(jpn_s9-31)',
+      description: 'État: Played, usée',
+    });
+    expect(result?.condition).toBe('PL');
+  });
+
   it('returns null when the language code is unknown (e.g. ger_)', () => {
     expect(
       parseVintedListing({ title: '(ger_sv1-25)', description: '' }),
