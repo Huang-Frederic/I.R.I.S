@@ -156,7 +156,7 @@ Champs mappés :
 | Champ DB | Source |
 |---|---|
 | `image_url` | `uploadedImageUrl` (Supabase Storage public URL) |
-| `card_id_tcg` | `enriched?.id ?? null` (ID TCGdex format `swsh9-31`, conforme à `cards.card_id_tcg` des rows existantes — vérifier le shape exact en regardant `lib/api/tcgdex.ts` `toEnrichedCard`) |
+| `card_id_tcg` | `enriched?.card_id_tcg ?? null` (format `swsh9-31`, conforme à `cards.card_id_tcg` des rows existantes) |
 | `cardmarket_id` | `enriched?.cardmarket_id ?? null` |
 | `pokemon_name` | `enriched?.pokemon_name ?? null` |
 | `pokemon_name_fr` | `enriched?.pokemon_name_fr ?? null` |
