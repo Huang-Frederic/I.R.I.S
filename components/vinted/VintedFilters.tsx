@@ -3,6 +3,8 @@
 import { Search, Globe, GlobeLock, Tag, RefreshCw, CheckSquare, Square, User } from 'lucide-react';
 import { UI_LANGUAGES, type CardLanguage, type CardRarity } from '@/lib/types';
 import { type MultiUserChip } from '@/lib/utils/vinted-filter';
+import { useUserContext } from '@/lib/hooks/useUserContext';
+import { chipClassesForColor, colorForUserName } from '@/lib/utils/user-colors';
 
 export interface VintedFilterState {
   search: string;
@@ -66,6 +68,9 @@ const CHIPS: Chip[] = [
 ];
 
 export default function VintedFilters({ value, onChange, visibleCards, totalCards, selectionMode, onToggleSelectionMode, hasPartner }: Props) {
+  const { myName, partnerName } = useUserContext();
+  const myColor = colorForUserName(myName);
+  const partnerColor = colorForUserName(partnerName);
   const toggleChip = (key: Chip['key']) => onChange({ ...value, [key]: !value[key] });
 
   return (
@@ -186,27 +191,19 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
         <button
           type="button"
           onClick={() => onChange({ ...value, multiUserChip: 'mine' })}
-          className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${
-            value.multiUserChip === 'mine'
-              ? 'bg-red-bg border-red text-red font-medium'
-              : 'bg-surface-2 border-border text-text-muted hover:text-text'
-          }`}
+          className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${chipClassesForColor(myColor, value.multiUserChip === 'mine')}`}
         >
           <User className="h-3.5 w-3.5" />
-          Mes annonces
+          Par {myName ?? 'moi'}
         </button>
-        {hasPartner && (
+        {hasPartner && partnerName && (
           <button
             type="button"
             onClick={() => onChange({ ...value, multiUserChip: 'partner' })}
-            className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${
-              value.multiUserChip === 'partner'
-                ? 'bg-red-bg border-red text-red font-medium'
-                : 'bg-surface-2 border-border text-text-muted hover:text-text'
-            }`}
+            className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${chipClassesForColor(partnerColor, value.multiUserChip === 'partner')}`}
           >
             <User className="h-3.5 w-3.5" />
-            Ses annonces
+            Par {partnerName}
           </button>
         )}
         {hasPartner && (
