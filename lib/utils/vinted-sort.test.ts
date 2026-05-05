@@ -23,7 +23,7 @@ function makeCard(overrides: Partial<CardWithListings> = {}): CardWithListings {
     suggested_price: null, cm_updated_at: null,
     lot_id: null,
     date_added: '2026-01-01T00:00:00Z',
-    date_sold: null, sold_price: null,
+    date_sold: null, sold_price: null, sold_by_user_id: null,
     notes: null, variant: null,
     listings: [],
     ...overrides,
