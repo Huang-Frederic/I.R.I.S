@@ -64,6 +64,7 @@ export async function POST(request: Request) {
       setCodeCandidate: geminiResult.set_code,
       pokemonNumber: geminiResult.pokemon_number,
       pokemonNameFr: geminiResult.pokemon_name_fr,
+      cardNameFr: geminiResult.card_name_fr,
       setName: geminiResult.set_name,
       setNameFr: geminiResult.set_name_fr,
       language: normalizeGeminiLanguage(geminiResult.language),

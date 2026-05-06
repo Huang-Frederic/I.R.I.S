@@ -142,6 +142,10 @@ export interface OcrResult {
   // Optional, populated only when Gemini provides them (not by Vision fallback)
   pokemonNumber?: number | null;
   pokemonNameFr?: string | null;
+  /** Full French card name (incl. suffixes for Pokémon, OR Trainer/Energy
+   *  translation). When set, takes precedence over the deriveCardNameFr
+   *  fallback that just appends a suffix to pokemonNameFr. */
+  cardNameFr?: string | null;
   setName?: string | null;
   setNameFr?: string | null;
 

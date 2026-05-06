@@ -552,6 +552,7 @@ export default function CardScanForm({
       const geminiFields = {
         pokemonNumber: ocr.pokemonNumber,
         pokemonNameFr: ocr.pokemonNameFr,
+        cardNameFr: ocr.cardNameFr,
         setName: ocr.setName,
         setNameFr: ocr.setNameFr,
         cardName: ocr.cardName,

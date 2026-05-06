@@ -38,6 +38,9 @@ interface EnrichBody {
   // NEW — from Gemini extraction (Chunk 1)
   pokemonNumber?: number | null;
   pokemonNameFr?: string | null;
+  /** Full FR card name from Gemini — preferred source for card_name_fr,
+   *  covers Trainers/Energies that the dataset-based fallback can't handle. */
+  cardNameFr?: string | null;
   setName?: string | null;
   setNameFr?: string | null;
 
@@ -101,9 +104,10 @@ function buildGeminiOnlyCard(
     pokemonNumber == null
       ? ''
       : formatBilingualName(body.pokemonName ?? cardName, body.pokemonNameFr, language);
+  const cardNameFr = body.cardNameFr ?? deriveCardNameFr(cardName, body.pokemonNameFr);
   return {
     card_id_tcg: `${setCode}-${localIdNorm}`,
-    card_name: formatBilingualName(cardName, deriveCardNameFr(cardName, body.pokemonNameFr), language),
+    card_name: formatBilingualName(cardName, cardNameFr, language),
     pokemon_name: pokemonName,
     pokemon_number: pokemonNumber,
     set_name: formatBilingualName(body.setName ?? setCode, body.setNameFr, language),
@@ -138,7 +142,11 @@ function applyGeminiEnrichments(
   body: EnrichBody,
   language: CardLanguage,
 ): EnrichedCard {
-  const cardNameFr = deriveCardNameFr(enriched.card_name, body.pokemonNameFr);
+  // Source priority for the FR card name:
+  //  1. Gemini's `card_name_fr` — covers Trainers/Energies + reliable suffix.
+  //  2. deriveCardNameFr — pokemonNameFr + suffix extracted from original.
+  //     Only fires for Pokémon cards (no pokemonNameFr → returns null).
+  const cardNameFr = body.cardNameFr ?? deriveCardNameFr(enriched.card_name, body.pokemonNameFr);
   const finalPokemonNumber = enriched.pokemon_number ?? body.pokemonNumber ?? null;
   // For non-Pokémon cards (Trainers/Energies/Stadium), pokemon_name is just
   // a redundant copy of card_name in the catalog (legacy NOT NULL workaround).

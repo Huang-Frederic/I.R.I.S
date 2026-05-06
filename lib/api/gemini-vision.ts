@@ -33,6 +33,10 @@ export interface GeminiCardExtraction {
   // Pokédex info from Gemini training data
   pokemon_number: number | null; // National dex 1-1025, null for non-Pokémon cards (Trainers/Energies)
   pokemon_name_fr: string | null; // French species name, e.g. "Gruikui" for "チャオブー"
+  /** French translation of the FULL card name (incl. suffixes for Pokémon, OR the
+   *  Trainer/Energy/Stadium name like "Le Plan de N" for "Nの筋書き"). Null when
+   *  the card is already FR or Gemini doesn't know a confident translation. */
+  card_name_fr: string | null;
 
   // Set translation
   set_name: string | null; // Set name as printed on card (in card's language)
@@ -74,6 +78,7 @@ CODES DE SET PAR LANGUE — extrais ce qui est imprimé, JAMAIS l'équivalent d'
   "confidence": "high|medium|low",
   "pokemon_number": <national dex 1-1025 si Pokémon, null pour Trainer/Energy/Stadium>,
   "pokemon_name_fr": "<nom FR standard (ex 'Gruikui', 'Dracaufeu'), null si non-Pokémon ou incertain>",
+  "card_name_fr": "<traduction FR du nom COMPLET de la carte (ex 'Dracaufeu ex' pour 'リザードンex', 'Le Plan de N' pour 'Nの筋書き', 'Marnie' identique). Null si carte d\\u00e9j\\u00e0 en FR ou si traduction incertaine>",
   "set_name": "<nom extension imprimé (ex 'White Flare', 'BREAKpoint'), null si invisible>",
   "set_name_fr": "<traduction FR (ex 'Combat de Maîtres', 'Rupture Turbo'), null si incertain>",
   "illustrator": "<crédit illustrateur en bas de carte (ex 'Ryuta Fuse', 'YASHIRO Nanaco', 'kirisAki'), null si illisible>"
@@ -116,6 +121,7 @@ const SCHEMA = {
     confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
     pokemon_number: { type: 'integer' },
     pokemon_name_fr: { type: 'string' },
+    card_name_fr: { type: 'string' },
     set_name: { type: 'string' },
     set_name_fr: { type: 'string' },
     illustrator: { type: 'string' },
@@ -251,6 +257,7 @@ export async function extractCardFromImage(
           ? parsed.pokemon_number
           : null,
       pokemon_name_fr: cleanNull(parsed.pokemon_name_fr),
+      card_name_fr: cleanNull(parsed.card_name_fr),
       set_name: cleanNull(parsed.set_name),
       set_name_fr: cleanNull(parsed.set_name_fr),
       illustrator: cleanNull(parsed.illustrator),

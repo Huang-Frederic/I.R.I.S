@@ -14,6 +14,7 @@ const FULL_EXTRACTION = {
   confidence: 'high',
   pokemon_number: 25,
   pokemon_name_fr: 'Pikachu',
+  card_name_fr: 'Pikachu ex',
   set_name: 'Battle Partners',
   set_name_fr: 'Partenaires de Combat',
   illustrator: 'Ryuta Fuse',
