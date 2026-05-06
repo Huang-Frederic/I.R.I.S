@@ -17,6 +17,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { buildBatchRows, type BatchRowBase } from '@/lib/utils/build-batch-rows';
+import { PRICE_COEFFICIENT } from '@/lib/constants/pricing';
 import type { CardCondition, CardLanguage, CardRarity, CardStatus } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -30,7 +31,6 @@ const RARITIES: ReadonlySet<CardRarity> = new Set([
   'SAR', 'AR', 'SR', 'CHR', 'RR', 'R_HOLO', 'R', 'UC', 'C', 'OTHER',
 ]);
 
-const PRICE_COEFFICIENT = 0.85;
 const MAX_COUNT = 50;
 
 function str(form: FormData, key: string): string | null {

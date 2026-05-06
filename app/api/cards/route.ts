@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { PRICE_COEFFICIENT } from '@/lib/constants/pricing';
 import type { CardCondition, CardLanguage, CardRarity, CardStatus } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -43,8 +44,6 @@ function num(form: FormData, key: string): number | null {
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : null;
 }
-
-const PRICE_COEFFICIENT = 0.85;
 
 export async function POST(request: Request) {
   let formData: FormData;
