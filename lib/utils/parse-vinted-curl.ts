@@ -1,6 +1,6 @@
 import type { VintedCurl } from '@/lib/types/vinted-import';
 
-const URL_RE = /https:\/\/www\.vinted\.[a-z.]+\/api\/v2\/(?:users|wardrobe)\/(\d+)\/items/;
+const URL_RE = /https:\/\/www\.vinted\.[a-z.]+\/api\/v2\/(users|wardrobe)\/(\d+)\/items/;
 
 /**
  * Extract the headers we need from a `curl ...` command copied via Chrome
@@ -20,7 +20,8 @@ export function parseVintedCurl(curl: string): VintedCurl | null {
 
   const urlMatch = normalized.match(URL_RE);
   if (!urlMatch) return null;
-  const userId = urlMatch[1];
+  const endpoint = urlMatch[1] as 'users' | 'wardrobe';
+  const userId = urlMatch[2];
 
   const cookieMatch =
     normalized.match(/-H\s+['"]cookie:\s*([^'"]+)['"]/i) ??
@@ -31,5 +32,5 @@ export function parseVintedCurl(curl: string): VintedCurl | null {
   const csrfMatch = normalized.match(/-H\s+['"]x-csrf-token:\s*([^'"]+)['"]/i);
   const csrfToken = csrfMatch ? csrfMatch[1].trim() : null;
 
-  return { userId, cookie, csrfToken };
+  return { userId, cookie, csrfToken, endpoint };
 }

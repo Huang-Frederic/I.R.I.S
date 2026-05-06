@@ -50,4 +50,9 @@ export interface VintedCurl {
   userId: string;
   cookie: string;
   csrfToken: string | null;
+  /** Which endpoint Vinted's site used in the copied curl —
+   *  Vinted exposes both `/users/{id}/items` and `/wardrobe/{id}/items`
+   *  (the latter is what the modern member-profile page hits). We replay
+   *  the same one so we don't get 404s. */
+  endpoint: 'users' | 'wardrobe';
 }

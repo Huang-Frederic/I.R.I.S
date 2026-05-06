@@ -39,7 +39,14 @@ export function VintedImportFlow() {
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      setError(body.error ?? `HTTP ${res.status}`);
+      // Verbose: dump everything we got back so the real cause is visible.
+      console.error('[VintedImportFlow] /fetch failed', res.status, body);
+      const parts: string[] = [body.error ?? `HTTP ${res.status}`];
+      if (body.status) parts.push(`Vinted=${body.status} ${body.statusText ?? ''}`.trim());
+      if (body.bodySnippet) parts.push(`body: ${body.bodySnippet}`);
+      if (body.detail) parts.push(`detail: ${body.detail}`);
+      if (body.url) parts.push(`url: ${body.url}`);
+      setError(parts.join(' · '));
       return;
     }
     const { items, skipped } = (await res.json()) as { items: VintedItem[]; skipped: number };

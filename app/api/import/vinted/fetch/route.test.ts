@@ -13,6 +13,25 @@ function makeReq(body: unknown): Request {
 
 const SAMPLE_CURL = `curl 'https://www.vinted.fr/api/v2/users/12345678/items?per_page=200&page=1' -H 'cookie: _vinted_fr_session=abc'`;
 
+/** Build a fake Response shape sufficient for the route's introspection
+ *  (status/headers.get/json/text). vi mocks of fetch only need this subset. */
+function fakeRes(opts: {
+  status: number;
+  ok?: boolean;
+  json?: () => Promise<unknown>;
+  text?: () => Promise<string>;
+  contentType?: string;
+}): Response {
+  return {
+    ok: opts.ok ?? (opts.status >= 200 && opts.status < 300),
+    status: opts.status,
+    statusText: '',
+    headers: { get: (h: string) => (h.toLowerCase() === 'content-type' ? (opts.contentType ?? 'application/json') : null) },
+    json: opts.json ?? (async () => ({})),
+    text: opts.text ?? (async () => ''),
+  } as unknown as Response;
+}
+
 describe('POST /api/import/vinted/fetch', () => {
   beforeEach(() => {
     global.fetch = vi.fn();
@@ -37,11 +56,9 @@ describe('POST /api/import/vinted/fetch', () => {
       { id: 4, title: 'T-shirt', description: '', price: { amount: '8', currency_code: 'EUR' }, created_at_ts: 1_700_000_000, photos: [] },
       { id: 5, title: '(fra_sv1-25)', description: '', price: { amount: '4', currency_code: 'EUR' }, created_at_ts: 1_700_000_000, photos: [] },
     ];
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({ items, pagination: { total_pages: 1 } }),
-    } as Response);
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      fakeRes({ status: 200, json: async () => ({ items, pagination: { total_pages: 1 } }) }),
+    );
 
     const res = await POST(makeReq({ curl: SAMPLE_CURL }));
     expect(res.status).toBe(200);
@@ -51,10 +68,7 @@ describe('POST /api/import/vinted/fetch', () => {
   });
 
   it('returns 401 when Vinted responds with 401 (cookie expired)', async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      status: 401,
-      json: async () => ({}),
-    } as Response);
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(fakeRes({ status: 401 }));
     const res = await POST(makeReq({ curl: SAMPLE_CURL }));
     expect(res.status).toBe(401);
     const body = await res.json();
@@ -62,10 +76,7 @@ describe('POST /api/import/vinted/fetch', () => {
   });
 
   it('returns 503 when Vinted responds with 403 (cloudflare/datadome blocked)', async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      status: 403,
-      json: async () => ({}),
-    } as Response);
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(fakeRes({ status: 403 }));
     const res = await POST(makeReq({ curl: SAMPLE_CURL }));
     expect(res.status).toBe(503);
     const body = await res.json();
@@ -82,8 +93,8 @@ describe('POST /api/import/vinted/fetch', () => {
       pagination: { total_pages: 2 },
     };
     (global.fetch as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => page1 } as Response)
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => page2 } as Response);
+      .mockResolvedValueOnce(fakeRes({ status: 200, json: async () => page1 }))
+      .mockResolvedValueOnce(fakeRes({ status: 200, json: async () => page2 }));
 
     const res = await POST(makeReq({ curl: SAMPLE_CURL }));
     const body = await res.json();

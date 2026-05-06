@@ -15,6 +15,7 @@ describe('parseVintedCurl', () => {
       userId: '12345678',
       cookie: '_vinted_fr_session=abc123def456; v_sid=xyz',
       csrfToken: 'csrf-token-here',
+      endpoint: 'users',
     });
   });
 
@@ -41,6 +42,7 @@ describe('parseVintedCurl', () => {
     const result = parseVintedCurl(curl);
     expect(result?.userId).toBe('103310104');
     expect(result?.cookie).toBe('_vinted_fr_session=xyz');
+    expect(result?.endpoint).toBe('wardrobe');
   });
 
   it('handles Windows cmd format with caret-escaped quotes (^") and -b cookie', () => {
@@ -54,5 +56,6 @@ describe('parseVintedCurl', () => {
     expect(result?.userId).toBe('103310104');
     expect(result?.cookie).toBe('v_sid=57d7e86d; _vinted_fr_session=ellyY3Nn');
     expect(result?.csrfToken).toBe('75f6c9fa-dc8e-4e52');
+    expect(result?.endpoint).toBe('wardrobe');
   });
 });
