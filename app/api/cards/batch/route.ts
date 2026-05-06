@@ -18,18 +18,9 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { buildBatchRows, type BatchRowBase } from '@/lib/utils/build-batch-rows';
 import { PRICE_COEFFICIENT } from '@/lib/constants/pricing';
-import type { CardCondition, CardLanguage, CardRarity, CardStatus } from '@/lib/types';
+import { validateCardForm } from '@/lib/utils/validate-card-form';
 
 export const runtime = 'nodejs';
-
-const LANGUAGES: ReadonlySet<CardLanguage> = new Set([
-  'JP', 'EN', 'FR', 'DE', 'IT', 'ES', 'KO', 'PT', 'ZH', 'CN',
-]);
-const CONDITIONS: ReadonlySet<CardCondition> = new Set(['NM', 'EX', 'GD', 'PL', 'PO']);
-const STATUSES: ReadonlySet<CardStatus> = new Set(['pokedex', 'for_sale', 'collection', 'sold']);
-const RARITIES: ReadonlySet<CardRarity> = new Set([
-  'SAR', 'AR', 'SR', 'CHR', 'RR', 'R_HOLO', 'R', 'UC', 'C', 'OTHER',
-]);
 
 const MAX_COUNT = 50;
 
@@ -64,46 +55,14 @@ export async function POST(request: Request) {
   }
 
   // --- Field validation (same rules as POST /api/cards) ---
-  const pokemon_name = str(formData, 'pokemon_name');
-  const pokemon_number_raw = str(formData, 'pokemon_number');
-  const card_name = str(formData, 'card_name');
-  const language = str(formData, 'language') as CardLanguage | null;
-  const rarity = str(formData, 'rarity') as CardRarity | null;
-  const condition = (str(formData, 'condition') as CardCondition | null) ?? 'NM';
-  const status = (str(formData, 'status') as CardStatus | null) ?? 'for_sale';
+  const validation = validateCardForm(formData);
+  if (!validation.valid) {
+    return NextResponse.json({ error: validation.error }, { status: validation.status });
+  }
+  const { card_name, pokemon_name, pokemon_number, language, rarity, condition, status } = validation.parsed;
   const variant = str(formData, 'variant');
   const count_raw = num(formData, 'count');
   const count = count_raw && count_raw >= 1 ? Math.min(Math.floor(count_raw), MAX_COUNT) : 1;
-
-  if (!card_name) {
-    return NextResponse.json({ error: 'card_name est requis' }, { status: 400 });
-  }
-  let pokemon_number: number | null = null;
-  if (pokemon_number_raw !== null && pokemon_number_raw !== '') {
-    const parsed = Number(pokemon_number_raw);
-    if (!Number.isFinite(parsed) || parsed < 1 || parsed > 1025) {
-      return NextResponse.json({ error: 'pokemon_number doit être entre 1 et 1025' }, { status: 400 });
-    }
-    pokemon_number = parsed;
-  }
-  if (!language || !LANGUAGES.has(language)) {
-    return NextResponse.json({ error: 'language invalide' }, { status: 400 });
-  }
-  if (!rarity || !RARITIES.has(rarity)) {
-    return NextResponse.json({ error: 'rarity invalide' }, { status: 400 });
-  }
-  if (!CONDITIONS.has(condition)) {
-    return NextResponse.json({ error: 'condition invalide' }, { status: 400 });
-  }
-  if (!STATUSES.has(status) || status === 'sold') {
-    return NextResponse.json({ error: 'status invalide' }, { status: 400 });
-  }
-  if (status === 'pokedex' && pokemon_number === null) {
-    return NextResponse.json(
-      { error: 'pokemon_number requis pour status=pokedex' },
-      { status: 400 },
-    );
-  }
 
   const card_id_tcg = str(formData, 'card_id_tcg');
 

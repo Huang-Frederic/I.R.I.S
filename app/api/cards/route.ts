@@ -1,35 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { PRICE_COEFFICIENT } from '@/lib/constants/pricing';
-import type { CardCondition, CardLanguage, CardRarity, CardStatus } from '@/lib/types';
+import { validateCardForm } from '@/lib/utils/validate-card-form';
 
 export const runtime = 'nodejs';
-
-const LANGUAGES: ReadonlySet<CardLanguage> = new Set([
-  'JP',
-  'EN',
-  'FR',
-  'DE',
-  'IT',
-  'ES',
-  'KO',
-  'PT',
-  'ZH',
-]);
-const CONDITIONS: ReadonlySet<CardCondition> = new Set(['NM', 'EX', 'GD', 'PL', 'PO']);
-const STATUSES: ReadonlySet<CardStatus> = new Set(['pokedex', 'for_sale', 'collection', 'sold']);
-const RARITIES: ReadonlySet<CardRarity> = new Set([
-  'SAR',
-  'AR',
-  'SR',
-  'CHR',
-  'RR',
-  'R_HOLO',
-  'R',
-  'UC',
-  'C',
-  'OTHER',
-]);
 
 function str(form: FormData, key: string): string | null {
   const value = form.get(key);
@@ -61,50 +35,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const pokemon_name = str(formData, 'pokemon_name');
-  const pokemon_number_raw = str(formData, 'pokemon_number');
-  const card_name = str(formData, 'card_name');
-  const language = str(formData, 'language') as CardLanguage | null;
-  const rarity = str(formData, 'rarity') as CardRarity | null;
-  const condition = (str(formData, 'condition') as CardCondition | null) ?? 'NM';
-  const status = (str(formData, 'status') as CardStatus | null) ?? 'for_sale';
-
-  // pokemon_name is optional for non-Pokémon cards (Trainers/Energies/etc.).
-  // card_name remains required as the primary identifier.
-  if (!card_name) {
-    return NextResponse.json({ error: 'card_name est requis' }, { status: 400 });
+  const validation = validateCardForm(formData);
+  if (!validation.valid) {
+    return NextResponse.json({ error: validation.error }, { status: validation.status });
   }
-  // pokemon_number is optional — null is valid for non-Pokémon cards
-  // (Trainers, Energies, Stadium). When provided, it must be a valid dex
-  // number 1..1025. Status='pokedex' enforces non-null below.
-  let pokemon_number: number | null = null;
-  if (pokemon_number_raw !== null && pokemon_number_raw !== '') {
-    const parsed = Number(pokemon_number_raw);
-    if (!Number.isFinite(parsed) || parsed < 1 || parsed > 1025) {
-      return NextResponse.json({ error: 'pokemon_number doit être entre 1 et 1025' }, { status: 400 });
-    }
-    pokemon_number = parsed;
-  }
-  if (!language || !LANGUAGES.has(language)) {
-    return NextResponse.json({ error: 'language invalide' }, { status: 400 });
-  }
-  if (!rarity || !RARITIES.has(rarity)) {
-    return NextResponse.json({ error: 'rarity invalide' }, { status: 400 });
-  }
-  if (!CONDITIONS.has(condition)) {
-    return NextResponse.json({ error: 'condition invalide' }, { status: 400 });
-  }
-  if (!STATUSES.has(status) || status === 'sold') {
-    return NextResponse.json({ error: 'status invalide' }, { status: 400 });
-  }
-  // A Pokédex slot is per-dex-number — refusing without one prevents creating
-  // an orphan "non-Pokémon Pokédex entry" which has no semantic meaning.
-  if (status === 'pokedex' && pokemon_number === null) {
-    return NextResponse.json(
-      { error: 'pokemon_number requis pour status=pokedex' },
-      { status: 400 },
-    );
-  }
+  const { card_name, pokemon_name, pokemon_number, language, rarity, condition, status } = validation.parsed;
 
   const cardId = crypto.randomUUID();
 
