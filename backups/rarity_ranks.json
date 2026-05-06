@@ -1,0 +1,52 @@
+[
+  {
+    "rarity": "SAR",
+    "rank": 9,
+    "label": "Special Art Rare"
+  },
+  {
+    "rarity": "AR",
+    "rank": 8,
+    "label": "Art Rare"
+  },
+  {
+    "rarity": "SR",
+    "rank": 7,
+    "label": "Super Rare"
+  },
+  {
+    "rarity": "CHR",
+    "rank": 6,
+    "label": "Character Rare"
+  },
+  {
+    "rarity": "RR",
+    "rank": 5,
+    "label": "Double Rare"
+  },
+  {
+    "rarity": "R_HOLO",
+    "rank": 4,
+    "label": "Rare Holo"
+  },
+  {
+    "rarity": "R",
+    "rank": 3,
+    "label": "Rare"
+  },
+  {
+    "rarity": "UC",
+    "rank": 2,
+    "label": "Uncommon"
+  },
+  {
+    "rarity": "C",
+    "rank": 1,
+    "label": "Common"
+  },
+  {
+    "rarity": "OTHER",
+    "rank": 0,
+    "label": "Other"
+  }
+]
