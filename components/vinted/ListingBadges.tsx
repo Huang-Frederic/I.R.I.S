@@ -11,6 +11,7 @@ import {
 } from '@/lib/utils/listings';
 import { badgeClassesForColor, colorForUserName } from '@/lib/utils/user-colors';
 import ConfirmDialog from './ConfirmDialog';
+import RetireListingModal from './RetireListingModal';
 
 interface Props {
   itemKind: 'card' | 'lot';
@@ -47,6 +48,8 @@ export default function ListingBadges({
   const [now] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmRefresh, setConfirmRefresh] = useState(false);
+  const [retireOpen, setRetireOpen] = useState(false);
 
   const mine = getMyListing(listings, myUserId);
   const partner = getPartnerListing(listings, partnerUserId);
@@ -103,6 +106,57 @@ export default function ListingBadges({
     }
   }
 
+  /** Retire-to-Stock: PATCH status='collection' + DELETE my listing.
+   *  Two sequential calls; first must succeed before the second. If the second
+   *  fails the card is in the right status but the listing lingers — user can
+   *  cleanup via the "À retirer" red button afterwards. */
+  async function retireToStock() {
+    if (busy) return;
+    if (itemKind !== 'card') return; // lots don't transition to 'collection'
+    setBusy(true);
+    try {
+      const patch = await fetch(`/api/cards/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status: 'collection' }),
+      });
+      if (!patch.ok) {
+        console.error(`PATCH /api/cards/${itemId} status=collection failed (${patch.status})`);
+        return;
+      }
+      const del = await fetch(`/api/listings/${itemKind}/${itemId}`, { method: 'DELETE' });
+      if (!del.ok) {
+        console.error(`DELETE listing after stock-retire failed (${del.status})`);
+      }
+      onUnlisted();
+    } catch (e) {
+      console.error('retireToStock network error:', e);
+    } finally {
+      setBusy(false);
+      setRetireOpen(false);
+    }
+  }
+
+  /** Permanently delete the card (cascade-deletes all listings via FK). */
+  async function deleteCard() {
+    if (busy) return;
+    if (itemKind !== 'card') return; // lots have their own delete flow
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/cards/${itemId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        console.error(`DELETE /api/cards/${itemId} failed (${res.status})`);
+        return;
+      }
+      onUnlisted();
+    } catch (e) {
+      console.error('deleteCard network error:', e);
+    } finally {
+      setBusy(false);
+      setRetireOpen(false);
+    }
+  }
+
   return (
     <>
       <div className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -116,9 +170,9 @@ export default function ListingBadges({
         {mine && stale && (
           <button
             type="button"
-            onClick={postListing}
+            onClick={() => setConfirmRefresh(true)}
             disabled={busy}
-            title="Cliquer pour rafraîchir la date de mise en ligne (POST upsert listed_at = now)"
+            title="Cliquer pour rafraîchir la date de mise en ligne (listed_at = now)"
             className="bg-red text-bg inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:opacity-90 disabled:opacity-50"
           >
             <RefreshCw className="h-3 w-3" />
@@ -160,7 +214,7 @@ export default function ListingBadges({
         {mine && !toDelete && (
           <button
             type="button"
-            onClick={() => setConfirmDelete(true)}
+            onClick={() => (itemKind === 'card' ? setRetireOpen(true) : setConfirmDelete(true))}
             disabled={busy}
             aria-label="Retirer mon annonce"
             className="text-text-muted hover:text-red inline-flex items-center rounded p-0.5 disabled:opacity-50"
@@ -183,6 +237,30 @@ export default function ListingBadges({
           busy={busy}
           onConfirm={deleteListing}
           onCancel={() => setConfirmDelete(false)}
+        />
+      )}
+
+      {confirmRefresh && mine && (
+        <ConfirmDialog
+          title="Rafraîchir cette annonce ?"
+          body={`Tu vas remettre la date de mise en ligne à aujourd'hui (actuellement ${daysSince(mine.listed_at, now)}j). Pense à pousser l'annonce sur Vinted.com en parallèle.`}
+          confirmLabel="Rafraîchir"
+          busy={busy}
+          onConfirm={async () => {
+            await postListing();
+            setConfirmRefresh(false);
+          }}
+          onCancel={() => setConfirmRefresh(false)}
+        />
+      )}
+
+      {retireOpen && (
+        <RetireListingModal
+          partnerName={partner ? partnerName : null}
+          busy={busy}
+          onStock={retireToStock}
+          onDelete={deleteCard}
+          onCancel={() => setRetireOpen(false)}
         />
       )}
     </>
