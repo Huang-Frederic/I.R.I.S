@@ -1,5 +1,6 @@
 import type { CardRarity, EnrichedCard } from '@/lib/types';
 import type { ParsedListing, VintedItem } from '@/lib/types/vinted-import';
+import { findPokemonNumberByName } from '@/lib/data/pokemon-names';
 
 /**
  * Plain object cible pour `supabase.from('cards').insert(...)`.
@@ -51,9 +52,17 @@ export function mapVintedToCardInsert(
   enriched: EnrichedCard | null,
   uploadedImageUrl: string,
 ): CardInsertRow | { skipReason: string } {
-  // Guard: pokemon_number is NOT NULL with a 1..1025 check on the column.
-  // Only enrichment provides it reliably (the description regex doesn't).
-  const pokemonNumber = enriched?.pokemon_number;
+  // pokemon_number is NOT NULL (1..1025 CHECK) on cards. Source of truth chain:
+  //   1. enriched.pokemon_number — populated by Strategy 1 catalog hit OR Gemini OCR.
+  //      For JP, the LimitlessTCG scraper left this null on every row, so this
+  //      is the failing path for almost all import-vinted JP items.
+  //   2. Fallback: parse the Pokémon name out of the Vinted title (e.g.
+  //      "Carte Pokémon Scalproie - Black Bolt (...)") and reverse-lookup the
+  //      national dex from our 1025-name dataset (FR + EN).
+  let pokemonNumber: number | null | undefined = enriched?.pokemon_number;
+  if (typeof pokemonNumber !== 'number' || pokemonNumber < 1 || pokemonNumber > 1025) {
+    pokemonNumber = findPokemonNumberByName(vinted.title);
+  }
   if (typeof pokemonNumber !== 'number' || pokemonNumber < 1 || pokemonNumber > 1025) {
     return { skipReason: 'enrich_missing_pokemon_number' };
   }

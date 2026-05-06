@@ -1038,3 +1038,54 @@ export const POKEMON_NAMES: Readonly<Record<number, PokemonNameEntry>> = {
 export function getPokemonName(n: number, lang: 'fr' | 'en' = 'fr'): string {
   return POKEMON_NAMES[n]?.[lang] ?? '???';
 }
+
+/** Pre-built reverse index for O(1) name → dex_number lookup.
+ *  Keys are normalized (lowercased, accents stripped, hyphens removed). */
+function buildReverseIndex(): Map<string, number> {
+  const norm = (s: string) =>
+    s.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, '');
+  const map = new Map<string, number>();
+  for (const [n, entry] of Object.entries(POKEMON_NAMES)) {
+    const num = Number(n);
+    map.set(norm(entry.fr), num);
+    map.set(norm(entry.en), num);
+  }
+  return map;
+}
+
+const REVERSE_INDEX = buildReverseIndex();
+
+/**
+ * Find the national dex number for a Pokémon by name (FR or EN).
+ * Tolerates accents, casing, hyphens. Picks the LONGEST matching name when
+ * `text` contains multiple Pokémon mentions (e.g. evolution lines).
+ * Returns null when no match is found.
+ */
+export function findPokemonNumberByName(text: string): number | null {
+  if (!text) return null;
+  const norm = text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, ' ');
+
+  // Try the whole string first (exact match like "scalproie").
+  const direct = REVERSE_INDEX.get(norm.replace(/\s+/g, ''));
+  if (direct) return direct;
+
+  // Otherwise scan word-by-word + sliding 2-word windows. Longest hit wins.
+  const words = norm.split(/\s+/).filter(Boolean);
+  let bestNum: number | null = null;
+  let bestLen = 0;
+  for (let i = 0; i < words.length; i++) {
+    for (let j = i + 1; j <= Math.min(i + 3, words.length); j++) {
+      const slice = words.slice(i, j).join('');
+      const hit = REVERSE_INDEX.get(slice);
+      if (hit && slice.length > bestLen) {
+        bestNum = hit;
+        bestLen = slice.length;
+      }
+    }
+  }
+  return bestNum;
+}

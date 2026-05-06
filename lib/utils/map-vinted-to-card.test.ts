@@ -61,15 +61,30 @@ describe('mapVintedToCardInsert', () => {
     expect(result.rarity).toBe('SAR');
   });
 
-  it('returns skipReason when enriched is null (no pokemon_number = NOT NULL violation)', () => {
-    const result = mapVintedToCardInsert(VINTED_ITEM, PARSED, null, 'https://supabase.co/storage/img.jpg');
+  it('returns skipReason when enriched is null AND title has no Pokémon name (title fallback fails)', () => {
+    // Title intentionally contains no Pokémon name → reverse-lookup returns null.
+    const noName: VintedItem = { ...VINTED_ITEM, title: 'Trainer card energy lightning (jpn_s8b-208)' };
+    const result = mapVintedToCardInsert(noName, PARSED, null, 'https://supabase.co/storage/img.jpg');
     expect(result).toEqual({ skipReason: 'enrich_missing_pokemon_number' });
   });
 
-  it('returns skipReason when pokemon_number is out of range (1..1025)', () => {
+  it('returns skipReason when pokemon_number is out of range AND title has no Pokémon name', () => {
+    const noName: VintedItem = { ...VINTED_ITEM, title: 'Trainer card energy lightning (jpn_s8b-208)' };
     const bad: EnrichedCard = { ...ENRICHED, pokemon_number: 9999 };
-    const result = mapVintedToCardInsert(VINTED_ITEM, PARSED, bad, '');
+    const result = mapVintedToCardInsert(noName, PARSED, bad, '');
     expect(result).toEqual({ skipReason: 'enrich_missing_pokemon_number' });
+  });
+
+  it('falls back to extracting pokemon_number from the Vinted title (FR Pokémon name)', () => {
+    // Catalog gave us a row with NULL pokemon_number (typical for JP cards
+    // since the LimitlessTCG scraper never populated it). Helper should
+    // recover by parsing "Archéodong" out of the title (= dex #784).
+    const enrichedNoNumber: EnrichedCard = { ...ENRICHED, pokemon_number: null };
+    const result = mapVintedToCardInsert(VINTED_ITEM, PARSED, enrichedNoNumber, '');
+    if ('skipReason' in result) throw new Error(`expected row, got skip: ${result.skipReason}`);
+    // Archéodong is dex 780. Verify a real number was filled (not null/0).
+    expect(result.pokemon_number).toBeGreaterThan(0);
+    expect(result.pokemon_number).toBeLessThanOrEqual(1025);
   });
 
   it('falls back to vinted title for card_name/pokemon_name when enriched is partial', () => {

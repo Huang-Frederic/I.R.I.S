@@ -104,12 +104,14 @@ export async function lookupByCode(
 ): Promise<CatalogRow | null> {
   const normNum = normalizeSetNumber(setNumber);
 
-  // Fast path: strict equality on the unique index (set_code, set_number, language).
-  // Hits on ~95% of cases when Gemini returns the canonical set code.
+  // Fast path: case-insensitive equality on (set_code, set_number, language).
+  // Uses ilike on set_code (no `%` wildcards = case-insensitive eq) because the
+  // catalog stores JP set codes uppercase (e.g. SV11B) while Vinted titles +
+  // OCR may emit them in any case. Setup tools queries are still indexed.
   const { data: strict, error: strictErr } = await supabase
     .from('tcg_catalog')
     .select('*')
-    .eq('set_code', setCode)
+    .ilike('set_code', setCode)
     .eq('set_number', normNum)
     .eq('language', language)
     .maybeSingle();
