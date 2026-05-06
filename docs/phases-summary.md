@@ -533,35 +533,117 @@ Appliquer manuellement les 2 nouvelles migrations via Supabase Studio :
 - `supabase/migrations/20260506140000_pokemon_number_nullable.sql`
 - `supabase/migrations/20260506150000_pokemon_name_nullable.sql`
 
-## Prochaines étapes : Phase 5
+## Phase 5 — Dashboard + Backups (terminée, mai 2026)
 
-Le brief Phase 5 reste : **Dashboard** (KPIs + cost tracking) + **PWA polish** (install prompt + icônes + manifest). Voir punch list détaillée ci-dessous.
+Phase 5 livre 5 sous-projets : (1) Dashboard complet avec KPIs + graphs Recharts, (2) Scripts snapshot/restore catalog versionnés en git, (3) Backup auto user data via GitHub Action, (4) Backup manuel UI dans `/options`, (5) Tech debt (validation factorisée + `PRICE_COEFFICIENT` extrait).
 
-### Punch list pour l'agent suivant
+### Livré
 
-**À faire** :
+**Sub-projet 1 — Dashboard** (`/dashboard`, 6e onglet de nav, icône BarChart3) :
 
-- [ ] **Dashboard page** (`app/(app)/dashboard/page.tsx`, 6e onglet de nav). KPIs : valeur stock (somme `cm_price_avg ?? cm_price_trend ?? cm_price_low` pour status='for_sale' + 'collection'), counts par status, top 10 cartes rares par valeur (SAR/AR/SR), alertes restock actives. Réutiliser `lib/utils/restock-detection.ts` + `lib/utils/format-staleness.ts`.
+- **KPI strip** 4 tuiles : valeur stock (somme `cm_price_avg ?? cm_price_trend ?? cm_price_low` pour status='for_sale' + 'collection'), coût OCR 30 derniers jours (EUR), scans 30j (count), restock alerts actives (count).
+- **4 graphs Recharts** dans grille 2×2 :
+  - `<CostBarChart>` : daily stacked Gemini + Vision (7 derniers jours)
+  - `<StockValueLineChart>` : area chart for_sale + collection (30j), snapshots générés par le cron pricing quotidien
+  - `<RarityDonut>` : répartition par rareté (SAR/AR/SR/CHR/RR/R_HOLO/R/UC/C/OTHER), drill-down `/pokedex?rarity=X` au clic
+  - `<ScanHeatmap>` : custom SVG 52 semaines × 7 jours (GitHub-style), dégradé vert, tooltip absolute+pointer-events-none
+- **2 tables** :
+  - `<TopRaresList>` : top 10 cartes par prix (SAR/AR/SR uniquement), deep-link `/pokedex?pokemon_number=X` au clic sur la row
+  - `<RestockAlertsList>` : liste alerts avec status/photo/nom/langue, deep-link vers Pokédex drawer via query param
+- **Server component** `app/(app)/dashboard/page.tsx` fait 5 queries Supabase en parallèle (pricing cards, usage log, snapshots, restock alerts, top rares), passe les données aux client components.
+- **Helpers purs testés** dans `lib/utils/dashboard-queries.ts` : `buildRarityCounts` (aggrégation rarity counts avec 0 default pour les absents), `topRaresByPrice` (filter SAR/AR/SR + sort cm_price_avg desc), `buildHeatmapMatrix` (52×7 grid depuis array de scans).
 
-- [ ] **Tracking tokens Gemini + coût/jour** : nouvelle migration `gemini_usage_log` `(id uuid pk default gen_random_uuid(), created_at timestamptz default now(), tokens_in int not null, tokens_out int not null, cost_eur numeric(10,6) not null, engine text not null check (engine in ('gemini','vision')), card_id uuid references cards(id) on delete set null)`. Index sur `created_at desc` pour les aggregations daily. Modifier `app/api/ocr/route.ts` pour INSERT après chaque scan (récupérer `_usage` déjà extrait par `lib/api/gemini-vision.ts` depuis Phase 3c). Dashboard : `select created_at::date as day, sum(cost_eur), count(*) from gemini_usage_log group by 1 order by 1 desc limit 7`.
+**Sub-projet 2 — Snapshot tcg_catalog** (scripts versionnés en git) :
 
-- [ ] **PWA icons 192/512** : `public/icons/` est vide. `app/manifest.ts` référence 3 PNG (`icon-192.png`, `icon-512.png`, `icon-512-maskable.png`). Le user a un logo en .png à convertir SVG puis générer les 3 icônes (déjà mentionné dans une discussion antérieure).
+- `scripts/snapshot-catalog.ts` : dump streaming JSONL gzippé de `tcg_catalog` + `rarity_ranks` (baseline 52724 rows catalog, 10 rows ranks) dans `backups/tcg_catalog_baseline_YYYY-MM-DD.jsonl.gz`.
+- `scripts/restore-catalog.ts` : chunked restore avec confirm prompt (wipe tables + COPY chunks 5000 rows, ~10s pour 52K rows). Gère `.jsonl.gz` ou `.jsonl` (auto-décompression si zlib magic).
+- **Baseline snapshot** généré et commité : `backups/tcg_catalog_baseline_2026-05-06.jsonl.gz` (~2.5MB).
+- npm scripts `snapshot-catalog` + `restore-catalog` dans `package.json`.
+- `backups/README.md` documente les workflows (snapshot before scraper run, restore if catalog broken).
 
-- [ ] **PWA install prompt** : composant `<InstallPrompt>` qui listen `window.beforeinstallprompt`, affiche un bandeau dismissible (top ou bottom), stocke le dismiss en localStorage. Monter dans `app/(app)/layout.tsx` après `<RouteChangeRefresher>`. Pas de modal invasive.
+**Sub-projet 3 — Backup auto user data** (GitHub Action) :
 
-- [ ] **Manifest fine-tune** : vérifier `start_url`, `scope`, `categories`, ajouter `screenshots` (Google Play optionnel).
+- `.github/workflows/backup.yml` : cron `0 3 * * *` UTC (4h/5h France selon DST), pg_dump `--data-only` des 8 tables user (cards, lots, card_listings, lot_listings, user_profiles, ocr_usage_log, stock_value_snapshots, config), gzippé, uploadé en GitHub release tagué `backup-daily-YYYY-MM-DD` (+ `backup-weekly-YYYY-WXX` les dimanches + `backup-monthly-YYYY-MM` le 1er du mois).
+- **Rotation** via `scripts/backup/rotate.sh` : 30 daily / 12 weekly / 12 monthly (manual tags JAMAIS deleted). Script appelé par le workflow après chaque upload.
+- **Setup requis** : ajouter `SUPABASE_DB_URL` en secret GitHub (Settings → Secrets → Actions). Valeur = Supabase Settings → Database → Connection string → "Direct connection" (format `postgresql://postgres.<ref>:<pwd>@<host>:5432/postgres`).
+- **Trigger manuel** possible depuis l'onglet Actions (pour tester post-merge).
 
-**Nice-to-have / tech debt** (pas bloquant) :
+**Sub-projet 4 — Backup manuel** (bouton dans `/options`) :
 
-- [ ] **Factoriser la validation card form** : `app/api/cards/route.ts` et `app/api/cards/batch/route.ts` dupliquent ~56 lignes de validation (LANGUAGES/CONDITIONS/STATUSES sets, `str`/`num` helpers, parsing pokemon_number, guards language/rarity/condition/status, pokedex requirement). Extraire dans `lib/utils/validate-card-form.ts` (pure function `(formData) => { valid: true, parsed } | { valid: false, error, status }`).
-- [ ] **Extraire `PRICE_COEFFICIENT = 0.85`** dans `lib/constants/pricing.ts` (dupliqué entre les 2 routes cards).
-- [ ] **Standardiser le shape des erreurs API** : aujourd'hui mix entre `{ error }` et `{ error, message, existingCard }`. Documenter une convention dans CLAUDE.md.
+- Section `<ManualBackupSection>` (server) : liste les backups existants depuis le bucket Supabase Storage `manual-backups/`, affiche filename + size + timestamp + actions (DL + Suppr).
+- `<ManualBackupButton>` (client) : bouton avec confirm modal → POST `/api/backup/manual` (dump JSON gzippé des 8 tables user → bucket `manual-backups/manual-backup-YYYY-MM-DD_HH-mm-ss.json.gz`, nom unique par seconde). Spinner pendant le dump (30s typ).
+- `<ManualBackupRow>` (client) : actions **Télécharger** (GET signed URL 1h) + **Supprimer** (DELETE avec confirm).
+- **API routes** :
+  - `app/api/backup/manual/route.ts` : POST (dump via helper `buildManualDump` + upload Storage), GET (list bucket files).
+  - `app/api/backup/manual/[filename]/route.ts` : GET (signed URL), DELETE (remove file).
+- **Helper pur** `lib/utils/manual-dump.ts` : `buildManualDump` (query 8 tables + envelope JSON `{ version, timestamp, tables }`) + `manualBackupFilename`.
+- **Backups manuels JAMAIS rotation** (gardés indéfiniment, suppression uniquement manuelle via UI).
 
-### Déjà en place pour Phase 5 (acquis)
+**Sub-projet 5 — Tech debt** :
 
-- `lib/api/gemini-vision.ts` extrait déjà `_usage` (tokens_in/out, cost_eur calculé en EUR via constants 0.25/1.50 USD/M × 0.92 EUR/USD). Phase 3c a fait le travail de mesure ; Phase 5 doit juste persister + agréger.
-- `lib/utils/format-staleness.ts` + `categorize-pricing-card.ts` + colonnes `cm_price_*` + cron quotidien `POST /api/prices/update` (Phase 3a) : pricing data est frais et exploitable directement.
+- **`lib/constants/pricing.ts`** : extrait `PRICE_COEFFICIENT = 0.85` (était dupliqué entre `/api/cards` et `/api/cards/batch`).
+- **`lib/utils/validate-card-form.ts`** : factorisé hors de `app/api/cards/route.ts` + `app/api/cards/batch/route.ts` (~117 lignes dédupliquées). Pure function `validateCardForm(formData) => { valid: true, parsed } | { valid: false, error, status }`. **7 tests dédiés** (language/condition/status invalides, pokemon_number parsing, pokedex requirement).
 
-### Reporté
+### Migrations Phase 5
 
-- Aucun. La feature import Vinted (initialement reportée de Phase 4) est définitivement abandonnée.
+**Action user post-merge** : appliquer manuellement les 2 migrations via Supabase Studio → SQL Editor :
+
+- `supabase/migrations/20260507000000_phase5_dashboard.sql` : tables `ocr_usage_log` (id uuid, created_at, tokens_in, tokens_out, cost_eur, engine 'gemini'/'vision', card_id nullable FK) + `stock_value_snapshots` (id uuid, created_at, for_sale_value, collection_value). RLS reads public (writes admin-only via cron auth).
+- `supabase/migrations/20260507100000_phase5_manual_backups_bucket.sql` : bucket Supabase Storage `manual-backups/` (public false, file size limit 50MB, allowed MIME types `application/gzip` + `application/json`).
+
+### Helpers purs ajoutés Phase 5 (testés en isolation)
+
+- `lib/utils/ocr-cost.ts` : `computeVisionCost(features)` — calcul coût Google Vision par feature (€/unit depuis constants).
+- `lib/utils/stock-value.ts` : `computeStockValue(cards, field)` — agrégation pricing par status (for_sale + collection).
+- `lib/utils/dashboard-queries.ts` : `buildRarityCounts` + `topRaresByPrice` + `buildHeatmapMatrix`.
+- `lib/utils/manual-dump.ts` : `buildManualDump` + `manualBackupFilename`.
+- `lib/utils/restock-detection.ts` : ajout `computeRestockAlerts` (déjà existait `detectRestock` + `detectPromoteOpportunity`, ajouté la fonction de liste pour le dashboard).
+
+### Wiring Phase 5 (modifs des routes existantes)
+
+- **`app/api/ocr/route.ts`** : INSERT dans `ocr_usage_log` après chaque scan (Gemini + Vision). Récupère `_usage` déjà extrait par `lib/api/gemini-vision.ts` (tokens_in/out, cost_eur).
+- **`app/api/prices/update/route.ts`** : UPSERT dans `stock_value_snapshots` à la fin du `handleBulk` (called par le cron quotidien). 1 snapshot/jour avec valeurs for_sale + collection agrégées.
+
+### Tests + qualité
+
+**344 tests** vitest passing (37 fichiers). 0 lint warning. 0 type error. 14 migrations totales (+2 Phase 5).
+
+Breakdown nouveaux tests Phase 5 :
+- 7 tests `validate-card-form.test.ts`
+- 6 tests `ocr-cost.test.ts`
+- 4 tests `stock-value.test.ts`
+- 3 tests `dashboard-queries.test.ts`
+- 3 tests `manual-dump.test.ts`
+- 5 tests backup API routes (`/api/backup/manual`)
+
+### Action user post-merge (résumé)
+
+1. **Appliquer les 2 migrations** dans Supabase Studio → SQL Editor :
+   - `20260507000000_phase5_dashboard.sql`
+   - `20260507100000_phase5_manual_backups_bucket.sql`
+2. **Ajouter `SUPABASE_DB_URL` en secret GitHub** (Settings → Secrets → Actions). La valeur vient de Supabase Settings → Database → Connection string → "Direct connection" (format `postgresql://postgres.<ref>:<pwd>@<host>:5432/postgres`).
+3. **Trigger une fois manuellement le workflow "Daily backup"** depuis l'onglet Actions pour valider le setup.
+
+### Hors scope Phase 5 (reporté)
+
+- **PWA install prompt** : composant `<InstallPrompt>` qui listen `window.beforeinstallprompt`, affiche un bandeau dismissible (top ou bottom), stocke le dismiss en localStorage. Monter dans `app/(app)/layout.tsx` après `<RouteChangeRefresher>`. Pas de modal invasive.
+- **PWA icons 192/512** : `public/icons/` est vide. `app/manifest.ts` référence 3 PNG (`icon-192.png`, `icon-512.png`, `icon-512-maskable.png`). Le user a un logo en .png à convertir SVG puis générer les 3 icônes.
+- **Manifest fine-tune** : vérifier `start_url`, `scope`, `categories`, ajouter `screenshots` (Google Play optionnel).
+- **Backup auto des photos** du bucket Supabase Storage `card-photos` + `lot-photos` (GitHub release ou S3 externe).
+- **UI de restore d'un backup manuel** : risqué (wipe data prod), mieux via psql local.
+- **Standardisation shape des erreurs API** : aujourd'hui mix entre `{ error }` et `{ error, message, existingCard }`. Documenter une convention dans CLAUDE.md.
+
+## Prochaines étapes (post-Phase-5)
+
+Phase 5 close le scope fonctionnel principal d'I.R.I.S. Les features "Hors scope Phase 5" ci-dessus (PWA install prompt + icônes, backup photos, UI restore, standardisation erreurs) sont optionnelles et non-bloquantes pour l'usage quotidien.
+
+**À faire si besoin** (punch list optionnelle) :
+
+- [ ] **PWA install prompt** : `<InstallPrompt>` bandeau dismissible + localStorage, monté dans `(app)/layout.tsx`.
+- [ ] **PWA icons** : convertir le logo user .png → SVG, générer 192/512/maskable via script (sharp ou inkscape).
+- [ ] **Manifest fine-tune** : vérifier `start_url`, `scope`, `categories`, `screenshots`.
+- [ ] **Backup auto photos** : extend GitHub Action workflow pour dump `card-photos` + `lot-photos` (Storage API list → download → tar.gz → release asset).
+- [ ] **UI restore manuel** : route POST `/api/backup/manual/[filename]/restore` (télécharge JSON, parse, TRUNCATE tables, bulk INSERT). Risque de wipe → confirmation multi-étapes + dry-run preview obligatoire.
+- [ ] **Standardiser shape erreurs API** : convention `{ error: string, details?: unknown }` everywhere, documenter dans CLAUDE.md.
+
+**Rappel** : le user préfère garder l'app simple et stable. Ne pas ajouter de features non-demandées. Les items ci-dessus ne doivent être développés que si explicitement requis par le user.
