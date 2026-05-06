@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { mapVintedToCardInsert } from '@/lib/utils/map-vinted-to-card';
+import type { EnrichedCard, EnrichResult } from '@/lib/types';
 import type { ImportFailure, ToImport } from '@/lib/types/vinted-import';
 
 export const runtime = 'nodejs';
@@ -86,9 +87,48 @@ export async function POST(request: Request) {
   const created: string[] = [];
   const failed: ImportFailure[] = [];
 
+  // Diagnostic: how many items came in already enriched? Common reason for
+  // 100% skip is the user clicking "Importer" before /preview finished its
+  // background concurrency-5 enrichment loop.
+  const initialEnrichedCount = body.items.filter((i) => i.enriched != null).length;
+  console.info(
+    `[commit] received ${body.items.length} items, ${initialEnrichedCount} already enriched, ${body.items.length - initialEnrichedCount} need re-enrich`,
+  );
+
+  // Internal base URL for re-enrichment fallback.
+  const reqUrl = new URL(request.url);
+  const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
+
   for (const item of body.items) {
     const vintedItemId = item.vintedItem.id;
     try {
+      // 0. Re-enrich on the fly if the frontend gave us a null enriched (e.g.
+      // user clicked Importer before /preview finished, or /preview timed out
+      // for this item). Best-effort: a 6s timeout, falls through to skip if
+      // it still fails. Cheap (catalog DB hit, no external API in most cases).
+      let enriched: EnrichedCard | null = item.enriched;
+      if (enriched == null) {
+        try {
+          const r = await fetch(`${baseUrl}/api/enrich`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              setCode: item.parsed.setCode,
+              localId: item.parsed.setNumber,
+              language: item.parsed.language,
+            }),
+            signal: AbortSignal.timeout(6_000),
+          });
+          if (r.ok) {
+            const er = (await r.json()) as EnrichResult;
+            enriched = er.bestMatch ?? null;
+            if (enriched) console.info(`[commit] item=${vintedItemId} enriched on-the-fly (pokemon_number=${enriched.pokemon_number})`);
+          }
+        } catch (e) {
+          console.warn(`[commit] item=${vintedItemId} on-the-fly enrich failed`, e);
+        }
+      }
+
       // 1. Photo: string URL = success, null = all 404, 'upload_failed' = bucket error
       const uploadResult = await downloadAndUpload(item.vintedItem.photos, supabase, vintedItemId);
       if (uploadResult === 'upload_failed') {
@@ -99,8 +139,9 @@ export async function POST(request: Request) {
 
       // 2. Build card row. Helper returns { skipReason } when required fields
       // (pokemon_number 1..1025, enforced by NOT NULL + CHECK) can't be derived.
-      const mapped = mapVintedToCardInsert(item.vintedItem, item.parsed, item.enriched, imageUrl ?? '');
+      const mapped = mapVintedToCardInsert(item.vintedItem, item.parsed, enriched, imageUrl ?? '');
       if ('skipReason' in mapped) {
+        console.warn(`[commit] item=${vintedItemId} skip reason=${mapped.skipReason} (parsed=${item.parsed.setCode}-${item.parsed.setNumber}/${item.parsed.language}, enriched=${enriched ? 'yes' : 'no'})`);
         failed.push({
           vintedItemId,
           reason: mapped.skipReason as ImportFailure['reason'],
