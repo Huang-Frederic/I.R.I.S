@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import ThemeToggle from '@/components/layout/ThemeToggle';
@@ -30,15 +29,6 @@ export default async function OptionsPage() {
             Apparence
           </h2>
           <ThemeToggle initialTheme={initialTheme} />
-        </div>
-
-        <div className="bg-surface border-border rounded-lg border p-5">
-          <h2 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-            Outils
-          </h2>
-          <Link href="/import/vinted" className="text-sm text-text underline hover:text-text-muted">
-            Import depuis Vinted (one-shot)
-          </Link>
         </div>
 
         <div className="bg-surface border-border rounded-lg border p-5">

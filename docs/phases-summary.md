@@ -503,31 +503,16 @@ Migration mono → 2-users (Lui = Hisshiden, Elle = Hilyna) sans dégrader l'UX 
 
 **Tests** : 302 vitest passing (+23 vs Phase 3c : listings 8, user-colors 6, vinted-filter +6 multi-user chips, group-cards +2 head-selection, scrape-limitlesstcg +1 illustrator regex). 0 lint warning, 0 type error. Brief : [PHASE_4.md](../PHASE_4.md).
 
-## Phase 4 closeout — Import Vinted (terminé)
+## Phase 4 closeout — annulé
 
-Feature 1 du brief `PHASE_4.md` (différée à la livraison initiale Phase 4, livrée maintenant).
+L'import Vinted (Feature 1 du brief Phase 4) a été tenté puis abandonné. Le user préfère vider son compte Vinted et re-saisir les annonces manuellement. Le code de l'import a été supprimé (cleanup).
 
-**Pivot vs brief original** : le brief disait Python CLI. Refait en page web `/import/vinted` pour cohérence avec la décision Phase 3b2 (drop des scripts Python). Réutilise `CardScanForm` + `/api/enrich` + bucket `card-photos` existants.
+Restent en place quelques améliorations annexes développées pendant ce chantier et conservées telles quelles :
+- `lib/data/pokemon-names.ts` : helper `findPokemonNumberByName` (reverse-index FR/EN, utile au scanner pour fallback quand Gemini ne donne pas le dex national).
+- `lib/api/tcg-catalog.ts` : `lookupByCode` switched to `ilike` — fix d'un bug case-sensitivity latent (le catalog stockait `SV11B` uppercase mais les call sites lowercasaient).
+- `components/vinted/ListingBadges.tsx` : chip rouge "À rafraîchir · Xj" qui remplace l'ancien micro-badge "Stale". Click → POST /api/listings (upsert qui restamp `listed_at = NOW()`).
 
-**Livrables** :
-- Page `/import/vinted` (pas dans la nav, lien discret depuis `/options`)
-- 3 endpoints : `POST /api/import/vinted/{fetch,preview,commit}` — fetch (paginate API Vinted via cookie session), preview (enrich background concurrency 5), commit (download photos → upload Storage → INSERT cards + card_listings)
-- 3 helpers purs : `parseVintedCurl`, `parseVintedListing`, `mapVintedToCardInsert`
-- 1 type partagé `lib/types/vinted-import.ts`
-- 2 composants : `VintedImportFlow` (state machine 4 phases), `VintedImportTile` (grid item avec checkbox + photo + meta + status border)
-- ~25 nouveaux tests vitest. Aucune migration.
-
-**Décisions clés** :
-- Filtre regex `(jpn|eng|fra|kor|chn)_<set>-<num>` sur titre+description → lots/non-cartes skip silencieux
-- `listed_at` = `vintedItem.created_at_ts` (préserve l'historique stale)
-- Photos rapatriées dans `card-photos` Storage (URL pérenne, indépendant de Vinted)
-- Idempotent en re-run via les contraintes existantes (`one_for_sale_per_group` + PK `card_listings`)
-- Mono-user (un user logué importe SES propres listings via `auth.uid()`)
-
-**Hors scope** :
-- Lots Vinted (re-saisis manuellement via `LotForm`)
-- Articles non-cartes (skip silencieux)
-- Variants (laissés `null`, à éditer après coup si besoin)
+308 tests passing (+7 vs Phase 4 : findPokemonNumberByName).
 
 ## Prochaines étapes : Phase 5
 
