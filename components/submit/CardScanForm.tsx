@@ -1115,8 +1115,8 @@ export default function CardScanForm({
             <Input value={form.card_name} onChange={(v) => update('card_name', v)} required />
           </Field>
 
-          <Field label="Nom du Pokémon">
-            <Input value={form.pokemon_name} onChange={(v) => update('pokemon_name', v)} required />
+          <Field label="Nom du Pokémon (vide = Trainer/Énergie)">
+            <Input value={form.pokemon_name} onChange={(v) => update('pokemon_name', v)} />
           </Field>
 
           <div className="grid grid-cols-12 gap-3">
@@ -1220,7 +1220,12 @@ export default function CardScanForm({
                     onChange={(e) => update('status', e.target.value as CardStatus)}
                     className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none"
                   >
-                    {STATUSES.map(({ value, label }) => (
+                    {STATUSES.filter(({ value }) => {
+                      // Hide "Pokédex" for Trainers/Energies (no pokemon_number).
+                      // Pokédex slot is per-dex-number; doesn't apply.
+                      if (value === 'pokedex' && !form.pokemon_number) return false;
+                      return true;
+                    }).map(({ value, label }) => (
                       <option key={value} value={value}>{label}</option>
                     ))}
                   </select>

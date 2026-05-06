@@ -38,7 +38,7 @@ export function computePokedexSuggestion(
   if (!newCard.pokemon_number) {
     return {
       type: 'no_pokemon_number',
-      message: 'Numéro de Pokémon manquant — choisis manuellement la destination.',
+      message: 'Carte non-Pokémon (Trainer / Énergie / Stadium) — pas de slot Pokédex.',
       primaryAction: 'add_to_vinted',
       secondaryActions: ['add_to_collection'],
     };
