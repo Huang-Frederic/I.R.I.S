@@ -1,9 +1,6 @@
-// lib/supabase/service.ts
-//
-// Note: server-only import removed because it prevents usage in Node.js scripts
-// (like snapshot-catalog). Scripts are inherently trusted (developer machine only).
-// The Next.js app layer provides the actual client-side boundary.
+import 'server-only';
 
+// lib/supabase/service.ts
 import { createClient } from '@supabase/supabase-js';
 
 /**
