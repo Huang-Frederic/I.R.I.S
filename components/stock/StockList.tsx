@@ -105,7 +105,7 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
   };
 
   const handleSetCount = async (group: CardGroup, target: number) => {
-    if (target < 1) return; // guard — input also rejects
+    if (target < 0) return; // negative not allowed; 0 = wipe (StockRow confirms)
     const diff = target - group.count;
     if (diff === 0) return;
     setBusyKey(group.key);

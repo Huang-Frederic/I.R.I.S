@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Tag, BookmarkCheck, Bookmark, Globe, GlobeLock } from 'lucide-react';
+import { Tag, BookmarkCheck, Bookmark, Globe, GlobeLock, Boxes } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
 import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
 import CardZoomModal from '@/components/vinted/CardZoomModal';
+import ConfirmDialog from '@/components/vinted/ConfirmDialog';
 
 function thumbUrl(card: Card): string {
   if (card.image_url) return card.image_url;
@@ -41,6 +42,10 @@ export default function StockRow({
   // This is the React 19 idiom for "derive state from props" without an effect.
   const [draftCount, setDraftCount] = useState(String(group.count));
   const [lastSyncedCount, setLastSyncedCount] = useState(group.count);
+  /** Set when the user types 0 — defer the destructive call until they
+   *  confirm (the Vinted-side chip skips this confirm because the for_sale
+   *  row stays put; here, 0 wipes the entire physical stock). */
+  const [confirmZero, setConfirmZero] = useState(false);
   if (group.count !== lastSyncedCount) {
     setLastSyncedCount(group.count);
     setDraftCount(String(group.count));
@@ -49,12 +54,17 @@ export default function StockRow({
 
   const commitCount = () => {
     const parsed = parseInt(draftCount, 10);
-    if (Number.isNaN(parsed) || parsed < 1) {
-      // Reject: revert the field to the current group count.
+    if (Number.isNaN(parsed) || parsed < 0) {
+      // Reject negatives + non-numeric: revert.
       setDraftCount(String(group.count));
       return;
     }
     if (parsed === group.count) return; // no-op
+    if (parsed === 0) {
+      // Don't fire delete-all silently — confirm first.
+      setConfirmZero(true);
+      return;
+    }
     onSetCount(group, parsed);
   };
 
@@ -144,11 +154,12 @@ export default function StockRow({
       <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
         {/* Editable count: type a number and blur (or Enter) to apply.
             Caller diffs against the previous count to clone or delete. */}
-        <label className="border-border bg-surface-2 flex items-center gap-1 rounded border px-2 py-1">
-          <span className="text-text-muted font-mono text-xs">×</span>
+        <label className="border-border bg-surface-2 text-text-muted flex items-center gap-1 rounded border px-2 py-1">
+          <Boxes className="h-3 w-3" />
+          <span className="font-mono text-xs">×</span>
           <input
             type="number"
-            min={1}
+            min={0}
             value={draftCount}
             disabled={busy}
             onChange={(e) => setDraftCount(e.target.value)}
@@ -180,6 +191,29 @@ export default function StockRow({
 
       {zoomSrc && (
         <CardZoomModal src={zoomSrc} alt="" onClose={() => setZoomSrc(null)} />
+      )}
+
+      {confirmZero && (
+        <ConfirmDialog
+          title="Vider tout le stock de cette carte ?"
+          body={
+            <>
+              Tu vas supprimer les <strong>{group.count}</strong> exemplaire{group.count > 1 ? 's' : ''} de
+              {' '}<strong>{card.pokemon_name}</strong> du Stock. Action irréversible.
+            </>
+          }
+          confirmLabel="Tout supprimer"
+          confirmTone="danger"
+          busy={busy}
+          onConfirm={() => {
+            setConfirmZero(false);
+            onSetCount(group, 0);
+          }}
+          onCancel={() => {
+            setConfirmZero(false);
+            setDraftCount(String(group.count));
+          }}
+        />
       )}
     </li>
   );
