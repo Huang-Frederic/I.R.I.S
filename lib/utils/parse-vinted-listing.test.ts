@@ -76,4 +76,36 @@ describe('parseVintedListing', () => {
       parseVintedListing({ title: '(ger_sv1-25)', description: '' }),
     ).toBeNull();
   });
+
+  it('falls back to title pattern (SET NUM) [LANG] when description is missing', () => {
+    // What Vinted's wardrobe endpoint returns: title has the bracketed format,
+    // description is empty/truncated.
+    const result = parseVintedListing({
+      title: 'Carte Pokémon Scalproie - Black Bolt (SV11B 148) [JP]',
+      description: '',
+    });
+    expect(result).toEqual({
+      language: 'JP',
+      setCode: 'sv11b',
+      setNumber: '148',
+      condition: 'NM',
+    });
+  });
+
+  it('title fallback handles 2-letter EN/FR/CN/KR codes', () => {
+    expect(parseVintedListing({ title: '(SWSH9 31) [EN]', description: '' })?.language).toBe('EN');
+    expect(parseVintedListing({ title: '(SV1 25) [FR]', description: '' })?.language).toBe('FR');
+    expect(parseVintedListing({ title: '(SV2 100) [CN]', description: '' })?.language).toBe('CN');
+    expect(parseVintedListing({ title: '(SV3 50) [KR]', description: '' })?.language).toBe('KO');
+  });
+
+  it('description pattern wins over title pattern when both are present', () => {
+    // Title says EN, description says JP — the description form is more
+    // authoritative because it's emitted by our own template generator.
+    const result = parseVintedListing({
+      title: 'Carte (SV11B 148) [EN]',
+      description: '(jpn_sv11b-148)',
+    });
+    expect(result?.language).toBe('JP');
+  });
 });

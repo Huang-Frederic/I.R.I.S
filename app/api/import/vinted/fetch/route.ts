@@ -115,6 +115,16 @@ export async function POST(request: Request) {
     if (Array.isArray(data.items)) items.push(...data.items);
     totalPages = data.pagination?.total_pages ?? page;
     console.info(`[import-vinted] page ${page}/${totalPages} → ${data.items?.length ?? 0} items`);
+    if (page === 1 && data.items?.length) {
+      // Debug: dump the keys of the first item so we can see what fields the
+      // wardrobe endpoint actually returns vs what we expect (title/description/etc).
+      console.info('[import-vinted] sample item keys:', Object.keys(data.items[0]).join(', '));
+      console.info('[import-vinted] sample item title:', JSON.stringify(data.items[0].title));
+      console.info(
+        '[import-vinted] sample item description:',
+        JSON.stringify((data.items[0] as { description?: string }).description ?? '<undefined>').slice(0, 300),
+      );
+    }
     page++;
   }
 

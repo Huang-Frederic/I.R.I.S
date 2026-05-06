@@ -1,14 +1,31 @@
 import type { CardCondition, CardLanguage } from '@/lib/types';
 import type { ParsedListing } from '@/lib/types/vinted-import';
 
-const PATTERN_RE = /\((jpn|eng|fra|kor|chn)_([a-z0-9-]+)-(\d+)\)/i;
+/** Primary pattern (lives in the description templates we generate via lot-template/vinted-template):
+ *  e.g. `(jpn_sv11b-148)`. Captures language code (3 letters) + set code + set number. */
+const PATTERN_DESC_RE = /\((jpn|eng|fra|kor|chn)_([a-z0-9-]+)-(\d+)\)/i;
 
-const LANG_MAP: Record<string, CardLanguage> = {
+/** Fallback pattern (lives in the TITLE that Vinted's wardrobe endpoint returns
+ *  even when description is truncated): `(SET_CODE NUMBER) [LANG]`
+ *  e.g. `(SV11B 148) [JP]` or `(swsh9 31) [EN]`. Set + number can be in either case;
+ *  language is the 2-letter ISO-ish suffix in brackets. */
+const PATTERN_TITLE_RE = /\(([A-Za-z0-9]+)\s+(\d+)\)\s*\[([A-Za-z]{2})\]/;
+
+const LANG_MAP_3: Record<string, CardLanguage> = {
   jpn: 'JP',
   eng: 'EN',
   fra: 'FR',
   kor: 'KO',
   chn: 'CN',
+};
+
+const LANG_MAP_2: Record<string, CardLanguage> = {
+  jp: 'JP',
+  en: 'EN',
+  fr: 'FR',
+  ko: 'KO',
+  kr: 'KO',
+  cn: 'CN',
 };
 
 /**
@@ -31,15 +48,37 @@ export function parseVintedListing(input: {
   description: string;
 }): ParsedListing | null {
   const haystack = `${input.title}\n${input.description}`;
-  const match = haystack.match(PATTERN_RE);
-  if (!match) return null;
-  const [, langCode, setCode, setNumber] = match;
-  const language = LANG_MAP[langCode.toLowerCase()];
-  if (!language) return null;
-  return {
-    language,
-    setCode: setCode.toLowerCase(),
-    setNumber,
-    condition: detectCondition(input.description),
-  };
+
+  // Strategy 1: description-style `(jpn_sv11b-148)` pattern.
+  const descMatch = haystack.match(PATTERN_DESC_RE);
+  if (descMatch) {
+    const [, langCode, setCode, setNumber] = descMatch;
+    const language = LANG_MAP_3[langCode.toLowerCase()];
+    if (language) {
+      return {
+        language,
+        setCode: setCode.toLowerCase(),
+        setNumber,
+        condition: detectCondition(input.description),
+      };
+    }
+  }
+
+  // Strategy 2: title-style `(SV11B 148) [JP]` pattern. Used when wardrobe
+  // endpoint returns a summary view without the full description.
+  const titleMatch = input.title.match(PATTERN_TITLE_RE);
+  if (titleMatch) {
+    const [, setCode, setNumber, langCode] = titleMatch;
+    const language = LANG_MAP_2[langCode.toLowerCase()];
+    if (language) {
+      return {
+        language,
+        setCode: setCode.toLowerCase(),
+        setNumber,
+        condition: detectCondition(input.description),
+      };
+    }
+  }
+
+  return null;
 }
