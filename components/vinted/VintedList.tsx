@@ -460,7 +460,7 @@ export default function VintedList({ cards: initial, lots: initialLots, register
             <VintedRow
               key={g.key}
               group={g}
-              isRegistered={registered.has(g.head.pokemon_number)}
+              isRegistered={g.head.pokemon_number != null && registered.has(g.head.pokemon_number)}
               priceCell={
                 <EditablePriceCell
                   cardId={g.head.id}

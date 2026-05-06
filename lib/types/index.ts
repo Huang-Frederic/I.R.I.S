@@ -36,7 +36,10 @@ export type CardRarity =
 export interface Card {
   id: string;
   pokemon_name: string;
-  pokemon_number: number;
+  /** National dex number 1..1025, OR null for non-Pokémon cards
+   *  (Trainers, Energies, Stadium, Tools). Cards with null pokemon_number
+   *  cannot be placed in the Pokédex slot. */
+  pokemon_number: number | null;
   card_name: string;
   card_id_tcg: string | null;
   set_name: string | null;

@@ -102,6 +102,16 @@ export async function PATCH(
     if (fetchErr || !target) {
       return NextResponse.json({ error: 'carte introuvable' }, { status: 404 });
     }
+    // Trainers/Energies (no pokemon_number) cannot occupy a Pokédex slot —
+    // refuse the transition explicitly. The existing partial unique index is
+    // safe (would let multiple null-numbered rows in), but the slot has no
+    // semantic meaning for non-Pokémon cards.
+    if (target.pokemon_number == null) {
+      return NextResponse.json(
+        { error: 'pokemon_number requis pour status=pokedex' },
+        { status: 400 },
+      );
+    }
     if (target.status !== 'pokedex' && target.pokemon_number) {
       const { data: existing } = await supabase
         .from('cards')

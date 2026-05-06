@@ -76,6 +76,9 @@ export default function PokedexGrid({ cards }: PokedexGridProps) {
     const pm = new Map<number, Card>();
     const am = new Map<number, Card[]>();
     for (const c of cards) {
+      // Trainer/Energy/Stadium cards have null pokemon_number — they have no
+      // Pokédex slot, so they're irrelevant to this map.
+      if (c.pokemon_number == null) continue;
       if (c.status === 'pokedex') {
         pm.set(c.pokemon_number, c);
       } else if (c.status === 'for_sale' || c.status === 'collection') {

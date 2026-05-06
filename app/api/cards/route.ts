@@ -76,9 +76,16 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  const pokemon_number = Number(pokemon_number_raw);
-  if (!Number.isFinite(pokemon_number) || pokemon_number < 1 || pokemon_number > 1025) {
-    return NextResponse.json({ error: 'pokemon_number doit être entre 1 et 1025' }, { status: 400 });
+  // pokemon_number is optional — null is valid for non-Pokémon cards
+  // (Trainers, Energies, Stadium). When provided, it must be a valid dex
+  // number 1..1025. Status='pokedex' enforces non-null below.
+  let pokemon_number: number | null = null;
+  if (pokemon_number_raw !== null && pokemon_number_raw !== '') {
+    const parsed = Number(pokemon_number_raw);
+    if (!Number.isFinite(parsed) || parsed < 1 || parsed > 1025) {
+      return NextResponse.json({ error: 'pokemon_number doit être entre 1 et 1025' }, { status: 400 });
+    }
+    pokemon_number = parsed;
   }
   if (!language || !LANGUAGES.has(language)) {
     return NextResponse.json({ error: 'language invalide' }, { status: 400 });
@@ -91,6 +98,14 @@ export async function POST(request: Request) {
   }
   if (!STATUSES.has(status) || status === 'sold') {
     return NextResponse.json({ error: 'status invalide' }, { status: 400 });
+  }
+  // A Pokédex slot is per-dex-number — refusing without one prevents creating
+  // an orphan "non-Pokémon Pokédex entry" which has no semantic meaning.
+  if (status === 'pokedex' && pokemon_number === null) {
+    return NextResponse.json(
+      { error: 'pokemon_number requis pour status=pokedex' },
+      { status: 400 },
+    );
   }
 
   const cardId = crypto.randomUUID();

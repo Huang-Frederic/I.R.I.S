@@ -172,7 +172,7 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
             <StockRow
               key={g.key}
               group={g}
-              isRegistered={registered.has(g.head.pokemon_number)}
+              isRegistered={g.head.pokemon_number != null && registered.has(g.head.pokemon_number)}
               hasForSaleSibling={forSaleKeys.has(stockMatchKey(g.head))}
               onListForSaleClick={handleListForSale}
               onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}

@@ -1,0 +1,14 @@
+-- Allow non-Pokémon cards (Trainers, Energies, Stadium, Tools) to live
+-- in cards/Stock/Vinted without a national dex number.
+--
+-- Before: cards.pokemon_number was NOT NULL with a 1..1025 CHECK. The scanner
+-- form refused to save Trainer/Energy/Stadium cards because Gemini correctly
+-- returns no pokemon_number for them and the existing pipeline rejected null.
+--
+-- The CHECK constraint stays unchanged: PostgreSQL CHECK is "true OR null"
+-- so it accepts nulls naturally and still validates non-null values to 1..1025.
+--
+-- The partial unique index `one_pokedex_per_pokemon` (filtered on
+-- status='pokedex') stays unchanged: a Pokédex slot still requires a non-null
+-- pokemon_number — the API enforces that at write time.
+alter table cards alter column pokemon_number drop not null;

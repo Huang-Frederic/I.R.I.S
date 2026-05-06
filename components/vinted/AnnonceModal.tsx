@@ -19,7 +19,11 @@ interface Props {
   onCardRefreshed?: (card: Card) => void;
 }
 
-function pokeApiSprite(n: number): string {
+/** Returns null for non-Pokémon cards (Trainer/Energy/Stadium): they have
+ *  no national dex number, so no PokeAPI sprite to fall back to. The caller
+ *  must provide its own fallback (usually card.image_url). */
+function pokeApiSprite(n: number | null): string | null {
+  if (n == null) return null;
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${n}.png`;
 }
 
@@ -115,8 +119,12 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
   };
 
   const titleOver = title.length > MAX_TITLE_LENGTH;
-  const myPhoto = card.image_url ?? pokeApiSprite(card.pokemon_number);
-  const tcgPhoto = card.tcg_image_url ?? pokeApiSprite(card.pokemon_number);
+  // Fallback chain: user's photo → TCG official → PokeAPI sprite (if Pokémon) → empty.
+  // For Trainers/Energies (pokemon_number null), there's no sprite — usually
+  // image_url or tcg_image_url is present anyway.
+  const sprite = pokeApiSprite(card.pokemon_number) ?? '';
+  const myPhoto = card.image_url ?? sprite;
+  const tcgPhoto = card.tcg_image_url ?? sprite;
 
   // PiP layout: main = the one chosen, thumb = the other
   const pipMainSrc = pipMain === 'mine' ? myPhoto : tcgPhoto;

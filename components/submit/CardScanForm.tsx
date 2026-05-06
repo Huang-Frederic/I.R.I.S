@@ -1146,14 +1146,13 @@ export default function CardScanForm({
 
           <div className="grid grid-cols-12 gap-3">
             <div className="col-span-4">
-              <Field label="N° Nat.">
+              <Field label="N° Nat. (vide = Trainer)">
                 <Input
                   type="number"
                   min={1}
                   max={1025}
                   value={form.pokemon_number}
                   onChange={(v) => update('pokemon_number', v)}
-                  required
                   disabled={lockedPokemonNumber != null}
                 />
               </Field>

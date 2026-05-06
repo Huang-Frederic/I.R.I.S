@@ -91,25 +91,29 @@ export default function VintedRow({
             <span className={`font-medium ${RARITY_COLOR[card.rarity] ?? ''}`}>{card.rarity}</span>
             <span>·</span>
             <span>{card.condition}</span>
-            {isRegistered ? (
-              <span
-                className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
-                title="Cette carte est dans ton Pokédex"
-              >
-                <BookmarkCheck className="h-3 w-3" />
-                Pokédex
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onMoveToPokedexClick?.(card)}
-                disabled={!onMoveToPokedexClick}
-                title="Ajouter cette carte au Pokédex"
-                className="bg-rarity-ar/20 text-rarity-ar hover:bg-rarity-ar/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors disabled:cursor-default"
-              >
-                <Bookmark className="h-3 w-3" />
-                Pas Pokédex
-              </button>
+            {/* Trainers/Energies (no pokemon_number) have no Pokédex slot — hide
+                the badge entirely. */}
+            {card.pokemon_number != null && (
+              isRegistered ? (
+                <span
+                  className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
+                  title="Cette carte est dans ton Pokédex"
+                >
+                  <BookmarkCheck className="h-3 w-3" />
+                  Pokédex
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onMoveToPokedexClick?.(card)}
+                  disabled={!onMoveToPokedexClick}
+                  title="Ajouter cette carte au Pokédex"
+                  className="bg-rarity-ar/20 text-rarity-ar hover:bg-rarity-ar/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors disabled:cursor-default"
+                >
+                  <Bookmark className="h-3 w-3" />
+                  Pas Pokédex
+                </button>
+              )
             )}
             <ListingBadges
               itemKind="card"
