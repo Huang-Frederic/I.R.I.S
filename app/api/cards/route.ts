@@ -70,11 +70,10 @@ export async function POST(request: Request) {
   const condition = (str(formData, 'condition') as CardCondition | null) ?? 'NM';
   const status = (str(formData, 'status') as CardStatus | null) ?? 'for_sale';
 
-  if (!pokemon_name || !card_name) {
-    return NextResponse.json(
-      { error: 'pokemon_name et card_name sont requis' },
-      { status: 400 },
-    );
+  // pokemon_name is optional for non-Pokémon cards (Trainers/Energies/etc.).
+  // card_name remains required as the primary identifier.
+  if (!card_name) {
+    return NextResponse.json({ error: 'card_name est requis' }, { status: 400 });
   }
   // pokemon_number is optional — null is valid for non-Pokémon cards
   // (Trainers, Energies, Stadium). When provided, it must be a valid dex

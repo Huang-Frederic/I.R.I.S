@@ -94,12 +94,18 @@ function buildGeminiOnlyCard(
   const localIdNorm = localId.replace(/^0+/, '') || '0';
   const setNumberFmt = total != null ? `${localIdNorm}/${total}` : localIdNorm;
   const cardName = body.cardName ?? '';
-  const pokemonName = body.pokemonName ?? cardName;
+  const pokemonNumber = body.pokemonNumber ?? null;
+  // Same Trainer-blanking as applyGeminiEnrichments: when there's no dex
+  // number, the card has no separate Pokémon name worth showing.
+  const pokemonName =
+    pokemonNumber == null
+      ? ''
+      : formatBilingualName(body.pokemonName ?? cardName, body.pokemonNameFr, language);
   return {
     card_id_tcg: `${setCode}-${localIdNorm}`,
     card_name: formatBilingualName(cardName, deriveCardNameFr(cardName, body.pokemonNameFr), language),
-    pokemon_name: formatBilingualName(pokemonName, body.pokemonNameFr, language),
-    pokemon_number: body.pokemonNumber ?? null,
+    pokemon_name: pokemonName,
+    pokemon_number: pokemonNumber,
     set_name: formatBilingualName(body.setName ?? setCode, body.setNameFr, language),
     set_code: setCode,
     set_number: setNumberFmt,
@@ -133,12 +139,21 @@ function applyGeminiEnrichments(
   language: CardLanguage,
 ): EnrichedCard {
   const cardNameFr = deriveCardNameFr(enriched.card_name, body.pokemonNameFr);
+  const finalPokemonNumber = enriched.pokemon_number ?? body.pokemonNumber ?? null;
+  // For non-Pokémon cards (Trainers/Energies/Stadium), pokemon_name is just
+  // a redundant copy of card_name in the catalog (legacy NOT NULL workaround).
+  // Blank it so the scanner form leaves the "Nom Pokémon" field empty,
+  // which the user explicitly asked for. card_name still carries the info.
+  const finalPokemonName =
+    finalPokemonNumber == null
+      ? ''
+      : formatBilingualName(enriched.pokemon_name, body.pokemonNameFr, language);
   return {
     ...enriched,
     card_name: formatBilingualName(enriched.card_name, cardNameFr, language),
-    pokemon_name: formatBilingualName(enriched.pokemon_name, body.pokemonNameFr, language),
+    pokemon_name: finalPokemonName,
     set_name: formatBilingualName(enriched.set_name, body.setNameFr, language),
-    pokemon_number: enriched.pokemon_number ?? body.pokemonNumber ?? null,
+    pokemon_number: finalPokemonNumber,
   };
 }
 

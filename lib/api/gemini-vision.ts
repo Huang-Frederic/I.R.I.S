@@ -91,6 +91,18 @@ function extractJsonObject(text: string): string {
   return text.slice(start, end + 1);
 }
 
+/** Coerce "null" / "undefined" / "n/a" / empty / whitespace to actual null.
+ *  Gemini sometimes emits the literal string "null" instead of the JSON null
+ *  for fields it can't fill — without this, downstream code happily formats
+ *  things like `"null (Nの筋書き)"` because the string is truthy. */
+function cleanNull(s: unknown): string | null {
+  if (typeof s !== 'string') return null;
+  const t = s.trim();
+  if (!t) return null;
+  if (/^(null|undefined|n\/?a|none)$/i.test(t)) return null;
+  return t;
+}
+
 const SCHEMA = {
   type: 'object',
   properties: {
@@ -238,10 +250,10 @@ export async function extractCardFromImage(
         typeof parsed.pokemon_number === 'number' && Number.isFinite(parsed.pokemon_number)
           ? parsed.pokemon_number
           : null,
-      pokemon_name_fr: parsed.pokemon_name_fr || null,
-      set_name: parsed.set_name || null,
-      set_name_fr: parsed.set_name_fr || null,
-      illustrator: parsed.illustrator || null,
+      pokemon_name_fr: cleanNull(parsed.pokemon_name_fr),
+      set_name: cleanNull(parsed.set_name),
+      set_name_fr: cleanNull(parsed.set_name_fr),
+      illustrator: cleanNull(parsed.illustrator),
       _usage: usage ?? undefined,
     };
     return { extraction, usage };

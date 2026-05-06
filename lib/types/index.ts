@@ -35,7 +35,11 @@ export type CardRarity =
 
 export interface Card {
   id: string;
-  pokemon_name: string;
+  /** Null for non-Pokémon cards (Trainers/Energies/Stadium): they have no
+   *  separate "Pokémon name" — the card_name suffices. The catalog used to
+   *  copy card_name into pokemon_name as a NOT NULL workaround; this is now
+   *  blanked at enrich time. */
+  pokemon_name: string | null;
   /** National dex number 1..1025, OR null for non-Pokémon cards
    *  (Trainers, Energies, Stadium, Tools). Cards with null pokemon_number
    *  cannot be placed in the Pokédex slot. */
