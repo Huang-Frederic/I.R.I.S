@@ -1,6 +1,6 @@
 // lib/utils/restock-detection.test.ts
 import { describe, expect, it } from 'vitest';
-import { detectRestock } from './restock-detection';
+import { detectRestock, computeRestockAlerts } from './restock-detection';
 
 describe('detectRestock', () => {
   it('returns restock info when pokedex exists and no for_sale + no stock remain', () => {
@@ -52,5 +52,25 @@ describe('detectRestock', () => {
         remainingStockCount: 0,
       }),
     ).toBeNull();
+  });
+});
+
+describe('computeRestockAlerts', () => {
+  it('aggregates by pokemon_number and returns alerts only where applicable', () => {
+    const result = computeRestockAlerts([
+      { pokemon_number: 25, pokemon_name: 'Pikachu', status: 'pokedex' },
+      { pokemon_number: 25, pokemon_name: 'Pikachu', status: 'for_sale' },
+      { pokemon_number: 6, pokemon_name: 'Charizard', status: 'pokedex' },
+      { pokemon_number: 9, pokemon_name: 'Blastoise', status: 'pokedex' },
+      { pokemon_number: 9, pokemon_name: 'Blastoise', status: 'collection' },
+    ]);
+    expect(result.map((a) => a.pokemon_number)).toEqual([6]);
+  });
+
+  it('skips cards with null pokemon_number', () => {
+    const result = computeRestockAlerts([
+      { pokemon_number: null, pokemon_name: null, status: 'pokedex' },
+    ]);
+    expect(result).toEqual([]);
   });
 });
