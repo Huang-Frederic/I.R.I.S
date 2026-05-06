@@ -107,3 +107,14 @@ body {
 *::-webkit-scrollbar-button {
   display: none;
 }
+
+/** Kill the up/down spinners on every <input type="number">. We don't use
+ *  them, they steal width, and on dark themes their default styling clashes. */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield; /* Firefox */
+}
