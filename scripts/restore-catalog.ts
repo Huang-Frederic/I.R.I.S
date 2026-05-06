@@ -5,12 +5,24 @@
 //
 // Usage: npm run restore-catalog
 
-import 'dotenv/config';
+import { config as dotenvConfig } from 'dotenv';
+import path from 'node:path';
+dotenvConfig({ path: path.resolve(__dirname, '..', '.env.local') });
+dotenvConfig();
 import { createReadStream, readFileSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
-import path from 'node:path';
-import { createServiceClient } from '../lib/supabase/service';
+import { createClient } from '@supabase/supabase-js';
+
+// See snapshot-catalog.ts for the rationale on inlining the client.
+function createServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
+  }
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+}
 
 const BACKUPS_DIR = path.resolve(__dirname, '..', 'backups');
 const CHUNK_SIZE = 500;

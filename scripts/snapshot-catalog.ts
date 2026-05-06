@@ -5,14 +5,29 @@
 //
 // Usage: npm run snapshot-catalog
 
-import 'dotenv/config';
+import { config as dotenvConfig } from 'dotenv';
+import path from 'node:path';
+// Load .env.local first (Next.js convention), then .env as fallback
+dotenvConfig({ path: path.resolve(__dirname, '..', '.env.local') });
+dotenvConfig();
 import { createWriteStream, writeFileSync } from 'node:fs';
 import { mkdirSync } from 'node:fs';
 import { createGzip } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
-import path from 'node:path';
-import { createServiceClient } from '../lib/supabase/service';
+import { createClient } from '@supabase/supabase-js';
+
+// Scripts can't import lib/supabase/service.ts (it has `server-only` which
+// throws under tsx). Create the service-role client inline here — safe because
+// scripts only run on the developer machine with .env.local.
+function createServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
+  }
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+}
 
 const BACKUPS_DIR = path.resolve(__dirname, '..', 'backups');
 const PAGE_SIZE = 1000;
