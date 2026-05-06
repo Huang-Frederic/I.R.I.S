@@ -1,0 +1,70 @@
+# .github/workflows/backup.yml
+name: Daily backup
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # 3 AM UTC every day
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pg_dump 16
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+
+      - name: Verify pg_dump version
+        run: pg_dump --version
+
+      - name: Dump user-data tables
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set +x
+          pg_dump "$SUPABASE_DB_URL" \
+            --data-only --no-owner --no-acl \
+            --table=public.cards \
+            --table=public.lots \
+            --table=public.card_listings \
+            --table=public.lot_listings \
+            --table=public.user_profiles \
+            --table=public.config \
+            --table=public.ocr_usage_log \
+            --table=public.stock_value_snapshots \
+            | gzip > dump.sql.gz
+          ls -lh dump.sql.gz
+
+      - name: Tag and upload releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          DAY_OF_WEEK=$(date -u +%u)   # 1=Mon..7=Sun
+          DAY_OF_MONTH=$(date -u +%d)
+          WEEK=$(date -u +%G-W%V)
+          MONTH=$(date -u +%Y-%m)
+
+          gh release create "backup-daily-$DATE" dump.sql.gz \
+            --notes "Auto-backup $DATE" --prerelease
+
+          if [ "$DAY_OF_WEEK" = "7" ]; then
+            gh release create "backup-weekly-$WEEK" dump.sql.gz \
+              --notes "Weekly backup $WEEK" --prerelease
+          fi
+
+          if [ "$DAY_OF_MONTH" = "01" ]; then
+            gh release create "backup-monthly-$MONTH" dump.sql.gz \
+              --notes "Monthly backup $MONTH" --prerelease
+          fi
+
+      - name: Rotate old releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/backup/rotate.sh
