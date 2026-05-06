@@ -39,3 +39,17 @@ export const RARITY_COLOR: Record<string, string> = {
   C: 'text-rarity-c',
   OTHER: 'text-text-muted',
 };
+
+/** Hex color values for rarity tiers, for use with chart libraries (Recharts). */
+export const RARITY_COLOR_HEX: Record<string, string> = {
+  SAR: '#f5b942',
+  AR: '#a47fd5',
+  SR: '#e35a5a',
+  CHR: '#7a55c4',
+  RR: '#c4a155',
+  R_HOLO: '#5fa9c4',
+  R: '#88c45f',
+  UC: '#888888',
+  C: '#aaaaaa',
+  OTHER: '#666666',
+};
