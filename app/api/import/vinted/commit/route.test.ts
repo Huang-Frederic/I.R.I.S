@@ -45,7 +45,18 @@ const SAMPLE_ITEM: ToImport = {
     photos: [{ id: 1, full_size_url: 'https://images.vinted.net/full.jpg', url: 'https://images.vinted.net/thumb.jpg' }],
   },
   parsed: { language: 'JP', setCode: 's8b', setNumber: '208', condition: 'NM' },
-  enriched: null,
+  // pokemon_number must be 1..1025 (NOT NULL constraint on cards.pokemon_number).
+  enriched: {
+    card_id_tcg: 's8b-208',
+    card_name: 'Archéodong VMAX',
+    pokemon_name: 'Archéodong',
+    pokemon_number: 567,
+    set_name: 'VMAX Climax',
+    set_code: 's8b',
+    set_number: '208',
+    rarity: 'SAR',
+    tcg_image_url: '',
+  },
 };
 
 function makeReq(items: ToImport[]): Request {

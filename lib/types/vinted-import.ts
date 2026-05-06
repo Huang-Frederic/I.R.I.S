@@ -37,6 +37,7 @@ export type ImportFailureReason =
   | 'listing_already_exists'
   | 'photo_unavailable'
   | 'storage_upload_failed'
+  | 'enrich_missing_pokemon_number'
   | 'unknown';
 
 export interface ImportFailure {

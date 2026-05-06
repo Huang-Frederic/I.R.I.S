@@ -5,19 +5,19 @@ import type { ImportFailure, ToImport } from '@/lib/types/vinted-import';
 
 export const runtime = 'nodejs';
 
-const PHOTO_TIMEOUT_MS = 10_000;
+const PHOTO_TIMEOUT_MS = 8_000;
 
-// Defense-in-depth: reject photos from any host that's not the Vinted CDN.
-// Mitigates SSRF if a malicious Vinted listing somehow returns an internal URL.
-const ALLOWED_PHOTO_HOSTS = new Set([
-  'images.vinted.net',
-  'photos.vinted.net',
-  'images1.vinted.net',
-  'images2.vinted.net',
-  'images3.vinted.net',
-  'images4.vinted.net',
-  'images5.vinted.net',
-]);
+// Defense-in-depth: reject photos from any host that's NOT a Vinted CDN.
+// We accept any subdomain of vinted.net / vinted.fr / vinted.com so we don't
+// have to maintain a list of numbered shards (images1, images2, ...).
+const ALLOWED_PHOTO_HOST_RE = /(^|\.)vinted\.(net|fr|com|de|es|it|pl|cz|sk|nl|be|lt|lv|ee|at|hu|pt|fi|ro|se|gr|lu)$/i;
+
+const PHOTO_FETCH_HEADERS: HeadersInit = {
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+  Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+  Referer: 'https://www.vinted.fr/',
+};
 
 async function downloadAndUpload(
   photos: ToImport['vintedItem']['photos'],
@@ -30,29 +30,35 @@ async function downloadAndUpload(
       try {
         parsedUrl = new URL(photo.full_size_url);
       } catch {
-        console.warn('[import-vinted/commit] malformed photo URL', photo.full_size_url);
+        console.warn(`[commit] item=${vintedItemId} malformed photo URL`, photo.full_size_url);
         continue;
       }
-      if (!ALLOWED_PHOTO_HOSTS.has(parsedUrl.hostname)) {
-        console.warn('[import-vinted/commit] blocked untrusted photo host', parsedUrl.hostname);
+      if (!ALLOWED_PHOTO_HOST_RE.test(parsedUrl.hostname)) {
+        console.warn(`[commit] item=${vintedItemId} blocked untrusted host`, parsedUrl.hostname);
         continue;
       }
+      const t0 = Date.now();
       const res = await fetch(photo.full_size_url, {
+        headers: PHOTO_FETCH_HEADERS,
         signal: AbortSignal.timeout(PHOTO_TIMEOUT_MS),
       });
-      if (!res.ok) continue;
+      if (!res.ok) {
+        console.warn(`[commit] item=${vintedItemId} photo ${res.status} ${parsedUrl.hostname} (${Date.now() - t0}ms)`);
+        continue;
+      }
       const buffer = Buffer.from(await res.arrayBuffer());
       const path = `vinted-import-${vintedItemId}-${photo.id}.jpg`;
       const { error: uploadError } = await supabase.storage
         .from('card-photos')
         .upload(path, buffer, { contentType: 'image/jpeg', upsert: true });
       if (uploadError) {
-        console.warn('[import-vinted/commit] storage upload failed', uploadError);
+        console.warn(`[commit] item=${vintedItemId} storage upload failed`, uploadError);
         return 'upload_failed';
       }
+      console.info(`[commit] item=${vintedItemId} photo ok (${Date.now() - t0}ms, ${buffer.length} bytes)`);
       return supabase.storage.from('card-photos').getPublicUrl(path).data.publicUrl;
     } catch (e) {
-      console.warn('[import-vinted/commit] photo fetch error', e);
+      console.warn(`[commit] item=${vintedItemId} photo fetch error`, e);
     }
   }
   return null;
@@ -91,8 +97,17 @@ export async function POST(request: Request) {
       }
       const imageUrl = uploadResult; // string | null
 
-      // 2. INSERT card
-      const cardRow = mapVintedToCardInsert(item.vintedItem, item.parsed, item.enriched, imageUrl ?? '');
+      // 2. Build card row. Helper returns { skipReason } when required fields
+      // (pokemon_number 1..1025, enforced by NOT NULL + CHECK) can't be derived.
+      const mapped = mapVintedToCardInsert(item.vintedItem, item.parsed, item.enriched, imageUrl ?? '');
+      if ('skipReason' in mapped) {
+        failed.push({
+          vintedItemId,
+          reason: mapped.skipReason as ImportFailure['reason'],
+        });
+        continue;
+      }
+      const cardRow = mapped;
       const { data: card, error: cardErr } = await supabase
         .from('cards')
         .insert(cardRow)

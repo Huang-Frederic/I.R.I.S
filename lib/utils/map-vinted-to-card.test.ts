@@ -19,51 +19,82 @@ const PARSED: ParsedListing = {
   condition: 'NM',
 };
 
+const ENRICHED: EnrichedCard = {
+  card_id_tcg: 's8b-208',
+  card_name: 'Archéodong VMAX (アーケオドンVMAX)',
+  pokemon_name: 'Archéodong (アーケオドン)',
+  pokemon_number: 567,
+  set_name: 'VMAX Climax',
+  set_code: 's8b',
+  set_number: '208/184',
+  rarity: 'SAR',
+  tcg_image_url: 'https://assets.tcgdex.net/foo.jpg',
+  cardmarket_id: 'cm-123',
+  cm_price_low: 4.5,
+  cm_price_trend: 6.0,
+  cm_price_avg: 5.2,
+};
+
+function assertRow<T>(value: T | { skipReason: string }): asserts value is T {
+  if (value && typeof value === 'object' && 'skipReason' in value) {
+    throw new Error(`expected row, got skipReason=${(value as { skipReason: string }).skipReason}`);
+  }
+}
+
 describe('mapVintedToCardInsert', () => {
   it('uses enriched fields when an EnrichedCard is provided', () => {
-    const enriched: EnrichedCard = {
-      card_id_tcg: 's8b-208',
-      card_name: 'Archéodong VMAX (アーケオドンVMAX)',
-      pokemon_name: 'Archéodong (アーケオドン)',
-      pokemon_number: 567,
-      set_name: 'VMAX Climax',
-      set_code: 's8b',
-      set_number: '208/184',
-      rarity: 'SAR',
-      tcg_image_url: 'https://assets.tcgdex.net/foo.jpg',
-      cardmarket_id: 'cm-123',
-      cm_price_low: 4.5,
-      cm_price_trend: 6.0,
-      cm_price_avg: 5.2,
-    };
-
-    const row = mapVintedToCardInsert(VINTED_ITEM, PARSED, enriched, 'https://supabase.co/storage/img.jpg');
-    expect(row.card_id_tcg).toBe('s8b-208');
-    expect(row.set_number).toBe('208/184');
-    expect(row.tcg_image_url).toBe('https://assets.tcgdex.net/foo.jpg');
-    expect(row.cm_price_trend).toBe(6.0);
-    expect(row.image_url).toBe('https://supabase.co/storage/img.jpg');
-    expect(row.suggested_price).toBe(5.5);
-    expect(row.status).toBe('for_sale');
-    expect(row.language).toBe('JP');
-    expect(row.condition).toBe('NM');
-    expect(row.variant).toBeNull();
+    const result = mapVintedToCardInsert(VINTED_ITEM, PARSED, ENRICHED, 'https://supabase.co/storage/img.jpg');
+    assertRow(result);
+    expect(result.card_id_tcg).toBe('s8b-208');
+    expect(result.set_number).toBe('208/184');
+    expect(result.tcg_image_url).toBe('https://assets.tcgdex.net/foo.jpg');
+    expect(result.cm_price_trend).toBe(6.0);
+    expect(result.image_url).toBe('https://supabase.co/storage/img.jpg');
+    expect(result.suggested_price).toBe(5.5);
+    expect(result.status).toBe('for_sale');
+    expect(result.language).toBe('JP');
+    expect(result.condition).toBe('NM');
+    expect(result.variant).toBeNull();
+    expect(result.pokemon_number).toBe(567);
+    expect(result.pokemon_name).toBe('Archéodong (アーケオドン)');
+    expect(result.card_name).toBe('Archéodong VMAX (アーケオドンVMAX)');
+    expect(result.rarity).toBe('SAR');
   });
 
-  it('falls back to parsed fields when enriched is null', () => {
-    const row = mapVintedToCardInsert(VINTED_ITEM, PARSED, null, 'https://supabase.co/storage/img.jpg');
-    expect(row.card_id_tcg).toBeNull();
-    expect(row.set_code).toBe('s8b');
-    expect(row.set_number).toBe('208');
-    expect(row.tcg_image_url).toBeNull();
-    expect(row.cm_price_trend).toBeNull();
-    expect(row.cardmarket_id).toBeNull();
-    expect(row.suggested_price).toBe(5.5);
+  it('returns skipReason when enriched is null (no pokemon_number = NOT NULL violation)', () => {
+    const result = mapVintedToCardInsert(VINTED_ITEM, PARSED, null, 'https://supabase.co/storage/img.jpg');
+    expect(result).toEqual({ skipReason: 'enrich_missing_pokemon_number' });
+  });
+
+  it('returns skipReason when pokemon_number is out of range (1..1025)', () => {
+    const bad: EnrichedCard = { ...ENRICHED, pokemon_number: 9999 };
+    const result = mapVintedToCardInsert(VINTED_ITEM, PARSED, bad, '');
+    expect(result).toEqual({ skipReason: 'enrich_missing_pokemon_number' });
+  });
+
+  it('falls back to vinted title for card_name/pokemon_name when enriched is partial', () => {
+    const partial: EnrichedCard = {
+      ...ENRICHED,
+      card_name: '',
+      pokemon_name: '',
+    };
+    const result = mapVintedToCardInsert(VINTED_ITEM, PARSED, partial, '');
+    assertRow(result);
+    // Empty string is falsy → falls back to title
+    expect(result.card_name).toBe(VINTED_ITEM.title);
+    expect(result.pokemon_name).toBe(VINTED_ITEM.title);
   });
 
   it('parses price.amount as a number even when given as string', () => {
     const item = { ...VINTED_ITEM, price: { amount: '12.34', currency_code: 'EUR' } };
-    const row = mapVintedToCardInsert(item, PARSED, null, '');
-    expect(row.suggested_price).toBe(12.34);
+    const result = mapVintedToCardInsert(item, PARSED, ENRICHED, '');
+    assertRow(result);
+    expect(result.suggested_price).toBe(12.34);
+  });
+
+  it('does NOT include set_total in the output (column does not exist on cards table)', () => {
+    const result = mapVintedToCardInsert(VINTED_ITEM, PARSED, ENRICHED, '');
+    assertRow(result);
+    expect('set_total' in result).toBe(false);
   });
 });
