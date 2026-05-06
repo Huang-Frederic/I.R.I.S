@@ -632,6 +632,7 @@ Breakdown nouveaux tests Phase 5 :
 - **Backup auto des photos** du bucket Supabase Storage `card-photos` + `lot-photos` (GitHub release ou S3 externe).
 - **UI de restore d'un backup manuel** : risqué (wipe data prod), mieux via psql local.
 - **Standardisation shape des erreurs API** : aujourd'hui mix entre `{ error }` et `{ error, message, existingCard }`. Documenter une convention dans CLAUDE.md.
+- **Deep-links Dashboard non câblés** : `<RarityDonut>` produit `/pokedex?rarity=X`, `<TopRaresList>` + `<RestockAlertsList>` produisent `/pokedex?pokemon_number=N`. Le user atterrit sur `/pokedex` mais aucun filtre/scroll automatique car `app/(app)/pokedex/page.tsx` ne consomme pas `searchParams`. UX gap (pas un bug). À câbler en Phase 5.1 si besoin (ajouter `useSearchParams` dans `PokedexFilters` pour pré-remplir le filtre rareté + dans `PokedexGrid` pour scroll-to + auto-open drawer sur le slot ciblé).
 
 ## Prochaines étapes (post-Phase-5)
 
@@ -645,5 +646,6 @@ Phase 5 close le scope fonctionnel principal d'I.R.I.S. Les features "Hors scope
 - [ ] **Backup auto photos** : extend GitHub Action workflow pour dump `card-photos` + `lot-photos` (Storage API list → download → tar.gz → release asset).
 - [ ] **UI restore manuel** : route POST `/api/backup/manual/[filename]/restore` (télécharge JSON, parse, TRUNCATE tables, bulk INSERT). Risque de wipe → confirmation multi-étapes + dry-run preview obligatoire.
 - [ ] **Standardiser shape erreurs API** : convention `{ error: string, details?: unknown }` everywhere, documenter dans CLAUDE.md.
+- [ ] **Câbler les deep-links Dashboard** : ajouter `useSearchParams` dans `PokedexFilters` (pré-remplir filtre rareté depuis `?rarity=X`) + dans `PokedexGrid` (scroll-to + auto-open drawer sur le slot ciblé via `?pokemon_number=N`). Sans ça, les liens depuis Dashboard atterrissent sur `/pokedex` sans contexte.
 
 **Rappel** : le user préfère garder l'app simple et stable. Ne pas ajouter de features non-demandées. Les items ci-dessus ne doivent être développés que si explicitement requis par le user.
