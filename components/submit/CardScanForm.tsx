@@ -309,7 +309,8 @@ export default function CardScanForm({
       prefill.pokemon_name = getPokemonName(lockedPokemonNumber, 'fr');
     }
 
-    // Fetch suggestion
+    // Fetch suggestion. For non-Pokémon cards (no pokemon_number), set the
+    // banner directly so the user sees "non-Pokémon, pas de slot Pokédex".
     if (match?.pokemon_number) {
       void fetchSuggestion({
         pokemon_number: match.pokemon_number,
@@ -321,6 +322,13 @@ export default function CardScanForm({
           prefill.status = actionToStatus(nextSuggestion.primaryAction);
         }
         setSuggestion(nextSuggestion);
+      });
+    } else {
+      setSuggestion({
+        type: 'no_pokemon_number',
+        message: 'Carte non-Pokémon (Trainer / Énergie / Stadium) — pas de slot Pokédex.',
+        primaryAction: 'add_to_vinted',
+        secondaryActions: ['add_to_collection'],
       });
     }
 
@@ -650,6 +658,13 @@ export default function CardScanForm({
         if (nextSuggestion) {
           prefill.status = actionToStatus(nextSuggestion.primaryAction);
         }
+      } else {
+        nextSuggestion = {
+          type: 'no_pokemon_number',
+          message: 'Carte non-Pokémon (Trainer / Énergie / Stadium) — pas de slot Pokédex.',
+          primaryAction: 'add_to_vinted',
+          secondaryActions: ['add_to_collection'],
+        };
       }
 
       setForm(prefill);
@@ -1278,7 +1293,7 @@ export default function CardScanForm({
             </button>
             <button
               type="submit"
-              disabled={phase === 'saving' || phase === 'success' || !form.card_name || !form.pokemon_name || numberMismatch}
+              disabled={phase === 'saving' || phase === 'success' || !form.card_name || numberMismatch}
               className="bg-red flex-1 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50"
             >
               {phase === 'saving' ? 'Enregistrement…' : 'Enregistrer'}
