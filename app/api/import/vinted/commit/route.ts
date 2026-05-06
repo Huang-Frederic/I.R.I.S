@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { mapVintedToCardInsert } from '@/lib/utils/map-vinted-to-card';
-import type { EnrichedCard, EnrichResult } from '@/lib/types';
+import { lookupByCode, rowToEnrichedCard } from '@/lib/api/tcg-catalog';
+import type { EnrichedCard } from '@/lib/types';
 import type { ImportFailure, ToImport } from '@/lib/types/vinted-import';
 
 export const runtime = 'nodejs';
@@ -95,37 +96,31 @@ export async function POST(request: Request) {
     `[commit] received ${body.items.length} items, ${initialEnrichedCount} already enriched, ${body.items.length - initialEnrichedCount} need re-enrich`,
   );
 
-  // Internal base URL for re-enrichment fallback.
-  const reqUrl = new URL(request.url);
-  const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
-
   for (const item of body.items) {
     const vintedItemId = item.vintedItem.id;
     try {
-      // 0. Re-enrich on the fly if the frontend gave us a null enriched (e.g.
-      // user clicked Importer before /preview finished, or /preview timed out
-      // for this item). Best-effort: a 6s timeout, falls through to skip if
-      // it still fails. Cheap (catalog DB hit, no external API in most cases).
+      // 0. Re-enrich on the fly when the frontend gave us a null enriched
+      // (typical: /preview hadn't finished or fired errors per-item). Direct
+      // catalog call instead of an internal HTTP fetch — avoids Turbopack
+      // self-call quirks in dev and is faster (single DB query). Falls back
+      // to skip path naturally if catalog has no match.
       let enriched: EnrichedCard | null = item.enriched;
       if (enriched == null) {
         try {
-          const r = await fetch(`${baseUrl}/api/enrich`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-              setCode: item.parsed.setCode,
-              localId: item.parsed.setNumber,
-              language: item.parsed.language,
-            }),
-            signal: AbortSignal.timeout(6_000),
-          });
-          if (r.ok) {
-            const er = (await r.json()) as EnrichResult;
-            enriched = er.bestMatch ?? null;
-            if (enriched) console.info(`[commit] item=${vintedItemId} enriched on-the-fly (pokemon_number=${enriched.pokemon_number})`);
+          const row = await lookupByCode(
+            supabase,
+            item.parsed.setCode,
+            item.parsed.setNumber,
+            item.parsed.language,
+          );
+          if (row) {
+            enriched = rowToEnrichedCard(row);
+            console.info(`[commit] item=${vintedItemId} catalog hit ${row.set_code}-${row.set_number}/${row.language} (pokemon_number=${enriched.pokemon_number})`);
+          } else {
+            console.info(`[commit] item=${vintedItemId} catalog MISS for ${item.parsed.setCode}-${item.parsed.setNumber}/${item.parsed.language}`);
           }
         } catch (e) {
-          console.warn(`[commit] item=${vintedItemId} on-the-fly enrich failed`, e);
+          console.warn(`[commit] item=${vintedItemId} catalog lookup error`, e);
         }
       }
 

@@ -86,7 +86,13 @@ export function mapVintedToCardInsert(
     pokemon_name: pokemonName,
     pokemon_number: pokemonNumber,
     card_name: cardName,
-    card_id_tcg: enriched?.card_id_tcg ?? null,
+    // Synthetic stable ID when no catalog match — same shape as the seed
+    // script uses, prevents `(NULL, lang, condition, variant)` collisions
+    // on the partial unique index `one_for_sale_per_group` (which treats
+    // NULL as one bucket and would otherwise let only the first NULL-id
+    // card through, blocking every subsequent import).
+    card_id_tcg:
+      enriched?.card_id_tcg ?? `vinted-${parsed.setCode.toLowerCase()}-${parsed.setNumber}-${parsed.language}`,
     set_code: enriched?.set_code ?? parsed.setCode,
     set_number: enriched?.set_number ?? parsed.setNumber,
     set_name: enriched?.set_name ?? null,
