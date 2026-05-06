@@ -102,3 +102,8 @@ body {
 *::-webkit-scrollbar-thumb:hover {
   background: rgba(140, 140, 140, 0.5);
 }
+/* Kill the up/down arrow buttons at the ends of the scrollbar (some
+   Windows browsers still render them despite the thin/translucent thumb). */
+*::-webkit-scrollbar-button {
+  display: none;
+}
