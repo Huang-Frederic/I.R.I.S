@@ -35,4 +35,24 @@ describe('parseVintedCurl', () => {
     expect(result?.cookie).toBe('_vinted_fr_session=winabc');
     expect(result?.csrfToken).toBeNull();
   });
+
+  it('accepts the /api/v2/wardrobe/{id}/items endpoint (member profile)', () => {
+    const curl = `curl 'https://www.vinted.fr/api/v2/wardrobe/103310104/items?page=1' -H 'cookie: _vinted_fr_session=xyz'`;
+    const result = parseVintedCurl(curl);
+    expect(result?.userId).toBe('103310104');
+    expect(result?.cookie).toBe('_vinted_fr_session=xyz');
+  });
+
+  it('handles Windows cmd format with caret-escaped quotes (^") and -b cookie', () => {
+    // What Chrome on Windows generates with "Copy as cURL (cmd)" — quotes are
+    // escaped as ^" and the cookie comes via -b.
+    const curl = `curl ^"https://www.vinted.fr/api/v2/wardrobe/103310104/items?page=1^&per_page=20^" ^
+  -H ^"accept: application/json^" ^
+  -b ^"v_sid=57d7e86d; _vinted_fr_session=ellyY3Nn^" ^
+  -H ^"x-csrf-token: 75f6c9fa-dc8e-4e52^"`;
+    const result = parseVintedCurl(curl);
+    expect(result?.userId).toBe('103310104');
+    expect(result?.cookie).toBe('v_sid=57d7e86d; _vinted_fr_session=ellyY3Nn');
+    expect(result?.csrfToken).toBe('75f6c9fa-dc8e-4e52');
+  });
 });
