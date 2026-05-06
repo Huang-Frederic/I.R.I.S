@@ -694,91 +694,77 @@ export default function CardScanForm({
         suggestion?.type === 'can_replace' &&
         !!suggestion.existingCard;
 
-      let firstCardId: string | null = null;
-      // Track per-bucket inserts so we can show a meaningful summary at the end.
-      const counts = { for_sale: 0, pokedex: 0, collection: 0 };
+      // Bucket the FIRST row gets. Copies 2..N fall back to 'collection'
+      // server-side via buildBatchRows (matches the legacy loop's behaviour).
+      // wantsToReplace flips it to for_sale because the swap moves the old
+      // pokedex card to for_sale and the new card takes the pokedex slot.
+      const effectiveStatus: 'for_sale' | 'pokedex' | 'collection' = wantsToReplace ? 'for_sale' : finalStatus;
 
-      for (let copy = 0; copy < totalCount; copy++) {
-        // Bucket logic for the iteration:
-        //   - copy 0 with wantsToReplace → for_sale (the swap moves the old
-        //     pokedex card to for_sale, the new card takes the pokedex slot)
-        //   - copy 0 otherwise → finalStatus (user choice)
-        //   - copy 1..N-1 → 'collection' when finalStatus is for_sale or
-        //     pokedex (only one of each is allowed by the unique constraints,
-        //     so extra physical copies belong in stock)
-        //   - copy 1..N-1 with finalStatus='collection' → stays collection
-        const statusForThisIteration: 'for_sale' | 'pokedex' | 'collection' =
-          copy === 0
-            ? (wantsToReplace ? 'for_sale' : finalStatus)
-            : (finalStatus === 'pokedex' || finalStatus === 'for_sale' ? 'collection' : finalStatus);
-
-        const data = new FormData();
-        if (photoBlob) data.append('image', photoBlob, 'card.jpg');
-        for (const [key, value] of Object.entries(form)) {
-          if (key === 'status' || key === 'count') continue;
-          if (value !== '' && value !== null && value !== undefined) {
-            data.append(key, String(value));
-          }
+      const data = new FormData();
+      if (photoBlob) data.append('image', photoBlob, 'card.jpg');
+      for (const [key, value] of Object.entries(form)) {
+        if (key === 'status' || key === 'count') continue;
+        if (value !== '' && value !== null && value !== undefined) {
+          data.append(key, String(value));
         }
-        data.append('status', statusForThisIteration);
+      }
+      data.append('status', effectiveStatus);
+      data.append('count', String(totalCount));
 
-        const res = await fetch('/api/cards', { method: 'POST', body: data });
-        if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as {
-            error?: string;
-            message?: string;
-            existingCard?: PokedexReplaceModalCard | ExistingCardLite;
-            hasForSaleConflict?: boolean;
-          };
-          if (res.status === 409 && body.error === 'pokedex_slot_taken' && body.existingCard && copy === 0) {
-            setReplaceModal({
-              existingCard: body.existingCard as PokedexReplaceModalCard,
-              hasForSaleConflict: body.hasForSaleConflict ?? false,
-            });
-            setPhase('reviewing');
-            return;
-          }
-          if (res.status === 409 && body.error === 'for_sale_conflict' && copy === 0) {
-            // Defer: ask the user to confirm putting ALL N copies in stock
-            // (the modal handler re-runs the loop with status='collection').
-            setDuplicateForSaleConflict({ existingCard: (body.existingCard as ExistingCardLite | undefined) ?? null });
-            setPhase('reviewing');
-            return;
-          }
-          throw new Error(body.message ?? body.error ?? `Enregistrement a échoué (${res.status})`);
-        }
-
-        const inserted = (await res.json()) as {
-          card: { id: string };
+      // Single bulk call: 1 photo upload + 1 INSERT for N rows.
+      const res = await fetch('/api/cards/batch', { method: 'POST', body: data });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          message?: string;
+          existingCard?: PokedexReplaceModalCard | ExistingCardLite;
+          hasForSaleConflict?: boolean;
         };
-        counts[statusForThisIteration]++;
-
-        if (copy === 0) firstCardId = inserted.card.id;
-
-        // Replace flow only on first iteration
-        if (copy === 0 && wantsToReplace && suggestion?.existingCard) {
-          const swap = await fetch('/api/pokedex/replace', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              old_card_id: suggestion.existingCard.id,
-              old_new_status: 'for_sale',
-              new_card_id: inserted.card.id,
-            }),
+        if (res.status === 409 && body.error === 'pokedex_slot_taken' && body.existingCard) {
+          setReplaceModal({
+            existingCard: body.existingCard as PokedexReplaceModalCard,
+            hasForSaleConflict: body.hasForSaleConflict ?? false,
           });
-          if (!swap.ok) {
-            const body = (await swap.json().catch(() => ({}))) as { error?: string };
-            throw new Error(body.error ?? `Remplacement Pokédex a échoué (${swap.status})`);
-          }
+          setPhase('reviewing');
+          return;
         }
+        if (res.status === 409 && body.error === 'for_sale_conflict') {
+          setDuplicateForSaleConflict({ existingCard: (body.existingCard as ExistingCardLite | undefined) ?? null });
+          setPhase('reviewing');
+          return;
+        }
+        throw new Error(body.message ?? body.error ?? `Enregistrement a échoué (${res.status})`);
+      }
+
+      const { created } = (await res.json()) as { created: { id: string; status: 'for_sale' | 'pokedex' | 'collection' }[] };
+      const firstCardId = created[0]?.id ?? null;
+      const counts = { for_sale: 0, pokedex: 0, collection: 0 };
+      for (const c of created) counts[c.status]++;
+
+      // Replace flow uses the FIRST inserted card (which went in as for_sale
+      // per effectiveStatus). The swap promotes it to pokedex and demotes the
+      // old pokedex card to for_sale.
+      if (wantsToReplace && suggestion?.existingCard && firstCardId) {
+        const swap = await fetch('/api/pokedex/replace', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            old_card_id: suggestion.existingCard.id,
+            old_new_status: 'for_sale',
+            new_card_id: firstCardId,
+          }),
+        });
+        if (!swap.ok) {
+          const body = (await swap.json().catch(() => ({}))) as { error?: string };
+          throw new Error(body.error ?? `Remplacement Pokédex a échoué (${swap.status})`);
+        }
+        // The swap reclassified the first row from for_sale to pokedex.
+        counts.for_sale--;
+        counts.pokedex++;
       }
 
       setSuccessCounts(counts);
       setPhase('success');
-      // Don't auto-advance here — the SaveSuccessModal needs the user to
-      // dismiss it (so they read the per-bucket breakdown). The modal's
-      // OK button calls handleSuccessClose which then triggers reset()
-      // or onSaved (batch mode). firstCardId stashed via closure capture.
       pendingFirstCardId.current = firstCardId;
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -791,32 +777,29 @@ export default function CardScanForm({
     setDuplicateForSaleConflict(null);
     setPhase('saving');
     try {
-      // The user just confirmed "this card is already on Vinted, put it in Stock"
-      // — apply that to ALL totalCount copies, not just one (otherwise scanning
-      // 10 copies of an already-listed card only adds 1 to stock).
+      // User just confirmed "this card is already on Vinted, put it in Stock"
+      // — apply that to ALL totalCount copies via a single batch call.
       const totalCount = form.count;
-      let firstCardId: string | null = null;
-      for (let copy = 0; copy < totalCount; copy++) {
-        const data = new FormData();
-        if (photoBlob) data.append('image', photoBlob, initialPhotoFilename ?? 'card.jpg');
-        for (const [key, value] of Object.entries(form)) {
-          if (key === 'status' || key === 'count') continue;
-          if (value !== '' && value !== null && value !== undefined) {
-            data.append(key, String(value));
-          }
+      const data = new FormData();
+      if (photoBlob) data.append('image', photoBlob, initialPhotoFilename ?? 'card.jpg');
+      for (const [key, value] of Object.entries(form)) {
+        if (key === 'status' || key === 'count') continue;
+        if (value !== '' && value !== null && value !== undefined) {
+          data.append(key, String(value));
         }
-        data.append('status', 'collection');
-
-        const res = await fetch('/api/cards', { method: 'POST', body: data });
-        if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string };
-          throw new Error(body.error ?? `Enregistrement a échoué (${res.status})`);
-        }
-        const inserted = (await res.json()) as { card: { id: string } };
-        if (copy === 0) firstCardId = inserted.card.id;
       }
+      data.append('status', 'collection');
+      data.append('count', String(totalCount));
 
-      setSuccessCounts({ for_sale: 0, pokedex: 0, collection: totalCount });
+      const res = await fetch('/api/cards/batch', { method: 'POST', body: data });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `Enregistrement a échoué (${res.status})`);
+      }
+      const { created } = (await res.json()) as { created: { id: string; status: string }[] };
+      const firstCardId = created[0]?.id ?? null;
+
+      setSuccessCounts({ for_sale: 0, pokedex: 0, collection: created.length });
       setPhase('success');
       pendingFirstCardId.current = firstCardId;
     } catch (err) {
