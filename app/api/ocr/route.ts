@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { detectText } from '@/lib/api/vision';
 import { extractCardFromImage } from '@/lib/api/gemini-vision';
 import type { CardLanguage, OcrResult } from '@/lib/types';
+import { createServiceClient } from '@/lib/supabase/service';
+import { createClient } from '@/lib/supabase/server';
+import { computeVisionCostEur } from '@/lib/utils/ocr-cost';
 
 export const runtime = 'nodejs';
 
@@ -17,6 +20,28 @@ function normalizeGeminiLanguage(raw: string | null | undefined): CardLanguage |
   const upper = raw.trim().toUpperCase();
   if (upper === 'ZH' || upper === 'CN') return 'CN';
   return VALID_LANGUAGES.has(upper as CardLanguage) ? (upper as CardLanguage) : undefined;
+}
+
+async function logOcrUsage(input: {
+  engine: 'gemini' | 'vision';
+  tokens_in: number | null;
+  tokens_out: number | null;
+  cost_eur: number;
+}): Promise<void> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const service = createServiceClient();
+    await service.from('ocr_usage_log').insert({
+      engine: input.engine,
+      tokens_in: input.tokens_in,
+      tokens_out: input.tokens_out,
+      cost_eur: input.cost_eur,
+      user_id: user?.id ?? null,
+    });
+  } catch (err) {
+    console.warn('[ocr_usage_log] insert failed (non-fatal):', err);
+  }
 }
 
 export async function POST(request: Request) {
@@ -75,6 +100,12 @@ export async function POST(request: Request) {
       _usage: geminiResult._usage,
       _engine: 'gemini',
     };
+    await logOcrUsage({
+      engine: 'gemini',
+      tokens_in: geminiResult._usage?.tokens_in ?? null,
+      tokens_out: geminiResult._usage?.tokens_out ?? null,
+      cost_eur: geminiResult._usage?.cost_eur ?? 0,
+    });
     return NextResponse.json(ocrResult);
   }
 
@@ -88,6 +119,12 @@ export async function POST(request: Request) {
       _usage: geminiUsage ?? undefined,
       _engine: 'vision',
     };
+    await logOcrUsage({
+      engine: 'vision',
+      tokens_in: null,
+      tokens_out: null,
+      cost_eur: computeVisionCostEur(1),
+    });
     return NextResponse.json(ocrResult);
   } catch (error) {
     console.error('OCR failed:', error);
