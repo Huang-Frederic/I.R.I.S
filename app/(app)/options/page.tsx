@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import SignOutButton from '@/components/layout/SignOutButton';
+import ManualBackupSection from '@/components/options/ManualBackupSection';
 
 export const metadata = {
   title: 'Options — I.R.I.S',
@@ -40,6 +41,10 @@ export default async function OptionsPage() {
           )}
           <SignOutButton />
         </div>
+      </div>
+
+      <div className="mt-4">
+        <ManualBackupSection />
       </div>
     </section>
   );

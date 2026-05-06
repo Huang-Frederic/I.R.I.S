@@ -1,0 +1,77 @@
+'use client';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+
+export default function ManualBackupButton() {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/backup/manual', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? `Erreur ${res.status}`);
+      } else {
+        router.refresh();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+      setConfirmOpen(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setConfirmOpen(true)}
+        disabled={busy}
+        className="bg-red text-bg inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-60"
+      >
+        {busy ? 'Création en cours…' : 'Créer un backup maintenant'}
+      </button>
+
+      {error && <p className="text-red mt-2 text-xs">{error}</p>}
+
+      {confirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div
+            className="bg-surface border-border w-full max-w-md rounded-lg border p-5"
+            role="dialog"
+            aria-modal="true"
+          >
+            <h3 className="text-text text-lg font-semibold">Confirmer le backup manuel</h3>
+            <p className="text-text-muted mt-2 text-sm">
+              Snapshot complet de toutes vos données. Gardé sans rotation. Continuer ?
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(false)}
+                disabled={busy}
+                className="text-text-muted hover:bg-surface-2 rounded-md px-3 py-1.5 text-sm transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={run}
+                disabled={busy}
+                className="bg-red text-bg rounded-md px-3 py-1.5 text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-60"
+              >
+                {busy ? '…' : 'Confirmer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
