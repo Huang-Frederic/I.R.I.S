@@ -6,6 +6,7 @@ import type { Card, BaseListing } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
 import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
 import ListingBadges from './ListingBadges';
+import StockCountChip from './StockCountChip';
 
 function thumbUrl(card: Card): string {
   if (card.image_url) return card.image_url;
@@ -35,10 +36,18 @@ interface Props {
   selectionMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  /** Count of physical copies in Stock (status='collection') for this group.
+   *  Drives the editable StockCountChip. */
+  stockCount: number;
+  /** Apply a target stock count for this group's collection rows.
+   *  See StockCountChip + VintedList.handleSetStockCount. */
+  onSetStockCount: (target: number) => void;
+  /** True while the parent is mid-clone/delete for this group's stock. */
+  stockBusy?: boolean;
 }
 
 export default function VintedRow({
-  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onImageClick, onMoveToPokedexClick, selectionMode, selected, onToggleSelect,
+  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onImageClick, onMoveToPokedexClick, selectionMode, selected, onToggleSelect, stockCount, onSetStockCount, stockBusy,
 }: Props) {
   const card = group.head;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
@@ -115,6 +124,11 @@ export default function VintedRow({
                 </button>
               )
             )}
+            <StockCountChip
+              count={stockCount}
+              onSetCount={onSetStockCount}
+              busy={stockBusy}
+            />
             <ListingBadges
               itemKind="card"
               itemId={card.id}

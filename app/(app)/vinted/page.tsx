@@ -10,11 +10,18 @@ export const metadata = {
 export default async function VintedPage() {
   const supabase = await createClient();
 
-  const [forSaleResult, pokedexResult, configResult, lotsResult, cardListingsResult, lotListingsResult] = await Promise.all([
+  const [forSaleResult, collectionResult, pokedexResult, configResult, lotsResult, cardListingsResult, lotListingsResult] = await Promise.all([
     supabase
       .from('cards')
       .select('*')
       .in('status', ['for_sale', 'sold'])
+      .order('date_added', { ascending: true }),
+    // Collection cards drive the per-row "stock count" chip in /vinted —
+    // they're the extra physical copies of cards the user is also selling.
+    supabase
+      .from('cards')
+      .select('*')
+      .eq('status', 'collection')
       .order('date_added', { ascending: true }),
     supabase
       .from('cards')
@@ -31,7 +38,7 @@ export default async function VintedPage() {
   ]);
 
   const fetchError =
-    forSaleResult.error ?? pokedexResult.error ?? configResult.error ?? lotsResult.error ?? cardListingsResult.error ?? lotListingsResult.error;
+    forSaleResult.error ?? collectionResult.error ?? pokedexResult.error ?? configResult.error ?? lotsResult.error ?? cardListingsResult.error ?? lotListingsResult.error;
   if (fetchError) {
     return (
       <section>
@@ -42,6 +49,7 @@ export default async function VintedPage() {
   }
 
   const cards = (forSaleResult.data ?? []) as Card[];
+  const collectionCards = (collectionResult.data ?? []) as Card[];
   const lots = (lotsResult.data ?? []) as Lot[];
   const cardListings = (cardListingsResult.data ?? []) as CardListing[];
   const lotListings = (lotListingsResult.data ?? []) as LotListing[];
@@ -70,7 +78,7 @@ export default async function VintedPage() {
         </p>
       </div>
       <div className="mt-6">
-        <VintedList cards={cardsWithListings} lots={lotsWithListings} registered={registered} config={config} />
+        <VintedList cards={cardsWithListings} lots={lotsWithListings} collectionCards={collectionCards} registered={registered} config={config} />
       </div>
     </section>
   );
