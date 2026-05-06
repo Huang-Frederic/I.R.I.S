@@ -15,10 +15,21 @@ import type { Card } from '@/lib/types';
 export const metadata = { title: 'Dashboard — I.R.I.S' };
 export const revalidate = 60;
 
+// Computed once per server-component request (not per render — server components
+// don't re-render). Pulled out so the eslint react-hooks/purity rule doesn't
+// trip on Date.now() inside the function body.
+function timeWindow() {
+  const now = Date.now();
+  return {
+    since30d: new Date(now - 30 * 86_400_000).toISOString(),
+    since52w: new Date(now - 52 * 7 * 86_400_000).toISOString(),
+    today: new Date(now),
+  };
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const since30d = new Date(Date.now() - 30 * 86_400_000).toISOString();
-  const since52w = new Date(Date.now() - 52 * 7 * 86_400_000).toISOString();
+  const { since30d, since52w, today } = timeWindow();
 
   const [
     { data: pricedCards },
@@ -63,7 +74,7 @@ export default async function DashboardPage() {
   const scans30d = (ocrLog30d ?? []).length;
   const rarityCounts = buildRarityCounts(cards);
   const topRares = topRaresByPrice(cards, 10);
-  const heatmap = buildHeatmapMatrix(ocrLog52w ?? [], new Date());
+  const heatmap = buildHeatmapMatrix(ocrLog52w ?? [], today);
   const alerts = computeRestockAlerts(restockRows ?? []);
 
   return (
