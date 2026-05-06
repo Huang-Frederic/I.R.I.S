@@ -99,8 +99,9 @@ function extractJsonObject(text: string): string {
 /** Coerce "null" / "undefined" / "n/a" / empty / whitespace to actual null.
  *  Gemini sometimes emits the literal string "null" instead of the JSON null
  *  for fields it can't fill — without this, downstream code happily formats
- *  things like `"null (Nの筋書き)"` because the string is truthy. */
-function cleanNull(s: unknown): string | null {
+ *  things like `"null (Nの筋書き)"` because the string is truthy.
+ *  Exported for direct unit testing. */
+export function cleanNull(s: unknown): string | null {
   if (typeof s !== 'string') return null;
   const t = s.trim();
   if (!t) return null;

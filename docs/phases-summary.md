@@ -503,18 +503,65 @@ Migration mono → 2-users (Lui = Hisshiden, Elle = Hilyna) sans dégrader l'UX 
 
 **Tests** : 302 vitest passing (+23 vs Phase 3c : listings 8, user-colors 6, vinted-filter +6 multi-user chips, group-cards +2 head-selection, scrape-limitlesstcg +1 illustrator regex). 0 lint warning, 0 type error. Brief : [PHASE_4.md](../PHASE_4.md).
 
-## Phase 4 closeout — annulé
+## Phase 4 closeout — terminée (mai 2026)
 
-L'import Vinted (Feature 1 du brief Phase 4) a été tenté puis abandonné. Le user préfère vider son compte Vinted et re-saisir les annonces manuellement. Le code de l'import a été supprimé (cleanup).
+Itération de polish post-Phase 4. **Feature 1 du brief Phase 4 (import Vinted)** : tentée puis abandonnée — code complet supprimé (commit `5929f1a`). Le user préfère vider son compte Vinted et re-saisir manuellement.
 
-Restent en place quelques améliorations annexes développées pendant ce chantier et conservées telles quelles :
-- `lib/data/pokemon-names.ts` : helper `findPokemonNumberByName` (reverse-index FR/EN, utile au scanner pour fallback quand Gemini ne donne pas le dex national).
-- `lib/api/tcg-catalog.ts` : `lookupByCode` switched to `ilike` — fix d'un bug case-sensitivity latent (le catalog stockait `SV11B` uppercase mais les call sites lowercasaient).
-- `components/vinted/ListingBadges.tsx` : chip rouge "À rafraîchir · Xj" qui remplace l'ancien micro-badge "Stale". Click → POST /api/listings (upsert qui restamp `listed_at = NOW()`).
+### Nouvelles features livrées
 
-308 tests passing (+7 vs Phase 4 : findPokemonNumberByName).
+- **Modal "À rafraîchir"** sur les rows Vinted stale : chip rouge cliquable + `<ConfirmDialog>` avant POST `/api/listings` (upsert restamp `listed_at = NOW()`). Remplace l'ancien micro-badge "Stale" passif.
+- **`<RetireListingModal>`** : le X discret next to "Listée par Moi" (cartes seulement, pas les lots) ouvre une modale 2 boutons : Stock (PATCH `status='collection'` + DELETE listing) ou Supprimer (DELETE card + cascade listings via FK Phase 4). Bandeau partenaire si l'autre user a aussi une annonce.
+- **`<StockCountChip>`** sur chaque row Vinted : "📦 × N" éditable inline (même UX que `/stock`). Click → input number, blur/Enter commit. Diff vs current count → POST `/api/cards/[id]/clone` (force `status='collection'`) ou DELETE des copies. Set 0 → wipe tout le stock du groupe (sans toucher la for_sale).
+- **`/stock`** : input min=0 (au lieu de 1), modal `<ConfirmDialog>` quand on tape 0 ("Vider tout le stock de cette carte ?"). Icône `<Boxes />` ajoutée pour cohérence avec /vinted.
+- **Trainer cards support end-to-end** : 2 migrations (`20260506140000_pokemon_number_nullable`, `20260506150000_pokemon_name_nullable`). Card.pokemon_name + pokemon_number deviennent `string | null` / `number | null`. Validation backend relaxée (POST/PATCH cards, +pré-check status=pokedex requires non-null). Form scanner sans `required`, label "(vide = Trainer/Énergie)". Status dropdown filtre Pokédex si pas de N°. Badges "Pas Pokédex" hidden quand `pokemon_number == null`. ScanSuggestion bandeau "Carte non-Pokémon (Trainer / Énergie / Stadium) — pas de slot Pokédex".
+- **Gemini OCR** : nouveau champ `card_name_fr` (Gemini traduit le nom complet de la carte ; couvre les Trainers/Énergies que le dataset 1025 noms FR/EN ne couvre pas). Helper `cleanNull` filtre les "null"/"undefined"/"n/a" littéraux que Gemini émet parfois (sinon `formatBilingualName` produisait "null (Nの筋書き)"). Pour les Trainers : `pokemon_name` blanké si `pokemon_number` est null.
+- **Batch endpoint** `POST /api/cards/batch` : accepte form + count + 1 photo, fait 1 upload + 1 SQL bulk INSERT pour N rows. Helper pur `lib/utils/build-batch-rows.ts` calcule les statuts par copy (1ère = requested, 2..N = collection si requested ∈ {for_sale, pokedex}). `CardScanForm.handleSave` réécrit pour utiliser ce endpoint. Gain perf concret : count=10 passe de ~8s à ~1.1s (-85%). Pre-checks pokedex/for_sale conservés en 409 actionnables (PokedexReplaceModal + DuplicateForSaleModal flows inchangés).
+- **`/submit` UX desktop** : layout fixed-height (`100dvh - 3.5rem`), seul le formulaire scrolle (overflow-y-auto sur le pane droit dans `SubmitTabs`). Photo gauche reste anchored. Mobile inchangé.
+- **Scrollbar globale** : remplace celle du système (Windows white chunky) par 6px gris translucide rgba(140,140,140,0.25) → 0.5 au hover. Pas de boutons fléchés (`::-webkit-scrollbar-button { display:none }`). Spinners `<input type=number>` virés aussi. Classe `.scrollbar-hidden` dispo si on veut cacher complètement ailleurs.
+
+### Améliorations annexes conservées (du chantier import-vinted)
+
+- `lib/api/tcg-catalog.ts` : `lookupByCode` switched to `ilike` — fix d'un bug case-sensitivity latent (le catalog JP stocke `SV11B` uppercase mais les call sites lowercasaient → 0% hit).
+
+### Tests + qualité
+
+**316 tests** vitest passing (31 fichiers). 0 lint warning. 0 type error. 12 migrations totales (+2 Phase 4 closeout).
+
+### Action user post-merge
+
+Appliquer manuellement les 2 nouvelles migrations via Supabase Studio :
+- `supabase/migrations/20260506140000_pokemon_number_nullable.sql`
+- `supabase/migrations/20260506150000_pokemon_name_nullable.sql`
 
 ## Prochaines étapes : Phase 5
 
-- **Phase 5** — Dashboard (KPIs valeur stock, top cartes rares, alertes restock, **+ tracking tokens consommés et coût/jour app** — table `gemini_usage_log` à créer ici) + polish PWA (install prompt, icônes 192/512, manifest fine-tune).
-- **Reporté** : Feature 1 du brief Phase 4 (import one-shot HTML profil Vinted Hisshiden) non livrée — pas urgente vu que les annonces existantes peuvent être ré-saisies via le scanner batch.
+Le brief Phase 5 reste : **Dashboard** (KPIs + cost tracking) + **PWA polish** (install prompt + icônes + manifest). Voir punch list détaillée ci-dessous.
+
+### Punch list pour l'agent suivant
+
+**À faire** :
+
+- [ ] **Dashboard page** (`app/(app)/dashboard/page.tsx`, 6e onglet de nav). KPIs : valeur stock (somme `cm_price_avg ?? cm_price_trend ?? cm_price_low` pour status='for_sale' + 'collection'), counts par status, top 10 cartes rares par valeur (SAR/AR/SR), alertes restock actives. Réutiliser `lib/utils/restock-detection.ts` + `lib/utils/format-staleness.ts`.
+
+- [ ] **Tracking tokens Gemini + coût/jour** : nouvelle migration `gemini_usage_log` `(id uuid pk default gen_random_uuid(), created_at timestamptz default now(), tokens_in int not null, tokens_out int not null, cost_eur numeric(10,6) not null, engine text not null check (engine in ('gemini','vision')), card_id uuid references cards(id) on delete set null)`. Index sur `created_at desc` pour les aggregations daily. Modifier `app/api/ocr/route.ts` pour INSERT après chaque scan (récupérer `_usage` déjà extrait par `lib/api/gemini-vision.ts` depuis Phase 3c). Dashboard : `select created_at::date as day, sum(cost_eur), count(*) from gemini_usage_log group by 1 order by 1 desc limit 7`.
+
+- [ ] **PWA icons 192/512** : `public/icons/` est vide. `app/manifest.ts` référence 3 PNG (`icon-192.png`, `icon-512.png`, `icon-512-maskable.png`). Le user a un logo en .png à convertir SVG puis générer les 3 icônes (déjà mentionné dans une discussion antérieure).
+
+- [ ] **PWA install prompt** : composant `<InstallPrompt>` qui listen `window.beforeinstallprompt`, affiche un bandeau dismissible (top ou bottom), stocke le dismiss en localStorage. Monter dans `app/(app)/layout.tsx` après `<RouteChangeRefresher>`. Pas de modal invasive.
+
+- [ ] **Manifest fine-tune** : vérifier `start_url`, `scope`, `categories`, ajouter `screenshots` (Google Play optionnel).
+
+**Nice-to-have / tech debt** (pas bloquant) :
+
+- [ ] **Factoriser la validation card form** : `app/api/cards/route.ts` et `app/api/cards/batch/route.ts` dupliquent ~56 lignes de validation (LANGUAGES/CONDITIONS/STATUSES sets, `str`/`num` helpers, parsing pokemon_number, guards language/rarity/condition/status, pokedex requirement). Extraire dans `lib/utils/validate-card-form.ts` (pure function `(formData) => { valid: true, parsed } | { valid: false, error, status }`).
+- [ ] **Extraire `PRICE_COEFFICIENT = 0.85`** dans `lib/constants/pricing.ts` (dupliqué entre les 2 routes cards).
+- [ ] **Standardiser le shape des erreurs API** : aujourd'hui mix entre `{ error }` et `{ error, message, existingCard }`. Documenter une convention dans CLAUDE.md.
+
+### Déjà en place pour Phase 5 (acquis)
+
+- `lib/api/gemini-vision.ts` extrait déjà `_usage` (tokens_in/out, cost_eur calculé en EUR via constants 0.25/1.50 USD/M × 0.92 EUR/USD). Phase 3c a fait le travail de mesure ; Phase 5 doit juste persister + agréger.
+- `lib/utils/format-staleness.ts` + `categorize-pricing-card.ts` + colonnes `cm_price_*` + cron quotidien `POST /api/prices/update` (Phase 3a) : pricing data est frais et exploitable directement.
+
+### Reporté
+
+- Aucun. La feature import Vinted (initialement reportée de Phase 4) est définitivement abandonnée.

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { extractCardFromImage } from './gemini-vision';
+import { extractCardFromImage, cleanNull } from './gemini-vision';
 
 const MOCK_API_KEY = 'test-gemini-key';
 
@@ -357,5 +357,38 @@ describe('gemini-vision', () => {
     expect(result.extraction).not.toBeNull();
     expect(result.usage).toBeNull();
     expect(result.extraction?.card_name).toBe('Pikachu');
+  });
+});
+
+describe('cleanNull', () => {
+  it('returns null for the literal "null" string Gemini sometimes emits', () => {
+    // The bug this guards against: `parsed.field || null` keeps "null" because
+    // it's a truthy string, then downstream formatBilingualName produces
+    // ridiculous output like "null (Nの筋書き)".
+    expect(cleanNull('null')).toBeNull();
+    expect(cleanNull('NULL')).toBeNull();
+  });
+
+  it('returns null for empty / whitespace / undefined-ish placeholders', () => {
+    expect(cleanNull('')).toBeNull();
+    expect(cleanNull('   ')).toBeNull();
+    expect(cleanNull('undefined')).toBeNull();
+    expect(cleanNull('n/a')).toBeNull();
+    expect(cleanNull('N/A')).toBeNull();
+    expect(cleanNull('na')).toBeNull();
+    expect(cleanNull('none')).toBeNull();
+  });
+
+  it('returns null for non-string values (defensive: Gemini schema slip)', () => {
+    expect(cleanNull(null)).toBeNull();
+    expect(cleanNull(undefined)).toBeNull();
+    expect(cleanNull(42)).toBeNull();
+    expect(cleanNull({})).toBeNull();
+  });
+
+  it('returns the trimmed string for legitimate values', () => {
+    expect(cleanNull('Pikachu')).toBe('Pikachu');
+    expect(cleanNull('  Pikachu  ')).toBe('Pikachu');
+    expect(cleanNull('Le Plan de N')).toBe('Le Plan de N');
   });
 });
