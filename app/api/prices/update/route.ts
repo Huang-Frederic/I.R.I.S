@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { categorizePricingCard } from '@/lib/utils/categorize-pricing-card';
 import { lookupByCode } from '@/lib/api/tcg-catalog';
 import { toTCGdexLang } from '@/lib/api/tcgdex';
+import { computeStockValue } from '@/lib/utils/stock-value';
 import type { Card, CardLanguage } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -86,7 +87,29 @@ async function handleBulk(): Promise<NextResponse> {
     );
   }
 
+  await snapshotStockValue(service);
+
   return NextResponse.json(summary);
+}
+
+async function snapshotStockValue(
+  service: ReturnType<typeof createServiceClient>,
+): Promise<void> {
+  try {
+    const { data, error } = await service
+      .from('cards')
+      .select('status, cm_price_avg, cm_price_trend, cm_price_low')
+      .in('status', ['for_sale', 'collection']);
+    if (error) throw error;
+    const snapshot = computeStockValue(data ?? []);
+    const today = new Date().toISOString().slice(0, 10);
+    const { error: upsertErr } = await service
+      .from('stock_value_snapshots')
+      .upsert({ date: today, ...snapshot }, { onConflict: 'date' });
+    if (upsertErr) throw upsertErr;
+  } catch (err) {
+    console.warn('[stock_value_snapshots] upsert failed (non-fatal):', err);
+  }
 }
 
 async function processCard(
