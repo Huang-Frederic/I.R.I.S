@@ -116,56 +116,71 @@ export async function POST(request: Request) {
     totalPages = data.pagination?.total_pages ?? page;
     console.info(`[import-vinted] page ${page}/${totalPages} → ${data.items?.length ?? 0} items`);
     if (page === 1 && data.items?.length) {
-      // Debug: dump the keys of the first item so we can see what fields the
-      // wardrobe endpoint actually returns vs what we expect (title/description/etc).
-      console.info('[import-vinted] sample item keys:', Object.keys(data.items[0]).join(', '));
-      console.info('[import-vinted] sample item title:', JSON.stringify(data.items[0].title));
-      console.info(
-        '[import-vinted] sample item description:',
-        JSON.stringify((data.items[0] as { description?: string }).description ?? '<undefined>').slice(0, 300),
-      );
-      // Distribution of status_id across this page so we can spot active vs sold values.
-      const statusCounts = new Map<string | number, number>();
-      for (const it of data.items) {
-        const k = (it as { status_id?: number; status?: string }).status_id ?? (it as { status?: string }).status ?? 'undefined';
-        statusCounts.set(k, (statusCounts.get(k) ?? 0) + 1);
+      // Debug: dump the keys + key fields of the first item so we can see
+      // what wardrobe actually returns. Also log the shape of photos[0] —
+      // that's where the timestamp lives.
+      const first = data.items[0] as unknown as Record<string, unknown>;
+      console.info('[import-vinted] sample item keys:', Object.keys(first).join(', '));
+      console.info('[import-vinted] sample item title:', JSON.stringify(first.title));
+      const firstPhoto = (first.photos as Array<Record<string, unknown>> | undefined)?.[0];
+      if (firstPhoto) {
+        console.info('[import-vinted] sample photos[0] keys:', Object.keys(firstPhoto).join(', '));
+        console.info(
+          '[import-vinted] sample photos[0].high_resolution:',
+          JSON.stringify(firstPhoto.high_resolution).slice(0, 200),
+        );
       }
-      console.info('[import-vinted] status_id distribution:', Object.fromEntries(statusCounts));
+      // Distribution of the wardrobe boolean flags so we know how many are
+      // closed/hidden/draft/reserved (this is what filters real activity).
+      const flagCounts = { is_closed: 0, is_hidden: 0, is_draft: 0, is_reserved: 0 };
+      for (const it of data.items as unknown as Array<Record<string, unknown>>) {
+        if (it.is_closed) flagCounts.is_closed++;
+        if (it.is_hidden) flagCounts.is_hidden++;
+        if (it.is_draft) flagCounts.is_draft++;
+        if (it.is_reserved) flagCounts.is_reserved++;
+      }
+      console.info('[import-vinted] wardrobe flag distribution:', flagCounts);
     }
     page++;
   }
 
   // Normalize each item: synthesize created_at_ts from whichever date field
-  // wardrobe actually returns + filter out sold/hidden items.
-  const SOLD_STATUS_IDS = new Set([6, 7, 8]); // observed: 6=sold, 7=hidden, 8=removed (heuristic)
+  // wardrobe actually returns + filter out sold/hidden/draft items.
   const normalized: VintedItem[] = [];
-  let droppedSold = 0;
+  let droppedClosed = 0;
+  let droppedHidden = 0;
+  let droppedDraft = 0;
   for (const raw of items) {
     const r = raw as VintedItem & {
-      status_id?: number;
-      status?: string;
+      is_closed?: boolean;
+      is_hidden?: boolean;
+      is_draft?: boolean;
+      is_reserved?: boolean;
       created_at?: string | number;
-      photo?: { high_resolution?: { timestamp?: number } };
+      photos?: Array<{ high_resolution?: { timestamp?: number }; full_size_url?: string }>;
     };
 
-    // Filter sold/hidden. If status_id is unknown, keep (don't lose real cards).
-    if (typeof r.status_id === 'number' && SOLD_STATUS_IDS.has(r.status_id)) {
-      droppedSold++;
+    if (r.is_closed) {
+      droppedClosed++;
       continue;
     }
-    if (typeof r.status === 'string' && /sold|vend/i.test(r.status)) {
-      droppedSold++;
+    if (r.is_hidden) {
+      droppedHidden++;
       continue;
     }
+    if (r.is_draft) {
+      droppedDraft++;
+      continue;
+    }
+    // Note: is_reserved kept on purpose — réservé = vente en cours, l'annonce
+    // est encore visible sur Vinted donc on l'importe.
 
-    // Date fallback chain — collect candidates then pick the first valid one.
+    // Date fallback chain.
     let ts: number | undefined = r.created_at_ts;
     if (typeof ts !== 'number' || !Number.isFinite(ts) || ts <= 0) {
-      // Try photo.high_resolution.timestamp (unix seconds).
-      ts = r.photo?.high_resolution?.timestamp;
+      ts = r.photos?.[0]?.high_resolution?.timestamp;
     }
     if (typeof ts !== 'number' || !Number.isFinite(ts) || ts <= 0) {
-      // Try created_at as ISO string or unix.
       const ca = r.created_at;
       if (typeof ca === 'number' && Number.isFinite(ca) && ca > 0) ts = ca;
       else if (typeof ca === 'string') {
@@ -173,13 +188,14 @@ export async function POST(request: Request) {
         if (!Number.isNaN(parsed)) ts = Math.floor(parsed / 1000);
       }
     }
-    // Last resort: 0 (frontend will show "—" instead of NaN).
     const finalTs: number =
       typeof ts === 'number' && Number.isFinite(ts) && ts > 0 ? ts : 0;
 
     normalized.push({ ...r, created_at_ts: finalTs });
   }
-  console.info(`[import-vinted] normalized: ${normalized.length} active (${droppedSold} sold/hidden filtered)`);
+  console.info(
+    `[import-vinted] normalized: ${normalized.length} active (closed=${droppedClosed} hidden=${droppedHidden} draft=${droppedDraft} dropped)`,
+  );
 
   const filtered = normalized.filter((i) => parseVintedListing({ title: i.title, description: i.description }) !== null);
   console.info(`[import-vinted] filtered ${normalized.length} → ${filtered.length} cards (${normalized.length - filtered.length} non-cards skipped)`);
