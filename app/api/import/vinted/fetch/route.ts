@@ -124,12 +124,65 @@ export async function POST(request: Request) {
         '[import-vinted] sample item description:',
         JSON.stringify((data.items[0] as { description?: string }).description ?? '<undefined>').slice(0, 300),
       );
+      // Distribution of status_id across this page so we can spot active vs sold values.
+      const statusCounts = new Map<string | number, number>();
+      for (const it of data.items) {
+        const k = (it as { status_id?: number; status?: string }).status_id ?? (it as { status?: string }).status ?? 'undefined';
+        statusCounts.set(k, (statusCounts.get(k) ?? 0) + 1);
+      }
+      console.info('[import-vinted] status_id distribution:', Object.fromEntries(statusCounts));
     }
     page++;
   }
 
-  const filtered = items.filter((i) => parseVintedListing({ title: i.title, description: i.description }) !== null);
-  console.info(`[import-vinted] filtered ${items.length} → ${filtered.length} cards (${items.length - filtered.length} skipped)`);
+  // Normalize each item: synthesize created_at_ts from whichever date field
+  // wardrobe actually returns + filter out sold/hidden items.
+  const SOLD_STATUS_IDS = new Set([6, 7, 8]); // observed: 6=sold, 7=hidden, 8=removed (heuristic)
+  const normalized: VintedItem[] = [];
+  let droppedSold = 0;
+  for (const raw of items) {
+    const r = raw as VintedItem & {
+      status_id?: number;
+      status?: string;
+      created_at?: string | number;
+      photo?: { high_resolution?: { timestamp?: number } };
+    };
 
-  return NextResponse.json({ items: filtered, skipped: items.length - filtered.length });
+    // Filter sold/hidden. If status_id is unknown, keep (don't lose real cards).
+    if (typeof r.status_id === 'number' && SOLD_STATUS_IDS.has(r.status_id)) {
+      droppedSold++;
+      continue;
+    }
+    if (typeof r.status === 'string' && /sold|vend/i.test(r.status)) {
+      droppedSold++;
+      continue;
+    }
+
+    // Date fallback chain — collect candidates then pick the first valid one.
+    let ts: number | undefined = r.created_at_ts;
+    if (typeof ts !== 'number' || !Number.isFinite(ts) || ts <= 0) {
+      // Try photo.high_resolution.timestamp (unix seconds).
+      ts = r.photo?.high_resolution?.timestamp;
+    }
+    if (typeof ts !== 'number' || !Number.isFinite(ts) || ts <= 0) {
+      // Try created_at as ISO string or unix.
+      const ca = r.created_at;
+      if (typeof ca === 'number' && Number.isFinite(ca) && ca > 0) ts = ca;
+      else if (typeof ca === 'string') {
+        const parsed = Date.parse(ca);
+        if (!Number.isNaN(parsed)) ts = Math.floor(parsed / 1000);
+      }
+    }
+    // Last resort: 0 (frontend will show "—" instead of NaN).
+    const finalTs: number =
+      typeof ts === 'number' && Number.isFinite(ts) && ts > 0 ? ts : 0;
+
+    normalized.push({ ...r, created_at_ts: finalTs });
+  }
+  console.info(`[import-vinted] normalized: ${normalized.length} active (${droppedSold} sold/hidden filtered)`);
+
+  const filtered = normalized.filter((i) => parseVintedListing({ title: i.title, description: i.description }) !== null);
+  console.info(`[import-vinted] filtered ${normalized.length} → ${filtered.length} cards (${normalized.length - filtered.length} non-cards skipped)`);
+
+  return NextResponse.json({ items: filtered, skipped: normalized.length - filtered.length });
 }

@@ -107,8 +107,15 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // 3. INSERT card_listings (listed_at = Vinted's created_at_ts)
-      const listedAt = new Date(item.vintedItem.created_at_ts * 1000).toISOString();
+      // 3. INSERT card_listings.
+      // listed_at = Vinted's created_at_ts when available (preserves stale signal).
+      // Fall back to NOW() when the wardrobe API didn't expose a date — better
+      // than stamping 1970-01-01 which would mark every card as "stale forever".
+      const ts = item.vintedItem.created_at_ts;
+      const listedAt =
+        typeof ts === 'number' && Number.isFinite(ts) && ts > 0
+          ? new Date(ts * 1000).toISOString()
+          : new Date().toISOString();
       const { error: listingErr } = await supabase.from('card_listings').insert({
         card_id: card.id,
         user_id: user.id,

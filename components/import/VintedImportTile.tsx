@@ -14,8 +14,10 @@ export interface VintedImportTileProps {
   onEdit: () => void;
 }
 
-function daysSince(ts: number): number {
+function daysSince(ts: number): number | null {
+  if (!Number.isFinite(ts) || ts <= 0) return null;
   const ms = Date.now() - ts * 1000;
+  if (!Number.isFinite(ms)) return null;
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
 }
 
@@ -83,7 +85,7 @@ export function VintedImportTile({
           <div className="text-rarity-ar">Pattern non détecté</div>
         )}
         <div className="text-text-muted">
-          €{Number(item.price.amount).toFixed(2)} · en ligne {days}j
+          €{Number(item.price.amount).toFixed(2)} · en ligne {days === null ? '—' : `${days}j`}
         </div>
         {!parsed && (
           <button
