@@ -72,3 +72,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/** Hide the scrollbar visually while keeping the element scrollable.
+ *  Used on /submit's right pane where the scrollbar is purely decorative
+ *  noise next to a tall form. Apply with className="scrollbar-hidden". */
+.scrollbar-hidden {
+  scrollbar-width: none; /* Firefox */
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none; /* WebKit (Chrome, Safari, modern Edge) */
+}
