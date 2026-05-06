@@ -253,7 +253,10 @@ export async function extractCardFromImage(
       rarity: parsed.rarity || null,
       confidence: parsed.confidence,
       pokemon_number:
-        typeof parsed.pokemon_number === 'number' && Number.isFinite(parsed.pokemon_number)
+        typeof parsed.pokemon_number === 'number' &&
+        Number.isFinite(parsed.pokemon_number) &&
+        parsed.pokemon_number >= 1 &&
+        parsed.pokemon_number <= 1025
           ? parsed.pokemon_number
           : null,
       pokemon_name_fr: cleanNull(parsed.pokemon_name_fr),

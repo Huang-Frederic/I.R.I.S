@@ -97,7 +97,10 @@ function buildGeminiOnlyCard(
   const localIdNorm = localId.replace(/^0+/, '') || '0';
   const setNumberFmt = total != null ? `${localIdNorm}/${total}` : localIdNorm;
   const cardName = body.cardName ?? '';
-  const pokemonNumber = body.pokemonNumber ?? null;
+  const pokemonNumber =
+    typeof body.pokemonNumber === 'number' && body.pokemonNumber >= 1 && body.pokemonNumber <= 1025
+      ? body.pokemonNumber
+      : null;
   // Same Trainer-blanking as applyGeminiEnrichments: when there's no dex
   // number, the card has no separate Pokémon name worth showing.
   const pokemonName =
@@ -147,7 +150,13 @@ function applyGeminiEnrichments(
   //  2. deriveCardNameFr — pokemonNameFr + suffix extracted from original.
   //     Only fires for Pokémon cards (no pokemonNameFr → returns null).
   const cardNameFr = body.cardNameFr ?? deriveCardNameFr(enriched.card_name, body.pokemonNameFr);
-  const finalPokemonNumber = enriched.pokemon_number ?? body.pokemonNumber ?? null;
+  // Defense-in-depth: coerce any out-of-range value (0, negatives, >1025) to
+  // null. Gemini occasionally returns 0 for Trainers despite the prompt.
+  const rawPokemonNumber = enriched.pokemon_number ?? body.pokemonNumber ?? null;
+  const finalPokemonNumber =
+    typeof rawPokemonNumber === 'number' && rawPokemonNumber >= 1 && rawPokemonNumber <= 1025
+      ? rawPokemonNumber
+      : null;
   // For non-Pokémon cards (Trainers/Energies/Stadium), pokemon_name is just
   // a redundant copy of card_name in the catalog (legacy NOT NULL workaround).
   // Blank it so the scanner form leaves the "Nom Pokémon" field empty,
