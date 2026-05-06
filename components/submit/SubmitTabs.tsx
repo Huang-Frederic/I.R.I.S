@@ -46,7 +46,7 @@ export default function SubmitTabs() {
       {/* Only this region scrolls on desktop. CardScanForm's photo column is
           already sticky (lg:sticky lg:top-6) so it stays anchored at top of
           this scrollable parent while the form fields scroll. */}
-      <div className="scrollbar-hidden lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+      <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
         {tab === 'mobile' && <CardScanForm />}
         {tab === 'lot' && <LotForm />}
         {tab === 'batch' && <BatchForm />}

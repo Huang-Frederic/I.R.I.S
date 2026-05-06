@@ -73,12 +73,32 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/** Hide the scrollbar visually while keeping the element scrollable.
- *  Used on /submit's right pane where the scrollbar is purely decorative
- *  noise next to a tall form. Apply with className="scrollbar-hidden". */
+/** Hide the scrollbar visually while keeping the element scrollable. */
 .scrollbar-hidden {
   scrollbar-width: none; /* Firefox */
 }
 .scrollbar-hidden::-webkit-scrollbar {
-  display: none; /* WebKit (Chrome, Safari, modern Edge) */
+  display: none; /* WebKit */
+}
+
+/** Global thin/translucent scrollbar — replaces the OS default (Windows
+ *  white chunky one) on every scrollable element across the app. The thumb
+ *  is barely visible at rest, brightens on hover. Track is transparent. */
+* {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(140, 140, 140, 0.25) transparent; /* thumb track */
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(140, 140, 140, 0.25);
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 140, 140, 0.5);
 }
