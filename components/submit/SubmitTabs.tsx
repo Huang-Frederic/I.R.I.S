@@ -18,11 +18,10 @@ export default function SubmitTabs() {
   const [tab, setTab] = useState<Tab>('mobile');
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Desktop only: stick the tab strip just under the page header (which
-          is itself sticky at top-0). Stack of two sticky elements stays
-          visible while the active tab content scrolls. ~80px = h1 + intro + py-3. */}
-      <div className="border-border lg:bg-bg lg:sticky lg:top-[80px] lg:z-10 lg:-mx-8 lg:px-8 flex gap-1 border-b">
+    // Desktop: parent (/submit page) gives us a fixed-height container. We
+    // claim its full height, the strip is shrink-0, the content area scrolls.
+    <div className="flex flex-col gap-6 lg:h-full">
+      <div className="border-border flex gap-1 border-b lg:shrink-0">
         {TABS.map(({ id, label, icon: Icon }) => {
           const active = tab === id;
           return (
@@ -44,9 +43,14 @@ export default function SubmitTabs() {
         })}
       </div>
 
-      {tab === 'mobile' && <CardScanForm />}
-      {tab === 'lot' && <LotForm />}
-      {tab === 'batch' && <BatchForm />}
+      {/* Only this region scrolls on desktop. CardScanForm's photo column is
+          already sticky (lg:sticky lg:top-6) so it stays anchored at top of
+          this scrollable parent while the form fields scroll. */}
+      <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+        {tab === 'mobile' && <CardScanForm />}
+        {tab === 'lot' && <LotForm />}
+        {tab === 'batch' && <BatchForm />}
+      </div>
     </div>
   );
 }

@@ -6,18 +6,19 @@ export const metadata = {
 
 export default function SubmitPage() {
   return (
-    <section>
-      {/* Desktop only: sticky header so the form scrolls underneath. Mobile
-          keeps the natural flow (BottomNav already eats viewport). The bg +
-          horizontal margin trick covers the page padding so nothing leaks
-          through during scroll. */}
-      <div className="lg:bg-bg lg:sticky lg:top-0 lg:z-10 lg:-mx-8 lg:px-8 lg:py-3">
+    // Desktop: viewport-height shell with overflow-hidden. The form column
+    // inside SubmitTabs gets its own overflow-y-auto so ONLY the form scrolls;
+    // header, tabs, and photo column stay put. Mobile keeps natural flow
+    // (BottomNav eats viewport, header sticky would overcrowd).
+    // 3.5rem = parent layout's pt-6 (1.5rem) + pb-8 (2rem) padding.
+    <section className="lg:h-[calc(100dvh-3.5rem)] lg:overflow-hidden lg:flex lg:flex-col">
+      <div className="lg:shrink-0">
         <h1 className="text-2xl font-semibold tracking-tight">Scanner</h1>
         <p className="text-text-muted mt-1 text-sm">
           Photo, lot ou import script — l&apos;OCR remplit le formulaire automatiquement.
         </p>
       </div>
-      <div className="mt-6">
+      <div className="mt-6 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
         <SubmitTabs />
       </div>
     </section>
