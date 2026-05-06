@@ -106,20 +106,31 @@ describe('POST /api/import/vinted/commit', () => {
     );
   });
 
-  it('records duplicate_for_sale failure when INSERT cards conflicts on unique index', async () => {
+  it('routes duplicate_for_sale to Stock (re-INSERT with status=collection)', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       arrayBuffer: async () => new ArrayBuffer(8),
     } as Response);
     uploadMock.mockResolvedValueOnce({ error: null });
-    insertCardMock.mockReturnValueOnce({
-      select: () => ({ single: async () => ({ data: null, error: { code: '23505', message: 'duplicate' } }) }),
-    });
+    // First INSERT for_sale → 23505 (already exists). Second INSERT (stock
+    // fallback with status='collection') succeeds.
+    insertCardMock
+      .mockReturnValueOnce({
+        select: () => ({ single: async () => ({ data: null, error: { code: '23505', message: 'duplicate' } }) }),
+      })
+      .mockReturnValueOnce({
+        select: () => ({ single: async () => ({ data: { id: 'stock-uuid-1' }, error: null }) }),
+      });
 
     const res = await POST(makeReq([SAMPLE_ITEM]));
     const body = await res.json();
-    expect(body.created).toBe(0);
-    expect(body.failed).toEqual([{ vintedItemId: 999, reason: 'duplicate_for_sale' }]);
+    expect(body.created).toBe(0); // not in created[] — that's only for for_sale
+    expect(body.failed).toEqual([{ vintedItemId: 999, reason: 'duplicate_routed_to_stock' }]);
+    // Two card inserts: the first as for_sale, the second as collection.
+    expect(insertCardMock).toHaveBeenCalledTimes(2);
+    expect(insertCardMock.mock.calls[0]![0]).toMatchObject({ status: 'for_sale' });
+    expect(insertCardMock.mock.calls[1]![0]).toMatchObject({ status: 'collection' });
+    // No listing inserted (collection items aren't listed on Vinted).
     expect(insertListingMock).not.toHaveBeenCalled();
   });
 

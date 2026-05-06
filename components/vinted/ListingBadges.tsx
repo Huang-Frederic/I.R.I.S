@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Globe, GlobeLock, AlertTriangle, X } from 'lucide-react';
+import { Globe, GlobeLock, AlertTriangle, X, RefreshCw } from 'lucide-react';
 import type { BaseListing } from '@/lib/types';
 import {
   getMyListing,
@@ -106,16 +106,24 @@ export default function ListingBadges({
   return (
     <>
       <div className="flex flex-wrap items-center gap-1.5 text-xs">
-        {mine && (
+        {mine && !stale && (
           <span className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5">
             <Globe className="h-3 w-3" />
             Listée par Moi · {daysSince(mine.listed_at, now)}j
-            {stale && (
-              <span className="bg-red text-bg ml-1 rounded px-1 py-0.5 text-[10px] font-medium">
-                Stale
-              </span>
-            )}
           </span>
+        )}
+
+        {mine && stale && (
+          <button
+            type="button"
+            onClick={postListing}
+            disabled={busy}
+            title="Cliquer pour rafraîchir la date de mise en ligne (POST upsert listed_at = now)"
+            className="bg-red text-bg inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:opacity-90 disabled:opacity-50"
+          >
+            <RefreshCw className="h-3 w-3" />
+            À rafraîchir · {daysSince(mine.listed_at, now)}j
+          </button>
         )}
 
         {partner && partnerName && (

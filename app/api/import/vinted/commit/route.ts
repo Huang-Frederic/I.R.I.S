@@ -136,7 +136,9 @@ export async function POST(request: Request) {
       // (pokemon_number 1..1025, enforced by NOT NULL + CHECK) can't be derived.
       const mapped = mapVintedToCardInsert(item.vintedItem, item.parsed, enriched, imageUrl ?? '');
       if ('skipReason' in mapped) {
-        console.warn(`[commit] item=${vintedItemId} skip reason=${mapped.skipReason} (parsed=${item.parsed.setCode}-${item.parsed.setNumber}/${item.parsed.language}, enriched=${enriched ? 'yes' : 'no'})`);
+        console.warn(
+          `[commit] item=${vintedItemId} skip reason=${mapped.skipReason} title="${item.vintedItem.title.slice(0, 80)}" (parsed=${item.parsed.setCode}-${item.parsed.setNumber}/${item.parsed.language}, enriched=${enriched ? 'yes' : 'no'})`,
+        );
         failed.push({
           vintedItemId,
           reason: mapped.skipReason as ImportFailure['reason'],
@@ -144,14 +146,31 @@ export async function POST(request: Request) {
         continue;
       }
       const cardRow = mapped;
-      const { data: card, error: cardErr } = await supabase
+      let { data: card, error: cardErr } = await supabase
         .from('cards')
         .insert(cardRow)
         .select('id')
         .single();
       if (cardErr) {
         if (cardErr.code === '23505') {
-          failed.push({ vintedItemId, reason: 'duplicate_for_sale' });
+          // Already a for_sale card with this card_id_tcg+lang+condition+variant.
+          // The user has multiple physical copies — re-INSERT as 'collection'
+          // so the extra copies land in their Stock instead of being lost.
+          console.info(`[commit] item=${vintedItemId} for_sale slot taken, routing to Stock`);
+          const stockRow = { ...cardRow, status: 'collection' as const };
+          const stockResult = await supabase
+            .from('cards')
+            .insert(stockRow)
+            .select('id')
+            .single();
+          if (stockResult.error) {
+            failed.push({ vintedItemId, reason: 'unknown', detail: `stock fallback: ${stockResult.error.message}` });
+            continue;
+          }
+          // No card_listings for collection items (only for_sale gets listed).
+          // Push to failed[] with informational reason so the user sees the
+          // distinction in the recap.
+          failed.push({ vintedItemId, reason: 'duplicate_routed_to_stock' });
           continue;
         }
         failed.push({ vintedItemId, reason: 'unknown', detail: cardErr.message });
@@ -168,7 +187,7 @@ export async function POST(request: Request) {
           ? new Date(ts * 1000).toISOString()
           : new Date().toISOString();
       const { error: listingErr } = await supabase.from('card_listings').insert({
-        card_id: card.id,
+        card_id: card!.id,
         user_id: user.id,
         listed_at: listedAt,
       });
@@ -185,7 +204,7 @@ export async function POST(request: Request) {
       // fetched from Vinted's CDN we ALSO push photo_unavailable to failed[]
       // as a warning. The frontend can dedupe by vintedItemId to display
       // "imported with warning" rather than "imported AND failed".
-      created.push(card.id);
+      created.push(card!.id);
       if (imageUrl === null) {
         failed.push({ vintedItemId, reason: 'photo_unavailable' });
       }

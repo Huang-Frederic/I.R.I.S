@@ -34,6 +34,7 @@ export interface ToImport {
 
 export type ImportFailureReason =
   | 'duplicate_for_sale'
+  | 'duplicate_routed_to_stock'
   | 'listing_already_exists'
   | 'photo_unavailable'
   | 'storage_upload_failed'
