@@ -9,18 +9,18 @@ export default function Sidebar() {
 
   return (
     <aside className="bg-surface border-border fixed inset-y-0 left-0 z-30 hidden w-[220px] flex-col border-r md:flex">
-      <div className="px-5 py-6">
-        <div className="flex items-center gap-2.5">
+      <div className="px-5 py-7">
+        <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo.png"
             alt=""
-            className="h-7 w-7 shrink-0"
+            className="h-12 w-12 shrink-0"
             aria-hidden
           />
-          <h1 className="text-red text-xl font-bold tracking-tight">I.R.I.S</h1>
+          <h1 className="text-red text-3xl font-bold tracking-tight">I.R.I.S</h1>
         </div>
-        <p className="text-text-faint mt-0.5 text-[10px] uppercase tracking-wider">Pokémon TCG</p>
+        <p className="text-text-faint mt-1 text-xs uppercase tracking-wider">Pokémon TCG</p>
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 px-3 pb-4">

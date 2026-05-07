@@ -10,17 +10,18 @@ import {
   periodDays,
   buildDayDetails,
 } from '@/lib/utils/dashboard-queries';
-import { computeRestockAlerts } from '@/lib/utils/restock-detection';
+import { computeStockValue } from '@/lib/utils/stock-value';
 import DashboardPeriodTabs from '@/components/dashboard/DashboardPeriodTabs';
 import RefreshButton from '@/components/dashboard/RefreshButton';
 import DayDetailKpi from '@/components/dashboard/DayDetailKpi';
+import DashboardKpiStrip from '@/components/dashboard/DashboardKpiStrip';
 import CostBarChart from '@/components/dashboard/CostBarChart';
 import StockValueLineChart from '@/components/dashboard/StockValueLineChart';
 import RarityDonut from '@/components/dashboard/RarityDonut';
 import ScanHeatmap from '@/components/dashboard/ScanHeatmap';
 import TopRaresList from '@/components/dashboard/TopRaresList';
-import RestockAlertsList from '@/components/dashboard/RestockAlertsList';
 import LastSalesList from '@/components/dashboard/LastSalesList';
+import LastPokedexAdds from '@/components/dashboard/LastPokedexAdds';
 import PokedexCount from '@/components/dashboard/PokedexCount';
 import type { Card } from '@/lib/types';
 
@@ -47,6 +48,10 @@ function periodLabel(days: number): string {
   return `${days} jours`;
 }
 
+function formatEur(n: number): string {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(n);
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -65,9 +70,9 @@ export default async function DashboardPage({
     { data: stockSnapshots },
     { data: ocrLog24w },
     { data: cardsAdded24w },
-    { data: restockRows },
     { data: lastSales },
     { data: pokedexRows },
+    { data: lastPokedexAdds },
   ] = await Promise.all([
     supabase
       .from('cards')
@@ -92,10 +97,6 @@ export default async function DashboardPage({
       .gte('date_added', since24w),
     supabase
       .from('cards')
-      .select('pokemon_number, pokemon_name, status')
-      .not('pokemon_number', 'is', null),
-    supabase
-      .from('cards')
       .select('id, card_name, pokemon_name, image_url, tcg_image_url, rarity, sold_price, date_sold')
       .eq('status', 'sold')
       .not('date_sold', 'is', null)
@@ -105,6 +106,12 @@ export default async function DashboardPage({
       .from('cards')
       .select('pokemon_number', { head: false })
       .eq('status', 'pokedex'),
+    supabase
+      .from('cards')
+      .select('id, card_name, pokemon_name, pokemon_number, image_url, tcg_image_url, rarity, date_added')
+      .eq('status', 'pokedex')
+      .order('date_added', { ascending: false })
+      .limit(3),
   ]);
 
   const cards = (pricedCards ?? []) as unknown as (Card & {
@@ -119,9 +126,14 @@ export default async function DashboardPage({
   const heatmap = buildHeatmapMatrix(ocrLog24w ?? [], today);
   const dayDetails = buildDayDetails(ocrLog24w ?? [], cardsAdded24w ?? []);
   const costDaily = aggregateCostByDay(ocrLogPeriod ?? [], today, days);
-  const alerts = computeRestockAlerts(restockRows ?? []);
   const pokedexCollected = (pokedexRows ?? []).length;
   const todayIso = today.toISOString().slice(0, 10);
+
+  // KPI strip data
+  const stockValue = computeStockValue(cards);
+  const costPeriodTotal = (ocrLogPeriod ?? []).reduce((s, e) => s + Number(e.cost_eur ?? 0), 0);
+  const scansPeriodCount = (ocrLogPeriod ?? []).length;
+  const cardsAddedPeriod = (cardsAdded24w ?? []).filter((c) => c.date_added >= sincePeriod).length;
 
   return (
     <section>
@@ -141,6 +153,13 @@ export default async function DashboardPage({
       <div className="mt-6">
         <DayDetailKpi details={Object.fromEntries(dayDetails)} today={todayIso} />
       </div>
+
+      <DashboardKpiStrip
+        valueStock={{ label: 'Valeur stock', value: formatEur(stockValue.value_for_sale + stockValue.value_collection) }}
+        cost={{ label: `Coût OCR ${periodLabel(days)}`, value: formatEur(costPeriodTotal) }}
+        scans={{ label: `Scans ${periodLabel(days)}`, value: String(scansPeriodCount) }}
+        cardsAdded={{ label: `Cartes ajoutées ${periodLabel(days)}`, value: String(cardsAddedPeriod) }}
+      />
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <PokedexCount collected={pokedexCollected} />
@@ -162,7 +181,7 @@ export default async function DashboardPage({
       </div>
 
       <div className="mt-4">
-        <RestockAlertsList alerts={alerts} />
+        <LastPokedexAdds adds={lastPokedexAdds ?? []} />
       </div>
     </section>
   );

@@ -77,7 +77,7 @@ export default function DayDetailKpi({ details, today, maxDaysBack = 168 }: Prop
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div>
+    <div className="text-center">
       <div className="text-text-muted text-xs uppercase tracking-wide">{label}</div>
       <div className="text-text mt-1 text-lg font-semibold">{value}</div>
       {sub && <div className="text-text-faint text-xs">{sub}</div>}
