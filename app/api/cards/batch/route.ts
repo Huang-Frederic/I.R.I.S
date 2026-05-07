@@ -19,6 +19,7 @@ import { createClient } from '@/lib/supabase/server';
 import { buildBatchRows, type BatchRowBase } from '@/lib/utils/build-batch-rows';
 import { PRICE_COEFFICIENT } from '@/lib/constants/pricing';
 import { validateCardForm } from '@/lib/utils/validate-card-form';
+import { syncSiblingPhotos } from '@/lib/utils/sibling-photos';
 
 export const runtime = 'nodejs';
 
@@ -216,6 +217,24 @@ export async function POST(request: Request) {
   if (error) {
     console.error('[cards/batch] bulk insert failed:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Propagate the photo to all sibling rows (same card identity) if we uploaded one.
+  // Use the first inserted row as reference; siblings query excludes it.
+  // The other newly-inserted rows already have the same image_url so the
+  // UPDATE query against them is harmless (no change).
+  if (image_url && data && data.length > 0 && card_id_tcg) {
+    await syncSiblingPhotos(
+      supabase,
+      {
+        card_id_tcg,
+        language,
+        condition,
+        variant,
+      },
+      image_url,
+      data[0].id,
+    );
   }
 
   return NextResponse.json({ created: data ?? [] });

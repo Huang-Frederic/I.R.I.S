@@ -5,6 +5,7 @@
 // to swap the photo (keeps DB row, overwrites storage image).
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { syncSiblingPhotos } from '@/lib/utils/sibling-photos';
 
 export const runtime = 'nodejs';
 
@@ -61,6 +62,26 @@ export async function POST(
     .update({ image_url: newImageUrl })
     .eq('id', id);
   if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
+
+  // Propagate the new photo to all sibling rows (same card identity).
+  const { data: row } = await supabase
+    .from('cards')
+    .select('card_id_tcg, language, condition, variant')
+    .eq('id', id)
+    .single();
+  if (row) {
+    await syncSiblingPhotos(
+      supabase,
+      {
+        card_id_tcg: row.card_id_tcg,
+        language: row.language,
+        condition: row.condition,
+        variant: row.variant,
+      },
+      newImageUrl,
+      id,
+    );
+  }
 
   return NextResponse.json({ ok: true, image_url: newImageUrl });
 }

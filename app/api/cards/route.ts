@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { PRICE_COEFFICIENT } from '@/lib/constants/pricing';
 import { validateCardForm } from '@/lib/utils/validate-card-form';
+import { syncSiblingPhotos } from '@/lib/utils/sibling-photos';
 
 export const runtime = 'nodejs';
 
@@ -230,6 +231,21 @@ export async function POST(request: Request) {
     }
     console.error('Card insert failed:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Propagate the photo to all sibling rows (same card identity) if we uploaded one.
+  if (data && image_url) {
+    await syncSiblingPhotos(
+      supabase,
+      {
+        card_id_tcg: row.card_id_tcg,
+        language: row.language,
+        condition: row.condition,
+        variant: row.variant,
+      },
+      image_url,
+      data.id,
+    );
   }
 
   return NextResponse.json({ card: data });
