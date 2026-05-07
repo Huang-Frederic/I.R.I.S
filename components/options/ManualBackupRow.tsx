@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Download, Trash2 } from 'lucide-react';
 
 interface Props {
   name: string;
@@ -47,22 +48,26 @@ export default function ManualBackupRow({ name, createdAt, sizeBytes }: Props) {
       <span className="text-text-muted font-mono text-xs">
         {date} — {formatSize(sizeBytes)}
       </span>
-      <div className="flex gap-2">
+      <div className="flex gap-1">
         <button
           type="button"
           onClick={download}
           disabled={busy}
-          className="text-rarity-rr hover:underline disabled:opacity-60"
+          aria-label={`Télécharger ${name}`}
+          title="Télécharger"
+          className="text-text-muted hover:text-rarity-rr hover:bg-surface-2 rounded-md p-1.5 transition-colors disabled:opacity-60"
         >
-          DL
+          <Download className="h-4 w-4" aria-hidden />
         </button>
         <button
           type="button"
           onClick={remove}
           disabled={busy}
-          className="text-red hover:underline disabled:opacity-60"
+          aria-label={`Supprimer ${name}`}
+          title="Supprimer"
+          className="text-text-muted hover:text-red hover:bg-surface-2 rounded-md p-1.5 transition-colors disabled:opacity-60"
         >
-          Suppr
+          <Trash2 className="h-4 w-4" aria-hidden />
         </button>
       </div>
     </li>
