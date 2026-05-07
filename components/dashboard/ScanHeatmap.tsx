@@ -8,7 +8,8 @@ interface Props {
   details?: Record<string, DayDetail>;
 }
 
-const CELL = 14;
+const MIN_CELL = 12;
+const MAX_CELL = 28;
 const GAP = 3;
 const LABEL_WIDTH = 18;
 const MIN_VISIBLE_WEEKS = 4;
@@ -41,18 +42,28 @@ export default function ScanHeatmap({ matrix, details = {} }: Props) {
   const [hover, setHover] = useState<HoverState | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [visibleWeeks, setVisibleWeeks] = useState(matrix.length);
+  const [cellSize, setCellSize] = useState(14);
 
-  // Recompute visible week count whenever the container resizes.
+  // Recompute visible weeks AND cell size whenever the container resizes.
+  // Strategy: try to show ALL matrix weeks at the largest comfortable cell
+  // size (capped at MAX_CELL). If even at MIN_CELL all weeks don't fit, drop
+  // weeks until they do. So on a wide desktop card, cells stretch to ~28px
+  // and fill the width; on a narrow viewport, we fall back to MIN_CELL +
+  // fewer weeks visible (same behaviour as before).
   useEffect(() => {
     if (!containerRef.current) return;
     const el = containerRef.current;
     const update = () => {
-      const w = el.clientWidth;
-      // Each week takes (CELL + GAP) px in the SVG's intrinsic coords.
-      // We render the SVG at native size (no viewBox stretching) so it never
-      // looks blurry, and clip to (visibleWeeks) most-recent weeks.
-      const fitWeeks = Math.max(MIN_VISIBLE_WEEKS, Math.floor((w - LABEL_WIDTH - 16) / (CELL + GAP)));
-      setVisibleWeeks(Math.min(matrix.length, fitWeeks));
+      const available = el.clientWidth - LABEL_WIDTH;
+      let weeks = matrix.length;
+      let cell = Math.floor(available / weeks) - GAP;
+      if (cell > MAX_CELL) cell = MAX_CELL;
+      if (cell < MIN_CELL) {
+        cell = MIN_CELL;
+        weeks = Math.max(MIN_VISIBLE_WEEKS, Math.floor(available / (cell + GAP)));
+      }
+      setCellSize(cell);
+      setVisibleWeeks(Math.min(matrix.length, weeks));
     };
     update();
     const ro = new ResizeObserver(update);
@@ -61,8 +72,8 @@ export default function ScanHeatmap({ matrix, details = {} }: Props) {
   }, [matrix.length]);
 
   const trimmedMatrix = matrix.slice(0, visibleWeeks);
-  const naturalWidth = visibleWeeks * (CELL + GAP) + LABEL_WIDTH;
-  const naturalHeight = 7 * (CELL + GAP);
+  const naturalWidth = visibleWeeks * (cellSize + GAP) + LABEL_WIDTH;
+  const naturalHeight = 7 * (cellSize + GAP);
   const max = Math.max(...trimmedMatrix.flat(), 1);
 
   return (
@@ -82,7 +93,7 @@ export default function ScanHeatmap({ matrix, details = {} }: Props) {
             <text
               key={dow}
               x={4}
-              y={dow * (CELL + GAP) + CELL - 2}
+              y={dow * (cellSize + GAP) + cellSize - 2}
               fontSize={10}
               fill="currentColor"
               opacity={0.5}
@@ -92,15 +103,15 @@ export default function ScanHeatmap({ matrix, details = {} }: Props) {
           ))}
           {trimmedMatrix.map((week, w) =>
             week.map((count, d) => {
-              const x = LABEL_WIDTH + (visibleWeeks - 1 - w) * (CELL + GAP);
-              const y = d * (CELL + GAP);
+              const x = LABEL_WIDTH + (visibleWeeks - 1 - w) * (cellSize + GAP);
+              const y = d * (cellSize + GAP);
               return (
                 <rect
                   key={`${w}-${d}`}
                   x={x}
                   y={y}
-                  width={CELL}
-                  height={CELL}
+                  width={cellSize}
+                  height={cellSize}
                   fill={colorFor(count, max)}
                   rx={2}
                   className="cursor-default"

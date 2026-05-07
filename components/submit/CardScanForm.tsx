@@ -1362,39 +1362,40 @@ export default function CardScanForm({
           newPhoto={duplicatePhotoModal.pendingPhoto}
           existingCard={duplicatePhotoModal.existingCard}
           qty={duplicatePhotoModal.qty}
-          onAddToStock={async () => {
-            // Insert qty copies to Stock, keep existing photo unchanged
-            await insertAdditionalCopies(
-              duplicatePhotoModal.qty,
-              duplicatePhotoModal.pendingPhoto!,
-              duplicatePhotoModal.formSnapshot,
-            );
-            setDuplicatePhotoModal(null);
-            if (onSaved) onSaved(duplicatePhotoModal.existingCard!.id);
-          }}
-          onAddToStockWithPhotoSwap={async () => {
-            // Swap photo on existing card
-            const swapData = new FormData();
-            swapData.append('image', duplicatePhotoModal.pendingPhoto!);
-            const res = await fetch(`/api/cards/${duplicatePhotoModal.existingCard!.id}/photo`, {
-              method: 'POST',
-              body: swapData,
-            });
-            if (!res.ok) {
-              const err = (await res.json().catch(() => ({}))) as { error?: string };
-              alert(`Erreur swap photo: ${err.error ?? res.status}`);
-              return;
+          onConfirm={async (photoChoice) => {
+            // If user picked the new photo → swap photo on existing card.
+            // Either way, insert qty copies in Stock.
+            if (photoChoice === 'new') {
+              const swapData = new FormData();
+              swapData.append('image', duplicatePhotoModal.pendingPhoto!);
+              const res = await fetch(`/api/cards/${duplicatePhotoModal.existingCard!.id}/photo`, {
+                method: 'POST',
+                body: swapData,
+              });
+              if (!res.ok) {
+                const err = (await res.json().catch(() => ({}))) as { error?: string };
+                alert(`Erreur swap photo: ${err.error ?? res.status}`);
+                return;
+              }
             }
-            // Insert qty copies to Stock
             await insertAdditionalCopies(
               duplicatePhotoModal.qty,
               duplicatePhotoModal.pendingPhoto!,
               duplicatePhotoModal.formSnapshot,
             );
             setDuplicatePhotoModal(null);
-            if (onSaved) onSaved(duplicatePhotoModal.existingCard!.id);
+            if (onSaved) {
+              onSaved(duplicatePhotoModal.existingCard!.id);
+            } else {
+              // Standalone scanner — clear the form so the user can scan another card
+              reset();
+            }
           }}
-          onCancel={() => setDuplicatePhotoModal(null)}
+          onCancel={() => {
+            setDuplicatePhotoModal(null);
+            // Reset the form when standalone, otherwise the previous scan stays loaded.
+            if (!onSaved) reset();
+          }}
         />
       )}
 
