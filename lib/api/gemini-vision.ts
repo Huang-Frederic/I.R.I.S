@@ -1,11 +1,16 @@
 import 'server-only';
 
-// Gemini 3.1 Flash Lite Preview pricing (paid tier, per 1M tokens, source:
-// https://ai.google.dev/gemini-api/docs/pricing — verified 2026-05).
-// Bench 5/5 same as gemini-3-flash-preview at -43% cost / -35% latency.
+// Gemini pricing (paid tier, per 1M tokens).
+// Empirically calibrated 2026-05-08 against actual GCP billing:
+//   13K input + 1K output across 7 requests = €0.029 (= $0.0315 with USD_TO_EUR=0.92)
+//   → matches input $2.00/M + output $5.00/M
+// Phase 3c values ($0.25/M in + $1.50/M out) were the documented "preview" rates
+// for gemini-3.1-flash-lite-preview, but Google appears to bill at higher rates
+// in production (preview pricing retired? Vertex AI surcharge? Image token surcharge?).
+// If you can pin down the exact SKU from GCP billing, refine these.
 const PROMPT_TOKEN_ESTIMATE = 360; // mesuré post-multilang prompt rewrite (avant: 220 pour le prompt court JP-only)
-const COST_USD_PER_M_INPUT = 0.25;  // text / image / video
-const COST_USD_PER_M_OUTPUT = 1.50; // including thinking tokens (we set thinkingBudget=0 → 0 charged)
+const COST_USD_PER_M_INPUT = 2.0;   // text / image / video — empirical
+const COST_USD_PER_M_OUTPUT = 5.0;  // empirical
 const USD_TO_EUR = 0.92;
 
 const GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
