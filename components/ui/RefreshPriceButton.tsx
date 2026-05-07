@@ -49,7 +49,10 @@ export default function RefreshPriceButton({ cardId, onRefreshed }: Props) {
       setState('success');
     } catch (err) {
       const msg = (err as Error).message;
-      console.error(`[RefreshPriceButton] card=${cardId}: ${msg}`);
+      // console.warn (not .error) so Next.js dev overlay doesn't flag it as
+      // an unhandled error — the popup IS the user-facing channel; this log
+      // is just for paste-able debugging.
+      console.warn(`[RefreshPriceButton] card=${cardId}: ${msg}`);
       setErrorMsg(msg);
       setState('error');
     }
@@ -76,7 +79,7 @@ export default function RefreshPriceButton({ cardId, onRefreshed }: Props) {
       {state === 'error' && errorMsg && (
         <div
           role="alert"
-          className="bg-red text-white absolute right-0 top-full z-50 mt-1 max-w-[280px] whitespace-normal rounded-md px-2 py-1.5 text-[11px] leading-snug shadow-lg"
+          className="bg-red text-white absolute right-0 top-full z-50 mt-1 w-[360px] max-w-[90vw] rounded-md px-3 py-2 text-xs leading-relaxed shadow-lg"
         >
           {errorMsg}
         </div>
