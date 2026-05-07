@@ -3,6 +3,7 @@ import {
   aggregateCostByDay,
   buildHeatmapMatrix,
   buildRarityCounts,
+  buildRarityValues,
   topRaresByPrice,
   parsePeriod,
   periodDays,
@@ -23,6 +24,58 @@ describe('buildRarityCounts', () => {
 
   it('returns empty array for empty input', () => {
     expect(buildRarityCounts([])).toEqual([]);
+  });
+});
+
+describe('buildRarityValues', () => {
+  it('sums prices per rarity, sorted descending by value', () => {
+    const result = buildRarityValues([
+      { rarity: 'SAR', cm_price_avg: 50, cm_price_trend: null, cm_price_low: null },
+      { rarity: 'SAR', cm_price_avg: 30, cm_price_trend: null, cm_price_low: null },
+      { rarity: 'AR', cm_price_avg: 10, cm_price_trend: null, cm_price_low: null },
+      { rarity: 'C', cm_price_avg: null, cm_price_trend: 5, cm_price_low: null },
+    ]);
+    expect(result).toEqual([
+      { rarity: 'SAR', value: 80 },
+      { rarity: 'AR', value: 10 },
+      { rarity: 'C', value: 5 },
+    ]);
+  });
+
+  it('prefers cm_price_avg > trend > low', () => {
+    const result = buildRarityValues([
+      { rarity: 'AR', cm_price_avg: null, cm_price_trend: null, cm_price_low: 5 },
+      { rarity: 'SR', cm_price_avg: null, cm_price_trend: 10, cm_price_low: null },
+      { rarity: 'CHR', cm_price_avg: 15, cm_price_trend: 20, cm_price_low: 25 },
+    ]);
+    expect(result).toEqual([
+      { rarity: 'CHR', value: 15 },
+      { rarity: 'SR', value: 10 },
+      { rarity: 'AR', value: 5 },
+    ]);
+  });
+
+  it('treats null prices as 0', () => {
+    const result = buildRarityValues([
+      { rarity: 'C', cm_price_avg: null, cm_price_trend: null, cm_price_low: null },
+      { rarity: 'R', cm_price_avg: 3, cm_price_trend: null, cm_price_low: null },
+    ]);
+    expect(result).toEqual([
+      { rarity: 'R', value: 3 },
+      { rarity: 'C', value: 0 },
+    ]);
+  });
+
+  it('rounds to 2 decimal places', () => {
+    const result = buildRarityValues([
+      { rarity: 'SAR', cm_price_avg: 1.111, cm_price_trend: null, cm_price_low: null },
+      { rarity: 'SAR', cm_price_avg: 2.222, cm_price_trend: null, cm_price_low: null },
+    ]);
+    expect(result).toEqual([{ rarity: 'SAR', value: 3.33 }]);
+  });
+
+  it('returns empty array for empty input', () => {
+    expect(buildRarityValues([])).toEqual([]);
   });
 });
 

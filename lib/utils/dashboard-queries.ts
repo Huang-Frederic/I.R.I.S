@@ -24,6 +24,30 @@ export function buildRarityCounts(
     .sort((a, b) => b.count - a.count);
 }
 
+export interface PricedRarityCard {
+  rarity: CardRarity;
+  cm_price_avg: number | null;
+  cm_price_trend: number | null;
+  cm_price_low: number | null;
+}
+
+function priceOfRarity(c: PricedRarityCard): number {
+  return c.cm_price_avg ?? c.cm_price_trend ?? c.cm_price_low ?? 0;
+}
+
+export function buildRarityValues(
+  cards: readonly PricedRarityCard[],
+): { rarity: CardRarity; value: number }[] {
+  const values = new Map<CardRarity, number>();
+  for (const c of cards) {
+    const p = priceOfRarity(c);
+    values.set(c.rarity, (values.get(c.rarity) ?? 0) + p);
+  }
+  return Array.from(values.entries())
+    .map(([rarity, value]) => ({ rarity, value: Math.round(value * 100) / 100 }))
+    .sort((a, b) => b.value - a.value);
+}
+
 interface PricedCard {
   cm_price_avg: number | null;
   cm_price_trend: number | null;

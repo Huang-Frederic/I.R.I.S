@@ -34,6 +34,7 @@ export default function PokedexListItem({ number, card, onClick }: PokedexListIt
       type="button"
       onClick={onClick}
       aria-label={`${owned ? card!.pokemon_name : getPokemonName(number, 'fr')} n°${number}`}
+      data-pokemon-number={number}
       className="bg-surface border-border hover:border-red focus:border-red flex items-center gap-3 rounded border p-2 text-left transition-colors focus:outline-none"
     >
       <div className="shrink-0">

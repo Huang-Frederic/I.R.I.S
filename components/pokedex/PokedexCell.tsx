@@ -22,6 +22,7 @@ export default function PokedexCell({ number, card, onClick }: PokedexCellProps)
       type="button"
       onClick={onClick}
       aria-label={`${owned ? card!.pokemon_name : getPokemonName(number, 'fr')} n°${number}`}
+      data-pokemon-number={number}
       className="bg-surface border-border hover:border-red focus:border-red flex flex-col items-center gap-1 rounded border p-2 text-center transition-colors focus:outline-none"
     >
       <Image

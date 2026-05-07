@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState, useSyncExternalStore } from 'react';
-import type { Card } from '@/lib/types';
+import { useMemo, useState, useSyncExternalStore, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import type { Card, CardRarity } from '@/lib/types';
 import { GENERATIONS } from '@/lib/utils/pokemon-generations';
 import { POKEMON_NAMES } from '@/lib/data/pokemon-names';
 import PokedexCell from './PokedexCell';
@@ -52,11 +53,28 @@ function subscribeViewMode(callback: () => void): () => void {
 }
 
 export default function PokedexGrid({ cards }: PokedexGridProps) {
-  const [selectedPokemon, setSelectedPokemon] = useState<number | null>(null);
+  const searchParams = useSearchParams();
+
+  // Parse URL parameters once on mount
+  const initialPokemonNumber = (() => {
+    const raw = searchParams.get('pokemon_number');
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 1 && n <= 1025 ? n : null;
+  })();
+  const initialRarity = (() => {
+    const raw = searchParams.get('rarity');
+    const valid = ['SAR', 'AR', 'SR', 'CHR', 'RR', 'R_HOLO', 'R', 'UC', 'C', 'OTHER'];
+    if (raw && valid.includes(raw)) return raw as CardRarity;
+    return 'all' as const;
+  })();
+
+  const [selectedPokemon, setSelectedPokemon] = useState<number | null>(initialPokemonNumber);
   const [filters, setFilters] = useState<FilterState>({
     gen: 'all',
     status: 'all',
     search: '',
+    rarity: initialRarity,
   });
   const viewMode = useSyncExternalStore(
     subscribeViewMode,
@@ -68,6 +86,17 @@ export default function PokedexGrid({ cards }: PokedexGridProps) {
     localStorage.setItem(VIEW_MODE_KEY, mode);
     window.dispatchEvent(new Event(VIEW_MODE_CHANGE_EVENT));
   };
+
+  // Auto-scroll to selected pokemon when set via URL
+  useEffect(() => {
+    if (initialPokemonNumber == null) return;
+    // Wait one tick for the grid to render, then scroll the cell into view.
+    const t = setTimeout(() => {
+      const cell = document.querySelector(`[data-pokemon-number="${initialPokemonNumber}"]`);
+      if (cell) cell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+    return () => clearTimeout(t);
+  }, [initialPokemonNumber]);
 
   // pokedexMap: one card per pokemon (status='pokedex' enforced by the partial unique index)
   // availableMap: every other card the user owns, grouped by pokemon — feeds the
@@ -163,6 +192,12 @@ function matches(n: number, pokedexMap: Map<number, Card>, filters: FilterState)
   const card = pokedexMap.get(n);
   if (filters.status === 'completed' && !card) return false;
   if (filters.status === 'missing' && card) return false;
+
+  // Rarity filter: only show slots where the registered card matches the rarity.
+  // Slots without a card never match a specific rarity filter.
+  if (filters.rarity !== 'all') {
+    if (!card || card.rarity !== filters.rarity) return false;
+  }
 
   const search = filters.search.trim();
   if (search.length > 0) {

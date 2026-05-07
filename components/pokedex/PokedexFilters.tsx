@@ -2,6 +2,7 @@
 
 import { Search, Grid2x2, Grid3x3, List } from 'lucide-react';
 import { GENERATIONS } from '@/lib/utils/pokemon-generations';
+import type { CardRarity } from '@/lib/types';
 
 export type StatusFilter = 'all' | 'completed' | 'missing';
 export type ViewMode = 'grid-large' | 'grid-compact' | 'list';
@@ -10,6 +11,7 @@ export interface FilterState {
   gen: string;
   status: StatusFilter;
   search: string;
+  rarity: CardRarity | 'all';
 }
 
 interface PokedexFiltersProps {
@@ -20,6 +22,20 @@ interface PokedexFiltersProps {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
 }
+
+const RARITIES_FOR_FILTER: { value: CardRarity | 'all'; label: string }[] = [
+  { value: 'all', label: 'Toutes raretés' },
+  { value: 'SAR', label: 'SAR' },
+  { value: 'AR', label: 'AR' },
+  { value: 'SR', label: 'SR' },
+  { value: 'CHR', label: 'CHR' },
+  { value: 'RR', label: 'RR' },
+  { value: 'R_HOLO', label: 'R Holo' },
+  { value: 'R', label: 'R' },
+  { value: 'UC', label: 'UC' },
+  { value: 'C', label: 'C' },
+  { value: 'OTHER', label: 'Autre' },
+];
 
 export default function PokedexFilters({
   value,
@@ -92,6 +108,17 @@ export default function PokedexFilters({
             );
           })}
         </div>
+
+        <select
+          value={value.rarity}
+          onChange={(e) => onChange({ ...value, rarity: e.target.value as CardRarity | 'all' })}
+          className="bg-surface-2 border-border rounded border px-3 py-1.5 text-sm"
+          aria-label="Filtre rareté"
+        >
+          {RARITIES_FOR_FILTER.map((r) => (
+            <option key={r.value} value={r.value}>{r.label}</option>
+          ))}
+        </select>
 
         <div className="relative flex-1 min-w-[160px]">
           <Search className="text-text-faint pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2" />

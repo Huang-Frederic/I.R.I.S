@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/supabase/server';
 import {
   buildRarityCounts,
+  buildRarityValues,
   topRaresByPrice,
   buildHeatmapMatrix,
   aggregateCostByDay,
@@ -20,6 +21,7 @@ import RarityDonut from '@/components/dashboard/RarityDonut';
 import ScanHeatmap from '@/components/dashboard/ScanHeatmap';
 import TopRaresList from '@/components/dashboard/TopRaresList';
 import RestockAlertsList from '@/components/dashboard/RestockAlertsList';
+import LastSalesList from '@/components/dashboard/LastSalesList';
 import type { Card } from '@/lib/types';
 
 export const metadata = { title: 'Dashboard — I.R.I.S' };
@@ -73,6 +75,7 @@ export default async function DashboardPage({
     { data: stockSnapshots },
     { data: ocrLog52w },
     { data: restockRows },
+    { data: lastSales },
   ] = await Promise.all([
     supabase
       .from('cards')
@@ -100,6 +103,13 @@ export default async function DashboardPage({
       .from('cards')
       .select('pokemon_number, pokemon_name, status')
       .not('pokemon_number', 'is', null),
+    supabase
+      .from('cards')
+      .select('id, card_name, pokemon_name, image_url, tcg_image_url, rarity, sold_price, date_sold')
+      .eq('status', 'sold')
+      .not('date_sold', 'is', null)
+      .order('date_sold', { ascending: false })
+      .limit(10),
   ]);
 
   const cards = (pricedCards ?? []) as unknown as (Card & {
@@ -110,6 +120,7 @@ export default async function DashboardPage({
 
   const stockValue = computeStockValue(cards);
   const rarityCounts = buildRarityCounts(cards);
+  const rarityValues = buildRarityValues(cards);
   const topRares = topRaresByPrice(cards, 10);
   const heatmap = buildHeatmapMatrix(ocrLog52w ?? [], today);
   const costDaily = aggregateCostByDay(ocrLogPeriod ?? [], today, days);
@@ -173,13 +184,14 @@ export default async function DashboardPage({
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <CostBarChart data={costDaily} periodLabel={periodLabel(days)} />
         <StockValueLineChart data={stockSnapshots ?? []} />
-        <RarityDonut data={rarityCounts} />
+        <RarityDonut counts={rarityCounts} values={rarityValues} />
         <ScanHeatmap matrix={heatmap} />
       </div>
 
       <div className="mt-4 grid gap-4">
         <TopRaresList cards={topRares} />
         <RestockAlertsList alerts={alerts} />
+        <LastSalesList sales={lastSales ?? []} />
       </div>
     </section>
   );
