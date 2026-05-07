@@ -229,8 +229,26 @@ async function handleSingleCard(cardId: string): Promise<NextResponse> {
   const card = target as Card;
   const cat = categorizePricingCard(card);
   if (cat === 'skip') {
+    // Distinguish the language case (JP/KO/CN/ZH — Cardmarket doesn't sell these)
+    // from the structural case (variant set, or missing identifiers) so the popup
+    // tells the user *why* there's no pricing.
+    const noCardmarketLang = card.language === 'JP' || card.language === 'KO' || card.language === 'CN' || card.language === 'ZH';
+    if (noCardmarketLang) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'no_cardmarket_for_lang',
+          message: `Pas de prix Cardmarket pour les cartes ${card.language} — Cardmarket ne vend pas cette langue. Utilise l'édit prix manuel.`,
+        },
+        { status: 422 },
+      );
+    }
     return NextResponse.json(
-      { ok: false, error: 'card_not_eligible', reason: 'variant or missing identifiers' },
+      {
+        ok: false,
+        error: 'card_not_eligible',
+        message: card.variant ? 'Variants (Pokéball, Master Ball, etc.) gardent leur prix manuel.' : 'Identifiants de set manquants — édite le prix à la main.',
+      },
       { status: 422 },
     );
   }

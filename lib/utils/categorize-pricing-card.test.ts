@@ -12,7 +12,7 @@ function makeCard(over: Partial<Card> = {}): Card {
     set_name: '151',
     set_code: 'sv2a',
     set_number: '025/165',
-    language: 'JP',
+    language: 'EN',
     rarity: 'AR',
     rarity_rank: 0,
     condition: 'NM',
@@ -49,13 +49,15 @@ describe('categorizePricingCard', () => {
   it('returns "backfill" when card_id_tcg is null but set_code+set_number+language are valid', () => {
     expect(
       categorizePricingCard(
-        makeCard({ card_id_tcg: null, set_code: 'sv2a', set_number: '025/165', language: 'JP' }),
+        makeCard({ card_id_tcg: null, set_code: 'sv2a', set_number: '025/165', language: 'EN' }),
       ),
     ).toBe('backfill');
   });
 
-  it('returns "skip" for languages not catalogued by TCGdex (KO, ZH)', () => {
+  it('returns "skip" for languages not sold on Cardmarket (JP, KO, CN, ZH)', () => {
+    expect(categorizePricingCard(makeCard({ language: 'JP' }))).toBe('skip');
     expect(categorizePricingCard(makeCard({ language: 'KO' }))).toBe('skip');
+    expect(categorizePricingCard(makeCard({ language: 'CN' }))).toBe('skip');
     expect(categorizePricingCard(makeCard({ language: 'ZH' }))).toBe('skip');
   });
 

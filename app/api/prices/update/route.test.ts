@@ -53,7 +53,7 @@ describe('POST /api/prices/update — auth', () => {
 function row(over: Record<string, unknown> = {}) {
   return {
     id: 'card-1', card_id_tcg: 'sv2a-25',
-    set_code: 'sv2a', set_number: '025', language: 'JP',
+    set_code: 'sv2a', set_number: '025', language: 'EN',
     variant: null, cm_price_trend: null, suggested_price: null,
     ...over,
   };

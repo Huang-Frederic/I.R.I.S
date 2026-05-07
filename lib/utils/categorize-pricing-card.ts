@@ -2,8 +2,11 @@ import type { Card, CardLanguage } from '@/lib/types';
 
 export type PricingCategory = 'tcgdex' | 'backfill' | 'skip';
 
-const TCGDEX_LANGUAGES: ReadonlySet<CardLanguage> = new Set([
-  'JP', 'EN', 'FR', 'DE', 'IT', 'ES', 'PT',
+// Languages where Cardmarket actually sells cards. JP/KO/CN/ZH have no
+// Cardmarket pricing source — TCGdex returns null even when the catalog has
+// the card. Skip them in the pricing pipeline rather than burning API calls.
+const CARDMARKET_LANGUAGES: ReadonlySet<CardLanguage> = new Set([
+  'EN', 'FR', 'DE', 'IT', 'ES', 'PT',
 ]);
 
 /**
@@ -13,11 +16,11 @@ const TCGDEX_LANGUAGES: ReadonlySet<CardLanguage> = new Set([
  *   backfill — card_id_tcg unknown but set_code/number/language are usable,
  *              try the catalog lookup first, then TCGdex
  *   skip     — variant != null (preserve manual prices), missing identifiers,
- *              or language not catalogued by TCGdex (KO, ZH)
+ *              or language not sold on Cardmarket (JP, KO, CN, ZH)
  */
 export function categorizePricingCard(card: Card): PricingCategory {
   if (card.variant !== null) return 'skip';
-  if (!TCGDEX_LANGUAGES.has(card.language)) return 'skip';
+  if (!CARDMARKET_LANGUAGES.has(card.language)) return 'skip';
   if (card.card_id_tcg !== null) return 'tcgdex';
   if (card.set_code && card.set_number) return 'backfill';
   return 'skip';
