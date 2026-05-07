@@ -1,7 +1,6 @@
 // components/cards/DuplicatePhotoModal.tsx
 'use client';
-
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 
 interface ExistingCardLite {
@@ -21,156 +20,128 @@ interface ExistingCardLite {
 }
 
 interface Props {
-  /** Accept Blob (which File extends) — the camera/file input gives us a File,
-   *  but post-processing (resize, EXIF strip) returns a plain Blob. URL.createObjectURL
-   *  handles both. */
   newPhoto: Blob;
   existingCard: ExistingCardLite;
-  /** How many additional Stock copies will be inserted after the modal closes (regardless of photo choice). */
-  additionalCopies?: number;
-  onConfirmKeepExisting: () => void;
-  onConfirmSwap: () => Promise<void>;
+  qty: number;
+  /** Inserts qty in collection, keeps existing photo unchanged. */
+  onAddToStock: () => Promise<void>;
+  /** Inserts qty in collection AND swaps existing card's photo. */
+  onAddToStockWithPhotoSwap: () => Promise<void>;
   onCancel: () => void;
+}
+
+function statusHeader(status: string): { title: string; sub: string } {
+  if (status === 'for_sale') {
+    return {
+      title: 'Cette carte est déjà sur Vinted',
+      sub: 'Une copie identique est en ligne. La nouvelle scan ira dans ton Stock.',
+    };
+  }
+  if (status === 'pokedex') {
+    return {
+      title: 'Cette carte est déjà dans ton Pokédex',
+      sub: 'C\'est exactement la même carte (set, langue, état, variante). La nouvelle scan ira dans ton Stock.',
+    };
+  }
+  return {
+    title: 'Cette carte est déjà dans ton Stock',
+    sub: 'Tu en as déjà une copie identique. La nouvelle scan ajoutera des copies supplémentaires.',
+  };
 }
 
 export default function DuplicatePhotoModal({
   newPhoto,
   existingCard,
-  additionalCopies,
-  onConfirmKeepExisting,
-  onConfirmSwap,
+  qty,
+  onAddToStock,
+  onAddToStockWithPhotoSwap,
   onCancel,
 }: Props) {
-  const [selected, setSelected] = useState<'new' | 'existing'>('new');
-  const [busy, setBusy] = useState(false);
-
   const previewUrl = useMemo(() => URL.createObjectURL(newPhoto), [newPhoto]);
+  useEffect(() => () => URL.revokeObjectURL(previewUrl), [previewUrl]);
 
-  useEffect(() => {
-    return () => URL.revokeObjectURL(previewUrl);
-  }, [previewUrl]);
+  const [busy, setBusy] = useState(false);
+  const { title, sub } = statusHeader(existingCard.status);
+  const existingImageSrc = existingCard.image_url ?? existingCard.tcg_image_url ?? '';
+  const qtyLabel = qty > 1 ? `${qty} copies` : '1 copie';
 
-  async function handleConfirm() {
-    if (selected === 'existing') {
-      onConfirmKeepExisting();
-    } else {
-      setBusy(true);
-      try {
-        await onConfirmSwap();
-      } finally {
-        setBusy(false);
-      }
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    try {
+      await action();
+    } finally {
+      setBusy(false);
     }
   }
 
-  const existingPhotoSrc = existingCard.image_url ?? existingCard.tcg_image_url ?? null;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-surface border-border w-full max-w-2xl rounded-lg border p-5 shadow-xl">
-        <div className="mb-4 flex items-start justify-between">
-          <h2 className="text-lg font-semibold">Cette carte existe déjà</h2>
+      <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-lg border border-border bg-surface p-5">
+        <div className="flex items-start justify-between">
+          <h3 className="text-lg font-semibold text-text">{title}</h3>
           <button
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="text-text-muted hover:text-text disabled:opacity-50"
             aria-label="Fermer"
+            className="text-text-muted hover:text-text disabled:opacity-60"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
+        <p className="mt-2 text-sm text-text-muted">{sub}</p>
 
-        <p className="text-text-muted mb-4 text-sm">
-          Tu as déjà cette carte exactement (même set, langue, état, variante, status). Choisis quelle photo garder.
-        </p>
-
-        {/* Card metadata summary */}
-        <div className="text-text-muted mb-4 rounded border border-border bg-surface-2 p-3 text-sm">
-          <p className="font-medium text-text">
-            {existingCard.card_name ?? existingCard.pokemon_name ?? '—'}
-          </p>
-          <p className="text-xs">
-            {existingCard.set_name ?? existingCard.set_code ?? '—'} · {existingCard.language} · {existingCard.condition}
-            {existingCard.variant ? ` · ${existingCard.variant}` : ''}
-          </p>
-        </div>
-
-        {/* Two-image grid */}
-        <div className="mb-5 grid gap-4 md:grid-cols-2">
-          {/* NEW photo */}
-          <button
-            type="button"
-            onClick={() => setSelected('new')}
-            disabled={busy}
-            className={`group relative rounded-lg transition-all ${
-              selected === 'new' ? 'border-2 border-red' : 'border-2 border-border'
-            } overflow-hidden disabled:opacity-50`}
-          >
-            {previewUrl ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={previewUrl}
-                alt="Nouvelle photo"
-                className="h-[240px] w-full rounded object-cover"
-              />
-            ) : (
-              <div className="bg-surface-off h-[240px] w-full rounded" />
-            )}
-            <div className="bg-surface/90 absolute bottom-0 left-0 right-0 p-2 text-center text-xs backdrop-blur-sm">
-              📸 <strong>Nouvelle</strong> (ce scan)
+        {/* Existing card preview */}
+        <div className="mt-4 flex items-start gap-3 rounded-md border border-border bg-surface-2 p-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={existingImageSrc} alt="" className="h-24 w-16 rounded object-cover" />
+          <div className="min-w-0 flex-1 text-sm">
+            <div className="truncate font-medium text-text">{existingCard.card_name}</div>
+            <div className="mt-0.5 text-xs text-text-muted">
+              {existingCard.set_name ?? existingCard.set_code} · {existingCard.language} · {existingCard.condition}
             </div>
-          </button>
-
-          {/* EXISTING photo */}
-          <button
-            type="button"
-            onClick={() => setSelected('existing')}
-            disabled={busy}
-            className={`group relative rounded-lg transition-all ${
-              selected === 'existing' ? 'border-2 border-red' : 'border-2 border-border'
-            } overflow-hidden disabled:opacity-50`}
-          >
-            {existingPhotoSrc ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={existingPhotoSrc}
-                alt="Photo existante"
-                className="h-[240px] w-full rounded object-cover"
-              />
-            ) : (
-              <div className="bg-surface-off h-[240px] w-full rounded" />
+            {existingCard.variant && (
+              <div className="mt-0.5 text-xs text-text-muted">Variant: {existingCard.variant}</div>
             )}
-            <div className="bg-surface/90 absolute bottom-0 left-0 right-0 p-2 text-center text-xs backdrop-blur-sm">
-              💾 <strong>Existante</strong> (déjà en DB)
-            </div>
-          </button>
+            <div className="mt-1.5 text-xs text-text-faint">Photo actuelle ↑</div>
+          </div>
         </div>
 
-        {/* Hint: additional copies will be added to Stock */}
-        {additionalCopies != null && additionalCopies > 0 && (
-          <p className="bg-surface-2 text-text-muted mt-3 rounded-md p-2 text-xs">
-            Après confirmation : <span className="text-text font-semibold">{additionalCopies} copie{additionalCopies > 1 ? 's' : ''}</span> sera{additionalCopies > 1 ? 'nt' : ''} ajoutée{additionalCopies > 1 ? 's' : ''} au Stock.
-          </p>
-        )}
+        {/* New photo preview (small) */}
+        <div className="mt-2 flex items-start gap-3 rounded-md border border-border bg-surface-2 p-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={previewUrl} alt="" className="h-24 w-16 rounded object-cover" />
+          <div className="min-w-0 flex-1 text-sm">
+            <div className="font-medium text-text">Ta nouvelle scan</div>
+            <div className="mt-1.5 text-xs text-text-faint">À utiliser pour remplacer la photo actuelle ?</div>
+          </div>
+        </div>
 
-        {/* Action buttons */}
-        <div className="flex justify-end gap-2">
+        {/* 3 buttons */}
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="text-text-muted rounded border border-border px-4 py-1.5 text-sm transition-colors hover:bg-surface-2 disabled:opacity-50"
+            className="rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-surface-2 disabled:opacity-60 sm:order-1"
           >
             Annuler
           </button>
           <button
             type="button"
-            onClick={handleConfirm}
+            onClick={() => run(onAddToStock)}
             disabled={busy}
-            className="bg-red rounded px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-text transition-colors hover:bg-surface disabled:opacity-60 sm:order-2"
           >
-            {busy ? 'Enregistrement…' : 'Confirmer'}
+            {busy ? '…' : `Ajouter ${qtyLabel} au Stock`}
+          </button>
+          <button
+            type="button"
+            onClick={() => run(onAddToStockWithPhotoSwap)}
+            disabled={busy}
+            className="rounded-md bg-red px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60 sm:order-3"
+          >
+            {busy ? '…' : `Ajouter ${qtyLabel} + remplacer photo`}
           </button>
         </div>
       </div>
