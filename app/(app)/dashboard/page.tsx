@@ -8,12 +8,9 @@ import {
   aggregateCostByDay,
   parsePeriod,
   periodDays,
-  computeSparkline,
   buildDayDetails,
 } from '@/lib/utils/dashboard-queries';
-import { computeStockValue } from '@/lib/utils/stock-value';
 import { computeRestockAlerts } from '@/lib/utils/restock-detection';
-import DashboardKpiStrip from '@/components/dashboard/DashboardKpiStrip';
 import DashboardPeriodTabs from '@/components/dashboard/DashboardPeriodTabs';
 import RefreshButton from '@/components/dashboard/RefreshButton';
 import DayDetailKpi from '@/components/dashboard/DayDetailKpi';
@@ -24,6 +21,7 @@ import ScanHeatmap from '@/components/dashboard/ScanHeatmap';
 import TopRaresList from '@/components/dashboard/TopRaresList';
 import RestockAlertsList from '@/components/dashboard/RestockAlertsList';
 import LastSalesList from '@/components/dashboard/LastSalesList';
+import PokedexCount from '@/components/dashboard/PokedexCount';
 import type { Card } from '@/lib/types';
 
 export const metadata = { title: 'Dashboard — I.R.I.S' };
@@ -36,18 +34,9 @@ function timeWindow(days: number) {
   const now = Date.now();
   return {
     sincePeriod: new Date(now - days * 86_400_000).toISOString(),
-    sincePrevious: new Date(now - 2 * days * 86_400_000).toISOString(),
     since24w: new Date(now - 24 * 7 * 86_400_000).toISOString(),
     today: new Date(now),
   };
-}
-
-function formatEur(n: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-  }).format(n);
 }
 
 function periodLabel(days: number): string {
@@ -66,19 +55,19 @@ export default async function DashboardPage({
   const { period: periodRaw } = await searchParams;
   const period = parsePeriod(periodRaw);
   const days = periodDays(period);
-  const { sincePeriod, sincePrevious, since24w, today } = timeWindow(days);
+  const { sincePeriod, since24w, today } = timeWindow(days);
 
   const supabase = await createClient();
 
   const [
     { data: pricedCards },
     { data: ocrLogPeriod },
-    { data: ocrLogPrevious },
     { data: stockSnapshots },
     { data: ocrLog24w },
     { data: cardsAdded24w },
     { data: restockRows },
     { data: lastSales },
+    { data: pokedexRows },
   ] = await Promise.all([
     supabase
       .from('cards')
@@ -88,11 +77,6 @@ export default async function DashboardPage({
       .from('ocr_usage_log')
       .select('created_at, engine, cost_eur')
       .gte('created_at', sincePeriod)
-      .order('created_at', { ascending: true }),
-    supabase
-      .from('ocr_usage_log')
-      .select('created_at, engine, cost_eur')
-      .gte('created_at', sincePrevious)
       .order('created_at', { ascending: true }),
     supabase
       .from('stock_value_snapshots')
@@ -117,6 +101,10 @@ export default async function DashboardPage({
       .not('date_sold', 'is', null)
       .order('date_sold', { ascending: false })
       .limit(10),
+    supabase
+      .from('cards')
+      .select('pokemon_number', { head: false })
+      .eq('status', 'pokedex'),
   ]);
 
   const cards = (pricedCards ?? []) as unknown as (Card & {
@@ -125,7 +113,6 @@ export default async function DashboardPage({
     cm_price_low: number | null;
   })[];
 
-  const stockValue = computeStockValue(cards);
   const rarityCounts = buildRarityCounts(cards);
   const rarityValues = buildRarityValues(cards);
   const topRares = topRaresByPrice(cards, 10);
@@ -133,36 +120,8 @@ export default async function DashboardPage({
   const dayDetails = buildDayDetails(ocrLog24w ?? [], cardsAdded24w ?? []);
   const costDaily = aggregateCostByDay(ocrLogPeriod ?? [], today, days);
   const alerts = computeRestockAlerts(restockRows ?? []);
-
-  // Compute sparklines and deltas for KPIs
-  const costSparkline = computeSparkline(ocrLogPrevious ?? [], today, days, 'cost');
-  const scansSparkline = computeSparkline(ocrLogPrevious ?? [], today, days, 'count');
+  const pokedexCollected = (pokedexRows ?? []).length;
   const todayIso = today.toISOString().slice(0, 10);
-
-  const kpiData = {
-    valueStock: {
-      label: 'Valeur stock',
-      value: formatEur(stockValue.value_for_sale + stockValue.value_collection),
-      // No sparkline/delta — current state, not period-dependent
-    },
-    cost: {
-      label: `Coût OCR ${periodLabel(days)}`,
-      value: formatEur(costSparkline.total),
-      series: costSparkline.series,
-      delta: costSparkline.delta,
-    },
-    scans: {
-      label: `Scans ${periodLabel(days)}`,
-      value: String(scansSparkline.total),
-      series: scansSparkline.series,
-      delta: scansSparkline.delta,
-    },
-    restock: {
-      label: 'Restock alerts',
-      value: String(alerts.length),
-      // No sparkline/delta — current state
-    },
-  };
 
   return (
     <section>
@@ -183,19 +142,13 @@ export default async function DashboardPage({
         <DayDetailKpi details={Object.fromEntries(dayDetails)} today={todayIso} />
       </div>
 
-      <DashboardKpiStrip
-        valueStock={kpiData.valueStock}
-        cost={kpiData.cost}
-        scans={kpiData.scans}
-        restock={kpiData.restock}
-      />
-
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <CostBarChart data={costDaily} periodLabel={periodLabel(days)} />
+        <PokedexCount collected={pokedexCollected} />
         <RarityDonut counts={rarityCounts} values={rarityValues} />
       </div>
 
-      <div className="mt-4">
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <CostBarChart data={costDaily} periodLabel={periodLabel(days)} />
         <ScanHeatmap matrix={heatmap} details={Object.fromEntries(dayDetails)} />
       </div>
 
@@ -204,9 +157,12 @@ export default async function DashboardPage({
         <TopRaresList cards={topRares} />
       </div>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <RestockAlertsList alerts={alerts} />
+      <div className="mt-4">
         <LastSalesList sales={lastSales ?? []} />
+      </div>
+
+      <div className="mt-4">
+        <RestockAlertsList alerts={alerts} />
       </div>
     </section>
   );

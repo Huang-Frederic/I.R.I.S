@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { categorizePricingCard } from '@/lib/utils/categorize-pricing-card';
 import { lookupByCode } from '@/lib/api/tcg-catalog';
 import { toTCGdexLang } from '@/lib/api/tcgdex';
+import { tcgdexCardId } from '@/lib/api/tcgdex-set-mapping';
 import { computeStockValue } from '@/lib/utils/stock-value';
 import type { Card, CardLanguage } from '@/lib/types';
 
@@ -155,7 +156,12 @@ async function processCard(
     return;
   }
 
-  const fetched = await fetchTCGdexPricing(cardIdTcg, card.language);
+  // Translate our internal card_id_tcg (LT format like 'TWM-171') to TCGdex's
+  // format (e.g. 'sv06-171') by looking up the set name. Fall back to the
+  // stored cardIdTcg when the set isn't in TCGdex (un-enriched cards or sets
+  // we can't map yet) — may 404 but preserves the legacy code path.
+  const translatedId = await tcgdexCardId(card.set_name, card.set_number, card.language);
+  const fetched = await fetchTCGdexPricing(translatedId ?? cardIdTcg, card.language);
   if (fetched.error) {
     summary.errors.push({ card_id: card.id, message: fetched.error });
     return;
@@ -258,7 +264,12 @@ async function handleSingleCard(cardId: string): Promise<NextResponse> {
     );
   }
 
-  const fetched = await fetchTCGdexPricing(cardIdTcg, card.language);
+  // Translate our internal card_id_tcg (LT format like 'TWM-171') to TCGdex's
+  // format (e.g. 'sv06-171') by looking up the set name. Fall back to the
+  // stored cardIdTcg when the set isn't in TCGdex (un-enriched cards or sets
+  // we can't map yet) — may 404 but preserves the legacy code path.
+  const translatedId = await tcgdexCardId(card.set_name, card.set_number, card.language);
+  const fetched = await fetchTCGdexPricing(translatedId ?? cardIdTcg, card.language);
   if (fetched.error) {
     return NextResponse.json(
       { ok: false, error: 'tcgdex_failed', message: fetched.error },

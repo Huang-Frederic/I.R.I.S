@@ -7,7 +7,6 @@ import {
   topRaresByPrice,
   parsePeriod,
   periodDays,
-  computeSparkline,
   buildDayDetails,
 } from './dashboard-queries';
 
@@ -319,91 +318,3 @@ describe('buildDayDetails', () => {
   });
 });
 
-describe('computeSparkline', () => {
-  const anchor = new Date('2026-05-07T12:00:00Z');
-
-  it('returns empty series and zero totals for no events', () => {
-    const result = computeSparkline([], anchor, 30, 'count');
-    expect(result.series).toEqual([0, 0, 0, 0, 0, 0, 0]);
-    expect(result.total).toBe(0);
-    expect(result.previousTotal).toBe(0);
-    expect(result.delta).toBeNull();
-  });
-
-  it('counts events in the current period', () => {
-    const events = [
-      { created_at: '2026-05-07T08:00:00Z' }, // today
-      { created_at: '2026-05-07T09:00:00Z' }, // today
-      { created_at: '2026-05-01T12:00:00Z' }, // 6 days ago
-    ];
-    const result = computeSparkline(events, anchor, 7, 'count');
-    expect(result.total).toBe(3);
-    expect(result.series.reduce((a, b) => a + b, 0)).toBe(3);
-  });
-
-  it('sums cost when metric is cost', () => {
-    const events = [
-      { created_at: '2026-05-07T08:00:00Z', cost_eur: 0.001 },
-      { created_at: '2026-05-07T09:00:00Z', cost_eur: 0.002 },
-    ];
-    const result = computeSparkline(events, anchor, 7, 'cost');
-    expect(result.total).toBeCloseTo(0.003, 6);
-  });
-
-  it('computes delta correctly with non-zero previous period', () => {
-    const events = [
-      // Current period: 3 events
-      { created_at: '2026-05-07T08:00:00Z' },
-      { created_at: '2026-05-06T08:00:00Z' },
-      { created_at: '2026-05-05T08:00:00Z' },
-      // Previous period: 2 events (7-14 days ago)
-      { created_at: '2026-04-30T08:00:00Z' }, // 7 days ago
-      { created_at: '2026-04-29T08:00:00Z' }, // 8 days ago
-    ];
-    const result = computeSparkline(events, anchor, 7, 'count');
-    expect(result.total).toBe(3);
-    expect(result.previousTotal).toBe(2);
-    expect(result.delta).toBeCloseTo(50, 1); // (3-2)/2 * 100 = 50%
-  });
-
-  it('returns null delta when previous period is zero', () => {
-    const events = [
-      { created_at: '2026-05-07T08:00:00Z' },
-    ];
-    const result = computeSparkline(events, anchor, 7, 'count');
-    expect(result.total).toBe(1);
-    expect(result.previousTotal).toBe(0);
-    expect(result.delta).toBeNull();
-  });
-
-  it('handles negative delta correctly', () => {
-    const events = [
-      // Current period: 1 event
-      { created_at: '2026-05-07T08:00:00Z' },
-      // Previous period: 2 events
-      { created_at: '2026-04-30T08:00:00Z' },
-      { created_at: '2026-04-29T08:00:00Z' },
-    ];
-    const result = computeSparkline(events, anchor, 7, 'count');
-    expect(result.total).toBe(1);
-    expect(result.previousTotal).toBe(2);
-    expect(result.delta).toBeCloseTo(-50, 1); // (1-2)/2 * 100 = -50%
-  });
-
-  it('ignores events outside both periods', () => {
-    const events = [
-      { created_at: '2026-01-01T00:00:00Z' }, // way in the past
-      { created_at: '2026-05-07T08:00:00Z' }, // today
-    ];
-    const result = computeSparkline(events, anchor, 7, 'count');
-    expect(result.total).toBe(1);
-    expect(result.previousTotal).toBe(0);
-  });
-
-  it('produces 7 buckets regardless of period length', () => {
-    const result30d = computeSparkline([], anchor, 30, 'count');
-    const result365d = computeSparkline([], anchor, 365, 'count');
-    expect(result30d.series.length).toBe(7);
-    expect(result365d.series.length).toBe(7);
-  });
-});
