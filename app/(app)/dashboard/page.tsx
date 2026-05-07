@@ -1,6 +1,6 @@
 // app/(app)/dashboard/page.tsx
 import { createClient } from '@/lib/supabase/server';
-import { buildRarityCounts, topRaresByPrice, buildHeatmapMatrix } from '@/lib/utils/dashboard-queries';
+import { buildRarityCounts, topRaresByPrice, buildHeatmapMatrix, aggregateCostByDay } from '@/lib/utils/dashboard-queries';
 import { computeStockValue } from '@/lib/utils/stock-value';
 import { computeRestockAlerts } from '@/lib/utils/restock-detection';
 import DashboardKpiStrip from '@/components/dashboard/DashboardKpiStrip';
@@ -75,6 +75,7 @@ export default async function DashboardPage() {
   const rarityCounts = buildRarityCounts(cards);
   const topRares = topRaresByPrice(cards, 10);
   const heatmap = buildHeatmapMatrix(ocrLog52w ?? [], today);
+  const costDaily = aggregateCostByDay(ocrLog30d ?? [], today);
   const alerts = computeRestockAlerts(restockRows ?? []);
 
   return (
@@ -94,7 +95,7 @@ export default async function DashboardPage() {
       />
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <CostBarChart data={ocrLog30d ?? []} />
+        <CostBarChart data={costDaily} />
         <StockValueLineChart data={stockSnapshots ?? []} />
         <RarityDonut data={rarityCounts} />
         <ScanHeatmap matrix={heatmap} />

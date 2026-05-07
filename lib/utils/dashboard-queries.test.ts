@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  aggregateCostByDay,
   buildHeatmapMatrix,
   buildRarityCounts,
   topRaresByPrice,
@@ -72,5 +73,49 @@ describe('buildHeatmapMatrix', () => {
     const matrix = buildHeatmapMatrix([], new Date('2026-05-04T12:00:00Z'));
     expect(matrix.length).toBe(52);
     expect(matrix.every((row) => row.every((c) => c === 0))).toBe(true);
+  });
+});
+
+describe('aggregateCostByDay', () => {
+  const anchor = new Date('2026-05-07T12:00:00Z');
+
+  it('produces 30 daily buckets ending at anchor day, all zero when no events', () => {
+    const result = aggregateCostByDay([], anchor);
+    expect(result.length).toBe(30);
+    expect(result[result.length - 1].day).toBe('2026-05-07');
+    expect(result[0].day).toBe('2026-04-08'); // 29 days before anchor
+    expect(result.every((r) => r.gemini === 0 && r.vision === 0)).toBe(true);
+  });
+
+  it('sums cost per engine per day for events within window', () => {
+    const events = [
+      { created_at: '2026-05-07T08:00:00Z', engine: 'gemini' as const, cost_eur: 0.001 },
+      { created_at: '2026-05-07T09:00:00Z', engine: 'gemini' as const, cost_eur: 0.002 },
+      { created_at: '2026-05-07T10:00:00Z', engine: 'vision' as const, cost_eur: 0.0014 },
+      { created_at: '2026-05-06T20:00:00Z', engine: 'gemini' as const, cost_eur: 0.003 },
+    ];
+    const result = aggregateCostByDay(events, anchor);
+    const today = result.find((r) => r.day === '2026-05-07');
+    const yesterday = result.find((r) => r.day === '2026-05-06');
+    expect(today?.gemini).toBeCloseTo(0.003, 6);
+    expect(today?.vision).toBeCloseTo(0.0014, 6);
+    expect(yesterday?.gemini).toBeCloseTo(0.003, 6);
+  });
+
+  it('ignores events outside the 30-day window', () => {
+    const events = [
+      { created_at: '2026-01-01T00:00:00Z', engine: 'gemini' as const, cost_eur: 999 },
+    ];
+    const result = aggregateCostByDay(events, anchor);
+    expect(result.every((r) => r.gemini === 0 && r.vision === 0)).toBe(true);
+  });
+
+  it('coerces string cost_eur values from postgres numeric', () => {
+    const events = [
+      { created_at: '2026-05-07T08:00:00Z', engine: 'gemini' as const, cost_eur: '0.001500' },
+    ];
+    const result = aggregateCostByDay(events, anchor);
+    const today = result.find((r) => r.day === '2026-05-07');
+    expect(today?.gemini).toBeCloseTo(0.0015, 6);
   });
 });

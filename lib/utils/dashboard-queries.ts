@@ -68,3 +68,33 @@ export function buildHeatmapMatrix(
   }
   return matrix;
 }
+
+export interface DailyCostAgg {
+  day: string;
+  gemini: number;
+  vision: number;
+}
+
+/**
+ * Aggregates per-scan OCR cost rows into a 30-day daily series.
+ * `anchor` is "today" — required as a parameter so the same series can be
+ * computed in SSR + client without Date.now() drift causing hydration errors.
+ */
+export function aggregateCostByDay(
+  entries: readonly { created_at: string; engine: 'gemini' | 'vision'; cost_eur: number | string }[],
+  anchor: Date,
+): DailyCostAgg[] {
+  const map = new Map<string, DailyCostAgg>();
+  const anchorMs = anchor.getTime();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(anchorMs - i * 86_400_000).toISOString().slice(0, 10);
+    map.set(d, { day: d, gemini: 0, vision: 0 });
+  }
+  for (const e of entries) {
+    const day = e.created_at.slice(0, 10);
+    const row = map.get(day);
+    if (!row) continue;
+    row[e.engine] += Number(e.cost_eur);
+  }
+  return Array.from(map.values());
+}
