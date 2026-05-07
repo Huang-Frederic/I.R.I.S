@@ -39,7 +39,7 @@ function unauthorized(): NextResponse {
   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 }
 
-export async function POST(request: Request): Promise<NextResponse> {
+async function handleRequest(request: Request): Promise<NextResponse> {
   const url = new URL(request.url);
   const cardId = url.searchParams.get('card_id');
   if (cardId) return handleSingleCard(cardId);
@@ -50,6 +50,11 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   return handleBulk();
 }
+
+// Vercel cron daemon issues GET (User-Agent: vercel-cron/1.0).
+// The single-card refresh from the UI uses POST. Share the same logic.
+export const GET = handleRequest;
+export const POST = handleRequest;
 
 async function handleBulk(): Promise<NextResponse> {
   const service = createServiceClient();
