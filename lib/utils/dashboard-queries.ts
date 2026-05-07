@@ -138,6 +138,65 @@ export function aggregateCostByDay(
   return Array.from(map.values());
 }
 
+export interface DayDetail {
+  date: string; // YYYY-MM-DD
+  ocrCount: number;
+  geminiCount: number;
+  visionCount: number;
+  cardsAdded: number;
+  costEur: number;
+  tokensTotal: number;
+}
+
+interface OcrLogEntry {
+  created_at: string;
+  engine: 'gemini' | 'vision';
+  cost_eur: number | string;
+  tokens_in: number | null;
+  tokens_out: number | null;
+}
+
+interface CardEntry {
+  date_added: string;
+}
+
+/**
+ * Aggregates per-day stats for heatmap tooltip display.
+ * Returns a Map of date → stats for each day with activity.
+ */
+export function buildDayDetails(
+  ocrEntries: readonly OcrLogEntry[],
+  cardEntries: readonly CardEntry[],
+): Map<string, DayDetail> {
+  const map = new Map<string, DayDetail>();
+  const ensure = (date: string): DayDetail => {
+    let d = map.get(date);
+    if (!d) {
+      d = { date, ocrCount: 0, geminiCount: 0, visionCount: 0, cardsAdded: 0, costEur: 0, tokensTotal: 0 };
+      map.set(date, d);
+    }
+    return d;
+  };
+  for (const e of ocrEntries) {
+    const day = e.created_at.slice(0, 10);
+    const d = ensure(day);
+    d.ocrCount += 1;
+    if (e.engine === 'gemini') d.geminiCount += 1;
+    else if (e.engine === 'vision') d.visionCount += 1;
+    d.costEur += Number(e.cost_eur ?? 0);
+    d.tokensTotal += (e.tokens_in ?? 0) + (e.tokens_out ?? 0);
+  }
+  for (const c of cardEntries) {
+    const day = c.date_added.slice(0, 10);
+    ensure(day).cardsAdded += 1;
+  }
+  // Round costEur to 6 decimals to avoid float noise
+  for (const d of map.values()) {
+    d.costEur = Math.round(d.costEur * 1_000_000) / 1_000_000;
+  }
+  return map;
+}
+
 export interface SparklineResult {
   /** N points (bucketed scans count or cost), oldest first */
   series: number[];

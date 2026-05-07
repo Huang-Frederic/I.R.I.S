@@ -79,7 +79,7 @@ export default function LotSoldRow({ lot, storagePublicUrl, onImageClick }: Prop
             </>
           )}
           <span>·</span>
-          <span className="text-text-faint">vendu {formatDate(lot.date_sold)}</span>
+          <span className="text-text-faint" suppressHydrationWarning>vendu {formatDate(lot.date_sold)}</span>
         </div>
       </div>
 

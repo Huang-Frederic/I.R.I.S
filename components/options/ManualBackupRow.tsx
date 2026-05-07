@@ -45,7 +45,7 @@ export default function ManualBackupRow({ name, createdAt, sizeBytes }: Props) {
 
   return (
     <li className="flex items-center justify-between py-2 text-sm">
-      <span className="text-text-muted font-mono text-xs">
+      <span className="text-text-muted font-mono text-xs" suppressHydrationWarning>
         {date} — {formatSize(sizeBytes)}
       </span>
       <div className="flex gap-1">

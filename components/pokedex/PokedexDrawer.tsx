@@ -127,7 +127,7 @@ function PokedexCardDetails({ card, availableCards }: { card: Card; availableCar
         </Row>
         <Row label="Langue">{card.language}</Row>
         <Row label="État">{card.condition}</Row>
-        <Row label="Ajoutée">{new Date(card.date_added).toLocaleDateString('fr-FR')}</Row>
+        <Row label="Ajoutée"><span suppressHydrationWarning>{new Date(card.date_added).toLocaleDateString('fr-FR')}</span></Row>
       </dl>
 
       {(card.cm_price_low ?? card.cm_price_trend ?? card.cm_price_avg ?? card.suggested_price) !==

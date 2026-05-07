@@ -69,7 +69,7 @@ export default function SoldRow({ card, onAnnonceClick }: Props) {
           <span>·</span>
           <span>{card.condition}</span>
           <span>·</span>
-          <span className="text-text-faint">vendu {formatDate(card.date_sold)}</span>
+          <span className="text-text-faint" suppressHydrationWarning>vendu {formatDate(card.date_sold)}</span>
         </div>
       </div>
 

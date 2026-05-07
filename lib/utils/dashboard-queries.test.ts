@@ -8,6 +8,7 @@ import {
   parsePeriod,
   periodDays,
   computeSparkline,
+  buildDayDetails,
 } from './dashboard-queries';
 
 describe('buildRarityCounts', () => {
@@ -225,6 +226,96 @@ describe('periodDays', () => {
     expect(periodDays('30d')).toBe(30);
     expect(periodDays('90d')).toBe(90);
     expect(periodDays('365d')).toBe(365);
+  });
+});
+
+describe('buildDayDetails', () => {
+  it('returns empty map for empty inputs', () => {
+    const result = buildDayDetails([], []);
+    expect(result.size).toBe(0);
+  });
+
+  it('aggregates ocr entries only when no cards', () => {
+    const ocrEntries = [
+      { created_at: '2026-05-07T08:00:00Z', engine: 'gemini' as const, cost_eur: 0.001, tokens_in: 100, tokens_out: 50 },
+      { created_at: '2026-05-07T09:00:00Z', engine: 'vision' as const, cost_eur: 0.002, tokens_in: 200, tokens_out: 100 },
+    ];
+    const result = buildDayDetails(ocrEntries, []);
+    expect(result.size).toBe(1);
+    const day = result.get('2026-05-07');
+    expect(day).toEqual({
+      date: '2026-05-07',
+      ocrCount: 2,
+      geminiCount: 1,
+      visionCount: 1,
+      cardsAdded: 0,
+      costEur: 0.003,
+      tokensTotal: 450,
+    });
+  });
+
+  it('aggregates cards only when no ocr entries', () => {
+    const cardEntries = [
+      { date_added: '2026-05-07T08:00:00Z' },
+      { date_added: '2026-05-07T09:00:00Z' },
+    ];
+    const result = buildDayDetails([], cardEntries);
+    expect(result.size).toBe(1);
+    const day = result.get('2026-05-07');
+    expect(day).toEqual({
+      date: '2026-05-07',
+      ocrCount: 0,
+      geminiCount: 0,
+      visionCount: 0,
+      cardsAdded: 2,
+      costEur: 0,
+      tokensTotal: 0,
+    });
+  });
+
+  it('aggregates both ocr and cards per day correctly', () => {
+    const ocrEntries = [
+      { created_at: '2026-05-07T08:00:00Z', engine: 'gemini' as const, cost_eur: 0.001, tokens_in: 100, tokens_out: 50 },
+      { created_at: '2026-05-06T10:00:00Z', engine: 'vision' as const, cost_eur: 0.002, tokens_in: 200, tokens_out: 100 },
+    ];
+    const cardEntries = [
+      { date_added: '2026-05-07T09:00:00Z' },
+      { date_added: '2026-05-06T11:00:00Z' },
+      { date_added: '2026-05-06T12:00:00Z' },
+    ];
+    const result = buildDayDetails(ocrEntries, cardEntries);
+    expect(result.size).toBe(2);
+
+    const day1 = result.get('2026-05-07');
+    expect(day1).toEqual({
+      date: '2026-05-07',
+      ocrCount: 1,
+      geminiCount: 1,
+      visionCount: 0,
+      cardsAdded: 1,
+      costEur: 0.001,
+      tokensTotal: 150,
+    });
+
+    const day2 = result.get('2026-05-06');
+    expect(day2).toEqual({
+      date: '2026-05-06',
+      ocrCount: 1,
+      geminiCount: 0,
+      visionCount: 1,
+      cardsAdded: 2,
+      costEur: 0.002,
+      tokensTotal: 300,
+    });
+  });
+
+  it('coerces string cost_eur from postgres numeric', () => {
+    const ocrEntries = [
+      { created_at: '2026-05-07T08:00:00Z', engine: 'gemini' as const, cost_eur: '0.001500', tokens_in: 100, tokens_out: 50 },
+    ];
+    const result = buildDayDetails(ocrEntries, []);
+    const day = result.get('2026-05-07');
+    expect(day?.costEur).toBeCloseTo(0.0015, 6);
   });
 });
 

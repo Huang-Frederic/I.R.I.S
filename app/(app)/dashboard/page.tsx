@@ -9,6 +9,7 @@ import {
   parsePeriod,
   periodDays,
   computeSparkline,
+  buildDayDetails,
 } from '@/lib/utils/dashboard-queries';
 import { computeStockValue } from '@/lib/utils/stock-value';
 import { computeRestockAlerts } from '@/lib/utils/restock-detection';
@@ -74,6 +75,7 @@ export default async function DashboardPage({
     { data: ocrLogPrevious },
     { data: stockSnapshots },
     { data: ocrLog24w },
+    { data: cardsAdded24w },
     { data: restockRows },
     { data: lastSales },
   ] = await Promise.all([
@@ -97,8 +99,12 @@ export default async function DashboardPage({
       .order('date', { ascending: true }),
     supabase
       .from('ocr_usage_log')
-      .select('created_at')
+      .select('created_at, engine, cost_eur, tokens_in, tokens_out')
       .gte('created_at', since24w),
+    supabase
+      .from('cards')
+      .select('date_added')
+      .gte('date_added', since24w),
     supabase
       .from('cards')
       .select('pokemon_number, pokemon_name, status')
@@ -123,6 +129,7 @@ export default async function DashboardPage({
   const rarityValues = buildRarityValues(cards);
   const topRares = topRaresByPrice(cards, 10);
   const heatmap = buildHeatmapMatrix(ocrLog24w ?? [], today);
+  const dayDetails = buildDayDetails(ocrLog24w ?? [], cardsAdded24w ?? []);
   const costDaily = aggregateCostByDay(ocrLogPeriod ?? [], today, days);
   const alerts = computeRestockAlerts(restockRows ?? []);
 
@@ -181,7 +188,7 @@ export default async function DashboardPage({
         <CostBarChart data={costDaily} periodLabel={periodLabel(days)} />
         <StockValueLineChart data={stockSnapshots ?? []} />
         <RarityDonut counts={rarityCounts} values={rarityValues} />
-        <ScanHeatmap matrix={heatmap} />
+        <ScanHeatmap matrix={heatmap} details={Object.fromEntries(dayDetails)} />
       </div>
 
       <div className="mt-4 grid gap-4">

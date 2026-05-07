@@ -110,11 +110,16 @@ export async function POST(request: Request) {
   }
 
   // Pre-check: exact duplicate (same card_id_tcg + language + condition + variant + status).
-  // This triggers DuplicatePhotoModal on the client, letting the user choose which photo to keep.
-  // Skip when card_id_tcg is null (un-enriched card — no reliable identity key).
-  // Only check for status='collection' (pokedex & for_sale have their own conflict modals).
+  // This triggers DuplicatePhotoModal on the client, letting the user choose which photo to keep
+  // OR overwrite the existing photo with the new scan. Skipped when card_id_tcg is null
+  // (un-enriched card — no reliable identity key).
+  //
+  // Skipped for status='pokedex' because the pokedex slot pre-check above already returned
+  // a more specific 409 (`pokedex_slot_taken`) with its own replace-modal flow.
+  // Fires for for_sale and collection — supersedes the post-insert for_sale_conflict modal
+  // when the catalog ID matches.
   const cardIdTcgForDup = str(formData, 'card_id_tcg');
-  if (status === 'collection' && cardIdTcgForDup) {
+  if (status !== 'pokedex' && cardIdTcgForDup) {
     const variantValue = str(formData, 'variant') || null;
     const { data: dupCandidates } = await supabase
       .from('cards')

@@ -114,11 +114,11 @@ export async function POST(request: Request) {
     }
   }
 
-  // --- Pre-check 3: exact duplicate (collection only) ---
+  // --- Pre-check 3: exact duplicate (for_sale + collection) ---
   // Triggers DuplicatePhotoModal on the client, letting the user choose which photo to keep.
-  // Skip when card_id_tcg is null (un-enriched card — no reliable identity key).
-  // Only check for status='collection' (pokedex & for_sale have their own conflict modals).
-  if (status === 'collection' && card_id_tcg) {
+  // Skipped for status='pokedex' (the slot pre-check above already returned a more specific 409).
+  // Skipped when card_id_tcg is null (un-enriched card — no reliable identity key).
+  if (status !== 'pokedex' && card_id_tcg) {
     const variantValue = variant ?? null;
     const { data: dupCandidates } = await supabase
       .from('cards')
