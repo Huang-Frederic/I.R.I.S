@@ -67,10 +67,9 @@ export async function POST(request: Request) {
   const card_id_tcg = str(formData, 'card_id_tcg');
 
   // --- Pre-check 1: exact duplicate (cross-status — match ignoring status) ---
-  // Fires BEFORE pokedex_slot_taken / for_sale_conflict so the user always
-  // sees the photo-swap proposition when they own this exact card anywhere.
-  // When multiple matches exist, pick the most-prominent (pokedex > for_sale
-  // > collection > sold). Bypassed by accept_duplicates=1.
+  // Pick the match that would BLOCK the user's intended insert first (so the
+  // modal's text + Stock fallback line up with the actual conflict). Otherwise
+  // fall back to visibility priority. See app/api/cards/route.ts for rationale.
   const acceptDuplicates = str(formData, 'accept_duplicates') === '1';
   if (card_id_tcg && !acceptDuplicates) {
     const variantValue = variant ?? null;
@@ -82,9 +81,17 @@ export async function POST(request: Request) {
       .eq('condition', condition);
     const matches = (dupCandidates ?? []).filter((c) => (c.variant ?? null) === variantValue);
     if (matches.length > 0) {
-      const priority: Record<string, number> = { pokedex: 0, for_sale: 1, collection: 2, sold: 3 };
-      matches.sort((a, b) => (priority[a.status] ?? 9) - (priority[b.status] ?? 9));
-      const dup = matches[0];
+      let dup = null;
+      if (status === 'for_sale') {
+        dup = matches.find((c) => c.status === 'for_sale') ?? null;
+      } else if (status === 'pokedex' && pokemon_number) {
+        dup = matches.find((c) => c.status === 'pokedex' && c.pokemon_number === pokemon_number) ?? null;
+      }
+      if (!dup) {
+        const priority: Record<string, number> = { pokedex: 0, for_sale: 1, collection: 2, sold: 3 };
+        const sorted = [...matches].sort((a, b) => (priority[a.status] ?? 9) - (priority[b.status] ?? 9));
+        dup = sorted[0];
+      }
       return NextResponse.json(
         { error: 'exact_duplicate', existingCard: dup },
         { status: 409 },

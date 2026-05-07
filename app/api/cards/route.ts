@@ -77,14 +77,21 @@ export async function POST(request: Request) {
       : null;
 
   // Pre-check 1: exact duplicate (cross-status — match on identifying fields,
-  // ignoring status). Fires BEFORE pokedex_slot_taken / for_sale_conflict so
-  // the user always sees the photo-swap proposition when they own this exact
-  // card anywhere (Stock, Vinted, or Pokédex).
+  // ignoring status). Fires BEFORE pokedex_slot_taken / for_sale_conflict.
   //
-  // When multiple copies exist (e.g. 1 pokedex + 1 for_sale + 3 collection),
-  // pick the most-prominent one to show in the modal: pokedex > for_sale >
-  // collection > sold. The frontend uses existingCard.status to adapt the
-  // modal copy ("déjà dans ton Pokédex" / "déjà sur Vinted" / etc.).
+  // When multiple copies exist, pick the one most relevant to the user's
+  // intended status:
+  //   - intent=for_sale + match in for_sale → pick the for_sale match (it's
+  //     what would block the insert via the unique constraint)
+  //   - intent=pokedex + match in pokedex with same pokemon_number → pick that
+  //   - otherwise → fall back to general visibility priority
+  //     (pokedex > for_sale > collection > sold)
+  //
+  // Picking the BLOCKING match means the modal's status-aware text matches
+  // the actual conflict, and the targetStatus fallback ('collection') is
+  // computed correctly. Without this, the modal could say "déjà dans ton
+  // Pokédex" while the real blocker is in for_sale → user clicks Confirmer
+  // and the Stock fallback never triggers, hitting for_sale_conflict.
   //
   // Bypassed by accept_duplicates=1 (DuplicatePhotoModal's follow-up insert).
   const acceptDuplicates = str(formData, 'accept_duplicates') === '1';
@@ -99,9 +106,19 @@ export async function POST(request: Request) {
       .eq('condition', condition);
     const matches = (dupCandidates ?? []).filter((c) => (c.variant ?? null) === variantValue);
     if (matches.length > 0) {
-      const priority: Record<string, number> = { pokedex: 0, for_sale: 1, collection: 2, sold: 3 };
-      matches.sort((a, b) => (priority[a.status] ?? 9) - (priority[b.status] ?? 9));
-      const dup = matches[0];
+      // 1. Prefer the match that would block the user's intended insert.
+      let dup = null;
+      if (status === 'for_sale') {
+        dup = matches.find((c) => c.status === 'for_sale') ?? null;
+      } else if (status === 'pokedex' && pokemon_number) {
+        dup = matches.find((c) => c.status === 'pokedex' && c.pokemon_number === pokemon_number) ?? null;
+      }
+      // 2. Fall back to visibility priority.
+      if (!dup) {
+        const priority: Record<string, number> = { pokedex: 0, for_sale: 1, collection: 2, sold: 3 };
+        const sorted = [...matches].sort((a, b) => (priority[a.status] ?? 9) - (priority[b.status] ?? 9));
+        dup = sorted[0];
+      }
       return NextResponse.json(
         { error: 'exact_duplicate', existingCard: dup },
         { status: 409 },

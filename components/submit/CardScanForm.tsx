@@ -1302,8 +1302,25 @@ export default function CardScanForm({
                   <input
                     type="number"
                     min={1}
-                    value={form.count}
-                    onChange={(e) => update('count', Math.max(1, Number(e.target.value) || 1))}
+                    inputMode="numeric"
+                    /* Use String() so empty input ('') is preserved during typing —
+                     * coercing to a number on every keystroke (Number('') === 0,
+                     * Math.max(1, 0||1) === 1) made it impossible to clear the field. */
+                    value={form.count === 0 ? '' : String(form.count)}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        // Temporary empty state — allow clearing for re-typing.
+                        update('count', 0);
+                        return;
+                      }
+                      const n = Math.floor(Number(raw));
+                      if (Number.isFinite(n) && n >= 1) update('count', n);
+                    }}
+                    onBlur={() => {
+                      // Snap back to a valid value if the user leaves the field empty.
+                      if (form.count < 1) update('count', 1);
+                    }}
                     className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none"
                     title="1er exemplaire dans la cible choisie, le reste passe en Stock"
                   />
