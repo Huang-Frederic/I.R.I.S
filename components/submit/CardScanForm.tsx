@@ -756,7 +756,7 @@ export default function CardScanForm({
           setPhase('reviewing');
           return;
         }
-        if (res.status === 409 && (body.error === 'exact_duplicate' || body.error === 'pokedex_exact_duplicate') && body.existingCard && photoBlob) {
+        if (res.status === 409 && body.error === 'exact_duplicate' && body.existingCard && photoBlob) {
           // Unified handling: both error types (for_sale dup, pokedex dup, collection dup)
           // now show the same DuplicatePhotoModal with 3 buttons.
           setDuplicatePhotoModal({
@@ -912,25 +912,32 @@ export default function CardScanForm({
     }
   }
 
-  /** Helper: insert N additional copies to Stock after DuplicatePhotoModal confirm. */
-  async function insertAdditionalCopies(qty: number, photo: Blob, formSnapshot: FormData | null) {
+  /** Helper: insert N additional copies after DuplicatePhotoModal confirm.
+   *  `targetStatus` lets us preserve the user's chosen destination (pokedex /
+   *  for_sale / collection) when the existing card lives in a different status.
+   *  Falls back to 'collection' when the chosen status is blocked by the
+   *  existing card (same pokemon_number for pokedex; same group for for_sale). */
+  async function insertAdditionalCopies(
+    qty: number,
+    photo: Blob,
+    formSnapshot: FormData | null,
+    targetStatus: CardStatus,
+  ) {
     if (!formSnapshot || qty <= 0) return;
-    // Clone the snapshot, override status to 'collection' + qty + accept_duplicates flag
     const data = new FormData();
     formSnapshot.forEach((value, key) => {
-      // Skip fields we'll override
       if (key === 'status' || key === 'count' || key === 'image' || key === 'accept_duplicates') return;
       data.append(key, value);
     });
     data.append('image', photo, 'card.jpg');
-    data.append('status', 'collection');
+    data.append('status', targetStatus);
     data.append('count', String(qty));
     data.append('accept_duplicates', '1');
 
     const res = await fetch('/api/cards/batch', { method: 'POST', body: data });
     if (!res.ok) {
       const err = (await res.json().catch(() => ({}))) as { error?: string };
-      alert(`Erreur insertion copies Stock: ${err.error ?? res.status}`);
+      alert(`Erreur insertion copies: ${err.error ?? res.status}`);
     }
   }
 
@@ -1362,9 +1369,11 @@ export default function CardScanForm({
           newPhoto={duplicatePhotoModal.pendingPhoto}
           existingCard={duplicatePhotoModal.existingCard}
           qty={duplicatePhotoModal.qty}
-          onConfirm={async (photoChoice) => {
+          intendedStatus={form.status as 'for_sale' | 'pokedex' | 'collection'}
+          onConfirm={async (photoChoice, targetStatus) => {
             // If user picked the new photo → swap photo on existing card.
-            // Either way, insert qty copies in Stock.
+            // Either way, insert qty copies with the target status (computed
+            // by the modal: original intent unless blocked by uniqueness).
             if (photoChoice === 'new') {
               const swapData = new FormData();
               swapData.append('image', duplicatePhotoModal.pendingPhoto!);
@@ -1382,12 +1391,12 @@ export default function CardScanForm({
               duplicatePhotoModal.qty,
               duplicatePhotoModal.pendingPhoto!,
               duplicatePhotoModal.formSnapshot,
+              targetStatus,
             );
             setDuplicatePhotoModal(null);
             if (onSaved) {
               onSaved(duplicatePhotoModal.existingCard!.id);
             } else {
-              // Standalone scanner — clear the form so the user can scan another card
               reset();
             }
           }}

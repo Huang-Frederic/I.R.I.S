@@ -66,11 +66,11 @@ export async function POST(request: Request) {
 
   const card_id_tcg = str(formData, 'card_id_tcg');
 
-  // --- Pre-check 1: exact duplicate (any status, exact match on identifying fields) ---
-  // Triggers BEFORE pokedex_slot_taken / for_sale_conflict so the user sees the
-  // most-specific modal (photo-compare or "already in pokedex") instead of the
-  // generic replace/conflict modals.
-  // Can be bypassed with accept_duplicates=1 (used by DuplicatePhotoModal follow-up insert).
+  // --- Pre-check 1: exact duplicate (cross-status — match ignoring status) ---
+  // Fires BEFORE pokedex_slot_taken / for_sale_conflict so the user always
+  // sees the photo-swap proposition when they own this exact card anywhere.
+  // When multiple matches exist, pick the most-prominent (pokedex > for_sale
+  // > collection > sold). Bypassed by accept_duplicates=1.
   const acceptDuplicates = str(formData, 'accept_duplicates') === '1';
   if (card_id_tcg && !acceptDuplicates) {
     const variantValue = variant ?? null;
@@ -79,19 +79,12 @@ export async function POST(request: Request) {
       .select('id, image_url, tcg_image_url, card_name, pokemon_name, set_name, set_code, set_number, language, condition, variant, status, rarity, pokemon_number')
       .eq('card_id_tcg', card_id_tcg)
       .eq('language', language)
-      .eq('condition', condition)
-      .eq('status', status);
-    const dup = (dupCandidates ?? []).find((c) => (c.variant ?? null) === variantValue);
-    if (dup) {
-      // Special case: exact dup AND status=pokedex → different modal copy
-      // ("Cette carte est déjà dans ton Pokédex" — no replacement needed since it's the SAME card)
-      if (status === 'pokedex') {
-        return NextResponse.json(
-          { error: 'pokedex_exact_duplicate', existingCard: dup },
-          { status: 409 },
-        );
-      }
-      // for_sale or collection → DuplicatePhotoModal (compare + chain qty)
+      .eq('condition', condition);
+    const matches = (dupCandidates ?? []).filter((c) => (c.variant ?? null) === variantValue);
+    if (matches.length > 0) {
+      const priority: Record<string, number> = { pokedex: 0, for_sale: 1, collection: 2, sold: 3 };
+      matches.sort((a, b) => (priority[a.status] ?? 9) - (priority[b.status] ?? 9));
+      const dup = matches[0];
       return NextResponse.json(
         { error: 'exact_duplicate', existingCard: dup },
         { status: 409 },

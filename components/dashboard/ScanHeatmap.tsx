@@ -81,7 +81,7 @@ export default function ScanHeatmap({ matrix, details = {} }: Props) {
       <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
         Activité scans ({visibleWeeks} semaines)
       </h3>
-      <div ref={containerRef} className="relative">
+      <div ref={containerRef} className="relative flex justify-center">
         <svg
           width={naturalWidth}
           height={naturalHeight}

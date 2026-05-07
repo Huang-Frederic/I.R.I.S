@@ -19,39 +19,48 @@ interface ExistingCardLite {
   status: string;
 }
 
+type Status = 'for_sale' | 'pokedex' | 'collection';
+
 interface Props {
   newPhoto: Blob;
   existingCard: ExistingCardLite;
   qty: number;
-  /** Confirm with current selection: photo swap if 'new' is picked, no-op otherwise.
-   *  Always inserts qty copies in collection regardless of photo choice. */
-  onConfirm: (photoChoice: 'new' | 'existing') => Promise<void>;
+  /** What the user originally selected as the new card's destination. */
+  intendedStatus: Status;
+  /** Confirm: photoChoice = which photo to keep on the existing card; targetStatus = where the new copies go. */
+  onConfirm: (photoChoice: 'new' | 'existing', targetStatus: Status) => Promise<void>;
   onCancel: () => void;
 }
 
-function statusHeader(status: string): { title: string; sub: string } {
-  if (status === 'for_sale') {
-    return {
-      title: 'Cette carte est déjà sur Vinted',
-      sub: 'Une copie identique est en ligne. La nouvelle scan ira dans ton Stock.',
-    };
-  }
-  if (status === 'pokedex') {
-    return {
-      title: 'Cette carte est déjà dans ton Pokédex',
-      sub: 'C\'est exactement la même carte (set, langue, état, variante). La nouvelle scan ira dans ton Stock.',
-    };
-  }
-  return {
-    title: 'Cette carte est déjà dans ton Stock',
-    sub: 'Tu en as déjà une copie identique. La nouvelle scan ajoutera des copies supplémentaires.',
-  };
+const STATUS_LABEL: Record<string, string> = {
+  for_sale: 'sur Vinted',
+  pokedex: 'dans ton Pokédex',
+  collection: 'dans ton Stock',
+  sold: 'parmi tes ventes',
+};
+
+const STATUS_DEST_LABEL: Record<Status, string> = {
+  for_sale: 'sur Vinted',
+  pokedex: 'dans ton Pokédex',
+  collection: 'dans ton Stock',
+};
+
+/**
+ * If the new card's intended status is the SAME as the existing one, a unique
+ * constraint blocks it (one pokedex per pokemon_number, one for_sale per group).
+ * Fall back to Stock in that case so the modal's "Confirmer" can always succeed.
+ */
+function computeTargetStatus(intended: Status, existingStatus: string): Status {
+  if (intended === 'pokedex' && existingStatus === 'pokedex') return 'collection';
+  if (intended === 'for_sale' && existingStatus === 'for_sale') return 'collection';
+  return intended;
 }
 
 export default function DuplicatePhotoModal({
   newPhoto,
   existingCard,
   qty,
+  intendedStatus,
   onConfirm,
   onCancel,
 }: Props) {
@@ -59,29 +68,32 @@ export default function DuplicatePhotoModal({
   useEffect(() => () => URL.revokeObjectURL(previewUrl), [previewUrl]);
 
   const [busy, setBusy] = useState(false);
-  // Default selection = NEW (red border) — matches user's typical intent (re-scanning to update).
   const [selected, setSelected] = useState<'new' | 'existing'>('new');
-  const { title, sub } = statusHeader(existingCard.status);
+
+  const targetStatus = computeTargetStatus(intendedStatus, existingCard.status);
+  const existingLabel = STATUS_LABEL[existingCard.status] ?? `dans ton inventaire`;
+  const destLabel = STATUS_DEST_LABEL[targetStatus];
+
   const existingImageSrc = existingCard.image_url ?? existingCard.tcg_image_url ?? '';
+  const setLabel = existingCard.set_name ?? existingCard.set_code ?? '?';
   const qtyLabel = qty > 1 ? `${qty} copies` : '1 copie';
 
   async function confirm() {
     setBusy(true);
     try {
-      await onConfirm(selected);
+      await onConfirm(selected, targetStatus);
     } finally {
       setBusy(false);
     }
   }
 
-  // Single source of truth for card identity — shown ONCE at the top.
-  const setLabel = existingCard.set_name ?? existingCard.set_code ?? '?';
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-lg border border-border bg-surface p-5">
         <div className="flex items-start justify-between">
-          <h3 className="text-lg font-semibold text-text">{title}</h3>
+          <h3 className="text-lg font-semibold text-text">
+            Cette carte est déjà {existingLabel}
+          </h3>
           <button
             type="button"
             onClick={onCancel}
@@ -92,9 +104,12 @@ export default function DuplicatePhotoModal({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <p className="mt-2 text-sm text-text-muted">{sub}</p>
+        <p className="mt-2 text-sm text-text-muted">
+          Une copie identique existe (même set, langue, état, variante).
+          {' '}{qty > 1 ? `Les ${qty} copies` : 'La nouvelle copie'} ser{qty > 1 ? 'ont ajoutées' : 'a ajoutée'} {destLabel}.
+        </p>
 
-        {/* Card identity — shown once. Same info applies to both photos. */}
+        {/* Card identity — shown ONCE; same info for both photos */}
         <div className="mt-4 rounded-md border border-border bg-surface-2 p-3 text-sm">
           <div className="font-medium text-text">{existingCard.card_name}</div>
           <div className="mt-0.5 text-xs text-text-muted">
@@ -103,7 +118,7 @@ export default function DuplicatePhotoModal({
           </div>
         </div>
 
-        {/* Photo comparison — click to choose which one to KEEP on the existing card */}
+        {/* Photo comparison — click to choose */}
         <p className="mt-4 text-xs text-text-muted">Quelle photo garder sur la carte existante ?</p>
         <div className="mt-2 grid grid-cols-2 gap-3">
           <button
@@ -111,7 +126,7 @@ export default function DuplicatePhotoModal({
             onClick={() => setSelected('new')}
             disabled={busy}
             aria-pressed={selected === 'new'}
-            className={`group flex flex-col items-center gap-2 rounded-md border-2 p-2 transition-colors ${
+            className={`flex flex-col items-center gap-2 rounded-md border-2 p-2 transition-colors ${
               selected === 'new' ? 'border-red bg-red/5' : 'border-border bg-surface-2 hover:border-text-faint'
             }`}
           >
@@ -126,7 +141,7 @@ export default function DuplicatePhotoModal({
             onClick={() => setSelected('existing')}
             disabled={busy}
             aria-pressed={selected === 'existing'}
-            className={`group flex flex-col items-center gap-2 rounded-md border-2 p-2 transition-colors ${
+            className={`flex flex-col items-center gap-2 rounded-md border-2 p-2 transition-colors ${
               selected === 'existing' ? 'border-red bg-red/5' : 'border-border bg-surface-2 hover:border-text-faint'
             }`}
           >
@@ -137,10 +152,6 @@ export default function DuplicatePhotoModal({
             </span>
           </button>
         </div>
-
-        <p className="mt-3 text-xs text-text-faint">
-          Dans tous les cas, <span className="font-medium text-text-muted">{qtyLabel}</span> sera{qty > 1 ? 'nt' : ''} ajoutée{qty > 1 ? 's' : ''} à ton Stock.
-        </p>
 
         <div className="mt-5 flex justify-end gap-2">
           <button
@@ -157,7 +168,7 @@ export default function DuplicatePhotoModal({
             disabled={busy}
             className="rounded-md bg-red px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
           >
-            {busy ? '…' : 'Confirmer'}
+            {busy ? '…' : `Ajouter ${qtyLabel}`}
           </button>
         </div>
       </div>
