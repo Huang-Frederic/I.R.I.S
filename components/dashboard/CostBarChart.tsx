@@ -46,9 +46,9 @@ export default function CostBarChart({ data, periodLabel }: { data: readonly Dai
             <LineChart data={[...data]} margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
               <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
               <XAxis dataKey="day" tick={{ fontSize: 10 }} tickFormatter={(d) => d.slice(5)} />
-              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `€${v.toFixed(3)}`} />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `€${v.toFixed(2)}`} />
               <Tooltip
-                formatter={(v: number) => `€${v.toFixed(6)}`}
+                formatter={(v: number) => `€${v.toFixed(2)}`}
                 contentStyle={TOOLTIP_CONTENT_STYLE}
                 labelStyle={TOOLTIP_LABEL_STYLE}
                 itemStyle={TOOLTIP_ITEM_STYLE}

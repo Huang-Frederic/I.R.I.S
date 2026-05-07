@@ -176,7 +176,7 @@ function HoverTooltip({ x, y, date, detail }: { x: number; y: number; date: stri
             <span className="text-text">{detail.cardsAdded}</span> cartes ajoutées
           </li>
           <li>
-            <span className="text-text">€{detail.costEur.toFixed(4)}</span> coût
+            <span className="text-text">€{detail.costEur.toFixed(2)}</span> coût
           </li>
           <li>
             <span className="text-text">{(detail.tokensTotal / 1000).toFixed(1)}K</span> tokens

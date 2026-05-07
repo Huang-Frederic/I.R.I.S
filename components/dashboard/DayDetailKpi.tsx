@@ -68,7 +68,7 @@ export default function DayDetailKpi({ details, today, maxDaysBack = 168 }: Prop
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="OCR" value={String(detail?.ocrCount ?? 0)} sub={detail ? `${detail.geminiCount}G · ${detail.visionCount}V` : '—'} />
         <Stat label="Cartes ajoutées" value={String(detail?.cardsAdded ?? 0)} />
-        <Stat label="Coût" value={detail ? `€${detail.costEur.toFixed(4)}` : '€0.0000'} />
+        <Stat label="Coût" value={detail ? `€${detail.costEur.toFixed(2)}` : '€0.00'} />
         <Stat label="Tokens" value={detail ? `${(detail.tokensTotal / 1000).toFixed(1)}K` : '0K'} />
       </div>
     </div>

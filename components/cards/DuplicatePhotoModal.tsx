@@ -92,7 +92,7 @@ export default function DuplicatePhotoModal({
       <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-lg border border-border bg-surface p-5">
         <div className="flex items-start justify-between">
           <h3 className="text-lg font-semibold text-text">
-            Cette carte est déjà {existingLabel}
+            Une carte identique est déjà {existingLabel}
           </h3>
           <button
             type="button"
