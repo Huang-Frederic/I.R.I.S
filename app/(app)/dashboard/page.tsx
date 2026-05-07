@@ -35,7 +35,7 @@ function timeWindow(days: number) {
   return {
     sincePeriod: new Date(now - days * 86_400_000).toISOString(),
     sincePrevious: new Date(now - 2 * days * 86_400_000).toISOString(),
-    since52w: new Date(now - 52 * 7 * 86_400_000).toISOString(),
+    since12w: new Date(now - 12 * 7 * 86_400_000).toISOString(),
     today: new Date(now),
   };
 }
@@ -64,7 +64,7 @@ export default async function DashboardPage({
   const { period: periodRaw } = await searchParams;
   const period = parsePeriod(periodRaw);
   const days = periodDays(period);
-  const { sincePeriod, sincePrevious, since52w, today } = timeWindow(days);
+  const { sincePeriod, sincePrevious, since12w, today } = timeWindow(days);
 
   const supabase = await createClient();
 
@@ -73,7 +73,7 @@ export default async function DashboardPage({
     { data: ocrLogPeriod },
     { data: ocrLogPrevious },
     { data: stockSnapshots },
-    { data: ocrLog52w },
+    { data: ocrLog12w },
     { data: restockRows },
     { data: lastSales },
   ] = await Promise.all([
@@ -98,7 +98,7 @@ export default async function DashboardPage({
     supabase
       .from('ocr_usage_log')
       .select('created_at')
-      .gte('created_at', since52w),
+      .gte('created_at', since12w),
     supabase
       .from('cards')
       .select('pokemon_number, pokemon_name, status')
@@ -122,7 +122,7 @@ export default async function DashboardPage({
   const rarityCounts = buildRarityCounts(cards);
   const rarityValues = buildRarityValues(cards);
   const topRares = topRaresByPrice(cards, 10);
-  const heatmap = buildHeatmapMatrix(ocrLog52w ?? [], today);
+  const heatmap = buildHeatmapMatrix(ocrLog12w ?? [], today);
   const costDaily = aggregateCostByDay(ocrLogPeriod ?? [], today, days);
   const alerts = computeRestockAlerts(restockRows ?? []);
 
@@ -134,27 +134,23 @@ export default async function DashboardPage({
     valueStock: {
       label: 'Valeur stock',
       value: formatEur(stockValue.value_for_sale + stockValue.value_collection),
-      href: '/stock',
       // No sparkline/delta — current state, not period-dependent
     },
     cost: {
       label: `Coût OCR ${periodLabel(days)}`,
       value: formatEur(costSparkline.total),
-      href: '/dashboard',
       series: costSparkline.series,
       delta: costSparkline.delta,
     },
     scans: {
       label: `Scans ${periodLabel(days)}`,
       value: String(scansSparkline.total),
-      href: '/submit',
       series: scansSparkline.series,
       delta: scansSparkline.delta,
     },
     restock: {
       label: 'Restock alerts',
       value: String(alerts.length),
-      href: '/vinted',
       // No sparkline/delta — current state
     },
   };

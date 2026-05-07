@@ -2,11 +2,12 @@
 'use client';
 
 interface Props {
-  matrix: number[][]; // 52 weeks × 7 days
+  matrix: number[][]; // N weeks × 7 days
 }
 
-const CELL = 10;
-const GAP = 2;
+const CELL = 14;
+const GAP = 3;
+const LABEL_WIDTH = 16;
 const DOW_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 function colorFor(count: number, max: number): string {
@@ -18,23 +19,24 @@ function colorFor(count: number, max: number): string {
 }
 
 export default function ScanHeatmap({ matrix }: Props) {
+  const weeks = matrix.length;
   const max = Math.max(...matrix.flat(), 1);
-  const width = 52 * (CELL + GAP) + 16;
-  const height = 7 * (CELL + GAP) + 16;
+  const width = weeks * (CELL + GAP) + LABEL_WIDTH;
+  const height = 7 * (CELL + GAP);
 
   return (
     <div className="bg-surface border-border rounded-lg border p-4">
       <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-        Activité scans (52 semaines)
+        Activité scans ({weeks} semaines)
       </h3>
-      <div className="overflow-x-auto">
+      <div className="flex justify-center overflow-x-auto">
         <svg width={width} height={height} role="img" aria-label="Carte d'activité des scans">
           {DOW_LABELS.map((lbl, dow) => (
             <text
               key={dow}
               x={4}
-              y={dow * (CELL + GAP) + CELL - 1}
-              fontSize={8}
+              y={dow * (CELL + GAP) + CELL - 2}
+              fontSize={10}
               fill="currentColor"
               opacity={0.5}
             >
@@ -45,7 +47,7 @@ export default function ScanHeatmap({ matrix }: Props) {
             week.map((count, d) => (
               <rect
                 key={`${w}-${d}`}
-                x={16 + (51 - w) * (CELL + GAP)}
+                x={LABEL_WIDTH + (weeks - 1 - w) * (CELL + GAP)}
                 y={d * (CELL + GAP)}
                 width={CELL}
                 height={CELL}

@@ -110,7 +110,7 @@ describe('topRaresByPrice', () => {
 });
 
 describe('buildHeatmapMatrix', () => {
-  it('produces a 52x7 matrix with counts at the right cells', () => {
+  it('defaults to 12 weeks and counts events at the right cells', () => {
     // Anchor on a known Monday so test is deterministic.
     const anchor = new Date('2026-05-04T12:00:00Z'); // Monday
     const events = [
@@ -119,7 +119,7 @@ describe('buildHeatmapMatrix', () => {
       { created_at: '2026-04-27T12:00:00Z' }, // 1 week ago, day 0
     ];
     const matrix = buildHeatmapMatrix(events, anchor);
-    expect(matrix.length).toBe(52);
+    expect(matrix.length).toBe(12);
     expect(matrix[0].length).toBe(7);
     expect(matrix[0][0]).toBe(2);
     expect(matrix[1][0]).toBe(1);
@@ -127,7 +127,21 @@ describe('buildHeatmapMatrix', () => {
 
   it('returns all-zero matrix for no events', () => {
     const matrix = buildHeatmapMatrix([], new Date('2026-05-04T12:00:00Z'));
-    expect(matrix.length).toBe(52);
+    expect(matrix.length).toBe(12);
+    expect(matrix.every((row) => row.every((c) => c === 0))).toBe(true);
+  });
+
+  it('accepts a custom weeks parameter', () => {
+    const matrix = buildHeatmapMatrix([], new Date('2026-05-04T12:00:00Z'), 24);
+    expect(matrix.length).toBe(24);
+  });
+
+  it('drops events older than the requested window', () => {
+    const anchor = new Date('2026-05-04T12:00:00Z'); // Monday
+    const events = [
+      { created_at: '2025-01-01T12:00:00Z' }, // ~70 weeks ago — outside default 12w window
+    ];
+    const matrix = buildHeatmapMatrix(events, anchor);
     expect(matrix.every((row) => row.every((c) => c === 0))).toBe(true);
   });
 });
@@ -184,12 +198,12 @@ describe('aggregateCostByDay', () => {
 });
 
 describe('parsePeriod', () => {
-  it('returns 30d as default for undefined', () => {
-    expect(parsePeriod(undefined)).toBe('30d');
+  it('returns 7d as default for undefined', () => {
+    expect(parsePeriod(undefined)).toBe('7d');
   });
 
-  it('returns 30d as default for non-string input', () => {
-    expect(parsePeriod(['foo'])).toBe('30d');
+  it('returns 7d as default for non-string input', () => {
+    expect(parsePeriod(['foo'])).toBe('7d');
   });
 
   it('accepts valid period strings', () => {
@@ -199,9 +213,9 @@ describe('parsePeriod', () => {
     expect(parsePeriod('365d')).toBe('365d');
   });
 
-  it('returns 30d for invalid period strings', () => {
-    expect(parsePeriod('foo')).toBe('30d');
-    expect(parsePeriod('14d')).toBe('30d');
+  it('returns 7d for invalid period strings', () => {
+    expect(parsePeriod('foo')).toBe('7d');
+    expect(parsePeriod('14d')).toBe('7d');
   });
 });
 

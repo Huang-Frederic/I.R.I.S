@@ -3,9 +3,9 @@ import type { CardRarity } from '@/lib/types';
 export type DashboardPeriod = '7d' | '30d' | '90d' | '365d';
 
 export function parsePeriod(raw: string | string[] | undefined): DashboardPeriod {
-  if (typeof raw !== 'string') return '30d';
+  if (typeof raw !== 'string') return '7d';
   if (['7d', '30d', '90d', '365d'].includes(raw)) return raw as DashboardPeriod;
-  return '30d';
+  return '7d';
 }
 
 export function periodDays(p: DashboardPeriod): number {
@@ -71,16 +71,17 @@ export function topRaresByPrice<T extends PricedCard>(
 }
 
 /**
- * Builds a 52×7 matrix of scan counts.
- * Row 0 = current week, row 51 = 51 weeks ago.
+ * Builds a `weeks`×7 matrix of scan counts.
+ * Row 0 = current week, row N-1 = (N-1) weeks ago.
  * Column 0 = Monday, column 6 = Sunday.
  * `anchor` is "today" — week boundaries computed from it.
  */
 export function buildHeatmapMatrix(
   events: readonly { created_at: string }[],
   anchor: Date,
+  weeks: number = 12,
 ): number[][] {
-  const matrix: number[][] = Array.from({ length: 52 }, () => Array(7).fill(0));
+  const matrix: number[][] = Array.from({ length: weeks }, () => Array(7).fill(0));
 
   // Find the Monday of the anchor week (UTC).
   const anchorDay = (anchor.getUTCDay() + 6) % 7; // 0 = Mon, 6 = Sun
@@ -98,7 +99,7 @@ export function buildHeatmapMatrix(
     const tsMonday = new Date(tsMidnight);
     tsMonday.setUTCDate(tsMidnight.getUTCDate() - dow);
     const weeksAgo = Math.round((monday0.getTime() - tsMonday.getTime()) / (7 * 86_400_000));
-    if (weeksAgo >= 0 && weeksAgo < 52) {
+    if (weeksAgo >= 0 && weeksAgo < weeks) {
       matrix[weeksAgo][dow] += 1;
     }
   }

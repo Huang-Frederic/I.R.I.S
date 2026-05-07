@@ -1,11 +1,9 @@
 // components/dashboard/DashboardKpiStrip.tsx
-import Link from 'next/link';
 import Sparkline from './Sparkline';
 
 interface TileData {
   label: string;
   value: string;
-  href: string;
   series?: readonly number[];
   delta?: number | null;
 }
@@ -27,10 +25,7 @@ function deltaText(d: number | null | undefined): { text: string; positive: bool
 function Tile({ tile }: { tile: TileData }) {
   const { text: deltaTxt, positive } = deltaText(tile.delta);
   return (
-    <Link
-      href={tile.href}
-      className="bg-surface border-border hover:border-text-faint rounded-lg border p-4 transition-colors block"
-    >
+    <div className="bg-surface border-border rounded-lg border p-4">
       <div className="text-text-muted text-xs uppercase tracking-wide">{tile.label}</div>
       <div className="text-text mt-1.5 text-xl font-semibold">{tile.value}</div>
       <div className="mt-2 flex items-center gap-2">
@@ -45,7 +40,7 @@ function Tile({ tile }: { tile: TileData }) {
           {deltaTxt}
         </span>
       </div>
-    </Link>
+    </div>
   );
 }
 
