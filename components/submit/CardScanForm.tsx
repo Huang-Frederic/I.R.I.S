@@ -243,7 +243,8 @@ export default function CardScanForm({
     open: boolean;
     existingCard: ExistingCardPhoto | null;
     pendingPhoto: Blob | null;
-    qty: number;
+    /** Snapshot of the FormData to re-submit after the photo decision.
+     *  We don't carry qty/status separately — it's all in the snapshot. */
     formSnapshot: FormData | null;
   } | null>(null);
 
@@ -757,13 +758,14 @@ export default function CardScanForm({
           return;
         }
         if (res.status === 409 && body.error === 'exact_duplicate' && body.existingCard && photoBlob) {
-          // Unified handling: both error types (for_sale dup, pokedex dup, collection dup)
-          // now show the same DuplicatePhotoModal with 3 buttons.
+          // Isolated photo-decision step. After confirm, the form is re-submitted
+          // with accept_duplicates=1 and the original status/qty intact — the
+          // normal flow then handles status conflicts via the existing
+          // PokedexReplaceModal / DuplicateForSaleModal.
           setDuplicatePhotoModal({
             open: true,
             existingCard: body.existingCard as ExistingCardPhoto,
             pendingPhoto: photoBlob,
-            qty: totalCount,
             formSnapshot: data,
           });
           setPhase('reviewing');
@@ -912,33 +914,61 @@ export default function CardScanForm({
     }
   }
 
-  /** Helper: insert N additional copies after DuplicatePhotoModal confirm.
-   *  `targetStatus` lets us preserve the user's chosen destination (pokedex /
-   *  for_sale / collection) when the existing card lives in a different status.
-   *  Falls back to 'collection' when the chosen status is blocked by the
-   *  existing card (same pokemon_number for pokedex; same group for for_sale). */
-  async function insertAdditionalCopies(
-    qty: number,
-    photo: Blob,
+  /** Re-submit the form after the photo decision modal closes.
+   *  Carries the original status/qty/etc. from the snapshot — only adjusts:
+   *    - accept_duplicates=1 (bypass the now-handled exact_duplicate pre-check)
+   *    - photo: include if user chose 'new', omit if user chose 'existing'
+   *      (backend falls back to sibling's image_url when no image is uploaded)
+   *  The re-submit goes through the normal flow: pokedex_slot_taken /
+   *  for_sale_conflict modals fire as before if there are status conflicts. */
+  async function resubmitAfterPhotoDecision(
     formSnapshot: FormData | null,
-    targetStatus: CardStatus,
+    photoChoice: 'new' | 'existing',
   ) {
-    if (!formSnapshot || qty <= 0) return;
+    if (!formSnapshot) return;
     const data = new FormData();
     formSnapshot.forEach((value, key) => {
-      if (key === 'status' || key === 'count' || key === 'image' || key === 'accept_duplicates') return;
+      // Drop the original 'image' and 'accept_duplicates' so we control them here.
+      if (key === 'image' || key === 'accept_duplicates') return;
       data.append(key, value);
     });
-    data.append('image', photo, 'card.jpg');
-    data.append('status', targetStatus);
-    data.append('count', String(qty));
     data.append('accept_duplicates', '1');
+    if (photoChoice === 'new') {
+      const originalImage = formSnapshot.get('image');
+      if (originalImage instanceof Blob) data.append('image', originalImage, 'card.jpg');
+    }
+    // For 'existing' we send no image — backend resolves image_url from a sibling.
 
     const res = await fetch('/api/cards/batch', { method: 'POST', body: data });
     if (!res.ok) {
-      const err = (await res.json().catch(() => ({}))) as { error?: string };
-      alert(`Erreur insertion copies: ${err.error ?? res.status}`);
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        existingCard?: PokedexReplaceModalCard | ExistingCardLite;
+        hasForSaleConflict?: boolean;
+      };
+      // Bubble the conflict up through the existing modal handlers.
+      if (res.status === 409 && body.error === 'pokedex_slot_taken' && body.existingCard) {
+        setReplaceModal({
+          existingCard: body.existingCard as PokedexReplaceModalCard,
+          hasForSaleConflict: body.hasForSaleConflict ?? false,
+        });
+        return;
+      }
+      if (res.status === 409 && body.error === 'for_sale_conflict') {
+        setDuplicateForSaleConflict({
+          existingCard: (body.existingCard as ExistingCardLite | undefined) ?? null,
+        });
+        return;
+      }
+      alert(`Erreur enregistrement: ${body.error ?? res.status}`);
+      return;
     }
+    const { created } = (await res.json()) as { created: { id: string; status: 'for_sale' | 'pokedex' | 'collection' }[] };
+    const counts = { for_sale: 0, pokedex: 0, collection: 0 };
+    for (const c of created) counts[c.status] = (counts[c.status] ?? 0) + 1;
+    setSuccessCounts(counts);
+    setPhase('success');
+    pendingFirstCardId.current = created[0]?.id ?? null;
   }
 
   return (
@@ -1385,41 +1415,15 @@ export default function CardScanForm({
         <DuplicatePhotoModal
           newPhoto={duplicatePhotoModal.pendingPhoto}
           existingCard={duplicatePhotoModal.existingCard}
-          qty={duplicatePhotoModal.qty}
-          intendedStatus={form.status as 'for_sale' | 'pokedex' | 'collection'}
-          onConfirm={async (photoChoice, targetStatus) => {
-            // If user picked the new photo → swap photo on existing card.
-            // Either way, insert qty copies with the target status (computed
-            // by the modal: original intent unless blocked by uniqueness).
-            if (photoChoice === 'new') {
-              const swapData = new FormData();
-              swapData.append('image', duplicatePhotoModal.pendingPhoto!);
-              const res = await fetch(`/api/cards/${duplicatePhotoModal.existingCard!.id}/photo`, {
-                method: 'POST',
-                body: swapData,
-              });
-              if (!res.ok) {
-                const err = (await res.json().catch(() => ({}))) as { error?: string };
-                alert(`Erreur swap photo: ${err.error ?? res.status}`);
-                return;
-              }
-            }
-            await insertAdditionalCopies(
-              duplicatePhotoModal.qty,
-              duplicatePhotoModal.pendingPhoto!,
-              duplicatePhotoModal.formSnapshot,
-              targetStatus,
-            );
+          onConfirm={async (photoChoice) => {
+            // Re-submit the original form with the photo decision applied.
+            // The normal flow takes over from here — pokedex_slot_taken /
+            // for_sale_conflict modals fire as before for status conflicts.
+            await resubmitAfterPhotoDecision(duplicatePhotoModal.formSnapshot, photoChoice);
             setDuplicatePhotoModal(null);
-            if (onSaved) {
-              onSaved(duplicatePhotoModal.existingCard!.id);
-            } else {
-              reset();
-            }
           }}
           onCancel={() => {
             setDuplicatePhotoModal(null);
-            // Reset the form when standalone, otherwise the previous scan stays loaded.
             if (!onSaved) reset();
           }}
         />

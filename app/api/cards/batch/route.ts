@@ -151,23 +151,36 @@ export async function POST(request: Request) {
     }
   }
 
-  // --- Upload photo ONCE ---
+  // --- Resolve image_url: upload new OR borrow from a sibling ---
+  // If an image is included → upload + (sibling sync happens after insert).
+  // If no image → fall back to a sibling's image_url (DuplicatePhotoModal's
+  // "garder l'ancienne" path sends no image so the existing photo wins).
   let image_url: string | null = null;
   const image = formData.get('image');
   if (image instanceof File && image.size > 0) {
     const buffer = Buffer.from(await image.arrayBuffer());
-    // Use a single shared photo path; all N rows reference the same image_url.
-    // The path uses a fresh UUID so concurrent imports don't collide.
     const path = `${crypto.randomUUID()}.jpg`;
     const { error: uploadError } = await supabase.storage
       .from('card-photos')
       .upload(path, buffer, { contentType: 'image/jpeg', upsert: true });
     if (uploadError) {
       console.error('[cards/batch] photo upload failed:', uploadError);
-      // Insert anyway — user can re-upload via the drawer later.
     } else {
       image_url = supabase.storage.from('card-photos').getPublicUrl(path).data.publicUrl;
     }
+  } else if (acceptDuplicates && card_id_tcg) {
+    // Photo-modal "garder l'ancienne" path — borrow URL from a sibling.
+    const variantValue = variant ?? null;
+    const { data: siblings } = await supabase
+      .from('cards')
+      .select('image_url, variant')
+      .eq('card_id_tcg', card_id_tcg)
+      .eq('language', language)
+      .eq('condition', condition);
+    const sibling = (siblings ?? []).find(
+      (s) => (s.variant ?? null) === variantValue && s.image_url != null,
+    );
+    if (sibling?.image_url) image_url = sibling.image_url;
   }
 
   // --- Pricing (same formula as POST /api/cards) ---

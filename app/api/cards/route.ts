@@ -44,9 +44,16 @@ export async function POST(request: Request) {
 
   const cardId = crypto.randomUUID();
 
-  // Upload the photo first (if present) so the row carries its image_url from the start.
+  // Upload the photo first (if present) so the row carries its image_url from
+  // the start. If no image is uploaded, fall back to a sibling's image_url
+  // (DuplicatePhotoModal's "garder l'ancienne" path sends no image so the
+  // existing photo is reused).
   let image_url: string | null = null;
   const image = formData.get('image');
+  const cardIdTcgEarly = str(formData, 'card_id_tcg');
+  const variantEarly = str(formData, 'variant') || null;
+  const languageEarly = str(formData, 'language');
+  const conditionEarly = (str(formData, 'condition') as string | null) ?? 'NM';
   if (image instanceof File && image.size > 0) {
     const buffer = Buffer.from(await image.arrayBuffer());
     const path = `${cardId}.jpg`;
@@ -59,6 +66,21 @@ export async function POST(request: Request) {
     } else {
       image_url = supabase.storage.from('card-photos').getPublicUrl(path).data.publicUrl;
     }
+  } else if (str(formData, 'accept_duplicates') === '1' && cardIdTcgEarly && languageEarly) {
+    // Photo-modal "garder l'ancienne" path: re-submit comes with no image,
+    // borrow the URL from a sibling so the new row inherits the existing
+    // photo. Gated on accept_duplicates=1 to avoid a sibling lookup on
+    // every regular insert (and to keep tests simple).
+    const { data: siblings } = await supabase
+      .from('cards')
+      .select('image_url, variant')
+      .eq('card_id_tcg', cardIdTcgEarly)
+      .eq('language', languageEarly)
+      .eq('condition', conditionEarly);
+    const sibling = (siblings ?? []).find(
+      (s) => (s.variant ?? null) === variantEarly && s.image_url != null,
+    );
+    if (sibling?.image_url) image_url = sibling.image_url;
   }
 
   // Pricing — populated upstream (e.g. by TCGdex when re-research succeeds).
