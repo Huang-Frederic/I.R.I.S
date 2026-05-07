@@ -23,6 +23,7 @@ import ScanSuggestion from '@/components/cards/ScanSuggestion';
 import { getPokemonName } from '@/lib/data/pokemon-names';
 import PokedexReplaceModal, { type PokedexReplaceModalCard } from '@/components/cards/PokedexReplaceModal';
 import DuplicateForSaleModal from '@/components/cards/DuplicateForSaleModal';
+import DuplicatePhotoModal from '@/components/cards/DuplicatePhotoModal';
 import SaveSuccessModal from '@/components/submit/SaveSuccessModal';
 import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
 import { detectNumberMismatch } from '@/lib/utils/pokedex-mismatch';
@@ -223,6 +224,26 @@ export default function CardScanForm({
     set_code: string | null;
   }
   const [duplicateForSaleConflict, setDuplicateForSaleConflict] = useState<{ existingCard: ExistingCardLite | null } | null>(null);
+  interface ExistingCardPhoto {
+    id: string;
+    image_url: string | null;
+    tcg_image_url: string | null;
+    card_name: string | null;
+    pokemon_name: string | null;
+    set_name: string | null;
+    set_code: string | null;
+    set_number: string | null;
+    language: string;
+    condition: string;
+    variant: string | null;
+    rarity: string;
+    status: string;
+  }
+  const [duplicatePhotoModal, setDuplicatePhotoModal] = useState<{
+    open: boolean;
+    existingCard: ExistingCardPhoto | null;
+    pendingPhoto: File | null;
+  } | null>(null);
 
   const numberMismatch = detectNumberMismatch({ lockedPokemonNumber, detectedPokemonNumber });
 
@@ -717,7 +738,7 @@ export default function CardScanForm({
         const body = (await res.json().catch(() => ({}))) as {
           error?: string;
           message?: string;
-          existingCard?: PokedexReplaceModalCard | ExistingCardLite;
+          existingCard?: PokedexReplaceModalCard | ExistingCardLite | ExistingCardPhoto;
           hasForSaleConflict?: boolean;
         };
         if (res.status === 409 && body.error === 'pokedex_slot_taken' && body.existingCard) {
@@ -730,6 +751,15 @@ export default function CardScanForm({
         }
         if (res.status === 409 && body.error === 'for_sale_conflict') {
           setDuplicateForSaleConflict({ existingCard: (body.existingCard as ExistingCardLite | undefined) ?? null });
+          setPhase('reviewing');
+          return;
+        }
+        if (res.status === 409 && body.error === 'exact_duplicate' && body.existingCard && photoBlob instanceof File) {
+          setDuplicatePhotoModal({
+            open: true,
+            existingCard: body.existingCard as ExistingCardPhoto,
+            pendingPhoto: photoBlob,
+          });
           setPhase('reviewing');
           return;
         }
@@ -1292,6 +1322,34 @@ export default function CardScanForm({
           onConfirmCollection={handleResaveAsCollection}
           count={form.count}
           busy={phase === 'saving'}
+        />
+      )}
+
+      {duplicatePhotoModal?.open && duplicatePhotoModal.existingCard && duplicatePhotoModal.pendingPhoto && (
+        <DuplicatePhotoModal
+          newPhoto={duplicatePhotoModal.pendingPhoto}
+          existingCard={duplicatePhotoModal.existingCard}
+          onConfirmKeepExisting={() => {
+            setDuplicatePhotoModal(null);
+            // Just close — optionally call onSaved with existing.id for batch-mode auto-advance.
+            if (onSaved) onSaved(duplicatePhotoModal.existingCard!.id);
+          }}
+          onConfirmSwap={async () => {
+            const data = new FormData();
+            data.append('image', duplicatePhotoModal.pendingPhoto!);
+            const res = await fetch(`/api/cards/${duplicatePhotoModal.existingCard!.id}/photo`, {
+              method: 'POST',
+              body: data,
+            });
+            if (!res.ok) {
+              const err = (await res.json().catch(() => ({}))) as { error?: string };
+              alert(`Erreur swap photo: ${err.error ?? res.status}`);
+              return;
+            }
+            setDuplicatePhotoModal(null);
+            if (onSaved) onSaved(duplicatePhotoModal.existingCard!.id);
+          }}
+          onCancel={() => setDuplicatePhotoModal(null)}
         />
       )}
 

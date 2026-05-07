@@ -114,6 +114,28 @@ export async function POST(request: Request) {
     }
   }
 
+  // --- Pre-check 3: exact duplicate (collection only) ---
+  // Triggers DuplicatePhotoModal on the client, letting the user choose which photo to keep.
+  // Skip when card_id_tcg is null (un-enriched card — no reliable identity key).
+  // Only check for status='collection' (pokedex & for_sale have their own conflict modals).
+  if (status === 'collection' && card_id_tcg) {
+    const variantValue = variant ?? null;
+    const { data: dupCandidates } = await supabase
+      .from('cards')
+      .select('id, image_url, tcg_image_url, card_name, pokemon_name, set_name, set_code, set_number, language, condition, variant, status, rarity')
+      .eq('card_id_tcg', card_id_tcg)
+      .eq('language', language)
+      .eq('condition', condition)
+      .eq('status', status);
+    const dup = (dupCandidates ?? []).find((c) => (c.variant ?? null) === variantValue);
+    if (dup) {
+      return NextResponse.json(
+        { error: 'exact_duplicate', existingCard: dup },
+        { status: 409 },
+      );
+    }
+  }
+
   // --- Upload photo ONCE ---
   let image_url: string | null = null;
   const image = formData.get('image');
