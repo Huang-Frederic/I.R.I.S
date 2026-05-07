@@ -118,8 +118,10 @@ export async function POST(request: Request) {
   // a more specific 409 (`pokedex_slot_taken`) with its own replace-modal flow.
   // Fires for for_sale and collection — supersedes the post-insert for_sale_conflict modal
   // when the catalog ID matches.
+  // Can be bypassed with accept_duplicates=1 (used by DuplicatePhotoModal follow-up insert).
+  const acceptDuplicates = str(formData, 'accept_duplicates') === '1';
   const cardIdTcgForDup = str(formData, 'card_id_tcg');
-  if (status !== 'pokedex' && cardIdTcgForDup) {
+  if (status !== 'pokedex' && cardIdTcgForDup && !acceptDuplicates) {
     const variantValue = str(formData, 'variant') || null;
     const { data: dupCandidates } = await supabase
       .from('cards')

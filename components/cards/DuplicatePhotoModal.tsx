@@ -26,6 +26,8 @@ interface Props {
    *  handles both. */
   newPhoto: Blob;
   existingCard: ExistingCardLite;
+  /** How many additional Stock copies will be inserted after the modal closes (regardless of photo choice). */
+  additionalCopies?: number;
   onConfirmKeepExisting: () => void;
   onConfirmSwap: () => Promise<void>;
   onCancel: () => void;
@@ -34,6 +36,7 @@ interface Props {
 export default function DuplicatePhotoModal({
   newPhoto,
   existingCard,
+  additionalCopies,
   onConfirmKeepExisting,
   onConfirmSwap,
   onCancel,
@@ -143,6 +146,13 @@ export default function DuplicatePhotoModal({
             </div>
           </button>
         </div>
+
+        {/* Hint: additional copies will be added to Stock */}
+        {additionalCopies != null && additionalCopies > 0 && (
+          <p className="bg-surface-2 text-text-muted mt-3 rounded-md p-2 text-xs">
+            Après confirmation : <span className="text-text font-semibold">{additionalCopies} copie{additionalCopies > 1 ? 's' : ''}</span> sera{additionalCopies > 1 ? 'nt' : ''} ajoutée{additionalCopies > 1 ? 's' : ''} au Stock.
+          </p>
+        )}
 
         {/* Action buttons */}
         <div className="flex justify-end gap-2">

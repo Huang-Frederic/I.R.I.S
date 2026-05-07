@@ -243,6 +243,8 @@ export default function CardScanForm({
     open: boolean;
     existingCard: ExistingCardPhoto | null;
     pendingPhoto: Blob | null;
+    qty: number;
+    formSnapshot: FormData | null;
   } | null>(null);
 
   const numberMismatch = detectNumberMismatch({ lockedPokemonNumber, detectedPokemonNumber });
@@ -755,10 +757,13 @@ export default function CardScanForm({
           return;
         }
         if (res.status === 409 && body.error === 'exact_duplicate' && body.existingCard && photoBlob) {
+          // Snapshot the FormData for post-modal re-submit with accept_duplicates.
           setDuplicatePhotoModal({
             open: true,
             existingCard: body.existingCard as ExistingCardPhoto,
             pendingPhoto: photoBlob,
+            qty: totalCount,
+            formSnapshot: data,
           });
           setPhase('reviewing');
           return;
@@ -899,6 +904,28 @@ export default function CardScanForm({
       setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
       setPhase('error');
       setReplaceModal(null);
+    }
+  }
+
+  /** Helper: insert N additional copies to Stock after DuplicatePhotoModal confirm. */
+  async function insertAdditionalCopies(qty: number, photo: Blob, formSnapshot: FormData | null) {
+    if (!formSnapshot || qty <= 0) return;
+    // Clone the snapshot, override status to 'collection' + qty + accept_duplicates flag
+    const data = new FormData();
+    formSnapshot.forEach((value, key) => {
+      // Skip fields we'll override
+      if (key === 'status' || key === 'count' || key === 'image' || key === 'accept_duplicates') return;
+      data.append(key, value);
+    });
+    data.append('image', photo, 'card.jpg');
+    data.append('status', 'collection');
+    data.append('count', String(qty));
+    data.append('accept_duplicates', '1');
+
+    const res = await fetch('/api/cards/batch', { method: 'POST', body: data });
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string };
+      alert(`Erreur insertion copies Stock: ${err.error ?? res.status}`);
     }
   }
 
@@ -1329,12 +1356,20 @@ export default function CardScanForm({
         <DuplicatePhotoModal
           newPhoto={duplicatePhotoModal.pendingPhoto}
           existingCard={duplicatePhotoModal.existingCard}
-          onConfirmKeepExisting={() => {
+          additionalCopies={duplicatePhotoModal.qty}
+          onConfirmKeepExisting={async () => {
+            // Insert additional copies to Stock (with the NEW photo, regardless of keep-existing choice).
+            await insertAdditionalCopies(
+              duplicatePhotoModal.qty,
+              duplicatePhotoModal.pendingPhoto!,
+              duplicatePhotoModal.formSnapshot,
+            );
             setDuplicatePhotoModal(null);
             // Just close — optionally call onSaved with existing.id for batch-mode auto-advance.
             if (onSaved) onSaved(duplicatePhotoModal.existingCard!.id);
           }}
           onConfirmSwap={async () => {
+            // Swap photo on existing card
             const data = new FormData();
             data.append('image', duplicatePhotoModal.pendingPhoto!);
             const res = await fetch(`/api/cards/${duplicatePhotoModal.existingCard!.id}/photo`, {
@@ -1346,6 +1381,12 @@ export default function CardScanForm({
               alert(`Erreur swap photo: ${err.error ?? res.status}`);
               return;
             }
+            // Insert additional copies to Stock (with the NEW photo).
+            await insertAdditionalCopies(
+              duplicatePhotoModal.qty,
+              duplicatePhotoModal.pendingPhoto!,
+              duplicatePhotoModal.formSnapshot,
+            );
             setDuplicatePhotoModal(null);
             if (onSaved) onSaved(duplicatePhotoModal.existingCard!.id);
           }}

@@ -118,7 +118,9 @@ export async function POST(request: Request) {
   // Triggers DuplicatePhotoModal on the client, letting the user choose which photo to keep.
   // Skipped for status='pokedex' (the slot pre-check above already returned a more specific 409).
   // Skipped when card_id_tcg is null (un-enriched card — no reliable identity key).
-  if (status !== 'pokedex' && card_id_tcg) {
+  // Can be bypassed with accept_duplicates=1 (used by DuplicatePhotoModal follow-up insert).
+  const acceptDuplicates = str(formData, 'accept_duplicates') === '1';
+  if (status !== 'pokedex' && card_id_tcg && !acceptDuplicates) {
     const variantValue = variant ?? null;
     const { data: dupCandidates } = await supabase
       .from('cards')
