@@ -1,6 +1,6 @@
 // components/dashboard/ScanHeatmap.tsx
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { DayDetail } from '@/lib/utils/dashboard-queries';
 
 interface Props {
@@ -10,7 +10,7 @@ interface Props {
 
 const CELL = 14;
 const GAP = 3;
-const LABEL_WIDTH = 16;
+const LABEL_WIDTH = 18;
 const DOW_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 function colorFor(count: number, max: number): string {
@@ -21,11 +21,6 @@ function colorFor(count: number, max: number): string {
   return '#5591c755';
 }
 
-/**
- * Computes the date for cell (w, d). Returns YYYY-MM-DD UTC.
- * weeksAgo is 0 for current week, 1 for last week, etc.
- * dow is 0 for Monday, 6 for Sunday.
- */
 function computeDateForCell(weeksAgo: number, dow: number): string {
   const now = new Date();
   const anchorDay = (now.getUTCDay() + 6) % 7; // 0 = Mon
@@ -35,7 +30,7 @@ function computeDateForCell(weeksAgo: number, dow: number): string {
 }
 
 interface HoverState {
-  x: number;
+  x: number; // px relative to the heatmap card
   y: number;
   detail: DayDetail | null;
   date: string;
@@ -43,18 +38,31 @@ interface HoverState {
 
 export default function ScanHeatmap({ matrix, details = {} }: Props) {
   const [hover, setHover] = useState<HoverState | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const weeks = matrix.length;
   const max = Math.max(...matrix.flat(), 1);
-  const width = weeks * (CELL + GAP) + LABEL_WIDTH;
-  const height = 7 * (CELL + GAP);
+  const naturalWidth = weeks * (CELL + GAP) + LABEL_WIDTH;
+  const naturalHeight = 7 * (CELL + GAP);
 
   return (
     <div className="bg-surface border-border rounded-lg border p-4">
       <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
         Activité scans ({weeks} semaines)
       </h3>
-      <div className="relative flex justify-center overflow-x-auto">
-        <svg width={width} height={height} role="img" aria-label="Carte d'activité des scans">
+      {/*
+        Responsive layout: outer div is `relative` so the absolute tooltip is
+        positioned against it (and never clipped). SVG uses viewBox + w-full
+        so it scales to fit its container — no horizontal overflow on mobile.
+      */}
+      <div ref={containerRef} className="relative">
+        <svg
+          viewBox={`0 0 ${naturalWidth} ${naturalHeight}`}
+          preserveAspectRatio="xMidYMid meet"
+          className="block h-auto w-full"
+          role="img"
+          aria-label="Carte d'activité des scans"
+        >
           {DOW_LABELS.map((lbl, dow) => (
             <text
               key={dow}
@@ -81,11 +89,17 @@ export default function ScanHeatmap({ matrix, details = {} }: Props) {
                   fill={colorFor(count, max)}
                   rx={2}
                   className="cursor-default"
-                  onMouseEnter={() => {
+                  onMouseEnter={(e) => {
+                    // Use the rect's actual rendered position (handles SVG
+                    // scaling correctly) and convert to coordinates relative
+                    // to the heatmap card container.
+                    const rectBox = e.currentTarget.getBoundingClientRect();
+                    const parentBox = containerRef.current?.getBoundingClientRect();
+                    if (!parentBox) return;
                     const date = computeDateForCell(w, d);
                     setHover({
-                      x: x + CELL / 2,
-                      y,
+                      x: rectBox.left + rectBox.width / 2 - parentBox.left,
+                      y: rectBox.top - parentBox.top,
                       date,
                       detail: details[date] ?? null,
                     });
@@ -115,7 +129,7 @@ function HoverTooltip({ x, y, date, detail }: { x: number; y: number; date: stri
   return (
     <div
       role="tooltip"
-      className="bg-surface border-border pointer-events-none absolute z-20 rounded-md border px-3 py-2 text-xs shadow-lg"
+      className="bg-surface border-border pointer-events-none absolute z-50 rounded-md border px-3 py-2 text-xs shadow-xl"
       style={{
         left: x,
         top: y - 8,
