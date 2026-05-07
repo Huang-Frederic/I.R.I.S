@@ -45,23 +45,31 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           DATE=$(date -u +%Y-%m-%d)
           DAY_OF_WEEK=$(date -u +%u)   # 1=Mon..7=Sun
           DAY_OF_MONTH=$(date -u +%d)
           WEEK=$(date -u +%G-W%V)
           MONTH=$(date -u +%Y-%m)
 
-          gh release create "backup-daily-$DATE" dump.sql.gz \
-            --notes "Auto-backup $DATE" --prerelease
+          # Idempotent: if today's tag already exists (e.g. workflow re-run after a
+          # mid-run fix, or manual dispatch on the same day), overwrite with the
+          # fresher dump instead of failing.
+          recreate_release() {
+            local tag=$1
+            local notes=$2
+            gh release delete "$tag" --yes --cleanup-tag 2>/dev/null || true
+            gh release create "$tag" dump.sql.gz --notes "$notes" --prerelease
+          }
+
+          recreate_release "backup-daily-$DATE" "Auto-backup $DATE"
 
           if [ "$DAY_OF_WEEK" = "7" ]; then
-            gh release create "backup-weekly-$WEEK" dump.sql.gz \
-              --notes "Weekly backup $WEEK" --prerelease
+            recreate_release "backup-weekly-$WEEK" "Weekly backup $WEEK"
           fi
 
           if [ "$DAY_OF_MONTH" = "01" ]; then
-            gh release create "backup-monthly-$MONTH" dump.sql.gz \
-              --notes "Monthly backup $MONTH" --prerelease
+            recreate_release "backup-monthly-$MONTH" "Monthly backup $MONTH"
           fi
 
       - name: Rotate old releases
