@@ -12,11 +12,11 @@ export interface DailyAgg {
 // the same `daily` array is used for SSR and client hydration. Computing it in
 // the client component would call Date.now() at hydration time, producing dates
 // that don't match the SSR snapshot.
-export default function CostBarChart({ data }: { data: readonly DailyAgg[] }) {
+export default function CostBarChart({ data, periodLabel }: { data: readonly DailyAgg[]; periodLabel: string }) {
   return (
     <div className="bg-surface border-border rounded-lg border p-4">
       <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-        Coût OCR (30 jours)
+        Coût OCR ({periodLabel})
       </h3>
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
