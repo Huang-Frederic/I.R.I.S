@@ -76,8 +76,44 @@ export async function POST(request: Request) {
       ? new Date().toISOString()
       : null;
 
-  // Pre-check: if status='pokedex' and the slot is already taken, return 409
-  // with the existing card details so the client can prompt for replacement.
+  // Pre-check 1: exact duplicate (any status, exact match on identifying fields).
+  // Triggers BEFORE pokedex_slot_taken / for_sale_conflict so the user sees the
+  // most-specific modal (photo-compare or "already in pokedex") instead of the
+  // generic replace/conflict modals.
+  // Can be bypassed with accept_duplicates=1 (used by DuplicatePhotoModal follow-up insert).
+  const acceptDuplicates = str(formData, 'accept_duplicates') === '1';
+  const cardIdTcgForDup = str(formData, 'card_id_tcg');
+  if (cardIdTcgForDup && !acceptDuplicates) {
+    const variantValue = str(formData, 'variant') || null;
+    const { data: dupCandidates } = await supabase
+      .from('cards')
+      .select('id, image_url, tcg_image_url, card_name, pokemon_name, set_name, set_code, set_number, language, condition, variant, status, rarity, pokemon_number')
+      .eq('card_id_tcg', cardIdTcgForDup)
+      .eq('language', language)
+      .eq('condition', condition)
+      .eq('status', status);
+    const dup = (dupCandidates ?? []).find((c) => (c.variant ?? null) === variantValue);
+    if (dup) {
+      // Special case: exact dup AND status=pokedex → different modal copy
+      // ("Cette carte est déjà dans ton Pokédex" — no replacement needed since it's the SAME card)
+      if (status === 'pokedex') {
+        return NextResponse.json(
+          { error: 'pokedex_exact_duplicate', existingCard: dup },
+          { status: 409 },
+        );
+      }
+      // for_sale or collection → DuplicatePhotoModal (compare + chain qty)
+      return NextResponse.json(
+        { error: 'exact_duplicate', existingCard: dup },
+        { status: 409 },
+      );
+    }
+  }
+
+  // Pre-check 2: if status='pokedex' and the slot is already taken by a DIFFERENT card,
+  // return 409 with the existing card details so the client can prompt for replacement.
+  // This only fires when the card at the slot is NOT an exact match (different set,
+  // condition, or variant) — exact matches are caught by pre-check 1 above.
   if (status === 'pokedex' && pokemon_number) {
     const { data: existing } = await supabase
       .from('cards')
@@ -104,36 +140,6 @@ export async function POST(request: Request) {
 
       return NextResponse.json(
         { error: 'pokedex_slot_taken', existingCard: existing, hasForSaleConflict },
-        { status: 409 },
-      );
-    }
-  }
-
-  // Pre-check: exact duplicate (same card_id_tcg + language + condition + variant + status).
-  // This triggers DuplicatePhotoModal on the client, letting the user choose which photo to keep
-  // OR overwrite the existing photo with the new scan. Skipped when card_id_tcg is null
-  // (un-enriched card — no reliable identity key).
-  //
-  // Skipped for status='pokedex' because the pokedex slot pre-check above already returned
-  // a more specific 409 (`pokedex_slot_taken`) with its own replace-modal flow.
-  // Fires for for_sale and collection — supersedes the post-insert for_sale_conflict modal
-  // when the catalog ID matches.
-  // Can be bypassed with accept_duplicates=1 (used by DuplicatePhotoModal follow-up insert).
-  const acceptDuplicates = str(formData, 'accept_duplicates') === '1';
-  const cardIdTcgForDup = str(formData, 'card_id_tcg');
-  if (status !== 'pokedex' && cardIdTcgForDup && !acceptDuplicates) {
-    const variantValue = str(formData, 'variant') || null;
-    const { data: dupCandidates } = await supabase
-      .from('cards')
-      .select('id, image_url, tcg_image_url, card_name, pokemon_name, set_name, set_code, set_number, language, condition, variant, status, rarity')
-      .eq('card_id_tcg', cardIdTcgForDup)
-      .eq('language', language)
-      .eq('condition', condition)
-      .eq('status', status);
-    const dup = (dupCandidates ?? []).find((c) => (c.variant ?? null) === variantValue);
-    if (dup) {
-      return NextResponse.json(
-        { error: 'exact_duplicate', existingCard: dup },
         { status: 409 },
       );
     }
@@ -175,6 +181,9 @@ export async function POST(request: Request) {
       error.code === '23505' ||
       /one_for_sale_per_group|duplicate key|unique constraint/i.test(error.message ?? '');
 
+    // Pre-check 3 (post-insert fallback): for_sale_conflict — handles edge cases like
+    // card_id_tcg null on existing (un-enriched) or race conditions where the pre-check
+    // missed a concurrent insert. The for_sale unique constraint catches it here.
     if (isUniqueViolation && status === 'for_sale') {
       // Fetch the existing for_sale card so the frontend can display it in the modal.
       const { data: existingCard } = await supabase

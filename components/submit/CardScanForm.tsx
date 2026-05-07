@@ -24,6 +24,7 @@ import { getPokemonName } from '@/lib/data/pokemon-names';
 import PokedexReplaceModal, { type PokedexReplaceModalCard } from '@/components/cards/PokedexReplaceModal';
 import DuplicateForSaleModal from '@/components/cards/DuplicateForSaleModal';
 import DuplicatePhotoModal from '@/components/cards/DuplicatePhotoModal';
+import PokedexExactDuplicateModal from '@/components/cards/PokedexExactDuplicateModal';
 import SaveSuccessModal from '@/components/submit/SaveSuccessModal';
 import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
 import { detectNumberMismatch } from '@/lib/utils/pokedex-mismatch';
@@ -245,6 +246,11 @@ export default function CardScanForm({
     pendingPhoto: Blob | null;
     qty: number;
     formSnapshot: FormData | null;
+  } | null>(null);
+  const [pokedexExactDuplicateModal, setPokedexExactDuplicateModal] = useState<{
+    open: boolean;
+    existingCard: ExistingCardPhoto | null;
+    qty: number;
   } | null>(null);
 
   const numberMismatch = detectNumberMismatch({ lockedPokemonNumber, detectedPokemonNumber });
@@ -756,6 +762,15 @@ export default function CardScanForm({
           setPhase('reviewing');
           return;
         }
+        if (res.status === 409 && body.error === 'pokedex_exact_duplicate' && body.existingCard) {
+          setPokedexExactDuplicateModal({
+            open: true,
+            existingCard: body.existingCard as ExistingCardPhoto,
+            qty: totalCount,
+          });
+          setPhase('reviewing');
+          return;
+        }
         if (res.status === 409 && body.error === 'exact_duplicate' && body.existingCard && photoBlob) {
           // Snapshot the FormData for post-modal re-submit with accept_duplicates.
           setDuplicatePhotoModal({
@@ -814,6 +829,7 @@ export default function CardScanForm({
     try {
       // User just confirmed "this card is already on Vinted, put it in Stock"
       // — apply that to ALL totalCount copies via a single batch call.
+      // accept_duplicates=1 bypasses the exact_duplicate check (user intent confirmed).
       const totalCount = form.count;
       const data = new FormData();
       if (photoBlob) data.append('image', photoBlob, initialPhotoFilename ?? 'card.jpg');
@@ -825,6 +841,7 @@ export default function CardScanForm({
       }
       data.append('status', 'collection');
       data.append('count', String(totalCount));
+      data.append('accept_duplicates', '1');
 
       const res = await fetch('/api/cards/batch', { method: 'POST', body: data });
       if (!res.ok) {
@@ -871,6 +888,7 @@ export default function CardScanForm({
 
       // Step 2: Insert all N copies — first one takes the now-free pokedex
       // slot, the rest go to collection (one Pokédex slot per pokemon_number).
+      // accept_duplicates=1 bypasses exact_duplicate check (user confirmed replacement).
       const totalCount = form.count;
       const counts = { for_sale: 0, pokedex: 0, collection: 0 };
       let firstCardId: string | null = null;
@@ -885,6 +903,7 @@ export default function CardScanForm({
           }
         }
         data.append('status', status);
+        data.append('accept_duplicates', '1');
 
         const res = await fetch('/api/cards', { method: 'POST', body: data });
         if (!res.ok) {
@@ -1391,6 +1410,43 @@ export default function CardScanForm({
             if (onSaved) onSaved(duplicatePhotoModal.existingCard!.id);
           }}
           onCancel={() => setDuplicatePhotoModal(null)}
+        />
+      )}
+
+      {pokedexExactDuplicateModal?.open && pokedexExactDuplicateModal.existingCard && (
+        <PokedexExactDuplicateModal
+          existingCard={pokedexExactDuplicateModal.existingCard}
+          qty={pokedexExactDuplicateModal.qty}
+          onCancel={() => setPokedexExactDuplicateModal(null)}
+          onAddToStock={async () => {
+            // Re-submit as Stock. Status differs (collection vs pokedex), so the
+            // exact_duplicate check won't match. Pass accept_duplicates=1 as a safety net.
+            if (!photoBlob) return;
+            const data = new FormData();
+            data.append('image', photoBlob, initialPhotoFilename ?? 'card.jpg');
+            for (const [key, value] of Object.entries(form)) {
+              if (key === 'status' || key === 'count') continue;
+              if (value !== '' && value !== null && value !== undefined) {
+                data.append(key, String(value));
+              }
+            }
+            data.append('status', 'collection');
+            data.append('count', String(pokedexExactDuplicateModal.qty));
+            data.append('accept_duplicates', '1');
+
+            const res = await fetch('/api/cards/batch', { method: 'POST', body: data });
+            if (!res.ok) {
+              const err = (await res.json().catch(() => ({}))) as { error?: string };
+              alert(`Erreur insertion copies Stock: ${err.error ?? res.status}`);
+              setPokedexExactDuplicateModal(null);
+              return;
+            }
+            const { created } = (await res.json()) as { created: { id: string }[] };
+            setPokedexExactDuplicateModal(null);
+            setSuccessCounts({ for_sale: 0, pokedex: 0, collection: created.length });
+            setPhase('success');
+            pendingFirstCardId.current = created[0]?.id ?? null;
+          }}
         />
       )}
 
