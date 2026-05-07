@@ -58,7 +58,7 @@ export default function CostBarChart({ data, periodLabel }: { data: readonly Dai
               <Line
                 type="monotone"
                 dataKey="gemini"
-                stroke="#5591c7"
+                stroke="var(--color-red)"
                 strokeWidth={2}
                 dot={{ r: 2 }}
                 activeDot={{ r: 4 }}
@@ -67,7 +67,7 @@ export default function CostBarChart({ data, periodLabel }: { data: readonly Dai
               <Line
                 type="monotone"
                 dataKey="vision"
-                stroke="#d97aa6"
+                stroke="#4A90E2"
                 strokeWidth={2}
                 dot={{ r: 2 }}
                 activeDot={{ r: 4 }}

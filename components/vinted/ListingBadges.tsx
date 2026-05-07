@@ -211,12 +211,16 @@ export default function ListingBadges({
           </button>
         )}
 
-        {mine && !toDelete && (
+        {/* Show retire X when:
+         *  - cards: always (with or without my listing — user can always move to Stock or delete)
+         *  - lots: only when I have a listing to retire
+         *  Skip when toDelete (a separate "À retirer" button handles that state). */}
+        {!toDelete && (itemKind === 'card' || mine) && (
           <button
             type="button"
             onClick={() => (itemKind === 'card' ? setRetireOpen(true) : setConfirmDelete(true))}
             disabled={busy}
-            aria-label="Retirer mon annonce"
+            aria-label={mine ? 'Retirer mon annonce' : 'Retirer cette carte de Vinted'}
             className="text-text-muted hover:text-red inline-flex items-center rounded p-0.5 disabled:opacity-50"
           >
             <X className="h-3 w-3" />

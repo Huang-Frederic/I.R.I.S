@@ -1,6 +1,6 @@
 // components/dashboard/ScanHeatmap.tsx
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { DayDetail } from '@/lib/utils/dashboard-queries';
 
 interface Props {
@@ -11,14 +11,15 @@ interface Props {
 const CELL = 14;
 const GAP = 3;
 const LABEL_WIDTH = 18;
+const MIN_VISIBLE_WEEKS = 4;
 const DOW_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 function colorFor(count: number, max: number): string {
   if (count === 0) return 'var(--color-surface-2, #2a2a28)';
   const ratio = max === 0 ? 0 : count / max;
-  if (ratio > 0.66) return '#5591c7';
-  if (ratio > 0.33) return '#5591c7aa';
-  return '#5591c755';
+  if (ratio > 0.66) return '#e05252';
+  if (ratio > 0.33) return '#e05252aa';
+  return '#e0525255';
 }
 
 function computeDateForCell(weeksAgo: number, dow: number): string {
@@ -39,27 +40,41 @@ interface HoverState {
 export default function ScanHeatmap({ matrix, details = {} }: Props) {
   const [hover, setHover] = useState<HoverState | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [visibleWeeks, setVisibleWeeks] = useState(matrix.length);
 
-  const weeks = matrix.length;
-  const max = Math.max(...matrix.flat(), 1);
-  const naturalWidth = weeks * (CELL + GAP) + LABEL_WIDTH;
+  // Recompute visible week count whenever the container resizes.
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const el = containerRef.current;
+    const update = () => {
+      const w = el.clientWidth;
+      // Each week takes (CELL + GAP) px in the SVG's intrinsic coords.
+      // We render the SVG at native size (no viewBox stretching) so it never
+      // looks blurry, and clip to (visibleWeeks) most-recent weeks.
+      const fitWeeks = Math.max(MIN_VISIBLE_WEEKS, Math.floor((w - LABEL_WIDTH - 16) / (CELL + GAP)));
+      setVisibleWeeks(Math.min(matrix.length, fitWeeks));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [matrix.length]);
+
+  const trimmedMatrix = matrix.slice(0, visibleWeeks);
+  const naturalWidth = visibleWeeks * (CELL + GAP) + LABEL_WIDTH;
   const naturalHeight = 7 * (CELL + GAP);
+  const max = Math.max(...trimmedMatrix.flat(), 1);
 
   return (
     <div className="bg-surface border-border rounded-lg border p-4">
       <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-        Activité scans ({weeks} semaines)
+        Activité scans ({visibleWeeks} semaines)
       </h3>
-      {/*
-        Responsive layout: outer div is `relative` so the absolute tooltip is
-        positioned against it (and never clipped). SVG uses viewBox + w-full
-        so it scales to fit its container — no horizontal overflow on mobile.
-      */}
       <div ref={containerRef} className="relative">
         <svg
-          viewBox={`0 0 ${naturalWidth} ${naturalHeight}`}
-          preserveAspectRatio="xMidYMid meet"
-          className="block h-auto w-full"
+          width={naturalWidth}
+          height={naturalHeight}
+          className="block"
           role="img"
           aria-label="Carte d'activité des scans"
         >
@@ -75,9 +90,9 @@ export default function ScanHeatmap({ matrix, details = {} }: Props) {
               {lbl}
             </text>
           ))}
-          {matrix.map((week, w) =>
+          {trimmedMatrix.map((week, w) =>
             week.map((count, d) => {
-              const x = LABEL_WIDTH + (weeks - 1 - w) * (CELL + GAP);
+              const x = LABEL_WIDTH + (visibleWeeks - 1 - w) * (CELL + GAP);
               const y = d * (CELL + GAP);
               return (
                 <rect

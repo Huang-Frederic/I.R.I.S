@@ -16,6 +16,7 @@ import { computeRestockAlerts } from '@/lib/utils/restock-detection';
 import DashboardKpiStrip from '@/components/dashboard/DashboardKpiStrip';
 import DashboardPeriodTabs from '@/components/dashboard/DashboardPeriodTabs';
 import RefreshButton from '@/components/dashboard/RefreshButton';
+import DayDetailKpi from '@/components/dashboard/DayDetailKpi';
 import CostBarChart from '@/components/dashboard/CostBarChart';
 import StockValueLineChart from '@/components/dashboard/StockValueLineChart';
 import RarityDonut from '@/components/dashboard/RarityDonut';
@@ -136,6 +137,7 @@ export default async function DashboardPage({
   // Compute sparklines and deltas for KPIs
   const costSparkline = computeSparkline(ocrLogPrevious ?? [], today, days, 'cost');
   const scansSparkline = computeSparkline(ocrLogPrevious ?? [], today, days, 'count');
+  const todayIso = today.toISOString().slice(0, 10);
 
   const kpiData = {
     valueStock: {
@@ -177,6 +179,10 @@ export default async function DashboardPage({
         </div>
       </div>
 
+      <div className="mt-6">
+        <DayDetailKpi details={Object.fromEntries(dayDetails)} today={todayIso} />
+      </div>
+
       <DashboardKpiStrip
         valueStock={kpiData.valueStock}
         cost={kpiData.cost}
@@ -186,13 +192,19 @@ export default async function DashboardPage({
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <CostBarChart data={costDaily} periodLabel={periodLabel(days)} />
-        <StockValueLineChart data={stockSnapshots ?? []} />
         <RarityDonut counts={rarityCounts} values={rarityValues} />
+      </div>
+
+      <div className="mt-4">
         <ScanHeatmap matrix={heatmap} details={Object.fromEntries(dayDetails)} />
       </div>
 
-      <div className="mt-4 grid gap-4">
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <StockValueLineChart data={stockSnapshots ?? []} />
         <TopRaresList cards={topRares} />
+      </div>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
         <RestockAlertsList alerts={alerts} />
         <LastSalesList sales={lastSales ?? []} />
       </div>
