@@ -2,14 +2,17 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'I.R.I.S',
+    name: 'I.R.I.S — Intelligent Recognition Inventory System',
     short_name: 'I.R.I.S',
-    description: 'Gestion de collection Pokémon TCG',
-    start_url: '/',
+    description: 'Gestion de collection Pokémon TCG (Pokédex + stock Vinted)',
+    start_url: '/dashboard',
+    scope: '/',
     display: 'standalone',
+    orientation: 'portrait-primary',
     background_color: '#111110',
     theme_color: '#e05252',
-    orientation: 'portrait-primary',
+    categories: ['utilities', 'productivity', 'lifestyle'],
+    lang: 'fr-FR',
     icons: [
       {
         src: '/icons/icon-192.png',

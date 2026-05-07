@@ -10,7 +10,16 @@ export default function Sidebar() {
   return (
     <aside className="bg-surface border-border fixed inset-y-0 left-0 z-30 hidden w-[220px] flex-col border-r md:flex">
       <div className="px-5 py-6">
-        <h1 className="text-red text-xl font-bold tracking-tight">I.R.I.S</h1>
+        <div className="flex items-center gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt=""
+            className="h-7 w-7 shrink-0"
+            aria-hidden
+          />
+          <h1 className="text-red text-xl font-bold tracking-tight">I.R.I.S</h1>
+        </div>
         <p className="text-text-faint mt-0.5 text-[10px] uppercase tracking-wider">Pokémon TCG</p>
       </div>
 

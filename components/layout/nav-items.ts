@@ -1,4 +1,4 @@
-import { LayoutDashboard, ScanLine, BookOpen, Package, Tag, Settings, BarChart3, type LucideIcon } from 'lucide-react';
+import { ScanLine, BookOpen, Package, Tag, Settings, BarChart3, type LucideIcon } from 'lucide-react';
 
 export interface NavItem {
   href: string;
@@ -7,7 +7,6 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: '/', label: 'Home', icon: LayoutDashboard },
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   { href: '/submit', label: 'Scanner', icon: ScanLine },
   { href: '/pokedex', label: 'Pokédex', icon: BookOpen },

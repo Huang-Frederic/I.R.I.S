@@ -1,6 +1,7 @@
 import Sidebar from '@/components/layout/Sidebar';
 import BottomNav from '@/components/layout/BottomNav';
 import RouteChangeRefresher from '@/components/layout/RouteChangeRefresher';
+import InstallPrompt from '@/components/layout/InstallPrompt';
 import { UserContextProvider, type UserContextValue } from '@/lib/hooks/useUserContext';
 import { createClient } from '@/lib/supabase/server';
 import type { UserProfile } from '@/lib/types';
@@ -39,6 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="mx-auto max-w-[1200px] px-4 pb-20 pt-6 md:px-8 md:pb-8">{children}</div>
         </main>
         <BottomNav />
+        <InstallPrompt />
       </div>
     </UserContextProvider>
   );
