@@ -242,7 +242,7 @@ export default function CardScanForm({
   const [duplicatePhotoModal, setDuplicatePhotoModal] = useState<{
     open: boolean;
     existingCard: ExistingCardPhoto | null;
-    pendingPhoto: File | null;
+    pendingPhoto: Blob | null;
   } | null>(null);
 
   const numberMismatch = detectNumberMismatch({ lockedPokemonNumber, detectedPokemonNumber });
@@ -754,7 +754,7 @@ export default function CardScanForm({
           setPhase('reviewing');
           return;
         }
-        if (res.status === 409 && body.error === 'exact_duplicate' && body.existingCard && photoBlob instanceof File) {
+        if (res.status === 409 && body.error === 'exact_duplicate' && body.existingCard && photoBlob) {
           setDuplicatePhotoModal({
             open: true,
             existingCard: body.existingCard as ExistingCardPhoto,

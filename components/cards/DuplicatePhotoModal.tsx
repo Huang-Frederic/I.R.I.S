@@ -21,7 +21,10 @@ interface ExistingCardLite {
 }
 
 interface Props {
-  newPhoto: File;
+  /** Accept Blob (which File extends) — the camera/file input gives us a File,
+   *  but post-processing (resize, EXIF strip) returns a plain Blob. URL.createObjectURL
+   *  handles both. */
+  newPhoto: Blob;
   existingCard: ExistingCardLite;
   onConfirmKeepExisting: () => void;
   onConfirmSwap: () => Promise<void>;
