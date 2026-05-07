@@ -1,10 +1,23 @@
 // components/dashboard/RarityDonut.tsx
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { useRouter } from 'next/navigation';
 import { RARITY_COLOR_HEX } from '@/lib/utils/labels';
 import type { CardRarity } from '@/lib/types';
+
+const TOOLTIP_CONTENT_STYLE = {
+  fontSize: 11,
+  backgroundColor: 'var(--color-surface)',
+  border: '1px solid var(--color-border)',
+  borderRadius: '6px',
+  padding: '6px 10px',
+  color: 'var(--color-text)',
+} as const;
+
+const TOOLTIP_ITEM_STYLE = {
+  color: 'var(--color-text)',
+} as const;
 
 interface CountSlice {
   rarity: CardRarity;
@@ -26,6 +39,10 @@ type Mode = 'count' | 'value';
 export default function RarityDonut({ counts, values }: Props) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('count');
+  const [mounted, setMounted] = useState(false);
+  // Recharts SSR/hydration mismatch workaround — see CostBarChart for rationale.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
 
   if (counts.length === 0) {
     return (
@@ -64,31 +81,34 @@ export default function RarityDonut({ counts, values }: Props) {
         </div>
       </div>
       <div className="h-64 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={[...data]}
-              dataKey="dataKey"
-              nameKey="rarity"
-              innerRadius="55%"
-              outerRadius="85%"
-              onClick={(d) => router.push(`/pokedex?rarity=${d.rarity}`)}
-              cursor="pointer"
-            >
-              {data.map((d) => (
-                <Cell key={d.rarity} fill={RARITY_COLOR_HEX[d.rarity] ?? '#888'} />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={(v: number, name: string) =>
-                mode === 'count'
-                  ? [`${v} cartes`, name]
-                  : [`€${v.toFixed(2)}`, name]
-              }
-              contentStyle={{ fontSize: 11 }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+        {mounted && (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={[...data]}
+                dataKey="dataKey"
+                nameKey="rarity"
+                innerRadius="55%"
+                outerRadius="85%"
+                onClick={(d) => router.push(`/pokedex?rarity=${d.rarity}`)}
+                cursor="pointer"
+              >
+                {data.map((d) => (
+                  <Cell key={d.rarity} fill={RARITY_COLOR_HEX[d.rarity] ?? '#888'} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(v: number, name: string) =>
+                  mode === 'count'
+                    ? [`${v} cartes`, name]
+                    : [`€${v.toFixed(2)}`, name]
+                }
+                contentStyle={TOOLTIP_CONTENT_STYLE}
+                itemStyle={TOOLTIP_ITEM_STYLE}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

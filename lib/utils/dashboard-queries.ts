@@ -79,7 +79,7 @@ export function topRaresByPrice<T extends PricedCard>(
 export function buildHeatmapMatrix(
   events: readonly { created_at: string }[],
   anchor: Date,
-  weeks: number = 12,
+  weeks: number = 24,
 ): number[][] {
   const matrix: number[][] = Array.from({ length: weeks }, () => Array(7).fill(0));
 

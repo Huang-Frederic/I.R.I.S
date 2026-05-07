@@ -35,7 +35,7 @@ function timeWindow(days: number) {
   return {
     sincePeriod: new Date(now - days * 86_400_000).toISOString(),
     sincePrevious: new Date(now - 2 * days * 86_400_000).toISOString(),
-    since12w: new Date(now - 12 * 7 * 86_400_000).toISOString(),
+    since24w: new Date(now - 24 * 7 * 86_400_000).toISOString(),
     today: new Date(now),
   };
 }
@@ -64,7 +64,7 @@ export default async function DashboardPage({
   const { period: periodRaw } = await searchParams;
   const period = parsePeriod(periodRaw);
   const days = periodDays(period);
-  const { sincePeriod, sincePrevious, since12w, today } = timeWindow(days);
+  const { sincePeriod, sincePrevious, since24w, today } = timeWindow(days);
 
   const supabase = await createClient();
 
@@ -73,7 +73,7 @@ export default async function DashboardPage({
     { data: ocrLogPeriod },
     { data: ocrLogPrevious },
     { data: stockSnapshots },
-    { data: ocrLog12w },
+    { data: ocrLog24w },
     { data: restockRows },
     { data: lastSales },
   ] = await Promise.all([
@@ -98,7 +98,7 @@ export default async function DashboardPage({
     supabase
       .from('ocr_usage_log')
       .select('created_at')
-      .gte('created_at', since12w),
+      .gte('created_at', since24w),
     supabase
       .from('cards')
       .select('pokemon_number, pokemon_name, status')
@@ -122,7 +122,7 @@ export default async function DashboardPage({
   const rarityCounts = buildRarityCounts(cards);
   const rarityValues = buildRarityValues(cards);
   const topRares = topRaresByPrice(cards, 10);
-  const heatmap = buildHeatmapMatrix(ocrLog12w ?? [], today);
+  const heatmap = buildHeatmapMatrix(ocrLog24w ?? [], today);
   const costDaily = aggregateCostByDay(ocrLogPeriod ?? [], today, days);
   const alerts = computeRestockAlerts(restockRows ?? []);
 
