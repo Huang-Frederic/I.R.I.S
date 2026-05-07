@@ -84,7 +84,7 @@ describe('tcgdexSetIdFromName', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it('fetches separately for different languages', async () => {
+  it('fetches EN sets first then card-language sets, with caching', async () => {
     const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
     mockFetch.mockResolvedValueOnce({
       ok: true,
@@ -99,14 +99,14 @@ describe('tcgdexSetIdFromName', () => {
       ]),
     });
 
-    // EN call
+    // EN call: only fetches en sets (1 call).
     const idEN = await tcgdexSetIdFromName('Twilight Masquerade', 'EN');
     expect(idEN).toBe('sv06');
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(mockFetch).toHaveBeenNthCalledWith(1, 'https://api.tcgdex.net/v2/en/sets', expect.any(Object));
 
-    // FR call should fetch again (different language)
-    const idFR = await tcgdexSetIdFromName('Mascarade Crépusculaire', 'FR');
+    // FR call: en is cached, fr is fetched (1 new call → total 2).
+    const idFR = await tcgdexSetIdFromName('Twilight Masquerade', 'FR');
     expect(idFR).toBe('sv06');
     expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(mockFetch).toHaveBeenNthCalledWith(2, 'https://api.tcgdex.net/v2/fr/sets', expect.any(Object));

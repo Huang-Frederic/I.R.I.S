@@ -156,14 +156,12 @@ async function processCard(
     return;
   }
 
-  // Translate our internal card_id_tcg (LT format like 'TWM-171') to TCGdex's
-  // format (e.g. 'sv06-171') by looking up the set name. Fall back to the
-  // stored cardIdTcg when the set isn't in TCGdex (un-enriched cards or sets
-  // we can't map yet) — may 404 but preserves the legacy code path.
   const translatedId = await tcgdexCardId(card.set_name, card.set_number, card.language);
-  const fetched = await fetchTCGdexPricing(translatedId ?? cardIdTcg, card.language);
+  const finalId = translatedId ?? cardIdTcg;
+  const fetched = await fetchTCGdexPricing(finalId, card.language);
   if (fetched.error) {
-    summary.errors.push({ card_id: card.id, message: fetched.error });
+    console.warn(`[prices/cron] ${card.id} (${card.card_name} ${card.set_code}-${card.set_number} ${card.language}) → ${finalId} → ${fetched.error}`);
+    summary.errors.push({ card_id: card.id, message: `${finalId}: ${fetched.error}` });
     return;
   }
   const cm = fetched.cm;
@@ -264,22 +262,28 @@ async function handleSingleCard(cardId: string): Promise<NextResponse> {
     );
   }
 
-  // Translate our internal card_id_tcg (LT format like 'TWM-171') to TCGdex's
-  // format (e.g. 'sv06-171') by looking up the set name. Fall back to the
-  // stored cardIdTcg when the set isn't in TCGdex (un-enriched cards or sets
-  // we can't map yet) — may 404 but preserves the legacy code path.
   const translatedId = await tcgdexCardId(card.set_name, card.set_number, card.language);
-  const fetched = await fetchTCGdexPricing(translatedId ?? cardIdTcg, card.language);
+  const finalId = translatedId ?? cardIdTcg;
+  const fetched = await fetchTCGdexPricing(finalId, card.language);
   if (fetched.error) {
+    console.warn(`[prices/single] ${card.id} (${card.card_name} ${card.set_code}-${card.set_number} ${card.language}) → ${finalId} → ${fetched.error}`);
     return NextResponse.json(
-      { ok: false, error: 'tcgdex_failed', message: fetched.error },
+      {
+        ok: false,
+        error: 'tcgdex_failed',
+        message: `${finalId}: ${fetched.error}${!translatedId ? ' (no TCGdex set mapping found)' : ''}`,
+      },
       { status: 502 },
     );
   }
   const cm = fetched.cm;
   if (!cm || (cm.low == null && cm.trend == null && cm.avg == null)) {
+    const reason =
+      card.language === 'JP' || card.language === 'KO' || card.language === 'CN'
+        ? `Pas de prix Cardmarket pour les cartes ${card.language} (Cardmarket ne vend pas cette langue)`
+        : `TCGdex n'a pas encore de prix Cardmarket pour ${finalId}`;
     return NextResponse.json(
-      { ok: false, error: 'no_pricing_yet' },
+      { ok: false, error: 'no_pricing_yet', message: reason },
       { status: 422 },
     );
   }

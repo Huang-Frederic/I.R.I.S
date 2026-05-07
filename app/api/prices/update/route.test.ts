@@ -143,10 +143,19 @@ describe('POST /api/prices/update — bulk mode', () => {
 
   it('continues processing when TCGdex returns 500 on one card and adds to errors', async () => {
     setupServiceRead([row({ id: 'a' }), row({ id: 'b' })]);
-    let call = 0;
-    global.fetch = vi.fn().mockImplementation(async () => {
-      call += 1;
-      if (call === 1) return { ok: false, status: 500, text: async () => 'boom' };
+    // The /sets endpoint is called once per language (cached after) for the
+    // tcgdex-set-mapping helper. Branch on URL: /sets returns the catalog,
+    // /cards returns 500 on first call then OK.
+    let cardCallCount = 0;
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (typeof url === 'string' && url.includes('/sets')) {
+        return {
+          ok: true,
+          json: async () => [],
+        };
+      }
+      cardCallCount += 1;
+      if (cardCallCount === 1) return { ok: false, status: 500, text: async () => 'boom' };
       return {
         ok: true,
         json: async () => ({

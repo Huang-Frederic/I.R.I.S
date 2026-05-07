@@ -11,14 +11,14 @@ interface TCGdexSet {
   cardCount?: { total?: number; official?: number };
 }
 
-/**
- * Cache per (TCGdex language) of all set names → set IDs. Built lazily on first
- * call per language, kept in-memory until process restart. ~50-100 sets per
- * language; trivial RAM cost.
- */
-const cache = new Map<TCGdexLang, Map<string, string>>();
+interface SetIndex {
+  byName: Map<string, string>; // lowercased name → id
+  byTotal: Map<number, string[]>; // cardCount.total → list of ids (may collide)
+}
 
-async function loadSetsForLang(lang: TCGdexLang): Promise<Map<string, string>> {
+const cache = new Map<TCGdexLang, SetIndex>();
+
+async function loadSetsForLang(lang: TCGdexLang): Promise<SetIndex> {
   const cached = cache.get(lang);
   if (cached) return cached;
 
@@ -28,51 +28,130 @@ async function loadSetsForLang(lang: TCGdexLang): Promise<Map<string, string>> {
     const res = await fetch(`${BASE}/${lang}/sets`, { signal: ctrl.signal });
     if (!res.ok) throw new Error(`tcgdex sets ${res.status}`);
     const sets = (await res.json()) as TCGdexSet[];
-    const map = new Map<string, string>();
+    const idx: SetIndex = { byName: new Map(), byTotal: new Map() };
     for (const s of sets) {
-      // Index by lowercase name for case-insensitive match
-      map.set(s.name.toLowerCase().trim(), s.id);
+      idx.byName.set(s.name.toLowerCase().trim(), s.id);
+      const total = s.cardCount?.total;
+      if (typeof total === 'number') {
+        const list = idx.byTotal.get(total) ?? [];
+        list.push(s.id);
+        idx.byTotal.set(total, list);
+      }
     }
-    cache.set(lang, map);
-    return map;
+    cache.set(lang, idx);
+    return idx;
   } finally {
     clearTimeout(timer);
   }
 }
 
 /**
- * Translate (set_name, language) → TCGdex set ID. Returns null on no match
- * (unknown set, network failure, etc.). Caller handles null gracefully.
+ * Strip a trailing "/total" from a set_number.
+ *   "171/226" → "171"
+ *   "171"     → "171"
+ *   null/empty → null
+ */
+function normalizeSetNumber(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const slashIdx = trimmed.indexOf('/');
+  return slashIdx === -1 ? trimmed : trimmed.slice(0, slashIdx);
+}
+
+/**
+ * Try to extract the set total from a "X/Y" string (returns Y as number).
+ * Returns null when the format doesn't include a total.
+ */
+function extractSetTotal(raw: string | null | undefined): number | null {
+  if (!raw) return null;
+  const slashIdx = raw.indexOf('/');
+  if (slashIdx === -1) return null;
+  const tail = raw.slice(slashIdx + 1).trim();
+  const n = parseInt(tail, 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * Resolve the TCGdex set id from our card's identifying fields.
+ *
+ *   1. Try matching set_name (lowercased) against the EN set index — the
+ *      LimitlessTCG catalog stores set names in English regardless of card
+ *      language ("Twilight Masquerade" even on a FR card), so EN nearly
+ *      always wins here.
+ *   2. Fall back to matching against the card's own language (works for the
+ *      rare case where the catalog stored the localised name).
+ *   3. Final fall back: match by `set_total` (extracted from "171/226" → 226)
+ *      against the EN index. Language-agnostic and resilient to set-name
+ *      translation gaps. Returns null when multiple sets share the same total
+ *      (can't disambiguate).
+ *
+ * The returned set_id is canonical (e.g. "sv06") and works in any TCGdex
+ * language for the subsequent /cards/{id} call.
  */
 export async function tcgdexSetIdFromName(
   setName: string | null,
   language: CardLanguage,
+  setTotal?: number | null,
 ): Promise<string | null> {
-  if (!setName) return null;
-  const lang = toTCGdexLang(language);
+  const cardLang = toTCGdexLang(language);
+  let enIdx: SetIndex | null = null;
+  let langIdx: SetIndex | null = null;
   try {
-    const map = await loadSetsForLang(lang);
-    return map.get(setName.toLowerCase().trim()) ?? null;
+    enIdx = await loadSetsForLang('en');
   } catch (err) {
-    console.warn(`[tcgdex-set-mapping] lookup failed for ${language}/${setName}:`, err);
-    return null;
+    console.warn(`[tcgdex-set-mapping] EN sets fetch failed:`, err);
   }
+  if (cardLang !== 'en') {
+    try {
+      langIdx = await loadSetsForLang(cardLang);
+    } catch (err) {
+      console.warn(`[tcgdex-set-mapping] ${language} sets fetch failed:`, err);
+    }
+  }
+
+  const cleanedName = setName?.toLowerCase().trim() ?? '';
+
+  if (cleanedName) {
+    const byEn = enIdx?.byName.get(cleanedName);
+    if (byEn) return byEn;
+    const byLang = langIdx?.byName.get(cleanedName);
+    if (byLang) return byLang;
+  }
+
+  if (typeof setTotal === 'number' && setTotal > 0) {
+    const enCandidates = enIdx?.byTotal.get(setTotal) ?? [];
+    if (enCandidates.length === 1) return enCandidates[0];
+    const langCandidates = langIdx?.byTotal.get(setTotal) ?? [];
+    if (langCandidates.length === 1) return langCandidates[0];
+    if (enCandidates.length > 1 || langCandidates.length > 1) {
+      console.warn(
+        `[tcgdex-set-mapping] total=${setTotal} ambiguous: en=[${enCandidates.join(',')}] ${language}=[${langCandidates.join(',')}]`,
+      );
+    }
+  }
+
+  console.warn(
+    `[tcgdex-set-mapping] no match: name="${setName ?? ''}" lang=${language} total=${setTotal ?? '?'}`,
+  );
+  return null;
 }
 
 /**
- * Build the TCGdex card ID from our card row:
- *   tcgdex_set_id-set_number (e.g., 'sv06-171')
- * Returns null when set name doesn't match any TCGdex set.
+ * Build the TCGdex card ID from our card row.
+ * Handles "171/226" set_number formats by stripping the total.
  */
 export async function tcgdexCardId(
   setName: string | null,
   setNumber: string | null,
   language: CardLanguage,
 ): Promise<string | null> {
-  if (!setNumber) return null;
-  const setId = await tcgdexSetIdFromName(setName, language);
+  const cleanedNumber = normalizeSetNumber(setNumber);
+  if (!cleanedNumber) return null;
+  const total = extractSetTotal(setNumber);
+  const setId = await tcgdexSetIdFromName(setName, language, total);
   if (!setId) return null;
-  return `${setId}-${setNumber}`;
+  return `${setId}-${cleanedNumber}`;
 }
 
 /** Test-only: clear the in-memory cache so tests start with a clean slate. */

@@ -39,14 +39,18 @@ export default function RefreshPriceButton({ cardId, onRefreshed }: Props) {
       const res = await fetch(`/api/prices/update?card_id=${encodeURIComponent(cardId)}`, {
         method: 'POST',
       });
-      const json = (await res.json()) as { ok: boolean; card?: Card; error?: string };
+      const json = (await res.json()) as { ok: boolean; card?: Card; error?: string; message?: string };
       if (!res.ok || !json.ok || !json.card) {
-        throw new Error(json.error ?? `HTTP ${res.status}`);
+        // Surface the server's `message` (more user-friendly) when present,
+        // fall back to the error code or HTTP status.
+        throw new Error(json.message ?? json.error ?? `HTTP ${res.status}`);
       }
       onRefreshed(json.card);
       setState('success');
     } catch (err) {
-      setErrorMsg((err as Error).message);
+      const msg = (err as Error).message;
+      console.error(`[RefreshPriceButton] card=${cardId}: ${msg}`);
+      setErrorMsg(msg);
       setState('error');
     }
   }
@@ -58,15 +62,25 @@ export default function RefreshPriceButton({ cardId, onRefreshed }: Props) {
                           <RefreshCw className="h-3.5 w-3.5" />;
 
   return (
-    <button
-      type="button"
-      onClick={refresh}
-      disabled={state === 'loading'}
-      title={state === 'error' && errorMsg ? errorMsg : 'Rafraîchir le prix Cardmarket'}
-      aria-label="Rafraîchir le prix"
-      className="text-text-muted hover:text-text inline-flex items-center justify-center rounded p-1 transition-colors disabled:cursor-default"
-    >
-      {icon}
-    </button>
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={refresh}
+        disabled={state === 'loading'}
+        title={state === 'error' && errorMsg ? errorMsg : 'Rafraîchir le prix Cardmarket'}
+        aria-label="Rafraîchir le prix"
+        className="text-text-muted hover:text-text inline-flex items-center justify-center rounded p-1 transition-colors disabled:cursor-default"
+      >
+        {icon}
+      </button>
+      {state === 'error' && errorMsg && (
+        <div
+          role="alert"
+          className="bg-red text-white absolute right-0 top-full z-50 mt-1 max-w-[280px] whitespace-normal rounded-md px-2 py-1.5 text-[11px] leading-snug shadow-lg"
+        >
+          {errorMsg}
+        </div>
+      )}
+    </div>
   );
 }
