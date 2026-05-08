@@ -17,7 +17,7 @@
 // wildly wrong matches (DRM-3 for TG-3/30 because Dragon Majesty has 30 cards).
 
 import { NextResponse } from 'next/server';
-import { apiError, validationResponse } from '@/lib/utils/api-response';
+import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
 import { createClient } from '@/lib/supabase/server';
 import {
   disambiguateByIllustrator,
@@ -390,6 +390,9 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return unauthorizedResponse();
+
   const ctx: StrategyContext = {
     body,
     setCode,
