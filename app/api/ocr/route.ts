@@ -5,7 +5,7 @@ import type { CardLanguage, OcrResult } from '@/lib/types';
 import { createServiceClient } from '@/lib/supabase/service';
 import { createClient } from '@/lib/supabase/server';
 import { computeVisionCostEur } from '@/lib/utils/ocr-cost';
-import { apiError, validationResponse } from '@/lib/utils/api-response';
+import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
 
 export const runtime = 'nodejs';
 
@@ -46,6 +46,10 @@ async function logOcrUsage(input: {
 }
 
 export async function POST(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return unauthorizedResponse();
+
   let formData: FormData;
   try {
     formData = await request.formData();
