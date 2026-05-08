@@ -113,6 +113,7 @@ For the **complete setup walkthrough** (provisioning Supabase, getting Google Cl
 | **[docs/SUPABASE.md](docs/SUPABASE.md)** | Database schema, migrations, RLS policies, storage buckets, how to reset from scratch. |
 | **[docs/CHANGELOG.md](docs/CHANGELOG.md)** | Phase-by-phase build history with what shipped and why. |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Code map — how the codebase is structured, key abstractions, data flow. |
+| **[docs/TECH_DEBT.md](docs/TECH_DEBT.md)** | Honest catalog of what's not perfect and why each item was deferred. |
 | **[docs/SCREENSHOTS_TODO.md](docs/SCREENSHOTS_TODO.md)** | Visual-capture checklist for filling the README and feature docs. |
 
 ## 📊 Project metrics

@@ -331,14 +331,28 @@ grep -nE '^## (Project metrics|📊 Project metrics|📷 Screenshots)$' README.m
 
 Expected: `OK - no leftover sections`.
 
-- [ ] **Step 5: Verify the storytelling section anchors are present**
+- [ ] **Step 5: Verify the storytelling section count**
 
 Run:
 ```bash
-grep -cE '^## (Two collectors|📷ÿ?It starts with a scan|🗂.?Now, where does it go|💰.?Time to sell|👥.?But you|📊.?The control room|🛠.?Under the hood|🚀.?Try it yourself|📚.?Going deeper|🧪.?Testing|🗺.?What.s next|📄.?License)' README.md
+grep -cE '^## ' README.md
 ```
 
-Expected: `12` (the twelve `##` section headers from the new structure).
+Expected: `12` — exactly twelve `##` section headers. They are, in order:
+1. `## Two collectors, one shoebox of cards`
+2. `## 📷 It starts with a scan`
+3. `## 🗂 Now, where does it go?`
+4. `## 💰 Time to sell`
+5. `## 👥 But you're not alone`
+6. `## 📊 The control room`
+7. `## 🛠 Under the hood`
+8. `## 🚀 Try it yourself`
+9. `## 📚 Going deeper`
+10. `## 🧪 Testing`
+11. `## 🗺 What's next`
+12. `## 📄 License`
+
+If the count is off, list the headers (`grep -nE '^## ' README.md`) and reconcile.
 
 - [ ] **Step 6: Mental render walkthrough**
 
