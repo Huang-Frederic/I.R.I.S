@@ -48,7 +48,8 @@ describe('POST /api/lots', () => {
     const res = await POST(makeRequest(makeFormData({ name: '' })));
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error).toMatch(/name/i);
+    // Error code is 'validation'; the descriptive text lives in `message`.
+    expect(json.message).toMatch(/name/i);
   });
 
   it('returns 400 when no photos are provided', async () => {
@@ -56,7 +57,7 @@ describe('POST /api/lots', () => {
     const res = await POST(makeRequest(makeFormData({ photos: [] })));
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error).toMatch(/photo/i);
+    expect(json.message).toMatch(/photo/i);
   });
 
   it('returns 400 when price is missing or invalid', async () => {
