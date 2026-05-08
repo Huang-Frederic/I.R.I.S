@@ -4,6 +4,7 @@ import { useMemo, useState, useSyncExternalStore, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import type { Card, CardRarity } from '@/lib/types';
 import { GENERATIONS } from '@/lib/utils/pokemon-generations';
+import { normalizeForSearch } from '@/lib/utils/text-normalize';
 import { POKEMON_NAMES } from '@/lib/data/pokemon-names';
 import PokedexCell from './PokedexCell';
 import PokedexDrawer from './PokedexDrawer';
@@ -206,14 +207,13 @@ function matches(n: number, pokedexMap: Map<number, Card>, filters: FilterState)
     if (!isNaN(numQuery) && n === numQuery) return true;
 
     // Name search: normalize NFD + lowercase, match across card.pokemon_name + FR + EN.
-    const normalize = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
-    const q = normalize(search);
+    const q = normalizeForSearch(search);
     const names = [
       card?.pokemon_name,
       POKEMON_NAMES[n]?.fr,
       POKEMON_NAMES[n]?.en,
     ].filter((s): s is string => typeof s === 'string' && s.length > 0);
-    if (names.some((name) => normalize(name).includes(q))) return true;
+    if (names.some((name) => normalizeForSearch(name).includes(q))) return true;
 
     return false;
   }

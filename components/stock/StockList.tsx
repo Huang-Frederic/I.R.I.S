@@ -8,6 +8,7 @@ import StockFilters, { INITIAL_STOCK_FILTERS, type StockFilterState } from './St
 import StockRow from './StockRow';
 import ExchangeOnConflictModal, { type ExchangeConflictCard } from '@/components/vinted/ExchangeOnConflictModal';
 import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
+import { normalizeForSearch } from '@/lib/utils/text-normalize';
 
 export interface StockListProps {
   cards: Card[];
@@ -16,18 +17,14 @@ export interface StockListProps {
   registered: Set<number>;
 }
 
-function normalize(s: string): string {
-  return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
-}
-
 function matchesSearch(card: Card, query: string): boolean {
   if (!query) return true;
-  const q = normalize(query);
+  const q = normalizeForSearch(query);
   const fields = [
     card.set_number, card.card_name, card.pokemon_name,
     card.set_name, card.set_code, card.language, card.rarity,
   ];
-  return fields.some((f) => f && normalize(f).includes(q));
+  return fields.some((f) => f && normalizeForSearch(f).includes(q));
 }
 
 /** Same composite key as the API/page — keeps the for_sale lookup consistent. */
