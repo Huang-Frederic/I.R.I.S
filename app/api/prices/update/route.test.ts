@@ -70,12 +70,26 @@ function authedBulk(): Request {
 }
 
 function setupServiceRead(rows: ReturnType<typeof row>[]) {
+  // Bulk read chain: select(...).eq().order().limit() — the cron's per-batch fetch.
   const limit = vi.fn().mockResolvedValue({ data: rows, error: null });
   const order = vi.fn(() => ({ limit }));
   const eq = vi.fn(() => ({ order }));
+  // snapshotStockValue chain: select(...).in('status', [...]) — runs after the bulk.
+  const inFn = vi.fn().mockResolvedValue({ data: [], error: null });
+  // Update chain: update(...).eq(...).select('*').single() — the cron writes back the priced row.
+  const updateChain = () => ({
+    eq: vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({ data: rows[0] ?? null, error: null }),
+      })),
+    })),
+  });
   serviceMock.from.mockImplementation((table: string) => {
     if (table === 'cards') {
-      return { select: vi.fn(() => ({ eq })), update: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })) };
+      return {
+        select: vi.fn(() => ({ eq, in: inFn })),
+        update: vi.fn(updateChain),
+      };
     }
     if (table === 'config') {
       return {
@@ -88,7 +102,21 @@ function setupServiceRead(rows: ReturnType<typeof row>[]) {
         })),
       };
     }
-    throw new Error(`unmocked table: ${table}`);
+    if (table === 'stock_value_snapshots') {
+      return { upsert: vi.fn().mockResolvedValue({ error: null }) };
+    }
+    // cardmarket_* and tcg_catalog: empty so lookupCardmarketPricing returns
+    // no_expansion and the route falls through to the TCGdex live path.
+    return {
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({ in: vi.fn().mockResolvedValue({ data: [], error: null }) })),
+        in: vi.fn().mockResolvedValue({ data: [], error: null }),
+        ilike: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+        })),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      })),
+    };
   });
 }
 
