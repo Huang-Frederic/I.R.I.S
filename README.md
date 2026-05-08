@@ -36,7 +36,7 @@ You point your phone at a card. Three seconds later, I.R.I.S knows the name in t
 
 The OCR runs on **Gemini 3.1 Flash Lite Preview** (~93 % accuracy, structured JSON in a single call) with **Google Vision** as automatic fallback. ~€0.0004 per scan. Five languages supported — Japanese, English, French, Korean, Chinese — with bilingual name extraction for FR cards (`"Gruikui (チャオブー)"`).
 
-Once the card is identified, a 6-strategy enrichment pipeline fills in the rest from a **52K-card local catalog** scraped from LimitlessTCG and queried offline-first, with TCGdex as a live fallback for new sets.
+Once the card is identified, a 6-strategy enrichment pipeline fills in the rest from a **52K-card local catalog** scraped from LimitlessTCG and queried offline-first. When the local lookup misses, TCGdex's live API takes over; when *that* misses too, **Gemini becomes the last-resort fallback** and infers the metadata directly from the photo.
 
 ![Scanner](docs/screenshots/scanner.png)
 
@@ -90,7 +90,7 @@ When you mark a partner's listing as sold, I.R.I.S runs a cleanup pass: the list
 
 At the end of the day, you want the whole picture.
 
-The Dashboard answers in one screen. **4 KPI tiles** for stock value, OCR cost over 30 days, scan count, and restock alerts. **4 charts** — cost stacked bar, stock-value area, rarity drill-down donut, and a custom-SVG 52-week scan heatmap (the rest powered by Recharts). Plus a top-10 rares table that deep-links into the card drawer.
+The Dashboard answers in one screen. A period selector (7 d / 30 d / 90 d / 1 y) drives **4 KPI tiles** — stock value, OCR cost, scans, cards added — alongside a today-in-context block. Below: pokédex progress with the latest captures, a rarity drill-down donut, a daily-cost stacked bar, a custom-SVG 24-week scan heatmap (the rest powered by Recharts), the top 10 rares, and the last 10 sales. Every list deep-links into the card drawer.
 
 Behind the scenes, a **daily Vercel cron** refreshes Cardmarket pricing nightly. A **daily GitHub Actions cron** snapshots the database to gzipped releases — rotation 30 daily / 12 weekly / 12 monthly. One-click manual backups from the Options page push gzipped dumps to a Supabase bucket with signed-URL download.
 
@@ -124,7 +124,7 @@ A few architectural choices worth calling out:
 - **Catalog-first enrichment.** Local Postgres lookup beats live API every time; TCGdex is the network fallback only when the local catalog has no hit.
 - **Cardmarket pricing without the API.** Public S3 dumps + Playwright gallery scrape build a `(set, number) → idProduct` index. Exact matches, no name fuzzing.
 
-Full code map in **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+Full code map in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ---
 
@@ -147,13 +147,13 @@ The full setup walkthrough — Supabase provisioning, Google Vision and Gemini k
 
 | Doc | What you'll find |
 |---|---|
-| **[docs/SETUP.md](docs/SETUP.md)** | Every key, every command, every WSL2 gotcha. Start here if you want to run it. |
+| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | The code map — directory structure, key abstractions, data flow. Start here for code understanding. |
 | **[docs/FEATURES.md](docs/FEATURES.md)** | The full feature catalog with edge cases. The "what does it actually do?" reference. |
-| **[docs/COMMANDS.md](docs/COMMANDS.md)** | Every npm script and `tsx` script in the repo, with usage and intent. |
-| **[docs/SUPABASE.md](docs/SUPABASE.md)** | Database schema, migrations, RLS policies, storage buckets, reset-from-scratch procedure. |
-| **[docs/CHANGELOG.md](docs/CHANGELOG.md)** | Phase-by-phase build history with what shipped and why. |
 | **[docs/TECH_DEBT.md](docs/TECH_DEBT.md)** | The honest list — what's not perfect, why it was deferred, what it would take to fix. |
-| **[ARCHITECTURE.md](ARCHITECTURE.md)** | The code map — directory structure, key abstractions, data flow. |
+| **[docs/CHANGELOG.md](docs/CHANGELOG.md)** | Phase-by-phase build history with what shipped and why. |
+| **[docs/SETUP.md](docs/SETUP.md)** | Every key, every command, every WSL2 gotcha. Start here if you want to run it. |
+| **[docs/SUPABASE.md](docs/SUPABASE.md)** | Database schema, migrations, RLS policies, storage buckets, reset-from-scratch procedure. |
+| **[docs/COMMANDS.md](docs/COMMANDS.md)** | Every npm script and `tsx` script in the repo, with usage and intent. |
 
 ---
 

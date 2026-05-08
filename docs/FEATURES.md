@@ -1,6 +1,6 @@
 # Features
 
-Complete catalog of what I.R.I.S does, organized by user-facing module. For the underlying code map, see [ARCHITECTURE.md](../ARCHITECTURE.md).
+Complete catalog of what I.R.I.S does, organized by user-facing module. For the underlying code map, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Table of contents
 
