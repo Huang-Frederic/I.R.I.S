@@ -78,31 +78,20 @@ export function tokensSorted(s: string): string {
 const CARDMARKET_LOCALE = 'fr';
 
 /**
- * Slugify the Cardmarket way: NFD-strip diacritics, preserve case (CM URLs
- * keep "Crown-Zenith" capitalized), collapse any non-alphanumeric run into
- * a single hyphen, trim leading/trailing hyphens.
- */
-export function cardmarketSlugify(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-/**
- * Best-effort canonical Cardmarket product URL path. Used as a fallback when
- * the gallery scrape (cardmarket_card_index) hasn't populated url_path for
- * the picked product yet — derived purely from the expansion name and the
- * card prefix we already have in the dumps.
+ * Fallback Cardmarket URL when the gallery scrape hasn't populated url_path.
+ * Returns a Search URL keyed on `{cardPrefix} {expansionName}` — always lands
+ * on a valid CM page; the user picks the right printing from 1-3 results.
  *
- * Works for ~90% of cards (unique prefix per expansion). Cards with
- * multiple variants sharing a prefix in the same expansion may resolve to
- * the wrong variant or 404; the next gallery scrape replaces the synthetic
- * URL with the canonical one.
+ * We can't synthesize a direct product URL: CM's URL slug requires (a) the
+ * variant marker (V1/V2/...) which only exists for multi-print cards and
+ * isn't derivable from our dumps, and (b) a setcode that's locale-dependent
+ * (e.g. CM FR uses "V" for the XY set, "XY" only in EN). Search bypasses
+ * both unknowns. The next gallery scrape replaces this fallback with the
+ * canonical product URL via the daily cron.
  */
 export function buildSyntheticCardmarketUrlPath(expansionName: string, cardPrefix: string): string {
-  return `/${CARDMARKET_LOCALE}/Pokemon/Products/Singles/${cardmarketSlugify(expansionName)}/${cardmarketSlugify(cardPrefix)}`;
+  const query = `${cardPrefix} ${expansionName}`.trim();
+  return `/${CARDMARKET_LOCALE}/Pokemon/Products/Search?searchString=${encodeURIComponent(query)}`;
 }
 
 /** Game-name prefixes the user's stored set_name might carry that the

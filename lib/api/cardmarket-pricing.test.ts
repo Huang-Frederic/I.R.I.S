@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   buildSearchPrefixes,
   buildSyntheticCardmarketUrlPath,
-  cardmarketSlugify,
   normalize,
   pickAmbiguousIndex,
   tokensSorted,
@@ -173,53 +172,22 @@ describe('buildSearchPrefixes', () => {
   });
 });
 
-describe('cardmarketSlugify', () => {
-  it('strips diacritics while preserving case', () => {
-    expect(cardmarketSlugify('Mascarade Crépusculaire')).toBe('Mascarade-Crepusculaire');
-    expect(cardmarketSlugify('Pokémon 151')).toBe('Pokemon-151');
-    expect(cardmarketSlugify('Évolutions à Paldea')).toBe('Evolutions-a-Paldea');
-  });
-
-  it('replaces non-alphanumeric runs with a single hyphen', () => {
-    expect(cardmarketSlugify('Scarlet & Violet Promos')).toBe('Scarlet-Violet-Promos');
-    expect(cardmarketSlugify('S.W.A.T.')).toBe('S-W-A-T');
-    expect(cardmarketSlugify("N's Plan")).toBe('N-s-Plan');
-  });
-
-  it('preserves alphanumeric characters as-is', () => {
-    expect(cardmarketSlugify('Iron Crown ex')).toBe('Iron-Crown-ex');
-    expect(cardmarketSlugify('SV5M')).toBe('SV5M');
-    expect(cardmarketSlugify('Crown Zenith')).toBe('Crown-Zenith');
-  });
-
-  it('trims leading/trailing hyphens and collapses runs', () => {
-    expect(cardmarketSlugify('  Crown Zenith  ')).toBe('Crown-Zenith');
-    expect(cardmarketSlugify('---Test---')).toBe('Test');
-    expect(cardmarketSlugify('A   B')).toBe('A-B');
-  });
-
-  it('returns empty string for input with no alphanumerics', () => {
-    expect(cardmarketSlugify('---')).toBe('');
-    expect(cardmarketSlugify('   ')).toBe('');
-  });
-});
-
 describe('buildSyntheticCardmarketUrlPath', () => {
-  it('builds the canonical fr-locale Singles path', () => {
+  it('builds a Search URL combining card prefix + expansion name', () => {
     expect(buildSyntheticCardmarketUrlPath('Cyber Judge', 'Iron Crown ex')).toBe(
-      '/fr/Pokemon/Products/Singles/Cyber-Judge/Iron-Crown-ex',
+      '/fr/Pokemon/Products/Search?searchString=Iron%20Crown%20ex%20Cyber%20Judge',
     );
   });
 
-  it('handles accented expansion names', () => {
-    expect(buildSyntheticCardmarketUrlPath('Mascarade Crépusculaire', 'Poltchageist')).toBe(
-      '/fr/Pokemon/Products/Singles/Mascarade-Crepusculaire/Poltchageist',
-    );
-  });
-
-  it('handles "&" in expansion names', () => {
+  it('URL-encodes special characters', () => {
     expect(buildSyntheticCardmarketUrlPath('Scarlet & Violet Promos', 'Pikachu')).toBe(
-      '/fr/Pokemon/Products/Singles/Scarlet-Violet-Promos/Pikachu',
+      '/fr/Pokemon/Products/Search?searchString=Pikachu%20Scarlet%20%26%20Violet%20Promos',
+    );
+  });
+
+  it('preserves accented characters in the query (CM Search handles them)', () => {
+    expect(buildSyntheticCardmarketUrlPath('Mascarade Crépusculaire', 'Poltchageist')).toBe(
+      '/fr/Pokemon/Products/Search?searchString=Poltchageist%20Mascarade%20Cr%C3%A9pusculaire',
     );
   });
 });
