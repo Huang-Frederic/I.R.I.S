@@ -14,14 +14,16 @@
 // run crashed mid-expansion, the partial rows persist; pass --force to
 // re-scrape an expansion regardless.
 //
-// Rate-limit posture: Cardmarket starts 429ing after 5-6 rapid requests.
-// We pace at ~3s/page + 5-8s between expansions, retry 429s with exponential
-// cooldown, and kill-switch after 5 cumulative 429s.
+// Rate-limit posture: Cardmarket sits behind Cloudflare which issues a 1015
+// IP ban (24-72h) after sustained scraping. Previous run at 2.5s/page + 5s/exp
+// got the dev IP banned. Current pacing: ~8s/page + ~30s/exp, kill-switch at
+// 2 cumulative 429s — Cloudflare memorises fast, abort early to avoid extending
+// the ban.
 //
 // Usage:
 //   npm run scrape-cardmarket -- Crimson-Haze Mascarade-Crepusculaire
-//   npm run scrape-cardmarket -- --modern              # ~280 modern sets (SV+, ~2-3h)
-//   npm run scrape-cardmarket -- --all                 # all 741 expansions (overnight)
+//   npm run scrape-cardmarket -- --modern              # ~280 modern sets (SV+, ~6h)
+//   npm run scrape-cardmarket -- --all                 # all 741 expansions (~16h)
 //   npm run scrape-cardmarket -- --since 5500          # since idExpansion 5500
 //   npm run scrape-cardmarket -- --force --modern      # re-scrape everything
 //   npm run scrape-cardmarket -- --dry-run Crimson-Haze
@@ -46,11 +48,11 @@ const ROOT = path.resolve(__dirname, '..');
 const MODERN_FILE = path.join(ROOT, 'scripts', 'data', 'cardmarket-modern-expansions.json');
 const BASE_URL = 'https://www.cardmarket.com/fr/Pokemon/Products/Singles';
 const PAGE_TIMEOUT = 30_000;
-const INTER_PAGE_DELAY_MS = 2_500;       // jittered ±1s
-const INTER_EXPANSION_DELAY_MS = 5_000;  // jittered ±3s
+const INTER_PAGE_DELAY_MS = 8_000;       // jittered ±2s
+const INTER_EXPANSION_DELAY_MS = 30_000; // jittered ±10s
 const PAGE_429_COOLDOWN_MS = 60_000;     // base, multiplied by retry attempt
 const PAGE_MAX_RETRIES = 3;
-const KILL_SWITCH_429_THRESHOLD = 5;
+const KILL_SWITCH_429_THRESHOLD = 2;
 const LOCALE = 'fr';
 const DRY_RUN = process.argv.includes('--dry-run');
 const FORCE = process.argv.includes('--force');
@@ -190,7 +192,7 @@ async function scrapeOneExpansion(
     process.stdout.write(`\r    page ${site}/${totalPages} → +${pageCards.length} (total ${allCards.length})`);
 
     if (site < totalPages) {
-      await sleep(jitter(INTER_PAGE_DELAY_MS, 1_000));
+      await sleep(jitter(INTER_PAGE_DELAY_MS, 2_000));
     }
   }
   process.stdout.write('\n');
@@ -428,7 +430,7 @@ async function main(): Promise<void> {
     }
 
     if (i < targets.length - 1 && !abortAll) {
-      const delay = jitter(INTER_EXPANSION_DELAY_MS, 3_000);
+      const delay = jitter(INTER_EXPANSION_DELAY_MS, 10_000);
       console.log(`    waiting ${Math.round(delay / 1000)}s before next expansion...`);
       await sleep(delay);
     }
