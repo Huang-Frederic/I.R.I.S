@@ -34,7 +34,16 @@ export type LookupOutcome =
     }
   | {
       ok: false;
-      reason: 'no_expansion' | 'no_product' | 'no_pricing' | 'unsupported_variant' | 'missing_set_name';
+      reason:
+        | 'no_expansion'
+        | 'no_product'
+        | 'no_pricing'
+        | 'unsupported_variant'
+        | 'missing_set_name'
+        /** Supabase query failure (network, RLS, schema drift). Surfaced as a
+         *  structured outcome instead of a thrown Error so the cron + single-card
+         *  paths can degrade gracefully. */
+        | 'db_error';
       /** Free-form context string for telemetry — what was actually tried. */
       details?: string;
     };
@@ -350,8 +359,25 @@ async function buildCandidateSetNames(
  * Look up Cardmarket pricing for one card. Returns a discriminated union so
  * the caller can log the failure reason. Pure function modulo the supabase
  * queries.
+ *
+ * Wraps the inner implementation in a try/catch so any Supabase query failure
+ * surfaces as a structured `db_error` outcome instead of a thrown Error — keeps
+ * the daily cron processing remaining cards on transient DB hiccups, and lets
+ * the single-card UI surface a clear reason.
  */
 export async function lookupCardmarketPricing(
+  service: ServiceClient,
+  card: Card,
+): Promise<LookupOutcome> {
+  try {
+    return await lookupCardmarketPricingInner(service, card);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, reason: 'db_error', details: msg };
+  }
+}
+
+async function lookupCardmarketPricingInner(
   service: ServiceClient,
   card: Card,
 ): Promise<LookupOutcome> {
