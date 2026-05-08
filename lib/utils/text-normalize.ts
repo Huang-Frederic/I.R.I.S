@@ -1,5 +1,3 @@
-// lib/utils/text-normalize.ts
-//
 // Search-oriented text normalization. Used for case- and accent-insensitive
 // substring matching in list filters (Stock, Pokédex). Strips combining
 // diacritics via NFD decomposition and lowercases.

@@ -1,4 +1,3 @@
-// lib/utils/lot-template.test.ts
 import { describe, expect, it } from 'vitest';
 import { buildLotAnnonce, composeLotTitle } from './lot-template';
 

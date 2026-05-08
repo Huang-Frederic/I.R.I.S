@@ -1,5 +1,3 @@
-// scripts/snapshot-cardmarket-index.ts
-//
 // Streams all rows of cardmarket_card_index to a versioned file in backups/.
 // Run after a successful gallery scrape (`npm run scrape-cardmarket -- --modern`
 // or `--all`) so the hours of work + Cloudflare-1015 risk are protected.

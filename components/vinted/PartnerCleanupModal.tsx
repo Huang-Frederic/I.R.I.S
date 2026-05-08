@@ -1,4 +1,3 @@
-// components/vinted/PartnerCleanupModal.tsx
 'use client';
 
 import { AlertTriangle } from 'lucide-react';

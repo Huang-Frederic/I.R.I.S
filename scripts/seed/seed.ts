@@ -153,7 +153,7 @@ function daysAgo(d: number): string {
 
 interface StatusMeta {
   status: string;
-  /** When non-null, the seeder will INSERT a card_listings row for HISSHIDEN_USER_ID with this timestamp post-insert (Phase 4 — listings are per-user, not per-card). */
+  /** When non-null, the seeder INSERTs a card_listings row for HISSHIDEN_USER_ID with this timestamp post-insert. Listings are per-user, not per-card. */
   listed_at: string | null;
   date_sold: string | null;
   sold_price: number | null;
@@ -319,7 +319,7 @@ async function main() {
   }
   console.log(`✅ Inserted ${inserted?.length ?? 0} rows.`);
 
-  // 5. Insert per-user listings (Phase 4) — Hisshiden owns all seeded listings.
+  // 5. Insert per-user listings — Hisshiden owns all seeded listings.
   const listingRows = (inserted ?? [])
     .map((card, i) => {
       const listedAt = listingMeta[i];

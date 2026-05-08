@@ -1,4 +1,3 @@
-// components/cards/DuplicatePhotoModal.tsx
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';

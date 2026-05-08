@@ -1,4 +1,3 @@
-// lib/utils/group-cards.test.ts
 import { describe, expect, it } from 'vitest';
 import { groupKey, groupCards } from './group-cards';
 import { makeCard as baseMakeCard } from './test-fixtures';

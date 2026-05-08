@@ -1,5 +1,3 @@
-// app/api/prices/update/route.ts
-//
 // Two entry paths sharing one per-card pipeline:
 //
 //   GET  /api/prices/update                    → cron (auth: Bearer CRON_SECRET) → bulk

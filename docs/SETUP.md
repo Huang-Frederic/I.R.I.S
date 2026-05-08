@@ -166,16 +166,18 @@ npx supabase db push                                # applies every migration in
 
 Open each `.sql` file in `supabase/migrations/` (alphabetically) and paste into the Supabase dashboard SQL Editor. Slower but works without the CLI.
 
-### After applying
+### After applying — seed `user_profiles`
 
-Update the `user_profiles` table to map the two auth users to display names:
+The phase-4 migration seeds `user_profiles` only for the two original install UUIDs. On any fresh Supabase project the seed inserts skip (no matching `auth.users` row, the migration's `where exists` guard short-circuits) — you need to insert your own rows once, with the UUIDs from step 2.3:
 
 ```sql
-update user_profiles set display_name = 'Lui'  where user_id = '<user-1-uuid>';
-update user_profiles set display_name = 'Elle' where user_id = '<user-2-uuid>';
+insert into user_profiles (user_id, display_name) values
+  ('<user-1-uuid>', 'Lui'),
+  ('<user-2-uuid>', 'Elle')
+on conflict (user_id) do nothing;
 ```
 
-(Replace `Lui` / `Elle` with the names you want shown across the app, and the UUIDs from step 2.3.)
+(Replace `Lui` / `Elle` with whatever display names you want across the app.)
 
 For the full migration breakdown, see **[docs/SUPABASE.md](SUPABASE.md)**.
 

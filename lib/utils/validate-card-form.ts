@@ -1,4 +1,3 @@
-// lib/utils/validate-card-form.ts
 import type { CardCondition, CardLanguage, CardRarity, CardStatus } from '@/lib/types';
 
 const LANGUAGES: ReadonlySet<CardLanguage> = new Set([

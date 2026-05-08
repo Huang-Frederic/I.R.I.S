@@ -1,4 +1,3 @@
-// components/dashboard/PokedexCount.tsx
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 import { RARITY_COLOR } from '@/lib/utils/labels';

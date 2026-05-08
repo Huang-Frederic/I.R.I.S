@@ -1,5 +1,3 @@
-// lib/api/cardmarket-pricing.ts
-//
 // Local Cardmarket pricing lookup. Replaces the live TCGdex calls in the
 // daily pricing cron — same end fields written to the cards table
 // (cm_price_low / trend / avg + cardmarket_id), but resolved from the

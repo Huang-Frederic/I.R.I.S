@@ -1,5 +1,3 @@
-// scripts/probe-cardmarket-expansion.ts
-//
 // One-shot probe: opens a single Cardmarket expansion page in headless
 // Chromium, dumps the body HTML to disk, and reports a few quick stats.
 // Used to figure out the page structure before writing the real scraper.

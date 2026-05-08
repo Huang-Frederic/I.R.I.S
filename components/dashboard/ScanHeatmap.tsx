@@ -1,4 +1,3 @@
-// components/dashboard/ScanHeatmap.tsx
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import type { DayDetail } from '@/lib/utils/dashboard-queries';

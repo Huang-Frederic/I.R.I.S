@@ -1,6 +1,6 @@
 -- I.R.I.S — TCG catalog table
--- Local cache of Pokémon TCG cards, populated from Cardmarket via
--- scripts/scrape-cardmarket.ts. Serves as the primary source for
+-- Local cache of Pokémon TCG cards, populated from LimitlessTCG via
+-- scripts/scrape-limitlesstcg.ts. Serves as the primary source for
 -- post-OCR enrichment (lookup by set_code + set_number + language).
 --
 -- Reuses the card_language and card_rarity enums from initial_schema.

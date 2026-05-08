@@ -1,4 +1,3 @@
-// components/lots/LotSoldRow.tsx
 'use client';
 
 import { Package } from 'lucide-react';
@@ -27,7 +26,7 @@ function formatDate(iso: string | null): string {
  * Matters because the for-sale LotRow (with Mettre en ligne / Annonce / Vendu /
  * X buttons) is a poor fit for sold lots — those actions don't apply once the
  * lot has shipped, and the row should look retired. The 'Moi/Lui/Elle' badge
- * surfaces who marked it sold (Phase 4 follow-up — sold_by_user_id).
+ * surfaces who marked it sold (`sold_by_user_id`).
  */
 export default function LotSoldRow({ lot, storagePublicUrl, onImageClick }: Props) {
   const { myUserId, partnerName } = useUserContext();

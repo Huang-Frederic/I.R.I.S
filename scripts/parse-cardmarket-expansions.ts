@@ -1,5 +1,3 @@
-// scripts/parse-cardmarket-expansions.ts
-//
 // Parses the <select> dropdown HTML from Cardmarket's Expansion filter page
 // into a clean JSON mapping { idExpansion: setName }. The dropdown is the
 // authoritative source — covers 100% of idExpansion values, including JP

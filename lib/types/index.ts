@@ -67,8 +67,8 @@ export interface Card {
   date_added: string;
   date_sold: string | null;
   sold_price: number | null;
-  /** auth.users.id of the user who marked this card sold (Phase 4 follow-up).
-   * NULL for items sold before the migration or never sold. */
+  /** auth.users.id of the user who marked this card sold.
+   * NULL for items sold before per-user attribution existed, or never sold. */
   sold_by_user_id: string | null;
   notes: string | null;
   variant: string | null;
@@ -76,11 +76,10 @@ export interface Card {
 
 export interface Lot {
   id: string;
-  /** Legacy column from initial scaffold — unused since Phase 3b1, may be null. */
+  /** Legacy single-photo column — superseded by `photo_urls` (jsonb array). May be null on old rows. */
   photo_url: string | null;
   created_at: string;
 
-  // Phase 3b1 extensions
   name: string;
   language: CardLanguage | null;
   condition: CardCondition;
@@ -89,7 +88,7 @@ export interface Lot {
   status: 'for_sale' | 'sold';
   date_sold: string | null;
   sold_price: number | null;
-  /** auth.users.id of the user who marked this lot sold (Phase 4 follow-up). */
+  /** auth.users.id of the user who marked this lot sold. NULL on lots sold before per-user attribution existed. */
   sold_by_user_id: string | null;
   /** Array of Storage paths relative to the lot-photos bucket, e.g. ["{lot_id}/0.jpg"]. */
   photo_urls: string[];

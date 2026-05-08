@@ -1,5 +1,3 @@
-// scripts/snapshot-catalog.ts
-//
 // Streams all rows of tcg_catalog + rarity_ranks to versioned files
 // in backups/. Run after every full re-scrape.
 //

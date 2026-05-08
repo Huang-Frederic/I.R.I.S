@@ -1,5 +1,3 @@
-// scripts/check-supabase-state.ts
-//
 // One-shot diagnostic: lists all expected tables, counts rows, flags missing
 // tables and unexpected ones. Uses raw fetch against the PostgREST endpoint
 // to avoid the supabase-js Realtime client bootstrap (which fails on Node 18).
@@ -31,10 +29,10 @@ const EXPECTED_TABLES = [
   'lot_listings',
   // Catalog (tcg_catalog migration)
   'tcg_catalog',
-  // Phase 5 (dashboard + backups)
+  // Dashboard time-series tables
   'ocr_usage_log',
   'stock_value_snapshots',
-  // Cardmarket (the recent work)
+  // Cardmarket pricing pipeline
   'cardmarket_expansions',
   'cardmarket_products',
   'cardmarket_pricing',

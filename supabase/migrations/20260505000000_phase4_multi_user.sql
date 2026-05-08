@@ -26,21 +26,35 @@ create table user_profiles (
   display_name text not null
 );
 
--- 3. Backfill cards.vinted_listed_at / lots.vinted_listed_at → listings tables (Hisshiden's user_id)
+-- 3. Backfill cards.vinted_listed_at / lots.vinted_listed_at → listings tables.
+-- Guarded by an exists() check so fresh projects (no auth user with this id)
+-- don't error on the FK; on the original install the row is present so the
+-- backfill runs as before. The columns being read are dropped at step 5.
 insert into card_listings (card_id, user_id, listed_at)
 select id, '35385d3c-5966-4a10-8568-8d92d1be47e7'::uuid, vinted_listed_at
 from cards
-where vinted_listed_at is not null;
+where vinted_listed_at is not null
+  and exists (select 1 from auth.users where id = '35385d3c-5966-4a10-8568-8d92d1be47e7');
 
 insert into lot_listings (lot_id, user_id, listed_at)
 select id, '35385d3c-5966-4a10-8568-8d92d1be47e7'::uuid, vinted_listed_at
 from lots
-where vinted_listed_at is not null;
+where vinted_listed_at is not null
+  and exists (select 1 from auth.users where id = '35385d3c-5966-4a10-8568-8d92d1be47e7');
 
--- 4. Seed user_profiles (Hisshiden + Hilyna — display "Lui" / "Elle")
-insert into user_profiles (user_id, display_name) values
-  ('35385d3c-5966-4a10-8568-8d92d1be47e7'::uuid, 'Lui'),
-  ('a018a4ef-e02e-4a67-9732-9fafe3167e10'::uuid, 'Elle');
+-- 4. Seed user_profiles only if the original install's auth users exist
+-- (so a fresh Supabase project doesn't fail the FK to auth.users).
+-- Fresh installs seed user_profiles manually after creating their own auth
+-- users — see docs/SETUP.md §6 "After applying".
+insert into user_profiles (user_id, display_name)
+select '35385d3c-5966-4a10-8568-8d92d1be47e7'::uuid, 'Lui'
+where exists (select 1 from auth.users where id = '35385d3c-5966-4a10-8568-8d92d1be47e7')
+on conflict (user_id) do nothing;
+
+insert into user_profiles (user_id, display_name)
+select 'a018a4ef-e02e-4a67-9732-9fafe3167e10'::uuid, 'Elle'
+where exists (select 1 from auth.users where id = 'a018a4ef-e02e-4a67-9732-9fafe3167e10')
+on conflict (user_id) do nothing;
 
 -- 5. Drop old per-card / per-lot vinted_listed_at columns + indexes
 drop index if exists idx_cards_vinted_listed_at;

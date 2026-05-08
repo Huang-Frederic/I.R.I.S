@@ -1,4 +1,3 @@
-// app/api/lots/[id]/route.test.ts
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DELETE, PATCH } from './route';
 

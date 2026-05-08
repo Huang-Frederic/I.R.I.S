@@ -10,13 +10,13 @@ export type ManualDumpTables = {
 };
 
 export interface ManualDump {
-  version: 'phase5';
+  version: 'v1';
   created_at: string;
   tables: ManualDumpTables;
 }
 
 export function buildManualDump(tables: ManualDumpTables, createdAt: string): ManualDump {
-  return { version: 'phase5', created_at: createdAt, tables };
+  return { version: 'v1', created_at: createdAt, tables };
 }
 
 function pad(n: number, w = 2): string {

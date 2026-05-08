@@ -1,4 +1,3 @@
-// lib/utils/lot-template.ts
 import type { CardCondition, CardLanguage } from '@/lib/types';
 import { LANGUAGE_FEMALE, LANGUAGE_FLAGS, CONDITION_LABEL } from './vinted-template';
 

@@ -1,4 +1,3 @@
-// lib/utils/group-cards.ts
 import type { Card } from '@/lib/types';
 
 export interface CardGroup {

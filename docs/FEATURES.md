@@ -37,7 +37,7 @@ You point your phone at a card. Three seconds later, I.R.I.S knows what it is.
 - **Mobile** — native file picker (camera + gallery selection).
 - **Desktop** — file input with drag-and-drop hint.
 - **2-column layout** (desktop) — image preview on the left with a 1.5× magnifier loupe; form on the right.
-- **Live image post-processing** — strip EXIF metadata, downscale to 1600 px max edge, JPEG quality optimized for OCR.
+- **Live image post-processing** — strip EXIF metadata, downscale to 1400 px max edge, JPEG quality optimized for OCR.
 
 ### OCR pipeline
 
@@ -161,7 +161,7 @@ Cardmarket's official API closed to new applicants in 2023, so the pricing pipel
 Four steps, in order:
 
 1. **Set name to expansion ID** — fuzzy-matched against `cardmarket_expansions` (HTML decode + token-sort + TCGdex bridge for FR localized names).
-2. **(Expansion ID, set_number) to idProduct** — exact lookup via `cardmarket_card_index` (the **fast path**, populated by a per-expansion Playwright gallery scrape).
+2. **(Expansion ID, set_number) to idProduct** — exact lookup via `cardmarket_card_index`. The index is built once per dump by a deterministic SQL formula (id_product order + card_prefix grouping); see [CARDMARKET_MAPPING.md](CARDMARKET_MAPPING.md) for the discovery and validation. The Playwright scraper at `scripts/scrape-cardmarket-cards.ts` is kept as a fallback for the handful of wheel-type promo sets where the formula doesn't apply.
 3. **Fallback when index missing** — name-prefix matching on `cardmarket_products` with rarity-aware disambiguation.
 4. **Pricing fetch** — `cardmarket_pricing` row by `id_product`. Reverse-holo variants use `*_holo` columns where available.
 
@@ -175,7 +175,7 @@ Every priced card carries a "View on Cardmarket ↗" deep link below the price b
 
 A **daily Vercel cron** at `0 2 * * *` UTC pulls the 200 oldest `for_sale` cards (`cm_updated_at ASC NULLS FIRST`), refreshes them via the lookup pipeline, parallelism 10. Auth via `CRON_SECRET`.
 
-A **daily GitHub Action** at `0 1 * * *` UTC refreshes the Cardmarket S3 dumps into Supabase.
+A **daily GitHub Action** at `7 1 * * *` (01:07 UTC) refreshes the Cardmarket S3 dumps into Supabase.
 
 ### Cost (current model)
 

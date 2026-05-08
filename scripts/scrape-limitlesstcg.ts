@@ -1,4 +1,3 @@
-// scripts/scrape-limitlesstcg.ts
 /**
  * Bootstrap script — populates tcg_catalog from LimitlessTCG (limitlesstcg.com).
  *

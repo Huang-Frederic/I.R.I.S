@@ -1,4 +1,3 @@
-// components/dashboard/CostBarChart.tsx
 'use client';
 import { useEffect, useState } from 'react';
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';

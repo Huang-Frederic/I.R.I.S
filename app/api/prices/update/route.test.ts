@@ -1,4 +1,3 @@
-// app/api/prices/update/route.test.ts
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from './route';
 

@@ -1,4 +1,3 @@
-// app/api/cards/route.test.ts
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { POST } from './route';
 

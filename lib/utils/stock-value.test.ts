@@ -1,4 +1,3 @@
-// lib/utils/stock-value.test.ts
 import { describe, expect, it } from 'vitest';
 import { computeStockValue } from './stock-value';
 

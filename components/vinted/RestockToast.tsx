@@ -1,4 +1,3 @@
-// components/vinted/RestockToast.tsx
 'use client';
 
 import { useEffect } from 'react';

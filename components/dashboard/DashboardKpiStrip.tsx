@@ -1,5 +1,3 @@
-// components/dashboard/DashboardKpiStrip.tsx
-
 interface TileData {
   label: string;
   value: string;

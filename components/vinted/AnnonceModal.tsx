@@ -1,4 +1,3 @@
-// components/vinted/AnnonceModal.tsx
 'use client';
 
 import { useEffect, useState } from 'react';

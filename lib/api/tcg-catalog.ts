@@ -1,4 +1,3 @@
-// lib/api/tcg-catalog.ts
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CardLanguage, EnrichedCard } from '@/lib/types';

@@ -1,4 +1,3 @@
-// lib/utils/vinted-template.ts
 import type { Card, CardCondition, CardLanguage } from '@/lib/types';
 
 export const MAX_TITLE_LENGTH = 80;

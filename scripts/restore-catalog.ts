@@ -1,5 +1,3 @@
-// scripts/restore-catalog.ts
-//
 // Restores tcg_catalog + rarity_ranks from backups/.
 // Asks for confirmation before TRUNCATEing.
 //

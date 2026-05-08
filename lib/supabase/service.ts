@@ -1,6 +1,5 @@
 import 'server-only';
 
-// lib/supabase/service.ts
 import { createClient } from '@supabase/supabase-js';
 
 /**

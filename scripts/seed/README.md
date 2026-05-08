@@ -18,7 +18,7 @@ npx tsx scripts/seed/seed.ts
    - 2 sold (7%)
    - 5 pokedex (17%)
    - 5 collection (17%)
-   - ~18 for_sale (~half listed on Vinted via `vinted_listed_at`)
+   - ~18 for_sale (~half also get a `card_listings` row for the primary user, simulating "listed on Vinted")
 5. `date_added` randomized over the last 30 days so some cards naturally fall into "À rafraîchir".
 
 ## Requirements

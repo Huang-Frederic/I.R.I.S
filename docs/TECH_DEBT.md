@@ -6,7 +6,7 @@ You're looking at the catalog of deferred items. Each one passed a deliberate co
 
 ## 🧱 Component size
 
-### `CardScanForm.tsx` — 1,445 lines, 24 `useState` calls
+### `CardScanForm.tsx` — 1,444 lines, 24 `useState` calls
 
 The heart of the scan flow. UI sub-components (`Field`, `Input`, `Select`, `CandidatePicker`) were extracted to `CardScanFormUI.tsx`, but the orchestration is still monolithic.
 
@@ -132,6 +132,14 @@ Backups exist (manual + GitHub Action releases) but restore is a manual `psql < 
 The daily pricing cron writes to `stock_value_snapshots` (1 row/day) but the dashboard chart consuming it (`StockValueLineChart`) was removed. The table grows ~365 rows/year, harmless but noisy.
 
 **Fix:** drop the table + remove `snapshotStockValue` from [`prices/update/route.ts`](../app/api/prices/update/route.ts), OR re-add the chart in a future iteration. Currently leaning toward keeping it written in case a future chart wants it.
+
+### No per-user quota on `/api/ocr` and `/api/enrich`
+
+Both routes require auth but apply no per-user throttle. A logged-in user could spam OCR (~€0.0004/scan) or enrichment (TCGdex live + Gemini fallback) and rack up Gemini bills on the shared GCP project.
+
+**Why deferred:** the 2-user trust model carries it — both collaborators are known, and the dashboard exposes per-day OCR cost on the KPI strip so anomalies are immediately visible. The infrastructure to enforce a quota already exists (`ocr_usage_log` captures every call with `user_id` + `cost_eur`).
+
+**Fix when broadening the user set:** add a `lib/utils/ocr-quota.ts` helper that sums `cost_eur` from `ocr_usage_log` for the current user over the last 24h, and short-circuit both routes with a 429 above a chosen ceiling (e.g. €0.50/day = ~1,200 scans). ~30-45 min including a constant + 2 route edits + 1 helper test.
 
 ---
 

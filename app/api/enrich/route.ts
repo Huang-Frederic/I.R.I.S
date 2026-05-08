@@ -1,5 +1,3 @@
-// app/api/enrich/route.ts
-//
 // 6-strategy enrichment pipeline. Each strategy is a named function that
 // either returns a populated EnrichResult or `null` to fall through to the
 // next. The POST handler is intentionally a thin orchestrator.

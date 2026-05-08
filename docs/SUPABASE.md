@@ -1,6 +1,6 @@
 # Supabase reference
 
-This is your database reference — the full schema (12 tables), the migration timeline, the Row-Level Security policies that enforce per-user writes, the storage buckets for photos and backups, the RPCs that handle atomic Pokédex swaps, and the reset procedure when you need to spin up a fresh environment. Everything you need to understand and operate the I.R.I.S backend lives here.
+This is your database reference — the full schema (14 tables), the migration timeline, the Row-Level Security policies that enforce per-user writes, the storage buckets for photos and backups, the RPCs that handle atomic Pokédex swaps, and the reset procedure when you need to spin up a fresh environment. Everything you need to understand and operate the I.R.I.S backend lives here.
 
 ## Table of contents
 
@@ -16,19 +16,21 @@ This is your database reference — the full schema (12 tables), the migration t
 
 ## 🗂 Tables overview
 
-You're looking at 12 tables split into four groups — core inventory (cards, lots, listings), catalog (LimitlessTCG mirror), Cardmarket pricing (expansions, products, fast-path index), and Dashboard (OCR logs, stock snapshots). Here's what each one holds and why it exists.
+You're looking at 14 tables split into four groups — core inventory (cards, lots, listings, profiles, config), catalog (LimitlessTCG mirror), Cardmarket pricing (expansions, products, pricing, fast-path index), and Dashboard (OCR logs, stock snapshots). Here's what each one holds and why it exists.
 
 ### Core inventory (Phase 1 + 4)
 
-The inventory lives in `cards` and `lots`. The per-user Vinted listing states live in `card_listings` and `lot_listings`. User profiles hold display names and identity colors.
+The inventory lives in `cards` and `lots`. The per-user Vinted listing states live in `card_listings` and `lot_listings`. User profiles hold display names; `config` is the small key/value store for app-wide settings (price coefficient, Vinted shipping note, etc.).
 
 | Table | Purpose | Notes |
 |---|---|---|
-| `cards` | Every card in the collection | Status enum: `for_sale`, `collection`, `pokedex`, `sold`. Indexes on status + pokemon_number. Unique partial index `one_pokedex_per_pokemon` enforces 1 card per Pokémon in `pokedex` status. |
-| `lots` | Bundle listings (multi-card packages) | Phase 3b1: 11 columns covering price, status, photos, sold tracking. |
-| `user_profiles` | Display name + identity per auth user | Seeded with the 2 users at install. |
+| `cards` | Every card in the collection | Status enum: `for_sale`, `collection`, `pokedex`, `sold`. Pricing columns (`cm_price_low/trend/avg`, `cm_updated_at`, `cardmarket_url`) are written by the daily cron. Unique partial index `one_pokedex_per_pokemon` enforces 1 card per Pokémon in `pokedex` status. Partial index on `(cm_updated_at asc nulls first) where status='for_sale'` backs the cron's bulk query. |
+| `lots` | Bundle listings (multi-card packages) | Phase 3b1 added 10 columns + Phase 4 added `sold_by_user_id` for per-user attribution. |
+| `user_profiles` | Display name + identity per auth user | Seeded conditionally for the original install UUIDs; fresh installs seed manually (see [SETUP.md §6](SETUP.md#6--database-migrations)). |
 | `card_listings` | Per-user "listed on Vinted" state for cards | Composite PK `(card_id, user_id)`. RLS scoped: insert/delete only your own. |
 | `lot_listings` | Per-user "listed on Vinted" state for lots | Same shape as `card_listings`. |
+| `rarity_ranks` | Lookup table mapping each rarity enum value to a sortable rank + label | Seeded once at install, never written to from the app. |
+| `config` | Small key/value store for app-wide settings (`price_coefficient`, `vinted_shipping_note`, `vinted_seller_note`) | Read by the API + UI; service-role write only. |
 
 ### Catalog (Phase 1.11 + 3c)
 
@@ -36,18 +38,18 @@ A local mirror of LimitlessTCG — roughly 52K cards across all languages, with 
 
 | Table | Purpose | Row count |
 |---|---|---|
-| `tcg_catalog` | Local mirror of LimitlessTCG (~52K cards) | Indexes on `(set_code, set_number, language)` and `(language, illustrator)`. |
+| `tcg_catalog` | Local mirror of LimitlessTCG (~52K cards) | Indexes on `(set_code, set_number, language)`, `(set_total, set_number, language)` (fallback), `cardmarket_id` (cron lookup), and `illustrator` (single-column — disambiguation runs JS-side over the result set, no composite filter is needed). |
 
 ### Cardmarket pricing (Phase 6)
 
-Cardmarket data comes from daily refreshed S3 dumps. Four tables: expansions metadata, product catalog, pricing data, and a fast-path lookup index built by scraping.
+Cardmarket data comes from daily refreshed S3 dumps. Four tables: expansions metadata, product catalog, pricing data, and a fast-path lookup index built by a SQL formula derived from the dump itself (the Playwright scraper at [`scripts/scrape-cardmarket-cards.ts`](../scripts/scrape-cardmarket-cards.ts) is a fallback for wheel-type promo sets — see [CARDMARKET_MAPPING.md](CARDMARKET_MAPPING.md)).
 
 | Table | Purpose | Row count |
 |---|---|---|
 | `cardmarket_expansions` | 741 expansions (idExpansion → name + name_normalized) | Source: FR-locale dropdown HTML. |
 | `cardmarket_products` | 67K product entries | From the public S3 dump `products_singles_6.json`. |
 | `cardmarket_pricing` | 67K pricing rows (low / trend / avg + holo variants) | From the public S3 dump `price_guide_6.json`. Refreshed daily. |
-| `cardmarket_card_index` | Fast-path lookup `(id_expansion, set_number) → id_product` | Populated by [`scripts/scrape-cardmarket-cards.ts`](../scripts/scrape-cardmarket-cards.ts). |
+| `cardmarket_card_index` | Fast-path lookup `(id_expansion, set_number) → id_product` | Built by a deterministic SQL formula from the daily dump — see [CARDMARKET_MAPPING.md](CARDMARKET_MAPPING.md). [`scripts/scrape-cardmarket-cards.ts`](../scripts/scrape-cardmarket-cards.ts) is the fallback for wheel-type promo sets. |
 
 ### Dashboard (Phase 5)
 
@@ -111,15 +113,26 @@ npx supabase db push
 
 Every table has RLS enabled. Read access is granted to any authenticated user — the app is a 2-user whitelist and the data is shared. Writes are scoped where it matters.
 
-### Cards / lots / catalog / cardmarket — shared reads
+### Cards / lots — shared, mono-user
+
+`cards` and `lots` are mono-user shared inventory. RLS grants `for all to authenticated` — any authenticated user can read and write any row. There is no per-row ownership; the two collectors are equal collaborators on the same pile of cards.
 
 ```sql
--- Example pattern used on cards, lots, tcg_catalog, cardmarket_*
-create policy <name>_read on <table>
-  for select using (auth.uid() is not null);
+create policy "authenticated_all" on cards
+  for all to authenticated using (true) with check (true);
+-- same shape on lots
 ```
 
-Mutations on `cards` and `lots` are **service-role only** (the API routes use the service client; the user never writes directly).
+Mutations still flow through the API routes (which use the service client for consistency with the catalog/Cardmarket tables and to keep "infrastructure write" and "user write" in the same place), but RLS is the floor: a logged-in user *could* write directly via the SDK if they wanted to. The per-user write protection lives one layer up, on the listings tables.
+
+### Catalog / Cardmarket — read-only
+
+`tcg_catalog` and the four `cardmarket_*` tables are read-only to authenticated users. Writes happen exclusively from the bootstrap and dump-upload scripts via the service role.
+
+```sql
+create policy "<name>_read" on <table>
+  for select to authenticated using (true);
+```
 
 ### Listings — per-user writes
 

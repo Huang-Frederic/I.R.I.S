@@ -1,5 +1,3 @@
-// scripts/recommend-scrape-targets.ts
-//
 // Reads distinct (set_name, language) from the cards table, matches each
 // against cardmarket_expansions (with the same fuzzy logic the lookup
 // helper uses), and outputs the recommended `npm run scrape-cardmarket --

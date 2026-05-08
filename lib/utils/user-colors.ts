@@ -1,5 +1,5 @@
 /**
- * Identity-based color mapping for the 2-user UI (Phase 4).
+ * Identity-based color mapping for the 2-user UI.
  *
  * Same person → same color across the whole app, regardless of who's
  * logged in. Lui = Hisshiden = bleu. Elle = Hilyna = rose. Used by

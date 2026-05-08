@@ -1,4 +1,3 @@
-// app/(app)/vinted/page.tsx
 import { createClient } from '@/lib/supabase/server';
 import VintedList from '@/components/vinted/VintedList';
 import type { Card, Lot, CardListing, LotListing } from '@/lib/types';

@@ -1,5 +1,3 @@
-// lib/utils/restock-detection.ts
-
 export interface RestockAlert {
   pokemon_number: number;
   pokemon_name: string;

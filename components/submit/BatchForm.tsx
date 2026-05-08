@@ -1,11 +1,11 @@
-// components/submit/BatchForm.tsx
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, X, Loader2 } from 'lucide-react';
+import { Upload, X, Loader2, Camera } from 'lucide-react';
 import { resizeImage } from '@/lib/utils/resize-image';
 import CardScanForm from './CardScanForm';
+import CameraCaptureOverlay from './CameraCaptureOverlay';
 import type { OcrResult, EnrichResult } from '@/lib/types';
 
 const MAX_PHOTOS = 30;
@@ -206,11 +206,22 @@ export default function BatchForm() {
 
 function PhotoDropzone({
   photos, onAdd, onRemove,
-}: { photos: File[]; onAdd: (files: FileList) => void; onRemove: (index: number) => void }) {
+}: { photos: File[]; onAdd: (files: FileList | File[]) => void; onRemove: (index: number) => void }) {
   const [dragging, setDragging] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const remaining = MAX_PHOTOS - photos.length;
   return (
     <div>
       <span className="text-text-muted text-xs">Photos ({photos.length}/{MAX_PHOTOS})</span>
+      <button
+        type="button"
+        onClick={() => setShowCamera(true)}
+        disabled={remaining <= 0}
+        className="bg-red text-bg mt-1 flex w-full items-center justify-center gap-2 rounded px-4 py-2 text-sm font-medium disabled:opacity-50"
+      >
+        <Camera className="h-4 w-4" aria-hidden />
+        Capturer en chaîne
+      </button>
       <label
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
@@ -219,7 +230,7 @@ function PhotoDropzone({
           setDragging(false);
           if (e.dataTransfer.files.length) onAdd(e.dataTransfer.files);
         }}
-        className={`bg-surface-2 mt-1 flex cursor-pointer items-center justify-center rounded border border-dashed p-4 text-sm ${dragging ? 'border-red' : 'border-border'}`}
+        className={`bg-surface-2 mt-2 flex cursor-pointer items-center justify-center rounded border border-dashed p-4 text-sm ${dragging ? 'border-red' : 'border-border'}`}
       >
         <input type="file" accept="image/*" multiple onChange={(e) => e.target.files && onAdd(e.target.files)} className="hidden" />
         <span className="text-text-muted flex items-center gap-2">
@@ -239,6 +250,13 @@ function PhotoDropzone({
             </div>
           ))}
         </div>
+      )}
+      {showCamera && (
+        <CameraCaptureOverlay
+          maxPhotos={remaining}
+          onDone={(files) => { onAdd(files); setShowCamera(false); }}
+          onCancel={() => setShowCamera(false)}
+        />
       )}
     </div>
   );

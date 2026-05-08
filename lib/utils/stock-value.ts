@@ -1,4 +1,3 @@
-// lib/utils/stock-value.ts
 import type { CardStatus } from '@/lib/types';
 
 export interface PricedCard {

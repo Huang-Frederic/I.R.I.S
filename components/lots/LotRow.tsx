@@ -1,4 +1,3 @@
-// components/lots/LotRow.tsx
 'use client';
 
 import { Tag, Package } from 'lucide-react';

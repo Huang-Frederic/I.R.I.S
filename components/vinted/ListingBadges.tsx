@@ -1,4 +1,3 @@
-// components/vinted/ListingBadges.tsx
 'use client';
 
 import { useState } from 'react';

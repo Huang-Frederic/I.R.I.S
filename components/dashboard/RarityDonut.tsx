@@ -1,4 +1,3 @@
-// components/dashboard/RarityDonut.tsx
 'use client';
 import { useEffect, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';

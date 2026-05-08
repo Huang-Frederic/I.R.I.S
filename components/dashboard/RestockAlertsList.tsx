@@ -1,4 +1,3 @@
-// components/dashboard/RestockAlertsList.tsx
 import Link from 'next/link';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
 

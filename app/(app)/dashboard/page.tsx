@@ -1,4 +1,3 @@
-// app/(app)/dashboard/page.tsx
 import { createClient } from '@/lib/supabase/server';
 import {
   buildRarityCounts,

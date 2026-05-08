@@ -1,5 +1,3 @@
-// lib/utils/labels.ts
-//
 // Single source of truth for the per-row visual labels (variant, rarity).
 // Previously copy-pasted in 9+ components — the divergence was already
 // starting (PokedexDrawer omitted the OTHER fallback). Centralized here so

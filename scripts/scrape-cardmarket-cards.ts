@@ -1,5 +1,3 @@
-// scripts/scrape-cardmarket-cards.ts
-//
 // FALLBACK SCRAPER — read this first.
 //
 // `cardmarket_card_index` is normally populated by a deterministic SQL formula

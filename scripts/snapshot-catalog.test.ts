@@ -1,4 +1,3 @@
-// scripts/snapshot-catalog.test.ts
 import { describe, expect, it } from 'vitest';
 import { encodeJsonlLine, decodeJsonlLine } from './snapshot-catalog';
 

@@ -1,4 +1,3 @@
-// components/dashboard/TopRaresList.tsx
 import Link from 'next/link';
 import { RARITY_COLOR } from '@/lib/utils/labels';
 import type { Card } from '@/lib/types';

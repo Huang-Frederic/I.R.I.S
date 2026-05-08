@@ -251,6 +251,12 @@ export default function CardScanForm({
 
   const numberMismatch = detectNumberMismatch({ lockedPokemonNumber, detectedPokemonNumber });
 
+  useEffect(() => {
+    if (phase === 'success' && onSaved) {
+      handleSuccessClose();
+    }
+  }, [phase, onSaved]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Prefill effect for batch mode: when all initialPhoto/Ocr/Enrich are provided,
   // skip the file picker + API calls and jump straight to reviewing with pre-filled form.
   useEffect(() => {
@@ -1434,7 +1440,7 @@ export default function CardScanForm({
         />
       )}
 
-      {phase === 'success' && (
+      {phase === 'success' && !onSaved && (
         <SaveSuccessModal
           counts={successCounts}
           imageUrl={previewUrl ?? form.tcg_image_url ?? null}

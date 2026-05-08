@@ -1,5 +1,3 @@
-// scripts/upload-cardmarket-dumps.ts
-//
 // Bulk-uploads the Cardmarket data files to Supabase. By default the script
 // fetches the dumps directly from Cardmarket's public S3 bucket — no auth,
 // no Cloudflare challenge, ~30 MB total. Use `--local` to read from disk

@@ -14,7 +14,7 @@ describe('buildManualDump', () => {
       stock_value_snapshots: [],
     }, '2026-05-07T14:30:52.000Z');
 
-    expect(dump.version).toBe('phase5');
+    expect(dump.version).toBe('v1');
     expect(dump.created_at).toBe('2026-05-07T14:30:52.000Z');
     expect(dump.tables.cards.length).toBe(2);
     expect(dump.tables.lots).toEqual([]);

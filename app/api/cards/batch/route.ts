@@ -1,5 +1,3 @@
-// app/api/cards/batch/route.ts
-//
 // Bulk variant of POST /api/cards. Same shape (multipart form + image),
 // plus a `count` field. Uploads the photo ONCE, runs ONE bulk INSERT for
 // all N rows. Massive speedup for count>1 (no N HTTP round-trips, no N

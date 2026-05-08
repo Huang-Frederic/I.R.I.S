@@ -1,10 +1,9 @@
-// app/api/cards/[id]/clone/route.ts
-//
 // Duplicate a Stock card so the user can track having multiple physical copies
 // of the same card in their collection. The clone shares the source card's
 // image_url and metadata — they're indistinguishable as data, only the row
 // id and date_added differ. The clone always lands in 'collection' and clears
-// sold fields so it starts in a clean state. Per-user listings live in card_listings (Phase 4) — clone never copies them, the new card starts with no listings.
+// sold fields so it starts in a clean state. Per-user listings live in
+// card_listings — clone never copies those rows, the new card starts unlisted.
 //
 // We do NOT copy 'pokedex' or 'for_sale' status: those are guarded by partial
 // unique indexes, and the user almost certainly wants the new copy in Stock.

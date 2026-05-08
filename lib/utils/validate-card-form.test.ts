@@ -1,4 +1,3 @@
-// lib/utils/validate-card-form.test.ts
 import { describe, expect, it } from 'vitest';
 import { validateCardForm } from './validate-card-form';
 

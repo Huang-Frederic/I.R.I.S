@@ -1,4 +1,3 @@
-// lib/api/tcg-catalog.test.ts
 import { describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {

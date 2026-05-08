@@ -1,4 +1,3 @@
-// components/lots/LotAnnonceModal.tsx
 'use client';
 
 import { useEffect, useState } from 'react';

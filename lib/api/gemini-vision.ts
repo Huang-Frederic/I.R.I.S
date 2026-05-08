@@ -4,11 +4,11 @@ import 'server-only';
 // Empirically calibrated 2026-05-08 against actual GCP billing:
 //   13K input + 1K output across 7 requests = €0.029 (= $0.0315 with USD_TO_EUR=0.92)
 //   → matches input $2.00/M + output $5.00/M
-// Phase 3c values ($0.25/M in + $1.50/M out) were the documented "preview" rates
-// for gemini-3.1-flash-lite-preview, but Google appears to bill at higher rates
-// in production (preview pricing retired? Vertex AI surcharge? Image token surcharge?).
-// If you can pin down the exact SKU from GCP billing, refine these.
-const PROMPT_TOKEN_ESTIMATE = 360; // mesuré post-multilang prompt rewrite (avant: 220 pour le prompt court JP-only)
+// The originally-documented "preview" rates ($0.25/M in + $1.50/M out for
+// gemini-3.1-flash-lite-preview) don't match what Google actually bills —
+// preview pricing may be retired, or there's a Vertex AI / image-token
+// surcharge in play. If you can pin the SKU down from GCP billing, refine.
+const PROMPT_TOKEN_ESTIMATE = 360; // measured post-multilang prompt rewrite (was 220 with the old short JP-only prompt)
 const COST_USD_PER_M_INPUT = 2.0;   // text / image / video — empirical
 const COST_USD_PER_M_OUTPUT = 5.0;  // empirical
 const USD_TO_EUR = 0.92;

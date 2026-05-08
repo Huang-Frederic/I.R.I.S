@@ -1,5 +1,3 @@
-// app/api/cards/[id]/photo/route.ts
-//
 // POST endpoint to replace the photo of an existing card.
 // Used by DuplicatePhotoModal when the user scans a duplicate card and chooses
 // to swap the photo (keeps DB row, overwrites storage image).

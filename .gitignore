@@ -16,7 +16,7 @@
 /playwright-report
 /results
 
-# personal card photos used by scripts/test-bench.ts (user-specific, ~100MB)
+# personal card photos used by the bench scripts (user-specific, ~100MB)
 /cards_assets
 
 # next.js
@@ -51,7 +51,7 @@ next-env.d.ts
 .claude/settings.local.json
 .vscode/
 
-# Python virtualenvs (defensive — projet 100% TS depuis Phase 3b2 v2)
+# Python virtualenvs (defensive — project is 100% TS, but a stray venv shouldn't sneak in)
 env/
 venv/
 .venv/

@@ -1,4 +1,3 @@
-// components/dashboard/DashboardPeriodTabs.tsx
 'use client';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import type { DashboardPeriod } from '@/lib/utils/dashboard-queries';

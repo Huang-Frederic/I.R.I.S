@@ -1,4 +1,3 @@
-// components/vinted/VintedRow.tsx
 'use client';
 
 import { BookmarkCheck, Bookmark, Tag } from 'lucide-react';

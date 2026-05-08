@@ -34,7 +34,7 @@ That's why I built **I.R.I.S** — *Intelligent Recognition Inventory System*. S
 
 You point your phone at a card. Three seconds later, I.R.I.S knows the name in two languages, the set, the rarity, the illustrator, and what it's worth on Cardmarket today.
 
-The OCR runs on **Gemini 3.1 Flash Lite Preview** (~93 % accuracy, structured JSON in a single call) with **Google Vision** as automatic fallback. ~€0.0004 per scan. Five languages supported — Japanese, English, French, Korean, Chinese — with bilingual name extraction for FR cards (`"Gruikui (チャオブー)"`).
+The OCR runs on **Gemini 3.1 Flash Lite Preview** (~93 % accuracy, structured JSON in a single call) with **Google Vision** as automatic fallback. ~€0.0004 per scan, with photos downscaled to 1400 px max edge before upload to keep the token budget tight. Five languages supported — Japanese, English, French, Korean, Chinese — with bilingual name extraction for FR cards (`"Gruikui (チャオブー)"`).
 
 Once the card is identified, a 6-strategy enrichment pipeline fills in the rest from a **52K-card local catalog** scraped from LimitlessTCG and queried offline-first. When the local lookup misses, TCGdex's live API takes over; when *that* misses too, **Gemini becomes the last-resort fallback** and infers the metadata directly from the photo.
 
@@ -66,7 +66,7 @@ And when a single Vinted listing should bundle several cards, **Lots** ship a cu
 
 You don't price your cards. I.R.I.S does.
 
-Cardmarket's official API closed to new applicants in 2023, so the pricing pipeline is bespoke. A daily mirror of their public S3 dumps (**67K products + 72K pricing rows**) lands in Postgres, and a **deterministic SQL formula** derives the exact `(expansion, set_number) → idProduct` index from the dump itself — no scraping needed. (The Playwright gallery scraper is kept as a fallback for the rare wheel-type promo sets where the formula doesn't apply; see [docs/CARDMARKET_MAPPING.md](docs/CARDMARKET_MAPPING.md).) No fuzzy name guessing — every priced card carries a "View on Cardmarket ↗" deep link so the match is verifiable.
+Cardmarket's official API closed to new applicants in 2023, so the pricing pipeline is bespoke. A daily mirror of their public S3 dumps (**~67K products + ~67K pricing rows**) lands in Postgres, and a **deterministic SQL formula** derives the exact `(expansion, set_number) → idProduct` index from the dump itself — no scraping needed. (The Playwright gallery scraper is kept as a fallback for the rare wheel-type promo sets where the formula doesn't apply; see [docs/CARDMARKET_MAPPING.md](docs/CARDMARKET_MAPPING.md).) No fuzzy name guessing — every priced card carries a "View on Cardmarket ↗" deep link so the match is verifiable.
 
 The annonce generator turns a saved card into a ready-to-paste Vinted post: bilingual title (smart-truncated to 80 chars), templated description with shipping block, copy-to-clipboard button, downloadable card image (PNG, anti-bot watermark stripped). When a customer buys several cards at once, the bulk-sold flow splits the total across them automatically.
 

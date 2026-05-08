@@ -1,4 +1,3 @@
-// app/api/cards/[id]/route.test.ts
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PATCH } from './route';
 

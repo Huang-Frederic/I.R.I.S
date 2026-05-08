@@ -1,4 +1,3 @@
-// lib/utils/listings.ts
 import { isListingStale } from './listing-stale';
 import type { BaseListing } from '@/lib/types';
 

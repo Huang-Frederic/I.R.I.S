@@ -1,4 +1,3 @@
-// lib/utils/restock-detection.test.ts
 import { describe, expect, it } from 'vitest';
 import { detectRestock, computeRestockAlerts } from './restock-detection';
 

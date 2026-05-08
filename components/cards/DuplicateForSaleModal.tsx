@@ -1,4 +1,3 @@
-// components/cards/DuplicateForSaleModal.tsx
 'use client';
 
 import { AlertTriangle, X } from 'lucide-react';

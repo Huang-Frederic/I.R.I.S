@@ -1,4 +1,3 @@
-// components/vinted/VintedList.tsx
 'use client';
 
 import { useMemo, useState } from 'react';

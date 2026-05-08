@@ -1,5 +1,3 @@
-// scripts/restore-cardmarket-index.ts
-//
 // Restores cardmarket_card_index from backups/cardmarket_card_index.jsonl.gz.
 // Asks for confirmation before TRUNCATEing.
 //
