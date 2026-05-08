@@ -34,7 +34,11 @@ export default function CameraCaptureOverlay({
       }
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
+          video: {
+            facingMode: 'environment',
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
           audio: false,
         });
         if (cancelled) {
@@ -179,12 +183,9 @@ export default function CameraCaptureOverlay({
             <div className="flex items-center gap-2">
               <div className="flex flex-1 gap-2 overflow-x-auto">
                 {captured.map((photo, i) => (
-                  <button
+                  <div
                     key={photo.previewUrl}
-                    type="button"
-                    onClick={() => handleRemove(i)}
                     className="relative h-16 w-16 shrink-0 overflow-hidden rounded border-2 border-white"
-                    aria-label={`Supprimer la photo ${i + 1}`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -192,7 +193,15 @@ export default function CameraCaptureOverlay({
                       alt=""
                       className="h-full w-full object-cover"
                     />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(i)}
+                      aria-label={`Supprimer la photo ${i + 1}`}
+                      className="bg-black/70 absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full text-white"
+                    >
+                      <X className="h-3 w-3" aria-hidden />
+                    </button>
+                  </div>
                 ))}
               </div>
               <span className="shrink-0 text-xs text-white">
