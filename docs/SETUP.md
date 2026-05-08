@@ -229,22 +229,45 @@ select count(*) from cardmarket_pricing;      -- expected: ~67,650
 
 ---
 
-## 9. 🔍 Optional: scrape Cardmarket gallery for fast lookups
+## 9. 🧮 Build the `cardmarket_card_index` (SQL formula, not scraping)
 
-Without this step, the lookup helper falls back to fuzzy name matching on `cardmarket_products` — works but can pick wrong prints when multiple variants of the same card exist. **With this step**, the helper uses an exact `(expansion, set_number) → idProduct` index for instant, unambiguous lookups.
+The exact `(expansion, set_number, variant) → idProduct` index is derived **directly from the dump** by a deterministic SQL formula — no scraping, no Cloudflare risk. Run this once after the first dump upload (step 8) and any time the dump adds new expansions.
 
-```bash
-# Recommended: scrape only the expansions of cards you actually have
-npx tsx scripts/recommend-scrape-targets.ts        # outputs the exact command
-npm run scrape-cardmarket -- <slugs from above>    # runs the targeted scrape
-
-# Or scrape everything (slower, more rate-limit risk):
-npm run scrape-cardmarket -- --all                 # 741 expansions, ~10 hours
+```sql
+-- Run in Supabase SQL editor
+INSERT INTO cardmarket_card_index (id_product, id_expansion, set_number, url_variant, language, url_path)
+WITH ordered AS (
+  SELECT cp.id_expansion, cp.id_product, cp.card_prefix,
+    LAG(cp.card_prefix) OVER (PARTITION BY cp.id_expansion ORDER BY cp.id_product) AS prev_prefix
+  FROM cardmarket_products cp
+  WHERE cp.id_expansion NOT IN (SELECT DISTINCT id_expansion FROM cardmarket_card_index)
+),
+grouped AS (
+  SELECT id_expansion, id_product,
+    SUM(CASE WHEN card_prefix IS DISTINCT FROM prev_prefix THEN 1 ELSE 0 END)
+      OVER (PARTITION BY id_expansion ORDER BY id_product) AS card_group_idx
+  FROM ordered
+)
+SELECT g.id_product, g.id_expansion,
+  DENSE_RANK() OVER (PARTITION BY g.id_expansion ORDER BY g.card_group_idx)::text,
+  CASE WHEN COUNT(*) OVER (PARTITION BY g.id_expansion, g.card_group_idx) > 1
+    THEN 'V' || ROW_NUMBER() OVER (PARTITION BY g.id_expansion, g.card_group_idx ORDER BY g.id_product)::text
+    ELSE NULL END,
+  'fr', NULL
+FROM grouped g;
 ```
 
-Resume-safe: skipping already-scraped expansions on relaunch. Kill switch trips after 5 cumulative HTTP 429s to protect your IP.
+Populates ~67k product mappings across 738 expansions in seconds. Validated against 5 manually-scraped sets (3 perfect matches, 2 wheel-type promos correctly skipped). Full discovery, caveats, and validation results in [`docs/cardmarket-mapping.md`](cardmarket-mapping.md).
 
-For the full scrape policy and rate-limit behavior, see [`scripts/scrape-cardmarket-cards.ts`](../scripts/scrape-cardmarket-cards.ts) header comments.
+### Advanced: scrape Playwright gallery for wheel-type promo sets
+
+For the rare wheel-type promo sets where the formula doesn't apply (Battle Party Set, Void Blast — collector range 0–9 with non-deterministic ordering), use the Playwright scraper:
+
+```bash
+npm run scrape-cardmarket -- <slug-of-the-wheel-set>
+```
+
+Run from a clean residential IP. Cardmarket's Cloudflare protection is aggressive and a full `--all` run is **not recommended** — the SQL formula above replaces it. See [`scripts/scrape-cardmarket-cards.ts`](../scripts/scrape-cardmarket-cards.ts) header for the anti-bot posture (rebrowser-playwright, 15s/page, kill switch at 2 cumulative 429s).
 
 ---
 

@@ -237,6 +237,12 @@ The pricing system has two execution paths: **daily cron** and **single-card ref
   - catalog cross-ref           set_number)               match)
   - TCGdex bridge for FR        → 1-3 idProducts        → many idProducts
   - token-sort fuzzy            (exact)                 (heuristic)
+                                Index built by SQL
+                                formula from dump
+                                (see cardmarket-
+                                mapping.md). Playwright
+                                scraper fallback for
+                                wheel-type promos.
                                     │                           │
                                     └─────────────┬─────────────┘
                                                   ▼
@@ -307,7 +313,7 @@ The business logic lives outside of React. Here's where to find it.
 | `tcg-catalog.ts` | Local catalog lookups: `lookupByCode`, `lookupByTotal`, `lookupByNameAndLocalId`, `disambiguateByName`, `disambiguateByIllustrator`, `formatBilingualName`, `deriveCardNameFr`. |
 | `tcgdex.ts` | TCGdex live API client. |
 | `tcgdex-set-mapping.ts` | EN ↔ FR set name translation via TCGdex. Negative cache for failed languages. |
-| `cardmarket-pricing.ts` | Pricing lookup pipeline. FAST PATH via `cardmarket_card_index`, fallback via `cardmarket_products`. Rarity-aware disambig. |
+| `cardmarket-pricing.ts` | Pricing lookup pipeline. FAST PATH via `cardmarket_card_index` (populated by SQL formula from the daily dump — see [cardmarket-mapping.md](cardmarket-mapping.md)), fallback via `cardmarket_products` name-prefix matching. Rarity-aware disambig. |
 
 ### `lib/utils/` (pure helpers, all unit-tested)
 

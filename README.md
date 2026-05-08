@@ -66,7 +66,7 @@ And when a single Vinted listing should bundle several cards, **Lots** ship a cu
 
 You don't price your cards. I.R.I.S does.
 
-Cardmarket's official API closed to new applicants in 2023, so the pricing pipeline is bespoke. A daily mirror of their public S3 dumps (**67K products + 72K pricing rows**) lands in Postgres, and a per-expansion **Playwright** gallery scrape builds an exact `(expansion, set_number) → idProduct` index. No fuzzy name guessing — every priced card carries a "View on Cardmarket ↗" deep link so the match is verifiable.
+Cardmarket's official API closed to new applicants in 2023, so the pricing pipeline is bespoke. A daily mirror of their public S3 dumps (**67K products + 72K pricing rows**) lands in Postgres, and a **deterministic SQL formula** derives the exact `(expansion, set_number) → idProduct` index from the dump itself — no scraping needed. (The Playwright gallery scraper is kept as a fallback for the rare wheel-type promo sets where the formula doesn't apply; see [docs/cardmarket-mapping.md](docs/cardmarket-mapping.md).) No fuzzy name guessing — every priced card carries a "View on Cardmarket ↗" deep link so the match is verifiable.
 
 The annonce generator turns a saved card into a ready-to-paste Vinted post: bilingual title (smart-truncated to 80 chars), templated description with shipping block, copy-to-clipboard button, downloadable card image (PNG, anti-bot watermark stripped). When a customer buys several cards at once, the bulk-sold flow splits the total across them automatically.
 
@@ -112,7 +112,7 @@ Here's what's holding it all together.
 | **Database** | Supabase (Postgres + Storage + Auth + RLS) | Managed Postgres with first-class RLS, S3-compatible Storage for card photos, magic-link/password auth out of the box. |
 | **OCR** | Gemini 3.1 Flash Lite Preview (primary), Google Vision (fallback) | Gemini extracts structured JSON in one call (vs Vision's raw text + regex). 93 % accuracy bench-validated. |
 | **Catalog source** | LimitlessTCG (scraper) | Cardmarket API closed to new applicants in 2023; LimitlessTCG's robots.txt allows scraping with delays. |
-| **Pricing source** | Cardmarket S3 dumps + per-expansion gallery scrape | Public dumps refreshed daily; per-expansion scrape builds a `(set, number) → idProduct` index for exact matching. |
+| **Pricing source** | Cardmarket S3 dumps + SQL-derived index | Public dumps refreshed daily; a deterministic SQL formula derives the `(set, number) → idProduct` index directly from the dump (Playwright scraper kept as fallback for wheel-type promos). |
 | **Hosting** | Vercel (app + cron) + Supabase (DB + storage) | Both have generous free tiers; Vercel's preview deployments and edge cron are first-class. |
 | **Testing** | Vitest + happy-dom | Fast pure-function tests for the helpers; React Testing Library for components. |
 
@@ -122,7 +122,7 @@ A few architectural choices worth calling out:
 - **Per-user RLS, shared inventory.** `cards` / `lots` are readable by both users; `card_listings` / `lot_listings` are writable only by their owner. The "who listed it" identity is computed at render time.
 - **Helpers are pure.** All logic that doesn't need React or Supabase lives in [`lib/utils/`](lib/utils/) — ~24 modules, all unit-tested. Components consume helpers; no business logic in JSX.
 - **Catalog-first enrichment.** Local Postgres lookup beats live API every time; TCGdex is the network fallback only when the local catalog has no hit.
-- **Cardmarket pricing without the API.** Public S3 dumps + Playwright gallery scrape build a `(set, number) → idProduct` index. Exact matches, no name fuzzing.
+- **Cardmarket pricing without the API.** Public S3 dumps + a SQL formula (`id_product` order + `card_prefix` grouping) build the `(set, number) → idProduct` index in seconds. Exact matches, no name fuzzing, no Cloudflare battle. Full discovery and validation in [docs/cardmarket-mapping.md](docs/cardmarket-mapping.md).
 
 Full code map in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 

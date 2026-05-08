@@ -36,7 +36,7 @@ Your daily dev workflow lives here. Defined in [`package.json`](../package.json)
 | Command | Purpose |
 |---|---|
 | `npm run upload-cardmarket-dumps` | Pull the latest Cardmarket S3 dumps (products + pricing) and bulk-upsert into Supabase. ~30s. Runs daily via GitHub Action. |
-| `npm run scrape-cardmarket -- <args>` | Per-expansion gallery scrape to populate `cardmarket_card_index` (the `(set, number) → idProduct` map). See dedicated section below. |
+| `npm run scrape-cardmarket -- <args>` | **Fallback only** — the `cardmarket_card_index` table is now populated by a SQL formula derived from the dump (see [`docs/cardmarket-mapping.md`](cardmarket-mapping.md)). The Playwright scraper is kept for wheel-type promo sets where the formula fails. See dedicated section below. |
 | `npm run probe-cardmarket -- <slug>` | One-shot debug: open one Cardmarket page, dump the HTML to disk, print quick stats. Used for inspecting page structure before changing the scraper. |
 
 ### Backup/restore npm scripts
@@ -105,9 +105,11 @@ npm run upload-cardmarket-dumps -- --local   # use already-downloaded files
 
 Required env: `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
 
-### `scrape-cardmarket-cards.ts` (gallery scraper)
+### `scrape-cardmarket-cards.ts` (gallery scraper — fallback only)
 
-The heavy lifter. Per-expansion Playwright scrape that builds the exact-match lookup index `cardmarket_card_index`. For each card on a Cardmarket gallery page, captures `idProduct`, `set_number`, `url_variant`, and `url_path`. Resume-safe, rate-limit aware.
+> ⚠️ **Rarely needed.** `cardmarket_card_index` is now populated by a deterministic SQL formula run directly against the daily dump — no scraping, no Cloudflare risk. See [`docs/cardmarket-mapping.md`](cardmarket-mapping.md) for the formula and validation. **Use this scraper only for the rare wheel-type promo sets** (Battle Party Set, Void Blast — collector range 0–9 with non-deterministic ordering) where the formula produces wrong numbers, or if you need accurate `url_path` deep links (the formula leaves `url_path = NULL`).
+
+When you do need it: per-expansion Playwright scrape that builds the exact-match lookup index `cardmarket_card_index`. For each card on a Cardmarket gallery page, captures `idProduct`, `set_number`, `url_variant`, and `url_path`. Resume-safe, rate-limit aware.
 
 ```bash
 # Single expansion
@@ -132,7 +134,7 @@ npm run scrape-cardmarket -- --force --modern
 npm run scrape-cardmarket -- --dry-run Crimson-Haze
 ```
 
-**Rate-limit posture**: 2.5s between pages, 5–8s between expansions, retries with exponential cooldown on HTTP 429, kill switch at 5 cumulative 429s.
+**Rate-limit posture** (for the rare cases you actually run it): rebrowser-playwright + system Chrome channel + pre-flight check, 15s between pages, 60s between expansions, batch cooldown 3-5min every 25 successful expansions, retries with exponential cooldown on HTTP 429, kill switch at 2 cumulative 429s. 403 responses dump cf-ray + screenshot to `scripts/data/`. Run only from a clean residential IP.
 
 ### `recommend-scrape-targets.ts`
 

@@ -82,13 +82,13 @@ No Playwright / Cypress suite. Critical flows (scan → enrich → save, sold �
 
 ## 💰 Pricing accuracy
 
-### Heuristic disambig for non-modern sets
+### Heuristic disambig for non-modern sets — RESOLVED
 
-The Cardmarket gallery scrape was run on the SV+ era (281 modern sets), populating `cardmarket_card_index` for ~40k products. Older cards (XY, BW, Sun & Moon era) fall back to name-prefix matching on `cardmarket_products`, which can pick the wrong print when multiple variants of the same card share a card_prefix in the same expansion.
+`cardmarket_card_index` is now populated for **all 738 expansions / 67 423 products** via a deterministic SQL formula derived from the daily dump itself (id_product order + card_prefix grouping → set_number + url_variant). The Playwright gallery scrape was abandoned as the primary path after multiple Cloudflare 1015 IP bans — see [`cardmarket-mapping.md`](cardmarket-mapping.md) for the discovery and validation.
 
-**Mitigation in place:** the disambig heuristic (`pickAmbiguousIndex` with `PREMIUM_TIERS`) handles 95% of cases by tone-matching variant + rarity to highest/lowest avg price.
+The fallback name-prefix matching in `cardmarket_products` is still present in [`lib/api/cardmarket-pricing.ts`](../lib/api/cardmarket-pricing.ts) for safety but rarely hit in practice now.
 
-**Real fix:** scrape `--all` (741 expansions, ~10h overnight). The plumbing is in place, but Cardmarket's rate limiting requires careful pacing.
+**Remaining edge case — wheel-type promo sets.** A small number of promo sets (Battle Party Set, Void Blast, etc.) use a non-deterministic 0–9 collector wheel where the SQL formula produces wrong numbers. They were already covered by the original Playwright scrape and the formula INSERT skipped them via `WHERE id_expansion NOT IN (...)`. Future wheel sets need to be detected (high `rows / max_collector` ratio after formula run) and re-scraped manually with [`scripts/scrape-cardmarket-cards.ts`](../scripts/scrape-cardmarket-cards.ts).
 
 ### Per-card metadata scrape (Scenario B)
 

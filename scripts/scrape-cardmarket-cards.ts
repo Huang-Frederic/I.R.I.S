@@ -1,5 +1,25 @@
 // scripts/scrape-cardmarket-cards.ts
 //
+// FALLBACK SCRAPER — read this first.
+//
+// `cardmarket_card_index` is normally populated by a deterministic SQL formula
+// derived from the daily Cardmarket dump (id_product order + card_prefix
+// grouping → set_number + url_variant). The formula covers ~95%+ of all
+// expansions in seconds, with no Cloudflare risk. See the full discovery,
+// validation results, and the ready-to-run query in:
+//
+//     docs/cardmarket-mapping.md
+//
+// This Playwright scraper is kept as the fallback for the cases the formula
+// can't handle:
+//   - Wheel-type promo sets (Battle Party Set, Void Blast — collector range
+//     0-9 with non-deterministic ordering)
+//   - Rare cases where you need the actual `url_path` deep link populated
+//     (the formula leaves it NULL since the URL slug isn't derivable from
+//     the dump)
+//   - Future-proofing if Cardmarket changes their id_product allocation
+//     pattern and breaks the formula's assumptions
+//
 // Per-expansion scrape of the Cardmarket gallery view. For each card on the
 // listing page extracts:
 //   - idProduct    (from the image URL: /51/{set}/{idProduct}/{idProduct}.jpg)
@@ -52,9 +72,10 @@
 //      progress tracking needed.
 //
 // Usage:
-//   npm run scrape-cardmarket -- Crimson-Haze Mascarade-Crepusculaire
-//   npm run scrape-cardmarket -- --modern              # ~280 modern sets (~10h)
-//   npm run scrape-cardmarket -- --all                 # all 741 expansions (~24-26h)
+//   npm run scrape-cardmarket -- Battle-Party-Set      # one wheel-type promo
+//   npm run scrape-cardmarket -- Crimson-Haze          # one specific expansion
+//   npm run scrape-cardmarket -- --modern              # ~280 modern sets — RARELY needed; SQL formula already covers them
+//   npm run scrape-cardmarket -- --all                 # all 741 expansions — DO NOT RUN; SQL formula does it in seconds
 //
 // Env optional:
 //   BROWSER_CHANNEL=chromium  # use bundled Chromium instead of system Chrome

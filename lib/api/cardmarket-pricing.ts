@@ -422,8 +422,12 @@ async function lookupCardmarketPricingInner(
   }
 
   // FAST PATH: cardmarket_card_index lookup by (id_expansion, set_number).
-  // Populated by scripts/scrape-cardmarket-cards.ts. When present, returns
-  // 1-3 exact idProduct candidates — no name matching, no token tricks.
+  // Index populated by a SQL formula derived from the daily Cardmarket dump
+  // (id_product order + card_prefix grouping → set_number + url_variant).
+  // Covers ~95%+ of expansions; scripts/scrape-cardmarket-cards.ts is the
+  // fallback for wheel-type promos. See docs/cardmarket-mapping.md for the
+  // discovery and the ready-to-run query. Returns 1-3 exact idProduct
+  // candidates — no name matching, no token tricks.
   if (card.set_number) {
     const slashIdx = card.set_number.indexOf('/');
     const numClean = (slashIdx === -1 ? card.set_number : card.set_number.slice(0, slashIdx))
