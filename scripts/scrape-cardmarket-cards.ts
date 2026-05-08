@@ -14,16 +14,23 @@
 // run crashed mid-expansion, the partial rows persist; pass --force to
 // re-scrape an expansion regardless.
 //
-// Rate-limit posture: Cardmarket sits behind Cloudflare which issues a 1015
-// IP ban (24-72h) after sustained scraping. Previous run at 2.5s/page + 5s/exp
-// got the dev IP banned. Current pacing: ~8s/page + ~30s/exp, kill-switch at
-// 2 cumulative 429s — Cloudflare memorises fast, abort early to avoid extending
-// the ban.
+// Anti-bot posture: Cardmarket sits behind Cloudflare with two layers:
+//   1. Bot Fight Mode (403 on fingerprint mismatch) — mitigated via
+//      playwright-extra + stealth plugin and channel: 'chrome' (system Chrome,
+//      not bundled Chromium, for matching TLS handshake + client hints).
+//   2. Rate-limit → 1015 IP ban (24-72h) after sustained scraping. Previous
+//      run at 2.5s/page + 5s/exp got the dev IP banned. Current pacing:
+//      ~8s/page + ~30s/exp, kill-switch at 2 cumulative 429s — Cloudflare
+//      memorises fast, abort early to avoid extending the ban.
 //
 // Usage:
 //   npm run scrape-cardmarket -- Crimson-Haze Mascarade-Crepusculaire
 //   npm run scrape-cardmarket -- --modern              # ~280 modern sets (SV+, ~6h)
 //   npm run scrape-cardmarket -- --all                 # all 741 expansions (~16h)
+//
+// Env optional:
+//   BROWSER_CHANNEL=chromium  # use bundled Chromium instead of system Chrome
+//                             # (e.g. WSL without google-chrome-stable)
 //   npm run scrape-cardmarket -- --since 5500          # since idExpansion 5500
 //   npm run scrape-cardmarket -- --force --modern      # re-scrape everything
 //   npm run scrape-cardmarket -- --dry-run Crimson-Haze
@@ -38,8 +45,15 @@ dotenvConfig({ path: path.resolve(__dirname, '..', '.env.local') });
 dotenvConfig();
 
 import { readFileSync } from 'node:fs';
-import { chromium, type Browser, type Page } from 'playwright';
+import { chromium } from 'playwright-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import type { Browser, Page } from 'playwright';
 import { createClient } from '@supabase/supabase-js';
+
+// Patches ~15 headless tells (navigator.webdriver, chrome.runtime, plugins
+// array, WebGL vendor, etc.) — Cardmarket sits behind Cloudflare Bot Fight
+// Mode which 403s any client whose JS context exposes these.
+chromium.use(StealthPlugin());
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyClient = any;
@@ -379,8 +393,16 @@ async function main(): Promise<void> {
 
   console.log(`Will scrape ${targets.length} expansion(s)${DRY_RUN ? ' [DRY RUN — no upsert]' : ''}`);
 
+  // channel: 'chrome' uses the system-installed Chrome — same TLS handshake
+  // and client-hint headers as a real browser. Override with BROWSER_CHANNEL
+  // env var: 'chromium' to use Playwright's bundled Chromium (e.g. on WSL
+  // without google-chrome-stable installed), or 'msedge' / 'chrome-beta' /
+  // etc. for other channels.
+  const envChannel = process.env.BROWSER_CHANNEL;
+  const channel = envChannel === 'chromium' ? undefined : (envChannel ?? 'chrome');
   const browser: Browser = await chromium.launch({
     headless: true,
+    channel,
     args: ['--disable-blink-features=AutomationControlled'],
   });
   const ctx = await browser.newContext({
