@@ -17,6 +17,8 @@
     "test:watch": "vitest",
     "snapshot-catalog": "tsx scripts/snapshot-catalog.ts",
     "restore-catalog": "tsx scripts/restore-catalog.ts",
+    "snapshot-cardmarket-index": "tsx scripts/snapshot-cardmarket-index.ts",
+    "restore-cardmarket-index": "tsx scripts/restore-cardmarket-index.ts",
     "upload-cardmarket-dumps": "tsx scripts/upload-cardmarket-dumps.ts",
     "probe-cardmarket": "tsx scripts/probe-cardmarket-expansion.ts",
     "scrape-cardmarket": "tsx scripts/scrape-cardmarket-cards.ts"

@@ -26,6 +26,20 @@
 //      ~8s/page + ~30s/exp, kill-switch at 2 cumulative 429s — Cloudflare
 //      memorises fast, abort early to avoid extending the ban.
 //
+// If you got flagged (403 mid-scrape, 1015 page in browser, or BAD_SLUG on a
+// trusted slug like one in cardmarket-modern-expansions.json):
+//   1. STOP all scraper runs immediately. Each retry while flagged extends
+//      the cooldown — Cloudflare resets the timer on continued abuse.
+//   2. Verify in a normal browser (not the scraper) — load any Cardmarket
+//      Pokemon URL. 1015/challenge → IP-banned, wait. 200 → fingerprint flag,
+//      not IP, but still wait before retrying via the scraper.
+//   3. Wait minimum 4-6h, ideally overnight. 10-30min is NEVER enough,
+//      Cloudflare's sliding window is 1h+ and escalation flags last longer.
+//   4. If you must scrape sooner, switch IPs (mobile hotspot on the scraping
+//      machine) — does NOT reset fingerprint flags but bypasses IP bans.
+//   5. Resume picks up automatically via cardmarket_card_index — no manual
+//      progress tracking needed.
+//
 // Usage:
 //   npm run scrape-cardmarket -- Crimson-Haze Mascarade-Crepusculaire
 //   npm run scrape-cardmarket -- --modern              # ~280 modern sets (SV+, ~6h)
@@ -159,6 +173,7 @@ function extractTotalPagesFromPage(): number {
 async function scrapeOneExpansion(
   page: Page,
   slug: string,
+  trustedSlug: boolean,
 ): Promise<{ cards: ScrapedCard[]; totalPages: number; blocked: number }> {
   const allCards: ScrapedCard[] = [];
   let totalPages = 1;
@@ -186,12 +201,12 @@ async function scrapeOneExpansion(
         continue;
       }
 
-      // 403 on the very first page = invalid slug (Cardmarket returns its
-      // "extension invalide" page with HTTP 403). Different from a bot-flag
-      // 403 which would also hit page 1, but consecutive 403s elsewhere in
-      // main() still trip the kill switch — so a single bad slug is a skip,
-      // a wave of bad slugs is a real ban.
-      if (status === 403 && site === 1) {
+      // 403 on page 1 with an UNTRUSTED slug = probably Cardmarket's
+      // "extension invalide" page (the slug derivation got it wrong). Skip
+      // and log for manual fixup. With a TRUSTED slug (curated in modern
+      // JSON or user-supplied), 403 is real bot detection — fall through to
+      // the generic HTTP 403 throw so it's surfaced and counted properly.
+      if (status === 403 && site === 1 && !trustedSlug) {
         throw new Error(`BAD_SLUG: HTTP 403 on first request (likely invalid slug). ${url}`);
       }
       if (status !== 200) {
@@ -286,7 +301,17 @@ async function fetchScrapedExpansions(supabase: AnyClient): Promise<Set<number>>
   return new Set((data ?? []).map((r: { id_expansion: number }) => r.id_expansion));
 }
 
-interface ResolvedTarget { idExpansion: number; slug: string; name: string }
+interface ResolvedTarget {
+  idExpansion: number;
+  slug: string;
+  name: string;
+  /** True when the slug comes from a curated source (modern JSON, user-supplied
+   * arg). False only for slugs derived from a DB name in --all mode for ancient
+   * expansions not in the modern list. The BAD_SLUG safeguard fires only for
+   * untrusted slugs — a 403 on a trusted slug means real bot detection, not a
+   * bad URL, and must escalate normally. */
+  trustedSlug: boolean;
+}
 
 /**
  * Derive a Cardmarket URL slug from an expansion display name. Verified to
@@ -313,16 +338,19 @@ function nameToSlug(name: string): string {
 }
 
 async function fetchAllExpansions(supabase: AnyClient): Promise<ResolvedTarget[]> {
+  const modernMap = JSON.parse(readFileSync(MODERN_FILE, 'utf-8')) as Record<string, ModernEntry>;
   const { data, error } = await supabase
     .from('cardmarket_expansions')
     .select('id_expansion, name')
     .order('id_expansion', { ascending: false });
   if (error) throw new Error(`fetchAllExpansions: ${error.message}`);
-  return (data ?? []).map((r: { id_expansion: number; name: string }) => ({
-    idExpansion: r.id_expansion,
-    name: r.name,
-    slug: nameToSlug(r.name),
-  }));
+  return (data ?? []).map((r: { id_expansion: number; name: string }) => {
+    const curated = modernMap[String(r.id_expansion)];
+    if (curated) {
+      return { idExpansion: r.id_expansion, name: curated.name, slug: curated.slug, trustedSlug: true };
+    }
+    return { idExpansion: r.id_expansion, name: r.name, slug: nameToSlug(r.name), trustedSlug: false };
+  });
 }
 
 async function resolveTargets(supabase: AnyClient | null): Promise<ResolvedTarget[]> {
@@ -344,12 +372,13 @@ async function resolveTargets(supabase: AnyClient | null): Promise<ResolvedTarge
       idExpansion: Number(id),
       slug: e.slug,
       name: e.name,
+      trustedSlug: true,
     }));
   }
   if (sinceId != null) {
     return Object.entries(modernMap)
       .filter(([id]) => Number(id) >= sinceId)
-      .map(([id, e]) => ({ idExpansion: Number(id), slug: e.slug, name: e.name }));
+      .map(([id, e]) => ({ idExpansion: Number(id), slug: e.slug, name: e.name, trustedSlug: true }));
   }
   if (args.length > 0) {
     const slugToId = new Map(Object.entries(modernMap).map(([id, e]) => [e.slug, { id: Number(id), name: e.name }]));
@@ -358,12 +387,14 @@ async function resolveTargets(supabase: AnyClient | null): Promise<ResolvedTarge
     for (const slug of args) {
       const found = slugToId.get(slug);
       if (found) {
-        resolved.push({ idExpansion: found.id, slug, name: found.name });
+        resolved.push({ idExpansion: found.id, slug, name: found.name, trustedSlug: true });
       } else {
         unknownSlugs.push(slug);
       }
     }
-    // Fallback: resolve unknown slugs from DB (older expansions not in modern list).
+    // Fallback: resolve unknown slugs from DB (older expansions not in modern
+    // list). User-supplied args are treated as trusted regardless — if the user
+    // typed it, they presumably checked it works.
     if (unknownSlugs.length > 0) {
       if (!supabase) throw new Error(`Unknown slugs ${unknownSlugs.join(', ')} require Supabase access`);
       const all = await fetchAllExpansions(supabase);
@@ -371,7 +402,7 @@ async function resolveTargets(supabase: AnyClient | null): Promise<ResolvedTarge
       for (const slug of unknownSlugs) {
         const t = slugMap.get(slug);
         if (!t) throw new Error(`Unknown slug "${slug}" — not in modern JSON nor in cardmarket_expansions`);
-        resolved.push(t);
+        resolved.push({ ...t, trustedSlug: true });
       }
     }
     return resolved;
@@ -441,7 +472,7 @@ async function main(): Promise<void> {
     const t = targets[i];
     console.log(`\n[${i + 1}/${targets.length}] ${t.idExpansion} — ${t.name} (${t.slug})`);
     try {
-      const { cards, blocked } = await scrapeOneExpansion(page, t.slug);
+      const { cards, blocked } = await scrapeOneExpansion(page, t.slug, t.trustedSlug);
       if (supabase) await upsertExpansion(supabase, { ...t, cards });
       totalCardsScraped += cards.length;
       totalBlocked += blocked;

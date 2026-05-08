@@ -45,6 +45,8 @@ Your daily dev workflow lives here. Defined in [`package.json`](../package.json)
 |---|---|
 | `npm run snapshot-catalog` | Dump `tcg_catalog` to gzipped JSON in `backups/`. Run before major catalog re-scrapes. |
 | `npm run restore-catalog` | Restore `tcg_catalog` from a gzipped snapshot. |
+| `npm run snapshot-cardmarket-index` | Dump `cardmarket_card_index` (gallery scrape) to gzipped JSON in `backups/`. Run after each successful `scrape-cardmarket --modern`/`--all`. |
+| `npm run restore-cardmarket-index` | Restore `cardmarket_card_index` from the snapshot — use after a fresh DB import. |
 
 ---
 
@@ -172,6 +174,23 @@ npm run restore-catalog                                      # restores latest b
 npm run restore-catalog -- <path/to/snapshot.json.gz>        # restores a specific snapshot
 ```
 
+### `snapshot-cardmarket-index.ts`
+
+Gallery scrape snapshot. Dumps `cardmarket_card_index` (the `(expansion, set_number) → idProduct` map populated by the Playwright scrape) to a gzipped JSONL file in [`backups/`](../backups/). Run after each successful `npm run scrape-cardmarket -- --modern` or `--all` so the ~6h to ~16h of work + Cloudflare-1015 risk are protected — the daily GitHub Action backup only covers user-data tables, not this one.
+
+```bash
+npm run snapshot-cardmarket-index                            # writes backups/cardmarket_card_index.jsonl.gz
+```
+
+### `restore-cardmarket-index.ts`
+
+Gallery scrape restore. Truncates `cardmarket_card_index` and re-inserts every row from the snapshot. Asks for confirmation before truncating; pass `SKIP_CONFIRM=1` for non-interactive use.
+
+```bash
+npm run restore-cardmarket-index                             # restores backups/cardmarket_card_index.jsonl.gz
+SKIP_CONFIRM=1 npm run restore-cardmarket-index              # no prompt
+```
+
 ### Manual backups via the UI
 
 The Options page exposes **Sauvegarde manuelle** — a one-click backup that dumps 8 user-data tables to a gzipped JSON file in the Supabase `manual-backups` bucket. Files are listed with a Download (signed URL, 1h expiry) and Delete action. Never auto-rotated.
@@ -179,6 +198,18 @@ The Options page exposes **Sauvegarde manuelle** — a one-click backup that dum
 ### Daily backup via GitHub Actions
 
 [`.github/workflows/backup.yml`](../.github/workflows/backup.yml) runs `pg_dump --data-only` on 8 user-data tables, gzips the result, and publishes a tagged release `backup-daily-YYYY-MM-DD`. Rotation: 30 daily / 12 weekly / 12 monthly via [`scripts/backup/rotate.sh`](../scripts/backup/rotate.sh). Trigger manually via GitHub Actions tab → "Daily backup" → "Run workflow".
+
+> **Note** — the daily backup covers the 8 user-data tables only. Catalog and Cardmarket tables are not included. Use the dedicated snapshots: `npm run snapshot-catalog` for `tcg_catalog`, `npm run snapshot-cardmarket-index` for the gallery scrape.
+
+### Wiping data / fresh start
+
+The full reset choreography for spinning up a brand-new Supabase project (region change, polluted state, etc.) lives in [`SUPABASE.md → Reset procedure`](SUPABASE.md#♻️-reset-procedure). For partial wipes on the current project:
+
+| What | How |
+|---|---|
+| Wipe `cards` table only + reseed dev cards | `tsx scripts/seed/seed.ts` (⚠️ destructive, dev-only) |
+| Wipe all user data (cards, lots, listings) keeping catalog + Cardmarket intact | `psql $DATABASE_URL -f scripts/seed/wipe-user-data.sql` |
+| Full reset on a new Supabase project | Follow [`SUPABASE.md → Reset procedure`](SUPABASE.md#♻️-reset-procedure) |
 
 ---
 
