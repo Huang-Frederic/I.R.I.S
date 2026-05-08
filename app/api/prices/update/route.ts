@@ -67,7 +67,14 @@ interface ResolvedPricing {
  */
 type CardProcessResult =
   | { kind: 'updated'; updatedCard: Card; pricing: ResolvedPricing; backfilled: boolean }
-  | { kind: 'skipped'; reason: 'not_eligible' | 'backfill_no_match' | 'no_pricing_yet' }
+  | {
+      kind: 'skipped';
+      reason: 'not_eligible' | 'backfill_no_match' | 'no_pricing_yet';
+      /** Free-form context — for `no_pricing_yet` this is the lookup chain
+       *  reason ("dumps:no_expansion + tcgdex: no pricing yet") so cron logs
+       *  + single-card UI surface why we skipped, not just that we did. */
+      details?: string;
+    }
   | { kind: 'invalid_for_pricing'; code: 'card_not_eligible' | 'no_catalog_match'; message?: string }
   | { kind: 'pricing_failed'; reason: string }
   | { kind: 'update_failed'; message: string }
@@ -154,7 +161,7 @@ async function processCardForPricing(
   const resolved = await resolvePricing(service, card, cardIdTcg);
   if (!resolved.ok) {
     if (resolved.terminal) return { kind: 'pricing_failed', reason: resolved.reason };
-    return { kind: 'skipped', reason: 'no_pricing_yet' };
+    return { kind: 'skipped', reason: 'no_pricing_yet', details: resolved.reason };
   }
 
   const update = buildUpdatePayload(resolved.pricing, backfilled, cardIdTcg);
@@ -251,6 +258,14 @@ function applyResultToSummary(card: Card, result: CardProcessResult, summary: Up
       if (result.pricing.ambiguous) summary.ambiguous += 1;
       return;
     case 'skipped':
+      // `no_pricing_yet` is transient (we'll retry on the next cron tick) — log
+      // it so we can spot persistent gaps in the daily Vercel logs. Other
+      // skipped reasons are silent on purpose (variant cards, missing IDs).
+      if (result.reason === 'no_pricing_yet') {
+        console.warn(
+          `[prices/cron] ${card.id} (${card.card_name} ${card.set_code}-${card.set_number} ${card.language}) → transient: ${result.details ?? result.reason}`,
+        );
+      }
       summary.skipped += 1;
       return;
     case 'invalid_for_pricing':
@@ -324,7 +339,7 @@ function resultToSingleCardResponse(card: Card, result: CardProcessResult): Next
     case 'skipped':
       // No pricing available yet (typically backfill matched but TCGdex has no pricing
       // returned for that ID). Surface as 422 so the UI shows "no_pricing_yet".
-      return apiError('no_pricing_yet', { status: 422, message: result.reason });
+      return apiError('no_pricing_yet', { status: 422, message: result.details ?? result.reason });
     case 'pricing_failed':
       console.warn(
         `[prices/single] ${card.id} (${card.card_name} ${card.set_code}-${card.set_number} ${card.language}) → ${result.reason}`,
