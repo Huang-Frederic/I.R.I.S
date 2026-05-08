@@ -3,7 +3,10 @@ import type { CardLanguage } from '@/lib/types';
 import { toTCGdexLang, type TCGdexLang } from './tcgdex';
 
 const BASE = 'https://api.tcgdex.net/v2';
-const TIMEOUT_MS = 10_000;
+// Aggressive timeout — TCGdex's /sets endpoint normally returns in <1s.
+// If it's slow, the whole UI blocks (single-card refresh) so we'd rather
+// fail fast and let the caller fall through.
+const TIMEOUT_MS = 5_000;
 
 interface TCGdexSet {
   id: string;
@@ -14,23 +17,36 @@ interface TCGdexSet {
 interface SetIndex {
   byName: Map<string, string>; // lowercased name → id
   byTotal: Map<number, string[]>; // cardCount.total → list of ids (may collide)
+  byId: Map<string, string>; // id → original-cased name (for reverse lookup)
 }
 
 const cache = new Map<TCGdexLang, SetIndex>();
+/** Languages whose /sets endpoint timed out / errored in this process.
+ *  Subsequent calls fail-fast instead of re-attempting (the failure mode is
+ *  usually network-level and persistent — the second attempt eats another
+ *  TIMEOUT_MS for the same negative result). Cleared on process restart. */
+const failedLangs = new Set<TCGdexLang>();
 
 async function loadSetsForLang(lang: TCGdexLang): Promise<SetIndex> {
   const cached = cache.get(lang);
   if (cached) return cached;
+  if (failedLangs.has(lang)) {
+    throw new Error(`tcgdex sets ${lang}: skipped (previous failure cached for this process)`);
+  }
 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(`${BASE}/${lang}/sets`, { signal: ctrl.signal });
-    if (!res.ok) throw new Error(`tcgdex sets ${res.status}`);
+    if (!res.ok) {
+      failedLangs.add(lang);
+      throw new Error(`tcgdex sets ${res.status}`);
+    }
     const sets = (await res.json()) as TCGdexSet[];
-    const idx: SetIndex = { byName: new Map(), byTotal: new Map() };
+    const idx: SetIndex = { byName: new Map(), byTotal: new Map(), byId: new Map() };
     for (const s of sets) {
       idx.byName.set(s.name.toLowerCase().trim(), s.id);
+      idx.byId.set(s.id, s.name);
       const total = s.cardCount?.total;
       if (typeof total === 'number') {
         const list = idx.byTotal.get(total) ?? [];
@@ -40,6 +56,9 @@ async function loadSetsForLang(lang: TCGdexLang): Promise<SetIndex> {
     }
     cache.set(lang, idx);
     return idx;
+  } catch (err) {
+    failedLangs.add(lang);
+    throw err;
   } finally {
     clearTimeout(timer);
   }
@@ -154,7 +173,41 @@ export async function tcgdexCardId(
   return `${setId}-${cleanedNumber}`;
 }
 
+/**
+ * Translate a set name from its source language (typically EN — what our
+ * catalog stores) to the target language. Used by the Cardmarket dump
+ * lookup to bridge "Twilight Masquerade" (our DB) → "Mascarade Crépusculaire"
+ * (Cardmarket FR locale).
+ *
+ * Returns null when either lookup fails. Cached after first call per language.
+ */
+export async function localizedSetName(
+  setName: string | null,
+  fromLanguage: CardLanguage,
+  toLanguage: CardLanguage,
+): Promise<string | null> {
+  if (!setName) return null;
+  if (fromLanguage === toLanguage) return setName;
+
+  const fromLang = toTCGdexLang(fromLanguage);
+  const toLang = toTCGdexLang(toLanguage);
+
+  let fromIdx: SetIndex;
+  let toIdx: SetIndex;
+  try {
+    [fromIdx, toIdx] = await Promise.all([loadSetsForLang(fromLang), loadSetsForLang(toLang)]);
+  } catch (err) {
+    console.warn(`[tcgdex-set-mapping] localizedSetName fetch failed:`, err);
+    return null;
+  }
+
+  const setId = fromIdx.byName.get(setName.toLowerCase().trim());
+  if (!setId) return null;
+  return toIdx.byId.get(setId) ?? null;
+}
+
 /** Test-only: clear the in-memory cache so tests start with a clean slate. */
 export function _resetCacheForTests(): void {
   cache.clear();
+  failedLangs.clear();
 }

@@ -61,3 +61,12 @@ __pycache__/
 # Supabase CLI local state
 supabase/.branches/
 supabase/.temp/
+
+# Cardmarket dumps re-downloaded by scripts/upload-cardmarket-dumps.ts.
+# The expansion mapping (cardmarket_expansions.json) IS committed — it changes
+# only when new sets release (~6×/year, manual re-grab from the CM dropdown).
+products_singles_6.json
+products_nonsingles_6.json
+price_guide_6.json
+cardmarket_expansions.html
+cardmarket-probe-*.html

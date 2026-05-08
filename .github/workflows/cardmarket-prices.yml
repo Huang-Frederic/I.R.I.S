@@ -1,0 +1,35 @@
+# .github/workflows/cardmarket-prices.yml
+#
+# Daily refresh of the local Cardmarket pricing tables. Pulls the public S3
+# dumps (no auth) and re-upserts them to Supabase via the upload script.
+#
+# The Vercel cron at 02:00 UTC reads from these tables, so we run at 01:00
+# UTC to make sure pricing is fresh by the time card rows are touched.
+
+name: Refresh Cardmarket prices
+
+on:
+  schedule:
+    - cron: '7 1 * * *' # 01:07 UTC every day (off-the-hour to dodge fleet pile-ups)
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run upload script (fetches dumps from S3, upserts to Supabase)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run upload-cardmarket-dumps

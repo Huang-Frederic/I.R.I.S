@@ -1130,12 +1130,12 @@ export default function CardScanForm({
                       <p className="text-text-faint font-mono text-xs">
                         {ocrEngine === 'gemini' && ocrUsage && (
                           <>
-                            <span className="text-rarity-rr">[Gemini]</span> {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image} img · €{ocrUsage.cost_eur.toFixed(6)}
+                            <span className="text-rarity-rr">[Gemini]</span> {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image} img · €{ocrUsage.cost_eur.toFixed(4)}
                           </>
                         )}
                         {ocrEngine === 'vision' && ocrUsage && (
                           <>
-                            <span className="text-rarity-ar">[Gemini→Vision]</span> {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image} img · €{ocrUsage.cost_eur.toFixed(6)} <span className="opacity-70">(fallback Vision)</span>
+                            <span className="text-rarity-ar">[Gemini→Vision]</span> {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image} img · €{ocrUsage.cost_eur.toFixed(4)} <span className="opacity-70">(fallback Vision)</span>
                           </>
                         )}
                         {ocrEngine === 'vision' && !ocrUsage && (
@@ -1145,7 +1145,7 @@ export default function CardScanForm({
                         )}
                         {!ocrEngine && ocrUsage && (
                           <>
-                            {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image} img · €{ocrUsage.cost_eur.toFixed(6)}
+                            {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image} img · €{ocrUsage.cost_eur.toFixed(4)}
                           </>
                         )}
                       </p>

@@ -114,6 +114,21 @@ export function cleanNull(s: unknown): string | null {
   return t;
 }
 
+/**
+ * Strip the dash that some Gemini outputs insert between Pokémon name and
+ * EX/ex/V/VMAX/etc. — e.g. "Aquali-ex" → "Aquali ex". The TCG official
+ * convention since SV-era is no dash, and Cardmarket/LimitlessTCG never use
+ * dashes regardless of era. Applied to all name fields post-parse.
+ *
+ * Old XY-era cards (Pokémon-EX) DID have dashes on the actual cards, but for
+ * matching purposes we always normalize to space since that's what every
+ * downstream system uses.
+ */
+export function normalizeSuffixDash(s: string | null): string | null {
+  if (!s) return s;
+  return s.replace(/-(ex|EX|GX|V|VMAX|VSTAR|V-?UNION|BREAK|LEGEND)\b/g, ' $1');
+}
+
 const SCHEMA = {
   type: 'object',
   properties: {
@@ -250,8 +265,8 @@ export async function extractCardFromImage(
     }
 
     const extraction: GeminiCardExtraction = {
-      card_name: parsed.card_name,
-      pokemon_name: parsed.pokemon_name || null,
+      card_name: normalizeSuffixDash(parsed.card_name) ?? parsed.card_name,
+      pokemon_name: normalizeSuffixDash(parsed.pokemon_name || null),
       set_code: parsed.set_code,
       set_number: String(parsed.set_number).replace(/^0+/, '') || '0',
       set_total: parsed.set_total ?? null,
@@ -265,8 +280,8 @@ export async function extractCardFromImage(
         parsed.pokemon_number <= 1025
           ? parsed.pokemon_number
           : null,
-      pokemon_name_fr: cleanNull(parsed.pokemon_name_fr),
-      card_name_fr: cleanNull(parsed.card_name_fr),
+      pokemon_name_fr: normalizeSuffixDash(cleanNull(parsed.pokemon_name_fr)),
+      card_name_fr: normalizeSuffixDash(cleanNull(parsed.card_name_fr)),
       set_name: cleanNull(parsed.set_name),
       set_name_fr: cleanNull(parsed.set_name_fr),
       illustrator: cleanNull(parsed.illustrator),

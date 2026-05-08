@@ -21,7 +21,6 @@ import RarityDonut from '@/components/dashboard/RarityDonut';
 import ScanHeatmap from '@/components/dashboard/ScanHeatmap';
 import TopRaresList from '@/components/dashboard/TopRaresList';
 import LastSalesList from '@/components/dashboard/LastSalesList';
-import LastPokedexAdds from '@/components/dashboard/LastPokedexAdds';
 import PokedexCount from '@/components/dashboard/PokedexCount';
 import type { Card } from '@/lib/types';
 
@@ -162,7 +161,7 @@ export default async function DashboardPage({
       />
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <PokedexCount collected={pokedexCollected} />
+        <PokedexCount collected={pokedexCollected} adds={lastPokedexAdds ?? []} />
         <RarityDonut counts={rarityCounts} values={rarityValues} />
       </div>
 
@@ -178,10 +177,6 @@ export default async function DashboardPage({
 
       <div className="mt-4">
         <LastSalesList sales={lastSales ?? []} />
-      </div>
-
-      <div className="mt-4">
-        <LastPokedexAdds adds={lastPokedexAdds ?? []} />
       </div>
     </section>
   );

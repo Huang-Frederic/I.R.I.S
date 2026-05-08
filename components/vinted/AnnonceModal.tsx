@@ -9,6 +9,7 @@ import { processImageForVinted, downloadBlob } from '@/lib/utils/image-postproce
 import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
 import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
 import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
+import CardmarketLink from '@/components/ui/CardmarketLink';
 
 interface Props {
   card: Card;
@@ -289,6 +290,7 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
                 <div className="flex flex-col items-center justify-center gap-1">
                   <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
                   <RefreshPriceButton cardId={card.id} onRefreshed={onCardRefreshed} />
+                  <CardmarketLink url={card.cardmarket_url} />
                 </div>
               )}
             </div>

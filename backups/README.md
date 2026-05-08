@@ -8,7 +8,7 @@ These are versioned snapshots of the static data used to enrich scanned cards.
 Regenerate after each full LimitlessTCG re-scrape:
 
 ```bash
-npm run scrape -- --langs=jp,en,fr   # ~12 min (or ~3h with SCRAPE_ILLUSTRATOR=1)
+LANGUAGES=jp,en,fr npx tsx scripts/scrape-limitlesstcg.ts   # ~12 min (or ~3h with SCRAPE_ILLUSTRATOR=1)
 npm run snapshot-catalog
 git add backups/
 git commit -m "snapshot tcg_catalog YYYY-MM-DD"

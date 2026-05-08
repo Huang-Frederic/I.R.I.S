@@ -57,6 +57,7 @@ export interface Card {
   image_url: string | null;
   tcg_image_url: string | null;
   cardmarket_id: string | null;
+  cardmarket_url: string | null;
   cm_price_low: number | null;
   cm_price_trend: number | null;
   cm_price_avg: number | null;

@@ -6,6 +6,7 @@ import { categorizePricingCard } from '@/lib/utils/categorize-pricing-card';
 import { lookupByCode } from '@/lib/api/tcg-catalog';
 import { toTCGdexLang } from '@/lib/api/tcgdex';
 import { tcgdexCardId } from '@/lib/api/tcgdex-set-mapping';
+import { lookupCardmarketPricing } from '@/lib/api/cardmarket-pricing';
 import { computeStockValue } from '@/lib/utils/stock-value';
 import type { Card, CardLanguage } from '@/lib/types';
 
@@ -14,7 +15,10 @@ export const runtime = 'nodejs';
 const BATCH_SIZE = 200;
 const PARALLELISM = 10;
 const TCGDEX_BASE = 'https://api.tcgdex.net/v2';
-const TCGDEX_TIMEOUT_MS = 15_000;
+// Aggressive 5s timeout — single-card refresh is user-facing, can't block
+// the UI for 15s on a TCGdex hiccup. The Cardmarket-dump path is the
+// primary; TCGdex is just a best-effort fallback.
+const TCGDEX_TIMEOUT_MS = 5_000;
 
 interface UpdateSummary {
   ok: boolean;
@@ -22,8 +26,27 @@ interface UpdateSummary {
   updated: number;
   backfilled: number;
   skipped: number;
+  /** how many of `updated` came from local Cardmarket dumps vs TCGdex live */
+  source_cardmarket: number;
+  source_tcgdex: number;
+  /** count of dump matches where >1 product shared the same prefix in the
+   *  expansion (we picked one by variant heuristic — flag for review) */
+  ambiguous: number;
   errors: Array<{ card_id: string; message: string }>;
 }
+
+interface ResolvedPricing {
+  source: 'cardmarket' | 'tcgdex';
+  idProduct: number | null;
+  low: number | null;
+  trend: number | null;
+  avg: number | null;
+  ambiguous: boolean;
+  /** Canonical CM URL, derived from card_index.url_path when available. */
+  url: string | null;
+}
+
+const CARDMARKET_BASE_URL = 'https://www.cardmarket.com';
 
 interface TCGdexCardmarket {
   idProduct?: number;
@@ -60,7 +83,8 @@ export const POST = handleRequest;
 async function handleBulk(): Promise<NextResponse> {
   const service = createServiceClient();
   const summary: UpdateSummary = {
-    ok: true, total: 0, updated: 0, backfilled: 0, skipped: 0, errors: [],
+    ok: true, total: 0, updated: 0, backfilled: 0, skipped: 0,
+    source_cardmarket: 0, source_tcgdex: 0, ambiguous: 0, errors: [],
   };
 
   const { data: rows, error } = await service
@@ -151,33 +175,30 @@ async function processCard(
     }
   }
 
-  if (!cardIdTcg) {
-    summary.skipped += 1;
+  // cardIdTcg may still be null (e.g. JP card with no catalog match) — that's
+  // fine, the cardmarket dumps don't need it. We pass it as a fallback for
+  // TCGdex if the dumps miss.
+  const resolved = await resolvePricing(service, card, cardIdTcg);
+  if (!resolved.ok) {
+    if (resolved.terminal) {
+      console.warn(`[prices/cron] ${card.id} (${card.card_name} ${card.set_code}-${card.set_number} ${card.language}) → ${resolved.reason}`);
+      summary.errors.push({ card_id: card.id, message: resolved.reason });
+    } else {
+      // Soft miss (no pricing yet from either source) — don't bump cm_updated_at.
+      summary.skipped += 1;
+    }
     return;
   }
 
-  const translatedId = await tcgdexCardId(card.set_name, card.set_number, card.language);
-  const finalId = translatedId ?? cardIdTcg;
-  const fetched = await fetchTCGdexPricing(finalId, card.language);
-  if (fetched.error) {
-    console.warn(`[prices/cron] ${card.id} (${card.card_name} ${card.set_code}-${card.set_number} ${card.language}) → ${finalId} → ${fetched.error}`);
-    summary.errors.push({ card_id: card.id, message: `${finalId}: ${fetched.error}` });
-    return;
-  }
-  const cm = fetched.cm;
-  if (!cm || (cm.low == null && cm.trend == null && cm.avg == null)) {
-    // No pricing data yet → don't bump cm_updated_at, retry tomorrow.
-    summary.skipped += 1;
-    return;
-  }
-
+  const p = resolved.pricing;
   const update: Record<string, unknown> = {
-    cm_price_low: cm.low ?? null,
-    cm_price_trend: cm.trend ?? null,
-    cm_price_avg: cm.avg ?? null,
+    cm_price_low: p.low,
+    cm_price_trend: p.trend,
+    cm_price_avg: p.avg,
     cm_updated_at: new Date().toISOString(),
+    cardmarket_url: p.url,
   };
-  if (cm.idProduct != null) update.cardmarket_id = String(cm.idProduct);
+  if (p.idProduct != null) update.cardmarket_id = String(p.idProduct);
   if (backfilled) update.card_id_tcg = cardIdTcg;
 
   const { error: updErr } = await service.from('cards').update(update).eq('id', card.id);
@@ -188,6 +209,70 @@ async function processCard(
 
   summary.updated += 1;
   if (backfilled) summary.backfilled += 1;
+  if (p.source === 'cardmarket') summary.source_cardmarket += 1;
+  else summary.source_tcgdex += 1;
+  if (p.ambiguous) summary.ambiguous += 1;
+}
+
+/**
+ * Pricing pipeline: Cardmarket dumps first (local lookup, no network), TCGdex
+ * fallback (live API) for cards we can't match in the dumps. Returns a
+ * discriminated union so the caller can distinguish a terminal error (worth
+ * surfacing in summary.errors) from a soft miss (no pricing yet, skip & retry).
+ */
+type ResolveResult =
+  | { ok: true; pricing: ResolvedPricing }
+  | { ok: false; reason: string; terminal: boolean };
+
+async function resolvePricing(
+  service: ReturnType<typeof createServiceClient>,
+  card: Card,
+  cardIdTcgForFallback: string | null,
+): Promise<ResolveResult> {
+  const cm = await lookupCardmarketPricing(service, card);
+  if (cm.ok) {
+    console.warn(`[cm-lookup] ${card.id} ${card.set_name}/${card.card_name} (${card.language}) → matched idProduct=${cm.idProduct}${cm.ambiguous ? ' [AMBIG]' : ''} src=${cm.source}`);
+    return {
+      ok: true,
+      pricing: {
+        source: 'cardmarket',
+        idProduct: cm.idProduct,
+        low: cm.low,
+        trend: cm.trend,
+        avg: cm.avg,
+        ambiguous: cm.ambiguous,
+        url: cm.urlPath ? `${CARDMARKET_BASE_URL}${cm.urlPath}` : null,
+      },
+    };
+  }
+  console.warn(`[cm-lookup] ${card.id} ${card.set_name}/${card.card_name} (${card.language}) → ${cm.reason}${cm.details ? ` [${cm.details}]` : ''}; falling back to TCGdex`);
+
+  if (!cardIdTcgForFallback) {
+    return { ok: false, reason: `dumps:${cm.reason} + no_card_id_tcg`, terminal: false };
+  }
+
+  const translatedId = await tcgdexCardId(card.set_name, card.set_number, card.language);
+  const finalId = translatedId ?? cardIdTcgForFallback;
+  const fetched = await fetchTCGdexPricing(finalId, card.language);
+  if (fetched.error) {
+    return { ok: false, reason: `dumps:${cm.reason} + tcgdex:${fetched.error} (id=${finalId})`, terminal: true };
+  }
+  const t = fetched.cm;
+  if (!t || (t.low == null && t.trend == null && t.avg == null)) {
+    return { ok: false, reason: `dumps:${cm.reason} + tcgdex: no pricing yet`, terminal: false };
+  }
+  return {
+    ok: true,
+    pricing: {
+      source: 'tcgdex',
+      idProduct: t.idProduct ?? null,
+      low: t.low ?? null,
+      trend: t.trend ?? null,
+      avg: t.avg ?? null,
+      ambiguous: false,
+      url: null,
+    },
+  };
 }
 
 async function fetchTCGdexPricing(
@@ -229,20 +314,6 @@ async function handleSingleCard(cardId: string): Promise<NextResponse> {
   const card = target as Card;
   const cat = categorizePricingCard(card);
   if (cat === 'skip') {
-    // Distinguish the language case (JP/KO/CN/ZH — Cardmarket doesn't sell these)
-    // from the structural case (variant set, or missing identifiers) so the popup
-    // tells the user *why* there's no pricing.
-    const noCardmarketLang = card.language === 'JP' || card.language === 'KO' || card.language === 'CN' || card.language === 'ZH';
-    if (noCardmarketLang) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: 'no_cardmarket_for_lang',
-          message: `Pas de prix Cardmarket pour les cartes ${card.language} — Cardmarket ne vend pas cette langue. Utilise l'édit prix manuel.`,
-        },
-        { status: 422 },
-      );
-    }
     return NextResponse.json(
       {
         ok: false,
@@ -273,46 +344,31 @@ async function handleSingleCard(cardId: string): Promise<NextResponse> {
     backfilled = true;
   }
 
-  if (!cardIdTcg) {
-    return NextResponse.json(
-      { ok: false, error: 'card_not_eligible' },
-      { status: 422 },
-    );
-  }
-
-  const translatedId = await tcgdexCardId(card.set_name, card.set_number, card.language);
-  const finalId = translatedId ?? cardIdTcg;
-  const fetched = await fetchTCGdexPricing(finalId, card.language);
-  if (fetched.error) {
-    console.warn(`[prices/single] ${card.id} (${card.card_name} ${card.set_code}-${card.set_number} ${card.language}) → ${finalId} → ${fetched.error}`);
+  // The Cardmarket dumps don't need cardIdTcg, so we no longer hard-fail when
+  // it's null. resolvePricing() will try the dumps first, then TCGdex if a
+  // cardIdTcg is available.
+  const resolved = await resolvePricing(service, card, cardIdTcg);
+  if (!resolved.ok) {
+    console.warn(`[prices/single] ${card.id} (${card.card_name} ${card.set_code}-${card.set_number} ${card.language}) → ${resolved.reason}`);
     return NextResponse.json(
       {
         ok: false,
-        error: 'tcgdex_failed',
-        message: `${finalId}: ${fetched.error}${!translatedId ? ' (no TCGdex set mapping found)' : ''}`,
+        error: resolved.terminal ? 'pricing_failed' : 'no_pricing_yet',
+        message: resolved.reason,
       },
-      { status: 502 },
-    );
-  }
-  const cm = fetched.cm;
-  if (!cm || (cm.low == null && cm.trend == null && cm.avg == null)) {
-    const reason =
-      card.language === 'JP' || card.language === 'KO' || card.language === 'CN'
-        ? `Pas de prix Cardmarket pour les cartes ${card.language} (Cardmarket ne vend pas cette langue)`
-        : `TCGdex n'a pas encore de prix Cardmarket pour ${finalId}`;
-    return NextResponse.json(
-      { ok: false, error: 'no_pricing_yet', message: reason },
-      { status: 422 },
+      { status: resolved.terminal ? 502 : 422 },
     );
   }
 
+  const p = resolved.pricing;
   const update: Record<string, unknown> = {
-    cm_price_low: cm.low ?? null,
-    cm_price_trend: cm.trend ?? null,
-    cm_price_avg: cm.avg ?? null,
+    cm_price_low: p.low,
+    cm_price_trend: p.trend,
+    cm_price_avg: p.avg,
     cm_updated_at: new Date().toISOString(),
+    cardmarket_url: p.url,
   };
-  if (cm.idProduct != null) update.cardmarket_id = String(cm.idProduct);
+  if (p.idProduct != null) update.cardmarket_id = String(p.idProduct);
   if (backfilled) update.card_id_tcg = cardIdTcg;
 
   const { data: updated, error: updErr } = await service

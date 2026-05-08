@@ -1,0 +1,1126 @@
+{
+  "5201": {
+    "name": "Zénith Suprême",
+    "slug": "Zenith-Supreme"
+  },
+  "5204": {
+    "name": "Play! Pokémon Prize Pack Series One",
+    "slug": "Play-Pokemon-Prize-Pack-Series-One"
+  },
+  "5212": {
+    "name": "Promos Écarlate et Violet",
+    "slug": "Promos-Ecarlate-et-Violet"
+  },
+  "5216": {
+    "name": "Scarlet ex",
+    "slug": "Scarlet-ex"
+  },
+  "5217": {
+    "name": "Violet ex",
+    "slug": "Violet-ex"
+  },
+  "5218": {
+    "name": "ex Starter Set Sprigatito & Lucario ex",
+    "slug": "ex-Starter-Set-Sprigatito-Lucario-ex"
+  },
+  "5219": {
+    "name": "ex Starter Set Fuecoco & Ampharos ex",
+    "slug": "ex-Starter-Set-Fuecoco-Ampharos-ex"
+  },
+  "5220": {
+    "name": "ex Starter Set Quaxly & Mimikyu ex",
+    "slug": "ex-Starter-Set-Quaxly-Mimikyu-ex"
+  },
+  "5221": {
+    "name": "Premium Trainer Box ex",
+    "slug": "Premium-Trainer-Box-ex"
+  },
+  "5223": {
+    "name": "Écarlate et Violet",
+    "slug": "Ecarlate-et-Violet"
+  },
+  "5224": {
+    "name": "Énergies Écarlate et Violet",
+    "slug": "Energies-Ecarlate-et-Violet"
+  },
+  "5241": {
+    "name": "SV Black Star Promos",
+    "slug": "SV-Black-Star-Promos"
+  },
+  "5257": {
+    "name": "Triplet Beat",
+    "slug": "Triplet-Beat"
+  },
+  "5299": {
+    "name": "ex Starter Set Pikachu ex & Pawmot",
+    "slug": "ex-Starter-Set-Pikachu-ex-Pawmot"
+  },
+  "5313": {
+    "name": "Play! Pokémon Prize Pack Series Two",
+    "slug": "Play-Pokemon-Prize-Pack-Series-Two"
+  },
+  "5314": {
+    "name": "Snow Hazard",
+    "slug": "Snow-Hazard"
+  },
+  "5315": {
+    "name": "Clay Burst",
+    "slug": "Clay-Burst"
+  },
+  "5318": {
+    "name": "Évolutions à Paldea",
+    "slug": "Evolutions-a-Paldea"
+  },
+  "5328": {
+    "name": "Pokémon Card 151",
+    "slug": "Pokemon-Card-151"
+  },
+  "5335": {
+    "name": "Produits Écarlate et Violet",
+    "slug": "Produits-Ecarlate-et-Violet"
+  },
+  "5351": {
+    "name": "Scarlet & Violet ex Special Set",
+    "slug": "Scarlet-Violet-ex-Special-Set"
+  },
+  "5362": {
+    "name": "ex Start Decks",
+    "slug": "ex-Start-Decks"
+  },
+  "5385": {
+    "name": "Flammes Obsidiennes",
+    "slug": "Flammes-Obsidiennes"
+  },
+  "5402": {
+    "name": "151",
+    "slug": "151"
+  },
+  "5405": {
+    "name": "Trick or Trade 2023",
+    "slug": "Trick-or-Trade-2023"
+  },
+  "5409": {
+    "name": "Ruler of the Black Flame",
+    "slug": "Ruler-of-the-Black-Flame"
+  },
+  "5410": {
+    "name": "World Championships 2023 Yokohama Deck -Pikachu-",
+    "slug": "World-Championships-2023-Yokohama-Deck--Pikachu-"
+  },
+  "5415": {
+    "name": "Produits Soleil et Lune",
+    "slug": "Produits-Soleil-et-Lune"
+  },
+  "5422": {
+    "name": "Ruler of the Black Flame Deck Build Box",
+    "slug": "Ruler-of-the-Black-Flame-Deck-Build-Box"
+  },
+  "5430": {
+    "name": "McDonald's Match Battle 2023",
+    "slug": "McDonalds-Match-Battle-2023"
+  },
+  "5431": {
+    "name": "Play! Pokémon Packs Récompense Troisième Série",
+    "slug": "Play-Pokemon-Packs-Recompense-Troisieme-Serie"
+  },
+  "5432": {
+    "name": "Raging Surf",
+    "slug": "Raging-Surf"
+  },
+  "5444": {
+    "name": "Faille Paradoxe",
+    "slug": "Faille-Paradoxe"
+  },
+  "5476": {
+    "name": "Terastal Starter Set Flâmigator ex",
+    "slug": "Terastal-Starter-Set-Flamigator-ex"
+  },
+  "5477": {
+    "name": "Terastal Starter Set Mewtwo ex",
+    "slug": "Terastal-Starter-Set-Mewtwo-ex"
+  },
+  "5478": {
+    "name": "Ancient Roar",
+    "slug": "Ancient-Roar"
+  },
+  "5479": {
+    "name": "Future Flash",
+    "slug": "Future-Flash"
+  },
+  "5519": {
+    "name": "Shiny Treasure ex",
+    "slug": "Shiny-Treasure-ex"
+  },
+  "5525": {
+    "name": "Florizarre & Dracaufeu & Tortank Special Deck Set ex",
+    "slug": "Florizarre-Dracaufeu-Tortank-Special-Deck-Set-ex"
+  },
+  "5526": {
+    "name": "Mon Premier Combat",
+    "slug": "Mon-Premier-Combat"
+  },
+  "5527": {
+    "name": "Pokémon Card Game Classic: Florizarre & Lugia ex Deck",
+    "slug": "Pokemon-Card-Game-Classic:-Florizarre-Lugia-ex-Deck"
+  },
+  "5528": {
+    "name": "Pokémon Card Game Classic: Dracaufeu & Ho-Oh ex Deck",
+    "slug": "Pokemon-Card-Game-Classic:-Dracaufeu-Ho-Oh-ex-Deck"
+  },
+  "5529": {
+    "name": "Pokémon Card Game Classic: Tortank & Suicune ex Deck",
+    "slug": "Pokemon-Card-Game-Classic:-Tortank-Suicune-ex-Deck"
+  },
+  "5530": {
+    "name": "Pokémon Trading Card Game Classic: Florizarre & Lugia ex Deck",
+    "slug": "Pokemon-Trading-Card-Game-Classic:-Florizarre-Lugia-ex-Deck"
+  },
+  "5531": {
+    "name": "Pokémon Trading Card Game Classic: Dracaufeu & Ho-Oh ex Deck",
+    "slug": "Pokemon-Trading-Card-Game-Classic:-Dracaufeu-Ho-Oh-ex-Deck"
+  },
+  "5532": {
+    "name": "Pokémon Trading Card Game Classic: Tortank & Suicune ex Deck",
+    "slug": "Pokemon-Trading-Card-Game-Classic:-Tortank-Suicune-ex-Deck"
+  },
+  "5546": {
+    "name": "Destinées de Paldea",
+    "slug": "Destinees-de-Paldea"
+  },
+  "5573": {
+    "name": "Wild Force",
+    "slug": "Wild-Force"
+  },
+  "5574": {
+    "name": "Cyber Judge",
+    "slug": "Cyber-Judge"
+  },
+  "5575": {
+    "name": "Starter Deck & Build Set Ancient Koraidon ex",
+    "slug": "Starter-Deck-Build-Set-Ancient-Koraidon-ex"
+  },
+  "5576": {
+    "name": "Starter Deck & Build Set Future Miraidon ex",
+    "slug": "Starter-Deck-Build-Set-Future-Miraidon-ex"
+  },
+  "5589": {
+    "name": "Forces Temporelles",
+    "slug": "Forces-Temporelles"
+  },
+  "5620": {
+    "name": "Play! Pokémon Packs Récompense Quatrième Série",
+    "slug": "Play-Pokemon-Packs-Recompense-Quatrieme-Serie"
+  },
+  "5621": {
+    "name": "Scarlet & Violet Battle Academy",
+    "slug": "Scarlet-Violet-Battle-Academy"
+  },
+  "5636": {
+    "name": "Crimson Haze",
+    "slug": "Crimson-Haze"
+  },
+  "5681": {
+    "name": "Nivi City Gym",
+    "slug": "Nivi-City-Gym"
+  },
+  "5682": {
+    "name": "Hanada City Gym",
+    "slug": "Hanada-City-Gym"
+  },
+  "5683": {
+    "name": "Kuchiba City Gym",
+    "slug": "Kuchiba-City-Gym"
+  },
+  "5684": {
+    "name": "Tamamushi City Gym",
+    "slug": "Tamamushi-City-Gym"
+  },
+  "5685": {
+    "name": "Yamabuki City Gym",
+    "slug": "Yamabuki-City-Gym"
+  },
+  "5686": {
+    "name": "Guren Town Gym",
+    "slug": "Guren-Town-Gym"
+  },
+  "5690": {
+    "name": "Mask of Change",
+    "slug": "Mask-of-Change"
+  },
+  "5691": {
+    "name": "Mascarade Crépusculaire",
+    "slug": "Mascarade-Crepusculaire"
+  },
+  "5693": {
+    "name": "Offense and Defense of the Furthest Ends",
+    "slug": "Offense-and-Defense-of-the-Furthest-Ends"
+  },
+  "5694": {
+    "name": "Shockwave! Tyranitar ex Constructed Standard Deck",
+    "slug": "Shockwave-Tyranitar-ex-Constructed-Standard-Deck"
+  },
+  "5695": {
+    "name": "Imprison! Gardevoir ex Constructed Standard Deck",
+    "slug": "Imprison-Gardevoir-ex-Constructed-Standard-Deck"
+  },
+  "5698": {
+    "name": "Earth's Groudon ex Constructed Starter Deck",
+    "slug": "Earths-Groudon-ex-Constructed-Starter-Deck"
+  },
+  "5699": {
+    "name": "Ocean's Kyogre ex Constructed Starter Deck",
+    "slug": "Oceans-Kyogre-ex-Constructed-Starter-Deck"
+  },
+  "5700": {
+    "name": "Miracle Crystal",
+    "slug": "Miracle-Crystal"
+  },
+  "5703": {
+    "name": "Holon Phantom",
+    "slug": "Holon-Phantom"
+  },
+  "5709": {
+    "name": "Holon Research Tower",
+    "slug": "Holon-Research-Tower"
+  },
+  "5710": {
+    "name": "Mirage Forest",
+    "slug": "Mirage-Forest"
+  },
+  "5711": {
+    "name": "Golden Sky, Silvery Ocean",
+    "slug": "Golden-Sky-Silvery-Ocean"
+  },
+  "5712": {
+    "name": "Rocket Gang Strikes Back",
+    "slug": "Rocket-Gang-Strikes-Back"
+  },
+  "5713": {
+    "name": "Clash of the Blue Sky",
+    "slug": "Clash-of-the-Blue-Sky"
+  },
+  "5714": {
+    "name": "Flight of Legends",
+    "slug": "Flight-of-Legends"
+  },
+  "5715": {
+    "name": "Holon Research Tower Lightning Quarter Deck",
+    "slug": "Holon-Research-Tower-Lightning-Quarter-Deck"
+  },
+  "5716": {
+    "name": "Holon Research Tower Water Quarter Deck",
+    "slug": "Holon-Research-Tower-Water-Quarter-Deck"
+  },
+  "5717": {
+    "name": "Holon Research Tower Fire Quarter Deck",
+    "slug": "Holon-Research-Tower-Fire-Quarter-Deck"
+  },
+  "5718": {
+    "name": "Master Kit",
+    "slug": "Master-Kit"
+  },
+  "5719": {
+    "name": "Mirage's Mew Constructed Starter Deck",
+    "slug": "Mirages-Mew-Constructed-Starter-Deck"
+  },
+  "5720": {
+    "name": "Feraligatr Constructed Starter Deck",
+    "slug": "Feraligatr-Constructed-Starter-Deck"
+  },
+  "5721": {
+    "name": "Typhlosion Constructed Starter Deck",
+    "slug": "Typhlosion-Constructed-Starter-Deck"
+  },
+  "5722": {
+    "name": "Meganium Constructed Starter Deck",
+    "slug": "Meganium-Constructed-Starter-Deck"
+  },
+  "5723": {
+    "name": "Quick Construction Packs",
+    "slug": "Quick-Construction-Packs"
+  },
+  "5724": {
+    "name": "Gift Box Emerald",
+    "slug": "Gift-Box-Emerald"
+  },
+  "5725": {
+    "name": "Silver Deck Kit",
+    "slug": "Silver-Deck-Kit"
+  },
+  "5726": {
+    "name": "Black Deck Kit",
+    "slug": "Black-Deck-Kit"
+  },
+  "5727": {
+    "name": "Rayquaza Constructed Starter Deck",
+    "slug": "Rayquaza-Constructed-Starter-Deck"
+  },
+  "5728": {
+    "name": "Deoxys Constructed Starter Deck",
+    "slug": "Deoxys-Constructed-Starter-Deck"
+  },
+  "5729": {
+    "name": "Venusaur, Charizard & Blastoise Random Constructed Starter Decks",
+    "slug": "Venusaur-Charizard-Blastoise-Random-Constructed-Starter-Decks"
+  },
+  "5737": {
+    "name": "Battle Master Deck Tera Dracaufeu ex",
+    "slug": "Battle-Master-Deck-Tera-Dracaufeu-ex"
+  },
+  "5738": {
+    "name": "Battle Master Deck Baojian ex",
+    "slug": "Battle-Master-Deck-Baojian-ex"
+  },
+  "5757": {
+    "name": "Night Wanderer",
+    "slug": "Night-Wanderer"
+  },
+  "5760": {
+    "name": "Fable Nébuleuse",
+    "slug": "Fable-Nebuleuse"
+  },
+  "5782": {
+    "name": "Stellar Miracle",
+    "slug": "Stellar-Miracle"
+  },
+  "5796": {
+    "name": "Trick or Trade 2024",
+    "slug": "Trick-or-Trade-2024"
+  },
+  "5798": {
+    "name": "Produits Épée et Bouclier",
+    "slug": "Produits-Epee-et-Bouclier"
+  },
+  "5802": {
+    "name": "Couronne Stellaire",
+    "slug": "Couronne-Stellaire"
+  },
+  "5834": {
+    "name": "Southeast Asia Promos",
+    "slug": "Southeast-Asia-Promos"
+  },
+  "5835": {
+    "name": "Stellar Miracle Deck Build Box",
+    "slug": "Stellar-Miracle-Deck-Build-Box"
+  },
+  "5841": {
+    "name": "Stellar Tera Type Starter Set Sylveon ex",
+    "slug": "Stellar-Tera-Type-Starter-Set-Sylveon-ex"
+  },
+  "5842": {
+    "name": "Stellar Tera Type Starter Set Ceruledge ex",
+    "slug": "Stellar-Tera-Type-Starter-Set-Ceruledge-ex"
+  },
+  "5846": {
+    "name": "Paradise Dragona",
+    "slug": "Paradise-Dragona"
+  },
+  "5849": {
+    "name": "Play! Pokémon Packs Récompense Cinquième Série",
+    "slug": "Play-Pokemon-Packs-Recompense-Cinquieme-Serie"
+  },
+  "5861": {
+    "name": "Raid Battle",
+    "slug": "Raid-Battle"
+  },
+  "5863": {
+    "name": "Metagross Constructed Starter Deck",
+    "slug": "Metagross-Constructed-Starter-Deck"
+  },
+  "5864": {
+    "name": "Undone Seal",
+    "slug": "Undone-Seal"
+  },
+  "5865": {
+    "name": "Gift Box Latios ex",
+    "slug": "Gift-Box-Latios-ex"
+  },
+  "5866": {
+    "name": "Gift Box Latias ex",
+    "slug": "Gift-Box-Latias-ex"
+  },
+  "5867": {
+    "name": "Aqua Deck Kit",
+    "slug": "Aqua-Deck-Kit"
+  },
+  "5868": {
+    "name": "Magma Deck Kit",
+    "slug": "Magma-Deck-Kit"
+  },
+  "5869": {
+    "name": "Magma VS Aqua: Two Ambitions",
+    "slug": "Magma-VS-Aqua:-Two-Ambitions"
+  },
+  "5870": {
+    "name": "Salamence Constructed Starter Deck",
+    "slug": "Salamence-Constructed-Starter-Deck"
+  },
+  "5871": {
+    "name": "Flygon Constructed Starter Deck",
+    "slug": "Flygon-Constructed-Starter-Deck"
+  },
+  "5872": {
+    "name": "Rulers of the Heavens",
+    "slug": "Rulers-of-the-Heavens"
+  },
+  "5873": {
+    "name": "Miracle of the Desert",
+    "slug": "Miracle-of-the-Desert"
+  },
+  "5874": {
+    "name": "Mudkip Constructed Starter Deck",
+    "slug": "Mudkip-Constructed-Starter-Deck"
+  },
+  "5875": {
+    "name": "Torchic Constructed Starter Deck",
+    "slug": "Torchic-Constructed-Starter-Deck"
+  },
+  "5876": {
+    "name": "Treecko Constructed Starter Deck",
+    "slug": "Treecko-Constructed-Starter-Deck"
+  },
+  "5877": {
+    "name": "ADV Expansion Pack",
+    "slug": "ADV-Expansion-Pack"
+  },
+  "5879": {
+    "name": "Étincelles Déferlantes",
+    "slug": "Etincelles-Deferlantes"
+  },
+  "5890": {
+    "name": "Académie de Combat 2024",
+    "slug": "Academie-de-Combat-2024"
+  },
+  "5901": {
+    "name": "Super Electric Breaker",
+    "slug": "Super-Electric-Breaker"
+  },
+  "5914": {
+    "name": "M Master Deck Build Box Speed Style",
+    "slug": "M-Master-Deck-Build-Box-Speed-Style"
+  },
+  "5915": {
+    "name": "M Master Deck Build Box Power Style",
+    "slug": "M-Master-Deck-Build-Box-Power-Style"
+  },
+  "5927": {
+    "name": "Generations Start Decks",
+    "slug": "Generations-Start-Decks"
+  },
+  "5928": {
+    "name": "Terastal Festival ex",
+    "slug": "Terastal-Festival-ex"
+  },
+  "5944": {
+    "name": "Évolutions Prismatiques",
+    "slug": "Evolutions-Prismatiques"
+  },
+  "5960": {
+    "name": "Traditional Chinese Products",
+    "slug": "Traditional-Chinese-Products"
+  },
+  "5978": {
+    "name": "McDonald's Dragon Discovery",
+    "slug": "McDonalds-Dragon-Discovery"
+  },
+  "5992": {
+    "name": "WCD 2024",
+    "slug": "WCD-2024"
+  },
+  "5996": {
+    "name": "Battle Partners",
+    "slug": "Battle-Partners"
+  },
+  "5997": {
+    "name": "Battle Partners Deck Build Box",
+    "slug": "Battle-Partners-Deck-Build-Box"
+  },
+  "6001": {
+    "name": "Gem Pack Vol. 1",
+    "slug": "Gem-Pack-Vol-1"
+  },
+  "6006": {
+    "name": "Aventures Ensemble",
+    "slug": "Aventures-Ensemble"
+  },
+  "6009": {
+    "name": "Évolutions Prismatiques: Suppléments",
+    "slug": "Evolutions-Prismatiques:-Supplements"
+  },
+  "6016": {
+    "name": "Starter Set ex Marnie's Morpeko & Grimmsnarl ex",
+    "slug": "Starter-Set-ex-Marnies-Morpeko-Grimmsnarl-ex"
+  },
+  "6017": {
+    "name": "Starter Set ex Steven's Beldum & Metagross ex",
+    "slug": "Starter-Set-ex-Stevens-Beldum-Metagross-ex"
+  },
+  "6037": {
+    "name": "Heat Wave Arena",
+    "slug": "Heat-Wave-Arena"
+  },
+  "6041": {
+    "name": "Play! Pokémon Packs Récompense Sixième Série",
+    "slug": "Play-Pokemon-Packs-Recompense-Sixieme-Serie"
+  },
+  "6088": {
+    "name": "Aventures Ensemble: Suppléments",
+    "slug": "Aventures-Ensemble:-Supplements"
+  },
+  "6092": {
+    "name": "The Glory of Team Rocket",
+    "slug": "The-Glory-of-Team-Rocket"
+  },
+  "6096": {
+    "name": "Rivalités Destinées",
+    "slug": "Rivalites-Destinees"
+  },
+  "6099": {
+    "name": "Collect 151",
+    "slug": "Collect-151"
+  },
+  "6110": {
+    "name": "Fearless Terastal",
+    "slug": "Fearless-Terastal"
+  },
+  "6111": {
+    "name": "Gem Pack Vol. 2",
+    "slug": "Gem-Pack-Vol-2"
+  },
+  "6121": {
+    "name": "Miracle Journey",
+    "slug": "Miracle-Journey"
+  },
+  "6127": {
+    "name": "Scarlet & Violet Indonesian Promos",
+    "slug": "Scarlet-Violet-Indonesian-Promos"
+  },
+  "6128": {
+    "name": "Scarlet & Violet Thai Promos",
+    "slug": "Scarlet-Violet-Thai-Promos"
+  },
+  "6130": {
+    "name": "Black Bolt JP",
+    "slug": "Black-Bolt-JP"
+  },
+  "6131": {
+    "name": "White Flare JP",
+    "slug": "White-Flare-JP"
+  },
+  "6134": {
+    "name": "Foudre Noire",
+    "slug": "Foudre-Noire"
+  },
+  "6135": {
+    "name": "Flamme Blanche",
+    "slug": "Flamme-Blanche"
+  },
+  "6140": {
+    "name": "Rivalités Destinées: Suppléments",
+    "slug": "Rivalites-Destinees:-Supplements"
+  },
+  "6168": {
+    "name": "Adventure Special Pack",
+    "slug": "Adventure-Special-Pack"
+  },
+  "6169": {
+    "name": "Bonus Round",
+    "slug": "Bonus-Round"
+  },
+  "6189": {
+    "name": "Mega Brave",
+    "slug": "Mega-Brave"
+  },
+  "6190": {
+    "name": "Mega Symphonia",
+    "slug": "Mega-Symphonia"
+  },
+  "6193": {
+    "name": "Eternal Birth",
+    "slug": "Eternal-Birth"
+  },
+  "6194": {
+    "name": "WCD 2023",
+    "slug": "WCD-2023"
+  },
+  "6197": {
+    "name": "Foudre Noire: Suppléments",
+    "slug": "Foudre-Noire:-Supplements"
+  },
+  "6198": {
+    "name": "Flamme Blanche: Suppléments",
+    "slug": "Flamme-Blanche:-Supplements"
+  },
+  "6199": {
+    "name": "Académie de Combat 2022",
+    "slug": "Academie-de-Combat-2022"
+  },
+  "6200": {
+    "name": "Académie de Combat 2020",
+    "slug": "Academie-de-Combat-2020"
+  },
+  "6203": {
+    "name": "WCD 2022",
+    "slug": "WCD-2022"
+  },
+  "6204": {
+    "name": "Nine Colors Gathering - Friends",
+    "slug": "Nine-Colors-Gathering---Friends"
+  },
+  "6205": {
+    "name": "Nine Colors Gathering - Origin",
+    "slug": "Nine-Colors-Gathering---Origin"
+  },
+  "6209": {
+    "name": "Méga-Évolution",
+    "slug": "Mega-Evolution"
+  },
+  "6214": {
+    "name": "Play! Pokémon Packs Récompense Septième Série",
+    "slug": "Play-Pokemon-Packs-Recompense-Septieme-Serie"
+  },
+  "6219": {
+    "name": "Pokémon Card 151: Suppléments",
+    "slug": "Pokemon-Card-151:-Supplements"
+  },
+  "6220": {
+    "name": "Terastal Festival ex: Suppléments",
+    "slug": "Terastal-Festival-ex:-Supplements"
+  },
+  "6222": {
+    "name": "Black Bolt JP: Suppléments",
+    "slug": "Black-Bolt-JP:-Supplements"
+  },
+  "6223": {
+    "name": "White Flare JP: Suppléments",
+    "slug": "White-Flare-JP:-Supplements"
+  },
+  "6230": {
+    "name": "M-P Promos",
+    "slug": "M-P-Promos"
+  },
+  "6231": {
+    "name": "Produits Méga-Évolution",
+    "slug": "Produits-Mega-Evolution"
+  },
+  "6232": {
+    "name": "MEP Black Star Promos",
+    "slug": "MEP-Black-Star-Promos"
+  },
+  "6237": {
+    "name": "Dark Crystal Blaze",
+    "slug": "Dark-Crystal-Blaze"
+  },
+  "6239": {
+    "name": "Premium Trainer Box MEGA",
+    "slug": "Premium-Trainer-Box-MEGA"
+  },
+  "6247": {
+    "name": "Victory Star Guide",
+    "slug": "Victory-Star-Guide"
+  },
+  "6248": {
+    "name": "Shadow of Glory",
+    "slug": "Shadow-of-Glory"
+  },
+  "6249": {
+    "name": "Azure Shadow - Roar",
+    "slug": "Azure-Shadow---Roar"
+  },
+  "6250": {
+    "name": "Azure Shadow - Pursuit",
+    "slug": "Azure-Shadow---Pursuit"
+  },
+  "6252": {
+    "name": "Final Flame Dance",
+    "slug": "Final-Flame-Dance"
+  },
+  "6257": {
+    "name": "Brave Stars - Charm",
+    "slug": "Brave-Stars---Charm"
+  },
+  "6258": {
+    "name": "Brave Stars - Brave",
+    "slug": "Brave-Stars---Brave"
+  },
+  "6259": {
+    "name": "MEGA Starter Set Mega Gengar ex",
+    "slug": "MEGA-Starter-Set-Mega-Gengar-ex"
+  },
+  "6260": {
+    "name": "MEGA Starter Set Mega Diancie ex",
+    "slug": "MEGA-Starter-Set-Mega-Diancie-ex"
+  },
+  "6265": {
+    "name": "Scorching Skies",
+    "slug": "Scorching-Skies"
+  },
+  "6266": {
+    "name": "Primordial Arts - Overgrow",
+    "slug": "Primordial-Arts---Overgrow"
+  },
+  "6267": {
+    "name": "Primordial Arts - Torrent",
+    "slug": "Primordial-Arts---Torrent"
+  },
+  "6272": {
+    "name": "Radiant Energy Vol. 1",
+    "slug": "Radiant-Energy-Vol-1"
+  },
+  "6273": {
+    "name": "Radiant Energy Vol. 2",
+    "slug": "Radiant-Energy-Vol-2"
+  },
+  "6274": {
+    "name": "Radiant Energy Vol. 3",
+    "slug": "Radiant-Energy-Vol-3"
+  },
+  "6275": {
+    "name": "Return of the Dragon",
+    "slug": "Return-of-the-Dragon"
+  },
+  "6276": {
+    "name": "Brilliant Counterattack",
+    "slug": "Brilliant-Counterattack"
+  },
+  "6279": {
+    "name": "Vivid Portrayals - Obsidian",
+    "slug": "Vivid-Portrayals---Obsidian"
+  },
+  "6281": {
+    "name": "Vivid Portrayals - Indigo",
+    "slug": "Vivid-Portrayals---Indigo"
+  },
+  "6287": {
+    "name": "Black & White ID/TH",
+    "slug": "Black-White-IDTH"
+  },
+  "6288": {
+    "name": "Dynamax Tactics",
+    "slug": "Dynamax-Tactics"
+  },
+  "6290": {
+    "name": "Méga-Évolution: Suppléments",
+    "slug": "Mega-Evolution:-Supplements"
+  },
+  "6291": {
+    "name": "Inferno X",
+    "slug": "Inferno-X"
+  },
+  "6292": {
+    "name": "Gem Pack Vol. 3",
+    "slug": "Gem-Pack-Vol-3"
+  },
+  "6297": {
+    "name": "Dynamax Clash - Thunder",
+    "slug": "Dynamax-Clash---Thunder"
+  },
+  "6298": {
+    "name": "Dynamax Clash - Flame",
+    "slug": "Dynamax-Clash---Flame"
+  },
+  "6299": {
+    "name": "Flammes Fantasmagoriques",
+    "slug": "Flammes-Fantasmagoriques"
+  },
+  "6300": {
+    "name": "Flammes Fantasmagoriques: Suppléments",
+    "slug": "Flammes-Fantasmagoriques:-Supplements"
+  },
+  "6301": {
+    "name": "Giratina VSTAR Deck Building Gift Box",
+    "slug": "Giratina-VSTAR-Deck-Building-Gift-Box"
+  },
+  "6302": {
+    "name": "Pokémon Art Illustration Celebration Gathering",
+    "slug": "Pokemon-Art-Illustration-Celebration-Gathering"
+  },
+  "6303": {
+    "name": "Quicksand Card Display Pendant Gift Box",
+    "slug": "Quicksand-Card-Display-Pendant-Gift-Box"
+  },
+  "6309": {
+    "name": "Happy Set Altaria & Latios & Infernape & Maushold",
+    "slug": "Happy-Set-Altaria-Latios-Infernape-Maushold"
+  },
+  "6310": {
+    "name": "Battle Party Shining Dream",
+    "slug": "Battle-Party-Shining-Dream"
+  },
+  "6311": {
+    "name": "Battle Party Dream Together",
+    "slug": "Battle-Party-Dream-Together"
+  },
+  "6313": {
+    "name": "Striking Competition",
+    "slug": "Striking-Competition"
+  },
+  "6314": {
+    "name": "Battle Elite",
+    "slug": "Battle-Elite"
+  },
+  "6319": {
+    "name": "Shining Synergy - Shower",
+    "slug": "Shining-Synergy---Shower"
+  },
+  "6320": {
+    "name": "Shining Synergy - Supreme",
+    "slug": "Shining-Synergy---Supreme"
+  },
+  "6321": {
+    "name": "Shining Synergy - Summon",
+    "slug": "Shining-Synergy---Summon"
+  },
+  "6324": {
+    "name": "Énergies Méga-Évolution",
+    "slug": "Energies-Mega-Evolution"
+  },
+  "6328": {
+    "name": "Scarlet & Violet Simplified Chinese Promos",
+    "slug": "Scarlet-Violet-Simplified-Chinese-Promos"
+  },
+  "6329": {
+    "name": "Sword & Shield Simplified Chinese Promos",
+    "slug": "Sword-Shield-Simplified-Chinese-Promos"
+  },
+  "6330": {
+    "name": "Sun & Moon Simplified Chinese Promos",
+    "slug": "Sun-Moon-Simplified-Chinese-Promos"
+  },
+  "6334": {
+    "name": "Happy Set Lucario & Greninja & Zamazenta & Mabosstiff",
+    "slug": "Happy-Set-Lucario-Greninja-Zamazenta-Mabosstiff"
+  },
+  "6335": {
+    "name": "Happy Set Pikachu & Clefairy & Turtwig & Gimmighoul",
+    "slug": "Happy-Set-Pikachu-Clefairy-Turtwig-Gimmighoul"
+  },
+  "6341": {
+    "name": "Storming Emergence - Radiant",
+    "slug": "Storming-Emergence---Radiant"
+  },
+  "6342": {
+    "name": "Storming Emergence - Verdant",
+    "slug": "Storming-Emergence---Verdant"
+  },
+  "6343": {
+    "name": "Storming Emergence - Abundant",
+    "slug": "Storming-Emergence---Abundant"
+  },
+  "6347": {
+    "name": "Four-Party Connection Gift Box",
+    "slug": "Four-Party-Connection-Gift-Box"
+  },
+  "6348": {
+    "name": "Pikachu Legendary Celebration",
+    "slug": "Pikachu-Legendary-Celebration"
+  },
+  "6349": {
+    "name": "Pokémon Art Illustration Celebration Scene",
+    "slug": "Pokemon-Art-Illustration-Celebration-Scene"
+  },
+  "6350": {
+    "name": "Display Set Gift Box Gengar",
+    "slug": "Display-Set-Gift-Box-Gengar"
+  },
+  "6354": {
+    "name": "Sword & Shield Trainer Collection Gift Box",
+    "slug": "Sword-Shield-Trainer-Collection-Gift-Box"
+  },
+  "6355": {
+    "name": "Variety Treasure Box",
+    "slug": "Variety-Treasure-Box"
+  },
+  "6356": {
+    "name": "Pokémon Card Display Set Gift Box Eevee",
+    "slug": "Pokemon-Card-Display-Set-Gift-Box-Eevee"
+  },
+  "6357": {
+    "name": "Pokémon Card Display Set Gift Box Charizard",
+    "slug": "Pokemon-Card-Display-Set-Gift-Box-Charizard"
+  },
+  "6361": {
+    "name": "Travel Special Pack",
+    "slug": "Travel-Special-Pack"
+  },
+  "6362": {
+    "name": "True Mystery",
+    "slug": "True-Mystery"
+  },
+  "6366": {
+    "name": "Lillie's Support Gift Box",
+    "slug": "Lillies-Support-Gift-Box"
+  },
+  "6367": {
+    "name": "Eeveelutions GX Gift Box",
+    "slug": "Eeveelutions-GX-Gift-Box"
+  },
+  "6368": {
+    "name": "Arceus & Dialga & Palkia GX Premium Deck Building Box",
+    "slug": "Arceus-Dialga-Palkia-GX-Premium-Deck-Building-Box"
+  },
+  "6369": {
+    "name": "Shining Pokémon Poké Ball Box",
+    "slug": "Shining-Pokemon-Poke-Ball-Box"
+  },
+  "6380": {
+    "name": "MEGA Dream ex",
+    "slug": "MEGA-Dream-ex"
+  },
+  "6381": {
+    "name": "MEGA Start Deck 100 Battle Collection",
+    "slug": "MEGA-Start-Deck-100-Battle-Collection"
+  },
+  "6382": {
+    "name": "MEGA Start Deck 100 Battle Collection Corociao Version",
+    "slug": "MEGA-Start-Deck-100-Battle-Collection-Corociao-Version"
+  },
+  "6391": {
+    "name": "M-P Traditional Chinese Promos",
+    "slug": "M-P-Traditional-Chinese-Promos"
+  },
+  "6392": {
+    "name": "M-P Thai Promos",
+    "slug": "M-P-Thai-Promos"
+  },
+  "6393": {
+    "name": "M-P Indonesian Promos",
+    "slug": "M-P-Indonesian-Promos"
+  },
+  "6394": {
+    "name": "Mega Evolution ID/TH",
+    "slug": "Mega-Evolution-IDTH"
+  },
+  "6395": {
+    "name": "Héros Transcendants",
+    "slug": "Heros-Transcendants"
+  },
+  "6397": {
+    "name": "Brave Stars V Starter Deck",
+    "slug": "Brave-Stars-V-Starter-Deck"
+  },
+  "6398": {
+    "name": "Brave Stars Deck Building Gift Box",
+    "slug": "Brave-Stars-Deck-Building-Gift-Box"
+  },
+  "6401": {
+    "name": "Eevee Advanced Gift Box",
+    "slug": "Eevee-Advanced-Gift-Box"
+  },
+  "6402": {
+    "name": "Mew Confluence Deck Building Advanced Gift Box",
+    "slug": "Mew-Confluence-Deck-Building-Advanced-Gift-Box"
+  },
+  "6403": {
+    "name": "Primordial Arts V Starter Deck",
+    "slug": "Primordial-Arts-V-Starter-Deck"
+  },
+  "6404": {
+    "name": "Primordial Arts Deck Building Gift Box Venusaur",
+    "slug": "Primordial-Arts-Deck-Building-Gift-Box-Venusaur"
+  },
+  "6405": {
+    "name": "Primordial Arts Deck Building Gift Box Blastoise",
+    "slug": "Primordial-Arts-Deck-Building-Gift-Box-Blastoise"
+  },
+  "6406": {
+    "name": "Meowth's Little Tricks",
+    "slug": "Meowths-Little-Tricks"
+  },
+  "6407": {
+    "name": "Dynamax Clash Deck Building Box",
+    "slug": "Dynamax-Clash-Deck-Building-Box"
+  },
+  "6409": {
+    "name": "MEGA Dream ex: Suppléments",
+    "slug": "MEGA-Dream-ex:-Supplements"
+  },
+  "6413": {
+    "name": "Presence of Champions",
+    "slug": "Presence-of-Champions"
+  },
+  "6415": {
+    "name": "Bonds of Destiny",
+    "slug": "Bonds-of-Destiny"
+  },
+  "6416": {
+    "name": "Blade Awakening",
+    "slug": "Blade-Awakening"
+  },
+  "6417": {
+    "name": "Indigo Flame",
+    "slug": "Indigo-Flame"
+  },
+  "6419": {
+    "name": "Stellar Lightning",
+    "slug": "Stellar-Lightning"
+  },
+  "6425": {
+    "name": "Play! Pokémon Packs Récompense Huitième Série",
+    "slug": "Play-Pokemon-Packs-Recompense-Huitieme-Serie"
+  },
+  "6427": {
+    "name": "Nihil Zero",
+    "slug": "Nihil-Zero"
+  },
+  "6442": {
+    "name": "Master Strategy Deck Building Sets",
+    "slug": "Master-Strategy-Deck-Building-Sets"
+  },
+  "6443": {
+    "name": "Équilibre Parfait",
+    "slug": "Equilibre-Parfait"
+  },
+  "6447": {
+    "name": "Gem Pack Vol. 4",
+    "slug": "Gem-Pack-Vol-4"
+  },
+  "6454": {
+    "name": "WCD 2025",
+    "slug": "WCD-2025"
+  },
+  "6455": {
+    "name": "Héros Transcendants: Suppléments",
+    "slug": "Heros-Transcendants:-Supplements"
+  },
+  "6494": {
+    "name": "Ninja Spinner",
+    "slug": "Ninja-Spinner"
+  },
+  "6495": {
+    "name": "Brilliant Fantasy",
+    "slug": "Brilliant-Fantasy"
+  },
+  "6509": {
+    "name": "Beginning Set Plus",
+    "slug": "Beginning-Set-Plus"
+  },
+  "6510": {
+    "name": "Beginning Set Pikachu",
+    "slug": "Beginning-Set-Pikachu"
+  },
+  "6514": {
+    "name": "30th Anniversary Celebration Simplified Chinese",
+    "slug": "30th-Anniversary-Celebration-Simplified-Chinese"
+  },
+  "6516": {
+    "name": "Équilibre Parfait: Suppléments",
+    "slug": "Equilibre-Parfait:-Supplements"
+  },
+  "6519": {
+    "name": "Void Blast",
+    "slug": "Void-Blast"
+  },
+  "6544": {
+    "name": "Gem Pack Vol. 5",
+    "slug": "Gem-Pack-Vol-5"
+  },
+  "6548": {
+    "name": "Golden Energy",
+    "slug": "Golden-Energy"
+  },
+  "6549": {
+    "name": "Battle Party Set",
+    "slug": "Battle-Party-Set"
+  }
+}

@@ -24,6 +24,7 @@ function makeCard(overrides: Partial<Card> = {}): Card {
     image_url: null,
     tcg_image_url: null,
     cardmarket_id: null,
+    cardmarket_url: null,
     cm_price_low: null,
     cm_price_trend: null,
     cm_price_avg: null,

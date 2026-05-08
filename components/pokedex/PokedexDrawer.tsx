@@ -11,6 +11,7 @@ import PokedexScanModal from './PokedexScanModal';
 import PokedexCardActionsModal from './PokedexCardActionsModal';
 import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
 import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
+import CardmarketLink from '@/components/ui/CardmarketLink';
 
 interface PokedexDrawerProps {
   open: boolean;
@@ -132,23 +133,30 @@ function PokedexCardDetails({ card, availableCards }: { card: Card; availableCar
 
       {(card.cm_price_low ?? card.cm_price_trend ?? card.cm_price_avg ?? card.suggested_price) !==
       null ? (
-        <div className="bg-surface-2 flex items-stretch gap-3 rounded-lg p-4 text-sm">
-          <div className="grid flex-1 grid-cols-2 gap-3 md:grid-cols-4">
-            <Price label="Low" value={card.cm_price_low} />
-            <Price label="Trend" value={card.cm_price_trend} />
-            <Price label="Avg" value={card.cm_price_avg} />
-            <Price label="Annonce" value={card.suggested_price} highlight />
+        <div className="bg-surface-2 rounded-lg p-4 text-sm">
+          <div className="flex items-stretch gap-3">
+            <div className="grid flex-1 grid-cols-2 gap-3 md:grid-cols-4">
+              <Price label="Low" value={card.cm_price_low} />
+              <Price label="Trend" value={card.cm_price_trend} />
+              <Price label="Avg" value={card.cm_price_avg} />
+              <Price label="Annonce" value={card.suggested_price} highlight />
+            </div>
+            <div className="flex shrink-0 flex-col items-end justify-end gap-1">
+              <RefreshPriceButton
+                cardId={card.id}
+                onRefreshed={() => {
+                  // Pokédex drawer reads from props; re-fetch from the server.
+                  router.refresh();
+                }}
+              />
+              <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
+            </div>
           </div>
-          <div className="flex shrink-0 flex-col items-end justify-end gap-1">
-            <RefreshPriceButton
-              cardId={card.id}
-              onRefreshed={() => {
-                // Pokédex drawer reads from props; re-fetch from the server.
-                router.refresh();
-              }}
-            />
-            <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
-          </div>
+          {card.cardmarket_url && (
+            <div className="mt-2 text-right">
+              <CardmarketLink url={card.cardmarket_url} />
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex items-center gap-2">

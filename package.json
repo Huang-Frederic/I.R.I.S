@@ -16,7 +16,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "snapshot-catalog": "tsx scripts/snapshot-catalog.ts",
-    "restore-catalog": "tsx scripts/restore-catalog.ts"
+    "restore-catalog": "tsx scripts/restore-catalog.ts",
+    "upload-cardmarket-dumps": "tsx scripts/upload-cardmarket-dumps.ts",
+    "probe-cardmarket": "tsx scripts/probe-cardmarket-expansion.ts",
+    "scrape-cardmarket": "tsx scripts/scrape-cardmarket-cards.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
@@ -28,7 +31,6 @@
     "recharts": "^2.15.4"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.91.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
@@ -41,6 +43,7 @@
     "eslint-config-next": "16.2.4",
     "eslint-config-prettier": "^9.1.0",
     "happy-dom": "^20.9.0",
+    "playwright": "^1.59.1",
     "prettier": "^3.4.1",
     "prettier-plugin-tailwindcss": "^0.6.9",
     "server-only": "^0.0.1",

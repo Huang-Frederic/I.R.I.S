@@ -213,7 +213,7 @@ export async function POST(request: Request) {
     try {
       const row = await withTimeout(
         lookupByCode(supabase, setCode, localId, cardLang),
-        2000,
+        5000,
         'catalog lookupByCode',
       );
       if (row) {
@@ -233,7 +233,7 @@ export async function POST(request: Request) {
     try {
       const rows = await withTimeout(
         lookupByTotal(supabase, total, localId, cardLang),
-        2000,
+        5000,
         'catalog lookupByTotal',
       );
       if (rows && rows.length > 0) {
@@ -262,7 +262,7 @@ export async function POST(request: Request) {
     try {
       const rows = await withTimeout(
         lookupByNameAndLocalId(supabase, body.pokemonName, localId, cardLang),
-        2000,
+        5000,
         'catalog lookupByNameAndLocalId',
       );
       if (rows && rows.length > 0) {

@@ -19,7 +19,7 @@ function makeCard(overrides: Partial<CardWithListings> = {}): CardWithListings {
     language: 'JP', rarity: 'AR', rarity_rank: 8, condition: 'NM',
     status: 'for_sale',
     image_url: null, tcg_image_url: null,
-    cardmarket_id: null, cm_price_low: null, cm_price_trend: null, cm_price_avg: null,
+    cardmarket_id: null, cardmarket_url: null, cm_price_low: null, cm_price_trend: null, cm_price_avg: null,
     suggested_price: null, cm_updated_at: null,
     lot_id: null,
     date_added: '2026-01-01T00:00:00Z',

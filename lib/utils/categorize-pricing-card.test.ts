@@ -20,6 +20,7 @@ function makeCard(over: Partial<Card> = {}): Card {
     image_url: null,
     tcg_image_url: null,
     cardmarket_id: null,
+    cardmarket_url: null,
     cm_price_low: null,
     cm_price_trend: null,
     cm_price_avg: null,
@@ -54,11 +55,11 @@ describe('categorizePricingCard', () => {
     ).toBe('backfill');
   });
 
-  it('returns "skip" for languages not sold on Cardmarket (JP, KO, CN, ZH)', () => {
-    expect(categorizePricingCard(makeCard({ language: 'JP' }))).toBe('skip');
-    expect(categorizePricingCard(makeCard({ language: 'KO' }))).toBe('skip');
-    expect(categorizePricingCard(makeCard({ language: 'CN' }))).toBe('skip');
-    expect(categorizePricingCard(makeCard({ language: 'ZH' }))).toBe('skip');
+  it('does NOT skip JP/KO/CN/ZH (the Cardmarket dumps cover JP via the EN-translated set names; KO/CN miss is surfaced downstream)', () => {
+    expect(categorizePricingCard(makeCard({ language: 'JP' }))).toBe('tcgdex');
+    expect(categorizePricingCard(makeCard({ language: 'KO' }))).toBe('tcgdex');
+    expect(categorizePricingCard(makeCard({ language: 'CN' }))).toBe('tcgdex');
+    expect(categorizePricingCard(makeCard({ language: 'ZH' }))).toBe('tcgdex');
   });
 
   it('returns "skip" when set_code or set_number is missing (cannot lookup)', () => {
