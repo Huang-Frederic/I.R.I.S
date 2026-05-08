@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import VintedList from '@/components/vinted/VintedList';
+import PageTitle from '@/components/layout/PageTitle';
 import type { Card, Lot, CardListing, LotListing } from '@/lib/types';
 
 export const metadata = {
@@ -41,7 +42,7 @@ export default async function VintedPage() {
   if (fetchError) {
     return (
       <section>
-        <h1 className="text-2xl font-semibold tracking-tight">Vinted</h1>
+        <PageTitle title="Vinted" />
         <p className="text-red mt-4 text-sm">Erreur de chargement : {fetchError.message}</p>
       </section>
     );
@@ -70,12 +71,10 @@ export default async function VintedPage() {
 
   return (
     <section>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Vinted</h1>
-        <p className="text-text-muted mt-1 text-sm">
-          {cards.length} carte{cards.length > 1 ? 's' : ''} — tri FIFO
-        </p>
-      </div>
+      <PageTitle
+        title="Vinted"
+        subtitle={`${cards.length} carte${cards.length > 1 ? 's' : ''} — tri FIFO`}
+      />
       <div className="mt-6">
         <VintedList cards={cardsWithListings} lots={lotsWithListings} collectionCards={collectionCards} registered={registered} config={config} />
       </div>

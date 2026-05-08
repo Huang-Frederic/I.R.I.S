@@ -1,13 +1,21 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NAV_ITEMS } from './nav-items';
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
 
-  return (
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+
+  const nav = (
     <nav
       aria-label="Navigation principale"
       className="bg-surface border-border fixed inset-x-0 bottom-0 z-30 flex h-16 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
@@ -31,4 +39,7 @@ export default function BottomNav() {
       })}
     </nav>
   );
+
+  if (!mounted) return null;
+  return createPortal(nav, document.body);
 }

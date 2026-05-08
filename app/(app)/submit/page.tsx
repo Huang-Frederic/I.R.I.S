@@ -1,4 +1,5 @@
 import SubmitTabs from '@/components/submit/SubmitTabs';
+import PageTitle from '@/components/layout/PageTitle';
 
 export const metadata = {
   title: 'Scanner — I.R.I.S',
@@ -13,10 +14,10 @@ export default function SubmitPage() {
     // 3.5rem = parent layout's pt-6 (1.5rem) + pb-8 (2rem) padding.
     <section className="lg:h-[calc(100dvh-3.5rem)] lg:overflow-hidden lg:flex lg:flex-col">
       <div className="lg:shrink-0">
-        <h1 className="text-2xl font-semibold tracking-tight">Scanner</h1>
-        <p className="text-text-muted mt-1 text-sm">
-          Photo, lot ou import script — l&apos;OCR remplit le formulaire automatiquement.
-        </p>
+        <PageTitle
+          title="Scanner"
+          subtitle="Photo, lot ou import script — l'OCR remplit le formulaire automatiquement."
+        />
       </div>
       <div className="mt-6 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
         <SubmitTabs />

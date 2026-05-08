@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import PokedexGrid from '@/components/pokedex/PokedexGrid';
+import PageTitle from '@/components/layout/PageTitle';
 import type { Card } from '@/lib/types';
 
 export const metadata = {
@@ -19,7 +20,7 @@ export default async function PokedexPage() {
   if (error) {
     return (
       <section>
-        <h1 className="text-2xl font-semibold tracking-tight">Pokédex</h1>
+        <PageTitle title="Pokédex" />
         <p className="text-red mt-4 text-sm">Erreur de chargement : {error.message}</p>
       </section>
     );
@@ -30,14 +31,10 @@ export default async function PokedexPage() {
 
   return (
     <section>
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Pokédex</h1>
-          <p className="text-text-muted mt-1 text-sm">
-            {completed} / 1025 enregistrés ({Math.round((completed / 1025) * 100)}%)
-          </p>
-        </div>
-      </div>
+      <PageTitle
+        title="Pokédex"
+        subtitle={`${completed} / 1025 enregistrés (${Math.round((completed / 1025) * 100)}%)`}
+      />
       <div className="mt-6">
         <PokedexGrid cards={cards} />
       </div>

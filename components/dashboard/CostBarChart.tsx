@@ -35,7 +35,7 @@ export default function CostBarChart({ data, periodLabel }: { data: readonly Dai
   useEffect(() => setMounted(true), []);
 
   return (
-    <div className="bg-surface border-border rounded-lg border p-4">
+    <div className="bg-surface border-border overflow-hidden rounded-lg border p-4">
       <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
         Coût OCR ({periodLabel})
       </h3>

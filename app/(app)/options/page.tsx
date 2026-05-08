@@ -4,6 +4,7 @@ import ThemeToggle from '@/components/layout/ThemeToggle';
 import SignOutButton from '@/components/layout/SignOutButton';
 import ManualBackupSection from '@/components/options/ManualBackupSection';
 import PWAInstallSection from '@/components/options/PWAInstallSection';
+import PageTitle from '@/components/layout/PageTitle';
 
 export const metadata = {
   title: 'Options — I.R.I.S',
@@ -20,10 +21,7 @@ export default async function OptionsPage() {
 
   return (
     <section>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Options</h1>
-        <p className="text-text-muted mt-1 text-sm">Préférences et compte.</p>
-      </div>
+      <PageTitle title="Options" subtitle="Préférences et compte." />
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <div className="bg-surface border-border rounded-lg border p-5">

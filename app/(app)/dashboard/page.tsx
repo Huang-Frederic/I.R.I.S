@@ -10,6 +10,7 @@ import {
   buildDayDetails,
 } from '@/lib/utils/dashboard-queries';
 import { computeStockValue } from '@/lib/utils/stock-value';
+import PageTitle from '@/components/layout/PageTitle';
 import DashboardPeriodTabs from '@/components/dashboard/DashboardPeriodTabs';
 import RefreshButton from '@/components/dashboard/RefreshButton';
 import DayDetailKpi from '@/components/dashboard/DayDetailKpi';
@@ -131,18 +132,16 @@ export default async function DashboardPage({
 
   return (
     <section>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-text-muted mt-1 text-sm">
-            État de la collection et de la consommation OCR.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DashboardPeriodTabs current={period} />
-          <RefreshButton />
-        </div>
-      </div>
+      <PageTitle
+        title="Dashboard"
+        subtitle="État de la collection et de la consommation OCR."
+        controls={
+          <>
+            <DashboardPeriodTabs current={period} />
+            <RefreshButton />
+          </>
+        }
+      />
 
       <div className="mt-6">
         <DayDetailKpi details={Object.fromEntries(dayDetails)} today={todayIso} />

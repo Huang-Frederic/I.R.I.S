@@ -40,8 +40,8 @@ interface HoverState {
 export default function ScanHeatmap({ matrix, details = {} }: Props) {
   const [hover, setHover] = useState<HoverState | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [visibleWeeks, setVisibleWeeks] = useState(matrix.length);
-  const [cellSize, setCellSize] = useState(14);
+  const [visibleWeeks, setVisibleWeeks] = useState(Math.min(matrix.length, 8));
+  const [cellSize, setCellSize] = useState(MIN_CELL);
 
   // Recompute visible weeks AND cell size whenever the container resizes.
   // Strategy: try to show ALL matrix weeks at the largest comfortable cell
@@ -76,7 +76,7 @@ export default function ScanHeatmap({ matrix, details = {} }: Props) {
   const max = Math.max(...trimmedMatrix.flat(), 1);
 
   return (
-    <div className="bg-surface border-border rounded-lg border p-4">
+    <div className="bg-surface border-border overflow-hidden rounded-lg border p-4">
       <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
         Activité scans ({visibleWeeks} semaines)
       </h3>

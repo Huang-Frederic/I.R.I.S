@@ -17,7 +17,7 @@ function priceOf(c: Props['cards'][number]): number {
 export default function TopRaresList({ cards }: Props) {
   if (cards.length === 0) {
     return (
-      <div className="bg-surface border-border rounded-lg border p-4">
+      <div className="bg-surface border-border overflow-hidden rounded-lg border p-4">
         <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
           Top 10 cartes rares
         </h3>
@@ -27,7 +27,7 @@ export default function TopRaresList({ cards }: Props) {
   }
 
   return (
-    <div className="bg-surface border-border rounded-lg border p-4">
+    <div className="bg-surface border-border overflow-hidden rounded-lg border p-4">
       <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
         Top 10 cartes rares
       </h3>

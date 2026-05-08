@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import StockList from '@/components/stock/StockList';
+import PageTitle from '@/components/layout/PageTitle';
 import type { Card } from '@/lib/types';
 
 export const metadata = {
@@ -43,7 +44,7 @@ export default async function StockPage() {
   if (fetchError) {
     return (
       <section>
-        <h1 className="text-2xl font-semibold tracking-tight">Stock</h1>
+        <PageTitle title="Stock" />
         <p className="text-red mt-4 text-sm">Erreur de chargement : {fetchError.message}</p>
       </section>
     );
@@ -61,12 +62,10 @@ export default async function StockPage() {
 
   return (
     <section>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Stock</h1>
-        <p className="text-text-muted mt-1 text-sm">
-          {cards.length} carte{cards.length > 1 ? 's' : ''} en collection (pas en vente)
-        </p>
-      </div>
+      <PageTitle
+        title="Stock"
+        subtitle={`${cards.length} carte${cards.length > 1 ? 's' : ''} en collection (pas en vente)`}
+      />
       <div className="mt-6">
         <StockList cards={cards} forSaleKeys={forSaleKeys} registered={registered} />
       </div>

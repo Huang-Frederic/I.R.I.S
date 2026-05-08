@@ -28,7 +28,7 @@ export default function LastSalesList({
 }) {
   if (sales.length === 0) {
     return (
-      <div className="bg-surface border-border rounded-lg border p-4">
+      <div className="bg-surface border-border overflow-hidden rounded-lg border p-4">
         <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
           Dernières ventes
         </h3>
@@ -40,7 +40,7 @@ export default function LastSalesList({
   const total = sales.reduce((sum, s) => sum + Number(s.sold_price ?? 0), 0);
 
   return (
-    <div className="bg-surface border-border rounded-lg border p-4">
+    <div className="bg-surface border-border overflow-hidden rounded-lg border p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-text-muted text-xs font-semibold uppercase tracking-wide">
           Dernières ventes ({sales.length})
