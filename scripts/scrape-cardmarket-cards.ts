@@ -44,7 +44,7 @@ import path from 'node:path';
 dotenvConfig({ path: path.resolve(__dirname, '..', '.env.local') });
 dotenvConfig();
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import type { Browser, Page } from 'playwright';
@@ -67,6 +67,8 @@ const INTER_EXPANSION_DELAY_MS = 30_000; // jittered ±10s
 const PAGE_429_COOLDOWN_MS = 60_000;     // base, multiplied by retry attempt
 const PAGE_MAX_RETRIES = 3;
 const KILL_SWITCH_429_THRESHOLD = 2;
+const CONSECUTIVE_BAD_SLUG_THRESHOLD = 3;  // 3+ in a row = probably bot detection masquerading as bad slugs
+const BAD_SLUGS_FILE = path.join(__dirname, 'data', 'cardmarket-bad-slugs.json');
 const LOCALE = 'fr';
 const DRY_RUN = process.argv.includes('--dry-run');
 const FORCE = process.argv.includes('--force');
@@ -188,6 +190,14 @@ async function scrapeOneExpansion(
         continue;
       }
 
+      // 403 on the very first page = invalid slug (Cardmarket returns its
+      // "extension invalide" page with HTTP 403). Different from a bot-flag
+      // 403 which would also hit page 1, but consecutive 403s elsewhere in
+      // main() still trip the kill switch — so a single bad slug is a skip,
+      // a wave of bad slugs is a real ban.
+      if (status === 403 && site === 1) {
+        throw new Error(`BAD_SLUG: HTTP 403 on first request (likely invalid slug). ${url}`);
+      }
       if (status !== 200) {
         throw new Error(`HTTP ${status} on ${url}`);
       }
@@ -288,6 +298,8 @@ interface ResolvedTarget { idExpansion: number; slug: string; name: string }
  *   - NFD normalize, strip combining marks (accents → ASCII)
  *   - Drop apostrophes (' and ')
  *   - Drop ampersands (Cardmarket omits them, doesn't replace with "and")
+ *   - Collapse ". " before a digit ("Vol. 5" → "Vol5"), Cardmarket merges
+ *     the period and following whitespace rather than turning them into a dash
  *   - Strip everything else that's not a-z, 0-9, space, dash, or colon
  *   - Collapse whitespace, replace each space with a dash
  */
@@ -297,6 +309,7 @@ function nameToSlug(name: string): string {
     .replace(/[̀-ͯ]/g, '')
     .replace(/['’]/g, '')
     .replace(/&/g, '')
+    .replace(/\. (?=\d)/g, '')
     .replace(/[^a-zA-Z0-9 \-:]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
@@ -415,8 +428,10 @@ async function main(): Promise<void> {
 
   let totalCardsScraped = 0;
   let totalBlocked = 0;
+  let consecutiveBadSlugs = 0;
   let abortAll = false;
   const failures: Array<{ slug: string; reason: string }> = [];
+  const badSlugs: Array<{ idExpansion: number; name: string; derivedSlug: string }> = [];
 
   /** Returns true when the cumulative 429 count crosses the kill switch. */
   function tripped(): boolean {
@@ -434,19 +449,33 @@ async function main(): Promise<void> {
       if (supabase) await upsertExpansion(supabase, { ...t, cards });
       totalCardsScraped += cards.length;
       totalBlocked += blocked;
+      consecutiveBadSlugs = 0;
       abortAll = tripped();
     } catch (err) {
       const reason = (err as Error).message;
       console.error(`  FAIL: ${reason}`);
-      failures.push({ slug: t.slug, reason });
 
-      if (reason.includes('429')) {
-        totalBlocked++;
-        if (tripped()) {
+      if (reason.startsWith('BAD_SLUG:')) {
+        // Slug derivation issue — log for manual fix, don't count as ban.
+        badSlugs.push({ idExpansion: t.idExpansion, name: t.name, derivedSlug: t.slug });
+        consecutiveBadSlugs++;
+        if (consecutiveBadSlugs >= CONSECUTIVE_BAD_SLUG_THRESHOLD) {
+          console.log(
+            `\nABORT: ${consecutiveBadSlugs} consecutive bad-slug 403s — likely bot detection misclassified, not slug bugs.`,
+          );
           abortAll = true;
-        } else {
-          console.log('    cooling 90s after gallery 429...');
-          await sleep(90_000);
+        }
+      } else {
+        failures.push({ slug: t.slug, reason });
+        consecutiveBadSlugs = 0;
+        if (reason.includes('429')) {
+          totalBlocked++;
+          if (tripped()) {
+            abortAll = true;
+          } else {
+            console.log('    cooling 90s after gallery 429...');
+            await sleep(90_000);
+          }
         }
       }
     }
@@ -460,11 +489,17 @@ async function main(): Promise<void> {
 
   await browser.close();
 
-  console.log(`\nDone. ${totalCardsScraped} cards across ${targets.length - failures.length}/${targets.length} expansions.`);
+  console.log(`\nDone. ${totalCardsScraped} cards across ${targets.length - failures.length - badSlugs.length}/${targets.length} expansions.`);
   if (totalBlocked > 0) console.log(`  ${totalBlocked} total 429 responses.`);
   if (failures.length > 0) {
-    console.log(`\n${failures.length} failed:`);
+    console.log(`\n${failures.length} hard failure(s):`);
     for (const f of failures) console.log(`  - ${f.slug}: ${f.reason}`);
+  }
+  if (badSlugs.length > 0) {
+    writeFileSync(BAD_SLUGS_FILE, JSON.stringify(badSlugs, null, 2));
+    console.log(`\n${badSlugs.length} bad slug(s) — derived URL returned 403 on first request.`);
+    console.log(`  Logged to ${BAD_SLUGS_FILE}`);
+    console.log(`  Resolve by adding correct slugs to ${MODERN_FILE} (then re-run with --force on those id_expansions).`);
   }
 }
 
