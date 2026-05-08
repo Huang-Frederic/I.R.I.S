@@ -6,142 +6,156 @@
 
 ### Intelligent Recognition Inventory System
 
-**A two-user PWA to manage a shared Pokémon TCG collection — scan, catalog, price, list and sell, all from one app.**
+A two-collector PWA that scans, prices, and sells a shared Pokémon TCG collection — from camera to Vinted in three taps.
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20RLS-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com)
-[![Tests](https://img.shields.io/badge/tests-344%20passing-success)](#testing)
+[![Tests](https://img.shields.io/badge/tests-344%20passing-success)](#-testing)
 [![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8)](#)
 
-[Features](#-features) · [Quick start](#-quick-start) · [Tech stack](#-tech-stack) · [Documentation](#-documentation) · [Screenshots](#-screenshots)
+[The scan](#-it-starts-with-a-scan) · [The views](#-now-where-does-it-go) · [The sell](#-time-to-sell) · [The two of us](#-but-youre-not-alone) · [The control room](#-the-control-room) · [Under the hood](#-under-the-hood) · [Quick start](#-try-it-yourself) · [Docs](#-going-deeper)
 
 </div>
 
 ---
 
-## 📖 What is I.R.I.S?
+## Two collectors, one shoebox of cards
 
-I.R.I.S is a Progressive Web App that turns a phone camera into a complete Pokémon TCG inventory and resale workflow for two collaborating collectors.
+A shared collection. Two Vinted accounts. Cards moving in and out, prices shifting daily, and the same nagging question every evening: *whose card is this, has it been listed, has it sold, at what price?*
 
-Point the camera at a card → multilingual OCR (Japanese, English, French, Korean, Chinese) extracts name + set + number → the catalog (52K+ cards) enriches with rarity, illustrator, official image and live Cardmarket pricing → the card lands either in a personal **Pokédex** (1 card per Pokémon, all 1025 species), a shared **Stock**, or a **Vinted-ready listing** with auto-generated annonce. Cards are tracked per-user with Postgres Row-Level Security so each collector lists from their own Vinted account while the underlying inventory is shared.
+That's why I built **I.R.I.S** — *Intelligent Recognition Inventory System*. Solo, over ~3 months. Used every day.
 
-> Built solo over ~3 months as a real product for a real use case (managing a couple's TCG collection across two Vinted accounts), now used daily.
+---
 
-## ✨ Features
+## 📷 It starts with a scan
 
-### Capture & enrich
-- 📷 **Multi-engine OCR** — Gemini 3.1 Flash Lite (primary, ~93% accuracy) with Google Vision automatic fallback. Cost: ~€0.0004 per scan.
-- 🌍 **5 supported languages** — Japanese, English, French, Korean, Chinese, with Gemini extracting bilingual names (`"Gruikui (チャオブー)"` for FR cards with original JP name).
-- 🗂 **Local catalog** — 52K cards scraped from LimitlessTCG, queried offline first; live TCGdex API as fallback for new sets.
-- 🔍 **6-strategy enrichment pipeline** — set code → set total → name+illustrator disambiguation → subseries probes (TG/GG/promos) → TCGdex live → Gemini-only last resort.
+You point your phone at a card. Three seconds later, I.R.I.S knows the name in two languages, the set, the rarity, the illustrator, and what it's worth on Cardmarket today.
 
-### Organize
-- 🎴 **Pokédex view** — exactly 1 card per Pokémon (1025 slots), 3 display modes (large grid / compact grid / list), search by Pokémon number or name, swap-on-replace flow when promoting from Stock or Vinted.
-- 📦 **Stock view** — physical inventory mirror, count chips for duplicate copies, instant clone button.
-- 🛒 **Vinted view** — for-sale pile with state chips (offline / online / stale / sold), bulk-sold flow with per-card price split, restock proposals, partner cleanup notices.
-- 📚 **Lots** — bundle multiple cards as one Vinted listing with custom photos and template.
+The OCR runs on **Gemini 3.1 Flash Lite Preview** (~93 % accuracy, structured JSON in a single call) with **Google Vision** as automatic fallback. ~€0.0004 per scan. Five languages supported — Japanese, English, French, Korean, Chinese — with bilingual name extraction for FR cards (`"Gruikui (チャオブー)"`).
 
-### Price & sell
-- 💰 **Live Cardmarket pricing** — daily cron pulls the official S3 dumps (67K products + 72K pricing rows) into Postgres; per-card matching via `(expansion, set_number)` index — no name fuzzy-matching required.
-- 🔗 **Cardmarket deep links** — every priced card shows a "View on Cardmarket" link to verify the matched product page.
-- 📝 **Smart annonce generator** — bilingual title (smart-truncated to 80 chars), templated description with shipping block, copy-to-clipboard + downloadable card image (PNG, anti-bot stripped).
-- 📊 **Dashboard** — KPI tiles (stock value, OCR cost 30d, scan count, restock alerts), 4 charts (cost stacked bar, stock-value area, rarity drill-down donut, 52-week scan heatmap), top rares table.
+Once the card is identified, a 6-strategy enrichment pipeline fills in the rest from a **52K-card local catalog** scraped from LimitlessTCG and queried offline-first, with TCGdex as a live fallback for new sets.
 
-### Collaborate
-- 👥 **2-user architecture** — `card_listings` and `lot_listings` tables track per-user listed state with RLS scoped by `auth.uid()`. Cards/lots are shared, listings are personal.
-- 🎨 **Identity colors** — each user has a distinct color across the UI (badges, action labels) so it's always clear who listed what.
-- ⚡ **Cross-user sold flow** — marking a partner's listing as sold triggers a cleanup notice, optional restock proposal chains correctly across both accounts.
+![Scanner](docs/screenshots/scanner.png)
 
-### Operate
-- 🔄 **Daily cron** — Vercel cron refreshes Cardmarket pricing nightly; GitHub Actions cron snapshots the database to gzipped releases (rotation 30/12/12).
-- 💾 **Manual backups** — one-click full database dump from Options page, stored in a Supabase bucket with signed-URL download.
-- 📱 **Installable PWA** — manifest + maskable icons + auto-show install banner (Chrome / Edge / Android) + iOS Safari "Add to Home Screen" guide.
+---
 
-## 🛠 Tech stack
+## 🗂 Now, where does it go?
+
+Every card lands in one of three places.
+
+**Pokédex** — exactly one card per Pokémon, all 1 025 species. Three display modes (large grid, compact grid, list), search by number or name, and a swap-on-replace flow when promoting a card from Stock or Vinted.
+
+**Stock** — the physical inventory mirror. Count chips for duplicate copies, instant clone button when you pull a second copy out of the binder.
+
+**Vinted** — the for-sale pile. State chips (offline / online / stale / sold), bulk-sold flow with per-card price split, restock proposals, partner cleanup notices.
+
+| Pokédex | Stock | Vinted |
+|---|---|---|
+| ![Pokédex](docs/screenshots/pokedex-grid.png) | ![Stock](docs/screenshots/stock-list.png) | ![Vinted](docs/screenshots/vinted-list.png) |
+
+And when a single Vinted listing should bundle several cards, **Lots** ship a custom photo set + template description as one annonce.
+
+![Lot](docs/screenshots/lot-form.png)
+
+---
+
+## 💰 Time to sell
+
+You don't price your cards. I.R.I.S does.
+
+Cardmarket's official API closed to new applicants in 2023, so the pricing pipeline is bespoke. A daily mirror of their public S3 dumps (**67K products + 72K pricing rows**) lands in Postgres, and a per-expansion **Playwright** gallery scrape builds an exact `(expansion, set_number) → idProduct` index. No fuzzy name guessing — every priced card carries a "View on Cardmarket ↗" deep link so the match is verifiable.
+
+The annonce generator turns a saved card into a ready-to-paste Vinted post: bilingual title (smart-truncated to 80 chars), templated description with shipping block, copy-to-clipboard button, downloadable card image (PNG, anti-bot watermark stripped). When a customer buys several cards at once, the bulk-sold flow splits the total across them automatically.
+
+| Annonce | Bulk vendu |
+|---|---|
+| ![Annonce](docs/screenshots/annonce-modal.png) | ![Bulk vendu](docs/screenshots/bulk-vendu.png) |
+
+---
+
+## 👥 But you're not alone
+
+Your partner has her own Vinted account. The collection is shared. The listings are not.
+
+Under the hood, `cards` and `lots` are shared rows that both users read. `card_listings` and `lot_listings` are per-user rows protected by **Postgres Row-Level Security scoped to `auth.uid()`** — only the owner can write their own listing state. Each user gets a distinct identity color across the UI (badges, action labels), so it's always obvious who's selling what.
+
+When you mark a partner's listing as sold, I.R.I.S runs a cleanup pass: the listing is taken down, an optional restock proposal chains correctly across both accounts, and a partner-cleanup notice fires if the same card was also up on the other side.
+
+---
+
+## 📊 The control room
+
+At the end of the day, you want the whole picture.
+
+The Dashboard answers in one screen. **4 KPI tiles** for stock value, OCR cost over 30 days, scan count, and restock alerts. **4 charts** — cost stacked bar, stock-value area, rarity drill-down donut, and a custom-SVG 52-week scan heatmap (the rest powered by Recharts). Plus a top-10 rares table that deep-links into the card drawer.
+
+Behind the scenes, a **daily Vercel cron** refreshes Cardmarket pricing nightly. A **daily GitHub Actions cron** snapshots the database to gzipped releases — rotation 30 daily / 12 weekly / 12 monthly. One-click manual backups from the Options page push gzipped dumps to a Supabase bucket with signed-URL download.
+
+And the whole thing installs as a PWA — manifest plus maskable icons, auto-show install banner on Chrome/Edge/Android, illustrated 3-step modal for iOS Safari.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+---
+
+## 🛠 Under the hood
+
+Here's what's holding it all together.
 
 | Layer | Choice | Why |
 |---|---|---|
-| **Framework** | Next.js 16 (App Router) | Server components for data-loading pages, Edge runtime where it matters, file-system routing, built-in optimization. |
+| **Framework** | Next.js 16 (App Router) | Server components for data-loading pages, edge runtime where it matters, file-system routing. |
 | **Language** | TypeScript (strict) | End-to-end type safety, including the database via Supabase generated types. |
 | **UI** | React 19 + Tailwind v4 | Tailwind v4 uses `@theme` in CSS (no JS config). Lucide icons. |
 | **Database** | Supabase (Postgres + Storage + Auth + RLS) | Managed Postgres with first-class RLS, S3-compatible Storage for card photos, magic-link/password auth out of the box. |
-| **OCR** | Gemini 3.1 Flash Lite Preview (primary), Google Vision (fallback) | Gemini extracts structured JSON in one call (vs Vision's raw text + regex). 93% accuracy bench-validated. |
-| **Catalog source** | LimitlessTCG (via scraper) | Official Cardmarket API closed to new applicants in 2023; LimitlessTCG's robots.txt allows scraping with delays. |
+| **OCR** | Gemini 3.1 Flash Lite Preview (primary), Google Vision (fallback) | Gemini extracts structured JSON in one call (vs Vision's raw text + regex). 93 % accuracy bench-validated. |
+| **Catalog source** | LimitlessTCG (scraper) | Cardmarket API closed to new applicants in 2023; LimitlessTCG's robots.txt allows scraping with delays. |
 | **Pricing source** | Cardmarket S3 dumps + per-expansion gallery scrape | Public dumps refreshed daily; per-expansion scrape builds a `(set, number) → idProduct` index for exact matching. |
-| **Hosting** | Vercel (app + cron) + Supabase (DB + storage) | Both have generous free tiers, Vercel's preview deployments and edge cron are first-class. |
+| **Hosting** | Vercel (app + cron) + Supabase (DB + storage) | Both have generous free tiers; Vercel's preview deployments and edge cron are first-class. |
 | **Testing** | Vitest + happy-dom | Fast pure-function tests for the helpers; React Testing Library for components. |
 
-## 🚀 Quick start
+A few architectural choices worth calling out:
+
+- **Server components for pages, client components for interactivity.** Pages do parallel Supabase queries server-side; rows and modals are client components that hit API routes for mutations.
+- **Per-user RLS, shared inventory.** `cards` / `lots` are readable by both users; `card_listings` / `lot_listings` are writable only by their owner. The "who listed it" identity is computed at render time.
+- **Helpers are pure.** All logic that doesn't need React or Supabase lives in [`lib/utils/`](lib/utils/) — ~24 modules, all unit-tested. Components consume helpers; no business logic in JSX.
+- **Catalog-first enrichment.** Local Postgres lookup beats live API every time; TCGdex is the network fallback only when the local catalog has no hit.
+- **Cardmarket pricing without the API.** Public S3 dumps + Playwright gallery scrape build a `(set, number) → idProduct` index. Exact matches, no name fuzzing.
+
+Full code map in **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+
+---
+
+## 🚀 Try it yourself
 
 ```bash
-# 1. Clone and install
-git clone https://github.com/<you>/iris.git
-cd iris
-nvm use 22                 # Node 22 required
-npm install
-
-# 2. Copy env template and fill in keys
-cp .env.example .env.local
-# → see docs/SETUP.md for how to provision Supabase / Google Vision / Gemini
-
-# 3. Apply database migrations
-npx supabase link --project-ref <your-project-ref>
-npx supabase db push
-
-# 4. Populate the offline catalog (~12 min, scrapes LimitlessTCG)
-npx tsx scripts/scrape-limitlesstcg.ts
-
-# 5. Pull live Cardmarket pricing dumps
-npm run upload-cardmarket-dumps
-
-# 6. Run
-npm run dev                # → http://localhost:3000
+git clone https://github.com/<you>/iris.git && cd iris
+nvm use 22 && npm install
+cp .env.example .env.local                          # fill in keys — see docs/SETUP.md
+npx supabase link --project-ref <ref> && npx supabase db push
+npx tsx scripts/scrape-limitlesstcg.ts              # ~12 min, populates the offline catalog
+npm run dev                                         # → http://localhost:3000
 ```
 
-For the **complete setup walkthrough** (provisioning Supabase, getting Google Cloud Vision and Gemini API keys, configuring the Vercel cron, troubleshooting WSL2 SSL issues), see **[docs/SETUP.md](docs/SETUP.md)**.
+The full setup walkthrough — Supabase provisioning, Google Vision and Gemini keys, Vercel cron, WSL2 SSL gotchas — lives in **[docs/SETUP.md](docs/SETUP.md)**.
 
-## 📚 Documentation
+---
 
-| Doc | Purpose |
+## 📚 Going deeper
+
+| Doc | What you'll find |
 |---|---|
-| **[docs/SETUP.md](docs/SETUP.md)** | Step-by-step installation: Supabase, Google Vision, Gemini, Vercel cron, environment variables. |
-| **[docs/FEATURES.md](docs/FEATURES.md)** | Complete feature catalog with user-facing behavior and edge cases. |
+| **[docs/SETUP.md](docs/SETUP.md)** | Every key, every command, every WSL2 gotcha. Start here if you want to run it. |
+| **[docs/FEATURES.md](docs/FEATURES.md)** | The full feature catalog with edge cases. The "what does it actually do?" reference. |
 | **[docs/COMMANDS.md](docs/COMMANDS.md)** | Every npm script and `tsx` script in the repo, with usage and intent. |
-| **[docs/SUPABASE.md](docs/SUPABASE.md)** | Database schema, migrations, RLS policies, storage buckets, how to reset from scratch. |
+| **[docs/SUPABASE.md](docs/SUPABASE.md)** | Database schema, migrations, RLS policies, storage buckets, reset-from-scratch procedure. |
 | **[docs/CHANGELOG.md](docs/CHANGELOG.md)** | Phase-by-phase build history with what shipped and why. |
-| **[ARCHITECTURE.md](ARCHITECTURE.md)** | Code map — how the codebase is structured, key abstractions, data flow. |
-| **[docs/TECH_DEBT.md](docs/TECH_DEBT.md)** | Honest catalog of what's not perfect and why each item was deferred. |
-| **[docs/SCREENSHOTS_TODO.md](docs/SCREENSHOTS_TODO.md)** | Visual-capture checklist for filling the README and feature docs. |
+| **[docs/TECH_DEBT.md](docs/TECH_DEBT.md)** | The honest list — what's not perfect, why it was deferred, what it would take to fix. |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | The code map — directory structure, key abstractions, data flow. |
 
-## 📊 Project metrics
-
-| Metric | Value |
-|---|---|
-| TypeScript / React files | **203** |
-| React components | **68** |
-| Test files | **39** (344 passing tests) |
-| Database migrations | **17** |
-| Supabase tables | **12** (cards, lots, listings, catalog, dashboard, cardmarket dumps) |
-| Cards in offline catalog | **52,724** (JP + EN + FR) |
-| Cardmarket products indexed | **67,650** |
-| Pokémon supported | **1,025** (full national dex) |
-| Lint warnings | **0** |
-| Type errors | **0** |
-
-## 📷 Screenshots
-
-> Visual capture in progress — see [docs/SCREENSHOTS_TODO.md](docs/SCREENSHOTS_TODO.md) for the checklist.
-
-| Pokédex | Stock | Vinted | Dashboard |
-|---|---|---|---|
-| ![Pokédex](docs/screenshots/pokedex-grid.png) | ![Stock](docs/screenshots/stock-list.png) | ![Vinted](docs/screenshots/vinted-list.png) | ![Dashboard](docs/screenshots/dashboard.png) |
-
-| Scanner | Annonce modal | Bulk vendu | Lot bundle |
-|---|---|---|---|
-| ![Scanner](docs/screenshots/scanner.png) | ![Annonce](docs/screenshots/annonce-modal.png) | ![Bulk vendu](docs/screenshots/bulk-vendu.png) | ![Lot](docs/screenshots/lot-form.png) |
+---
 
 ## 🧪 Testing
 
@@ -153,28 +167,26 @@ npm run lint          # ESLint
 npm run format        # Prettier --write
 ```
 
-The test suite focuses on **pure helper functions** (~24 helper modules in [`lib/utils/`](lib/utils/)) — group-cards, vinted-sort, vinted-filter, listing-stale, restock-detection, promote-detection, pokedex-mismatch, pokedex-swap, image-postprocess, vinted-template, lot-template, parse-set-number, extract-from-words, split-bulk-price, resize-image, listings, user-colors, labels, build-batch-rows, validate-card-form, dashboard-queries, ocr-cost, stock-value, manual-dump.
+UI components are thin wrappers around ~24 pure helper modules in [`lib/utils/`](lib/utils/) — that's where the logic and the tests live. **344 tests, zero lint warnings, zero type errors.**
 
-UI components are intentionally thin wrappers around these helpers — easier to refactor, easier to reason about.
+---
 
-## 🏗 Architecture highlights
+## 🗺 What's next
 
-- **Server components for pages, client components for interactivity.** Pages do parallel Supabase queries server-side; rows/modals are client components that call API routes for mutations.
-- **Per-user RLS, shared inventory.** `cards` / `lots` are readable by both users; `card_listings` / `lot_listings` are writable only by their owner. The "who listed it" identity is computed at render time.
-- **Helpers are pure.** All logic that doesn't need React or Supabase lives in [`lib/utils/`](lib/utils/) and is unit-tested. Components consume helpers — no business logic in JSX.
-- **Catalog-first enrichment.** Local Postgres lookup beats live API every time; TCGdex is the network fallback only when the local catalog has no hit.
-- **Cardmarket pricing without the API.** Cardmarket's official API closed to new applicants in 2023. We use their public S3 dumps (refreshed daily) plus a Playwright gallery scrape per expansion to build the `(set, number) → idProduct` index — exact matches, no name fuzzing.
+- Backup of card photos to a separate Storage bucket (currently inline in the cards table).
+- UI for restoring from a manual backup snapshot.
+- Standardize the API error response shape across all routes.
+- Per-card metadata scrape from Cardmarket detail pages (rarity ground-truth, currently inferred heuristically).
 
-See **[ARCHITECTURE.md](ARCHITECTURE.md)** for the full code map.
+---
 
-## 🗺 Roadmap
+## 🧾 Honest tech debt
 
-The product is feature-complete for its intended use. Possible future work:
+Every shipped feature has trade-offs. The 1,445-line `CardScanForm` that earns its size, the 8 ad-hoc modals waiting on a primitive migration, the heuristic Cardmarket disambig that handles 95 % of cases — each one passed a deliberate cost-benefit check, and each one is documented.
 
-- Backup of card photos to a separate Storage bucket (currently inline in the cards table)
-- UI for restoring from a manual backup snapshot
-- Standardize the API error response shape across all routes
-- Per-card metadata scrape from Cardmarket detail pages (rarity ground-truth, currently inferred heuristically)
+The full catalog — what's deferred, why, and what it would take to fix — lives in **[docs/TECH_DEBT.md](docs/TECH_DEBT.md)**. It's the answer to *"what would you fix if you had another two weeks?"* — and the implicit answer to *"do you know when to stop?"*.
+
+---
 
 ## 📄 License
 
