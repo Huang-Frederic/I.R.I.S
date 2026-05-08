@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { sortVintedGroups } from './vinted-sort';
+import {
+  makeCardWithListings as baseMakeCard,
+  makeGroup,
+  type CardGroupWithListings,
+} from './test-fixtures';
 import type { CardWithListings, CardListing } from '@/lib/types';
-import type { CardGroup } from './group-cards';
 
 const NOW = new Date('2026-04-30T12:00:00Z').getTime();
 const dayMs = 24 * 60 * 60 * 1000;
@@ -9,40 +13,16 @@ const isoDaysAgo = (d: number) => new Date(NOW - d * dayMs).toISOString();
 const MY_ID = 'my-user-id';
 
 function makeCard(overrides: Partial<CardWithListings> = {}): CardWithListings {
-  return {
+  return baseMakeCard({
     id: 'c1',
-    pokemon_name: 'Pikachu',
-    pokemon_number: 25,
-    card_name: 'Pikachu',
-    card_id_tcg: 'sv1-100',
-    set_name: null, set_code: null, set_number: null,
-    language: 'JP', rarity: 'AR', rarity_rank: 8, condition: 'NM',
-    status: 'for_sale',
-    image_url: null, tcg_image_url: null,
-    cardmarket_id: null, cardmarket_url: null, cm_price_low: null, cm_price_trend: null, cm_price_avg: null,
-    suggested_price: null, cm_updated_at: null,
-    lot_id: null,
-    date_added: '2026-01-01T00:00:00Z',
-    date_sold: null, sold_price: null, sold_by_user_id: null,
-    notes: null, variant: null,
-    listings: [],
+    set_name: null,
+    set_code: null,
+    set_number: null,
+    language: 'JP',
+    rarity: 'AR',
+    rarity_rank: 8,
     ...overrides,
-  };
-}
-
-type CardGroupWithListings = Omit<CardGroup, 'head' | 'cards'> & {
-  head: CardWithListings;
-  cards: CardWithListings[];
-};
-
-function makeGroup(card: CardWithListings, position = 1): CardGroupWithListings {
-  return {
-    key: `${card.id}-key`,
-    cards: [card],
-    head: card,
-    count: 1,
-    position,
-  };
+  });
 }
 
 const listing = (cardId: string, listedAt: string): CardListing => ({

@@ -1,41 +1,20 @@
 // lib/utils/group-cards.test.ts
 import { describe, expect, it } from 'vitest';
 import { groupKey, groupCards } from './group-cards';
+import { makeCard as baseMakeCard } from './test-fixtures';
 import type { Card } from '@/lib/types';
 
+// Local default override: tests in this file expect set_number with denominator
+// + language=JP + rarity=AR. Wrap the shared fixture for backwards compatibility.
 function makeCard(overrides: Partial<Card> = {}): Card {
-  return {
+  return baseMakeCard({
     id: 'c1',
-    pokemon_name: 'Pikachu',
-    pokemon_number: 25,
-    card_name: 'Pikachu',
-    card_id_tcg: 'sv1-100',
-    set_name: 'Scarlet & Violet',
-    set_code: 'sv1',
     set_number: '100/198',
     language: 'JP',
     rarity: 'AR',
     rarity_rank: 8,
-    condition: 'NM',
-    status: 'for_sale',
-    image_url: null,
-    tcg_image_url: null,
-    cardmarket_id: null,
-    cardmarket_url: null,
-    cm_price_low: null,
-    cm_price_trend: null,
-    cm_price_avg: null,
-    suggested_price: null,
-    cm_updated_at: null,
-    lot_id: null,
-    date_added: '2026-01-01T00:00:00Z',
-    date_sold: null,
-    sold_price: null,
-    sold_by_user_id: null,
-    notes: null,
-    variant: null,
     ...overrides,
-  };
+  });
 }
 
 describe('groupKey', () => {

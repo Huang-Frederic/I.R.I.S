@@ -10,6 +10,12 @@
 // unique indexes, and the user almost certainly wants the new copy in Stock.
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import {
+  apiError,
+  unauthorizedResponse,
+  validationResponse,
+  notFoundResponse,
+} from '@/lib/utils/api-response';
 
 export const runtime = 'nodejs';
 
@@ -18,13 +24,13 @@ export async function POST(
   ctx: { params: Promise<{ id: string }> },
 ) {
   const { id } = await ctx.params;
-  if (!id) return NextResponse.json({ error: 'missing id' }, { status: 400 });
+  if (!id) return validationResponse('missing id');
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return unauthorizedResponse();
 
   const { data: source, error: fetchErr } = await supabase
     .from('cards')
@@ -32,7 +38,7 @@ export async function POST(
     .eq('id', id)
     .single();
   if (fetchErr || !source) {
-    return NextResponse.json({ error: 'carte introuvable' }, { status: 404 });
+    return notFoundResponse('card');
   }
 
   // Strip identity + transient state. Keep image_url so duplicates share the
@@ -63,7 +69,7 @@ export async function POST(
     .single();
   if (insertErr) {
     console.error('Clone insert failed:', insertErr);
-    return NextResponse.json({ error: insertErr.message }, { status: 500 });
+    return apiError('insert_failed', { status: 500, message: insertErr.message });
   }
 
   return NextResponse.json({ card: inserted });

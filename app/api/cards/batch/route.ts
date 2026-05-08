@@ -20,6 +20,7 @@ import { buildBatchRows, type BatchRowBase } from '@/lib/utils/build-batch-rows'
 import { PRICE_COEFFICIENT } from '@/lib/constants/pricing';
 import { validateCardForm } from '@/lib/utils/validate-card-form';
 import { syncSiblingPhotos } from '@/lib/utils/sibling-photos';
+import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
 
 export const runtime = 'nodejs';
 
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
   try {
     formData = await request.formData();
   } catch {
-    return NextResponse.json({ error: 'Invalid form data' }, { status: 400 });
+    return validationResponse('Invalid form data');
   }
 
   const supabase = await createClient();
@@ -52,13 +53,13 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   // --- Field validation (same rules as POST /api/cards) ---
   const validation = validateCardForm(formData);
   if (!validation.valid) {
-    return NextResponse.json({ error: validation.error }, { status: validation.status });
+    return apiError('validation', { status: validation.status, message: validation.error });
   }
   const { card_name, pokemon_name, pokemon_number, language, rarity, condition, status } = validation.parsed;
   const variant = str(formData, 'variant');
@@ -93,10 +94,7 @@ export async function POST(request: Request) {
         const sorted = [...matches].sort((a, b) => (priority[a.status] ?? 9) - (priority[b.status] ?? 9));
         dup = sorted[0];
       }
-      return NextResponse.json(
-        { error: 'exact_duplicate', existingCard: dup },
-        { status: 409 },
-      );
+      return apiError('exact_duplicate', { status: 409, extra: { existingCard: dup } });
     }
   }
 
@@ -124,10 +122,10 @@ export async function POST(request: Request) {
         const existingVariant = existing.variant ?? null;
         hasForSaleConflict = (forSaleCandidates ?? []).some((c) => (c.variant ?? null) === existingVariant);
       }
-      return NextResponse.json(
-        { error: 'pokedex_slot_taken', existingCard: existing, hasForSaleConflict },
-        { status: 409 },
-      );
+      return apiError('pokedex_slot_taken', {
+        status: 409,
+        extra: { existingCard: existing, hasForSaleConflict },
+      });
     }
   }
 
@@ -144,10 +142,11 @@ export async function POST(request: Request) {
       .eq('status', 'for_sale')
       .maybeSingle();
     if (existingForSale && (existingForSale.variant ?? null) === (variant ?? null)) {
-      return NextResponse.json(
-        { error: 'for_sale_conflict', message: 'Cette carte est déjà en vente sur Vinted.', existingCard: existingForSale },
-        { status: 409 },
-      );
+      return apiError('for_sale_conflict', {
+        status: 409,
+        message: 'Cette carte est déjà en vente sur Vinted.',
+        extra: { existingCard: existingForSale },
+      });
     }
   }
 
@@ -229,7 +228,7 @@ export async function POST(request: Request) {
     .select('id, status');
   if (error) {
     console.error('[cards/batch] bulk insert failed:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError('insert_failed', { status: 500, message: error.message });
   }
 
   // Propagate the photo to all sibling rows (same card identity) if we uploaded one.

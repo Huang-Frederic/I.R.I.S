@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
 
 export const runtime = 'nodejs';
 
@@ -13,12 +14,12 @@ interface Context {
 export async function GET(_request: Request, { params }: Context) {
   const { filename } = await params;
   if (!FILENAME_PATTERN.test(filename)) {
-    return NextResponse.json({ error: 'Invalid filename' }, { status: 400 });
+    return validationResponse('Invalid filename');
   }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return unauthorizedResponse();
 
   const service = createServiceClient();
   const { data, error } = await service.storage
@@ -26,7 +27,7 @@ export async function GET(_request: Request, { params }: Context) {
     .createSignedUrl(filename, 3600);
 
   if (error || !data) {
-    return NextResponse.json({ error: error?.message ?? 'Sign failed' }, { status: 500 });
+    return apiError('sign_failed', { status: 500, message: error?.message ?? 'Sign failed' });
   }
 
   return NextResponse.json({ signedUrl: data.signedUrl });
@@ -35,17 +36,17 @@ export async function GET(_request: Request, { params }: Context) {
 export async function DELETE(_request: Request, { params }: Context) {
   const { filename } = await params;
   if (!FILENAME_PATTERN.test(filename)) {
-    return NextResponse.json({ error: 'Invalid filename' }, { status: 400 });
+    return validationResponse('Invalid filename');
   }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return unauthorizedResponse();
 
   const service = createServiceClient();
   const { error } = await service.storage.from('manual-backups').remove([filename]);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return apiError('delete_failed', { status: 500, message: error.message });
 
   return NextResponse.json({ ok: true });
 }

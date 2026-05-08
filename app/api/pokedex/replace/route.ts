@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { apiError, validationResponse } from '@/lib/utils/api-response';
 
 export const runtime = 'nodejs';
 
@@ -15,21 +16,15 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as ReplaceBody;
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return validationResponse('Invalid JSON body');
   }
 
   const { old_card_id, old_new_status, new_card_id } = body;
   if (!old_card_id || !new_card_id) {
-    return NextResponse.json(
-      { error: 'old_card_id et new_card_id sont requis' },
-      { status: 400 },
-    );
+    return validationResponse('old_card_id et new_card_id sont requis');
   }
   if (old_new_status !== 'for_sale' && old_new_status !== 'collection') {
-    return NextResponse.json(
-      { error: "old_new_status doit être 'for_sale' ou 'collection'" },
-      { status: 400 },
-    );
+    return validationResponse("old_new_status doit être 'for_sale' ou 'collection'");
   }
 
   const supabase = await createClient();
@@ -46,17 +41,14 @@ export async function POST(request: Request) {
     // *third* card of the same group already in for_sale — that's real data
     // corruption and the user must resolve it manually.
     if (/one_for_sale_per_group|duplicate key|unique constraint/i.test(error.message ?? '')) {
-      return NextResponse.json(
-        {
-          error: 'for_sale_conflict',
-          message:
-            "Un autre exemplaire est déjà en vente sur Vinted pour ce groupe. " +
-            'Choisis « Vers Stock » à la place, ou retire d\'abord la carte conflictuelle.',
-        },
-        { status: 409 },
-      );
+      return apiError('for_sale_conflict', {
+        status: 409,
+        message:
+          "Un autre exemplaire est déjà en vente sur Vinted pour ce groupe. " +
+          'Choisis « Vers Stock » à la place, ou retire d\'abord la carte conflictuelle.',
+      });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError('rpc_failed', { status: 500, message: error.message });
   }
 
   return NextResponse.json({ ok: true });

@@ -8,6 +8,7 @@ import { toTCGdexLang } from '@/lib/api/tcgdex';
 import { tcgdexCardId } from '@/lib/api/tcgdex-set-mapping';
 import { lookupCardmarketPricing } from '@/lib/api/cardmarket-pricing';
 import { computeStockValue } from '@/lib/utils/stock-value';
+import { apiError, unauthorizedResponse, notFoundResponse } from '@/lib/utils/api-response';
 import type { Card, CardLanguage } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -60,7 +61,7 @@ interface TCGdexCardResponse {
 }
 
 function unauthorized(): NextResponse {
-  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  return unauthorizedResponse();
 }
 
 async function handleRequest(request: Request): Promise<NextResponse> {
@@ -95,10 +96,7 @@ async function handleBulk(): Promise<NextResponse> {
     .limit(BATCH_SIZE);
 
   if (error) {
-    return NextResponse.json(
-      { ok: false, error: `read failed: ${error.message}` },
-      { status: 500 },
-    );
+    return apiError('read_failed', { status: 500, message: error.message });
   }
 
   const cards = (rows ?? []) as Card[];
@@ -308,37 +306,29 @@ async function handleSingleCard(cardId: string): Promise<NextResponse> {
     .eq('id', cardId)
     .single();
   if (readErr || !target) {
-    return NextResponse.json({ ok: false, error: 'card_not_found' }, { status: 404 });
+    return notFoundResponse('card');
   }
 
   const card = target as Card;
   const cat = categorizePricingCard(card);
   if (cat === 'skip') {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: 'card_not_eligible',
-        message: card.variant ? 'Variants (Pokéball, Master Ball, etc.) gardent leur prix manuel.' : 'Identifiants de set manquants — édite le prix à la main.',
-      },
-      { status: 422 },
-    );
+    return apiError('card_not_eligible', {
+      status: 422,
+      message: card.variant
+        ? 'Variants (Pokéball, Master Ball, etc.) gardent leur prix manuel.'
+        : 'Identifiants de set manquants — édite le prix à la main.',
+    });
   }
 
   let cardIdTcg = card.card_id_tcg;
   let backfilled = false;
   if (cat === 'backfill') {
     if (!card.set_code || !card.set_number) {
-      return NextResponse.json(
-        { ok: false, error: 'no_catalog_match' },
-        { status: 422 },
-      );
+      return apiError('no_catalog_match', { status: 422 });
     }
     const row = await lookupByCode(service, card.set_code, card.set_number, card.language);
     if (!row) {
-      return NextResponse.json(
-        { ok: false, error: 'no_catalog_match' },
-        { status: 422 },
-      );
+      return apiError('no_catalog_match', { status: 422 });
     }
     cardIdTcg = `${row.set_code}-${row.set_number}`;
     backfilled = true;
@@ -350,14 +340,10 @@ async function handleSingleCard(cardId: string): Promise<NextResponse> {
   const resolved = await resolvePricing(service, card, cardIdTcg);
   if (!resolved.ok) {
     console.warn(`[prices/single] ${card.id} (${card.card_name} ${card.set_code}-${card.set_number} ${card.language}) → ${resolved.reason}`);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: resolved.terminal ? 'pricing_failed' : 'no_pricing_yet',
-        message: resolved.reason,
-      },
-      { status: resolved.terminal ? 502 : 422 },
-    );
+    return apiError(resolved.terminal ? 'pricing_failed' : 'no_pricing_yet', {
+      status: resolved.terminal ? 502 : 422,
+      message: resolved.reason,
+    });
   }
 
   const p = resolved.pricing;
@@ -378,10 +364,7 @@ async function handleSingleCard(cardId: string): Promise<NextResponse> {
     .select('*')
     .single();
   if (updErr) {
-    return NextResponse.json(
-      { ok: false, error: 'update_failed', message: updErr.message },
-      { status: 500 },
-    );
+    return apiError('update_failed', { status: 500, message: updErr.message });
   }
 
   return NextResponse.json({ ok: true, card: updated });

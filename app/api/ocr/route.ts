@@ -5,6 +5,7 @@ import type { CardLanguage, OcrResult } from '@/lib/types';
 import { createServiceClient } from '@/lib/supabase/service';
 import { createClient } from '@/lib/supabase/server';
 import { computeVisionCostEur } from '@/lib/utils/ocr-cost';
+import { apiError, validationResponse } from '@/lib/utils/api-response';
 
 export const runtime = 'nodejs';
 
@@ -49,12 +50,12 @@ export async function POST(request: Request) {
   try {
     formData = await request.formData();
   } catch {
-    return NextResponse.json({ error: 'Invalid form data' }, { status: 400 });
+    return validationResponse('Invalid form data');
   }
 
   const file = formData.get('image');
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: 'Missing "image" file' }, { status: 400 });
+    return validationResponse('Missing "image" file');
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -128,9 +129,9 @@ export async function POST(request: Request) {
     return NextResponse.json(ocrResult);
   } catch (error) {
     console.error('OCR failed:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'OCR failed' },
-      { status: 502 },
-    );
+    return apiError('ocr_failed', {
+      status: 502,
+      message: error instanceof Error ? error.message : 'OCR failed',
+    });
   }
 }

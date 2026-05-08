@@ -3,6 +3,7 @@ import { gzipSync } from 'node:zlib';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { buildManualDump, manualBackupFilename, type ManualDumpTables } from '@/lib/utils/manual-dump';
+import { apiError, unauthorizedResponse } from '@/lib/utils/api-response';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -15,7 +16,7 @@ const TABLES = [
 export async function POST() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return unauthorizedResponse();
 
   const service = createServiceClient();
 
@@ -23,10 +24,10 @@ export async function POST() {
   for (const t of TABLES) {
     const { data, error } = await service.from(t).select('*');
     if (error) {
-      return NextResponse.json(
-        { error: `Failed reading ${t}: ${error.message}` },
-        { status: 500 },
-      );
+      return apiError('read_failed', {
+        status: 500,
+        message: `Failed reading ${t}: ${error.message}`,
+      });
     }
     tables[t] = data ?? [];
   }
@@ -42,7 +43,10 @@ export async function POST() {
     .upload(filename, gz, { contentType: 'application/gzip', upsert: false });
 
   if (upErr) {
-    return NextResponse.json({ error: `Upload failed: ${upErr.message}` }, { status: 500 });
+    return apiError('upload_failed', {
+      status: 500,
+      message: `Upload failed: ${upErr.message}`,
+    });
   }
 
   return NextResponse.json({
@@ -55,14 +59,14 @@ export async function POST() {
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return unauthorizedResponse();
 
   const service = createServiceClient();
   const { data, error } = await service.storage
     .from('manual-backups')
     .list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return apiError('list_failed', { status: 500, message: error.message });
 
   return NextResponse.json({
     backups: (data ?? []).map((f) => ({

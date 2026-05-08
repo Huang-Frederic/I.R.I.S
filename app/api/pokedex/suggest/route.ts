@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { computePokedexSuggestion } from '@/lib/utils/pokedex-suggestion';
+import { unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
 import type { Card, CardLanguage, CardRarity } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as SuggestBody;
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return validationResponse('Invalid JSON body');
   }
 
   const supabase = await createClient();
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   const pokemon_number = Number(body.pokemon_number);

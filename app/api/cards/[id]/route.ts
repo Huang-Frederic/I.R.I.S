@@ -3,6 +3,12 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { detectRestock } from '@/lib/utils/restock-detection';
 import { detectPromotable, type PromoteCandidate } from '@/lib/utils/promote-detection';
+import {
+  apiError,
+  unauthorizedResponse,
+  validationResponse,
+  notFoundResponse,
+} from '@/lib/utils/api-response';
 import type { CardStatus, Card } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -39,27 +45,27 @@ export async function PATCH(
   ctx: { params: Promise<{ id: string }> },
 ) {
   const { id } = await ctx.params;
-  if (!id) return NextResponse.json({ error: 'missing id' }, { status: 400 });
+  if (!id) return validationResponse('missing id');
 
   let body: PatchBody;
   try {
     body = (await request.json()) as PatchBody;
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return validationResponse('Invalid JSON body');
   }
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return unauthorizedResponse();
 
   // Build the update payload
   const update: Record<string, unknown> = {};
 
   if (body.status !== undefined) {
     if (!ALLOWED_STATUSES.has(body.status)) {
-      return NextResponse.json({ error: 'status invalide' }, { status: 400 });
+      return apiError('invalid_status', { status: 400, message: 'status invalide' });
     }
     update.status = body.status;
     if (body.status === 'sold') {
@@ -80,13 +86,13 @@ export async function PATCH(
     const av = sanitizeNumber(body.cm_price_avg);
     if (av !== undefined) update.cm_price_avg = av;
   } catch {
-    return NextResponse.json({ error: 'champ numérique invalide' }, { status: 400 });
+    return apiError('invalid_number', { status: 400, message: 'champ numérique invalide' });
   }
 
   if (body.notes !== undefined) update.notes = body.notes;
 
   if (Object.keys(update).length === 0) {
-    return NextResponse.json({ error: 'aucun champ à mettre à jour' }, { status: 400 });
+    return apiError('no_fields', { status: 400, message: 'aucun champ à mettre à jour' });
   }
 
   // If we're flipping to pokedex, pre-check the per-pokemon unique slot.
@@ -100,17 +106,17 @@ export async function PATCH(
       .eq('id', id)
       .single();
     if (fetchErr || !target) {
-      return NextResponse.json({ error: 'carte introuvable' }, { status: 404 });
+      return notFoundResponse('card');
     }
     // Trainers/Energies (no pokemon_number) cannot occupy a Pokédex slot —
     // refuse the transition explicitly. The existing partial unique index is
     // safe (would let multiple null-numbered rows in), but the slot has no
     // semantic meaning for non-Pokémon cards.
     if (target.pokemon_number == null) {
-      return NextResponse.json(
-        { error: 'pokemon_number requis pour status=pokedex' },
-        { status: 400 },
-      );
+      return apiError('missing_pokemon_number', {
+        status: 400,
+        message: 'pokemon_number requis pour status=pokedex',
+      });
     }
     if (target.status !== 'pokedex' && target.pokemon_number) {
       const { data: existing } = await supabase
@@ -123,15 +129,12 @@ export async function PATCH(
         .neq('id', id)
         .maybeSingle();
       if (existing) {
-        return NextResponse.json(
-          {
-            error: 'pokedex_slot_taken',
-            message:
-              "Le slot Pokédex pour ce Pokémon est déjà occupé. Utilise « Remplacer » depuis le drawer Pokédex.",
-            existingCard: existing,
-          },
-          { status: 409 },
-        );
+        return apiError('pokedex_slot_taken', {
+          status: 409,
+          message:
+            "Le slot Pokédex pour ce Pokémon est déjà occupé. Utilise « Remplacer » depuis le drawer Pokédex.",
+          extra: { existingCard: existing },
+        });
       }
     }
   }
@@ -145,7 +148,7 @@ export async function PATCH(
       .eq('id', id)
       .single();
     if (fetchErr || !target) {
-      return NextResponse.json({ error: 'carte introuvable' }, { status: 404 });
+      return notFoundResponse('card');
     }
     // Skip check if already for_sale (no transition) or card_id_tcg is null (uncatalogued card)
     if (target.status !== 'for_sale' && target.card_id_tcg) {
@@ -160,14 +163,11 @@ export async function PATCH(
       const targetVariant = target.variant ?? null;
       const conflict = (conflicts ?? []).find((c) => (c.variant ?? null) === targetVariant);
       if (conflict) {
-        return NextResponse.json(
-          {
-            error: 'for_sale_conflict',
-            message: 'Un exemplaire de cette carte est déjà en vente sur Vinted.',
-            conflictCard: conflict,
-          },
-          { status: 409 },
-        );
+        return apiError('for_sale_conflict', {
+          status: 409,
+          message: 'Un exemplaire de cette carte est déjà en vente sur Vinted.',
+          extra: { conflictCard: conflict },
+        });
       }
     }
   }
@@ -181,7 +181,7 @@ export async function PATCH(
 
   if (error) {
     if (error.code === 'PGRST116') {
-      return NextResponse.json({ error: 'carte introuvable' }, { status: 404 });
+      return notFoundResponse('card');
     }
     // Postgres unique violation fallback (in case pre-check missed a race)
     const msg = error.message ?? '';
@@ -190,21 +190,18 @@ export async function PATCH(
     if (isUniqueViolation) {
       // Distinguish the two partial-unique indexes by name when surfacing.
       if (/one_pokedex_per_pokemon/i.test(msg) || body.status === 'pokedex') {
-        return NextResponse.json(
-          {
-            error: 'pokedex_slot_taken',
-            message: 'Le slot Pokédex pour ce Pokémon est déjà occupé.',
-          },
-          { status: 409 },
-        );
+        return apiError('pokedex_slot_taken', {
+          status: 409,
+          message: 'Le slot Pokédex pour ce Pokémon est déjà occupé.',
+        });
       }
-      return NextResponse.json(
-        { error: 'for_sale_conflict', message: 'Un exemplaire de cette carte est déjà en vente sur Vinted.' },
-        { status: 409 },
-      );
+      return apiError('for_sale_conflict', {
+        status: 409,
+        message: 'Un exemplaire de cette carte est déjà en vente sur Vinted.',
+      });
     }
     console.error('PATCH cards failed:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError('update_failed', { status: 500, message: error.message });
   }
 
   // Restock check only when this update marked the card sold
@@ -262,13 +259,13 @@ export async function DELETE(
   ctx: { params: Promise<{ id: string }> },
 ) {
   const { id } = await ctx.params;
-  if (!id) return NextResponse.json({ error: 'missing id' }, { status: 400 });
+  if (!id) return validationResponse('missing id');
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return unauthorizedResponse();
 
   // Try to delete the photo from Storage first (best-effort, don't fail if missing).
   await supabase.storage.from('card-photos').remove([`${id}.jpg`]).catch(() => {});
@@ -276,7 +273,7 @@ export async function DELETE(
   const { error } = await supabase.from('cards').delete().eq('id', id);
   if (error) {
     console.error('DELETE cards failed:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError('delete_failed', { status: 500, message: error.message });
   }
 
   return NextResponse.json({ ok: true });

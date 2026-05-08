@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { buildSearchPrefixes, normalize, pickAmbiguousIndex, tokensSorted } from './cardmarket-pricing';
+import { makeCard as baseMakeCard } from '@/lib/utils/test-fixtures';
 import type { Card } from '@/lib/types';
 
 function makeCard(over: Partial<Card> = {}): Card {
-  return {
+  return baseMakeCard({
     id: 'card-1',
     pokemon_name: 'Iron Crown',
     pokemon_number: 1006,
@@ -12,29 +13,11 @@ function makeCard(over: Partial<Card> = {}): Card {
     set_name: 'Cyber Judge',
     set_code: 'sv5m',
     set_number: '091',
-    language: 'EN',
     rarity: 'RR',
     rarity_rank: 0,
-    condition: 'NM',
-    status: 'for_sale',
-    image_url: null,
-    tcg_image_url: null,
-    cardmarket_id: null,
-    cardmarket_url: null,
-    cm_price_low: null,
-    cm_price_trend: null,
-    cm_price_avg: null,
-    suggested_price: null,
-    cm_updated_at: null,
-    lot_id: null,
     date_added: '2026-05-07T00:00:00Z',
-    date_sold: null,
-    sold_price: null,
-    sold_by_user_id: null,
-    notes: null,
-    variant: null,
     ...over,
-  };
+  });
 }
 
 describe('normalize', () => {

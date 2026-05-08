@@ -1,5 +1,6 @@
 // app/api/enrich/route.ts
 import { NextResponse } from 'next/server';
+import { apiError, validationResponse } from '@/lib/utils/api-response';
 import { createClient } from '@/lib/supabase/server';
 import {
   disambiguateByIllustrator,
@@ -186,15 +187,12 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as EnrichBody;
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return validationResponse('Invalid JSON body');
   }
 
   const { setCode, localId, total, language } = normalize(body);
   if (!localId && !body.text) {
-    return NextResponse.json(
-      { error: 'Provide either "text" or "localId" (with optional setCode/total).' },
-      { status: 400 },
-    );
+    return validationResponse('Provide either "text" or "localId" (with optional setCode/total).');
   }
 
   const cardLang: CardLanguage = language ?? 'EN';
@@ -359,10 +357,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ bestMatch: null, candidates: [] } satisfies EnrichResult);
   } catch (error) {
     console.error('Enrich failed:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Enrich failed' },
-      { status: 502 },
-    );
+    return apiError('enrich_failed', {
+      status: 502,
+      message: error instanceof Error ? error.message : 'Enrich failed',
+    });
   }
 }
 

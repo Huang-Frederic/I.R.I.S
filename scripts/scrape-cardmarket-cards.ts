@@ -197,9 +197,49 @@ async function scrapeOneExpansion(
   return { cards: allCards, totalPages, blocked: blockedTotal };
 }
 
+/**
+ * Returns the subset of given idProducts that exist in cardmarket_products.
+ * Chunked to stay under PostgREST URL length limits on big expansions.
+ */
+async function filterToKnownProductIds(
+  supabase: AnyClient,
+  idProducts: number[],
+): Promise<Set<number>> {
+  const known = new Set<number>();
+  const CHUNK = 500;
+  for (let i = 0; i < idProducts.length; i += CHUNK) {
+    const slice = idProducts.slice(i, i + CHUNK);
+    const { data, error } = await supabase
+      .from('cardmarket_products')
+      .select('id_product')
+      .in('id_product', slice);
+    if (error) throw new Error(`filterToKnownProductIds: ${error.message}`);
+    for (const r of (data ?? []) as { id_product: number }[]) known.add(r.id_product);
+  }
+  return known;
+}
+
 async function upsertExpansion(supabase: AnyClient, exp: ScrapedExpansion): Promise<void> {
   if (exp.cards.length === 0) return;
-  const rows = exp.cards.map((c) => ({
+
+  // Drop scraped cards whose id_product isn't in cardmarket_products yet — the
+  // gallery is updated in near-real-time, but the official JSON dumps lag by
+  // ~a week. Without this filter the whole expansion's atomic upsert FK-fails
+  // and zero rows persist (so resume re-scrapes the same expansion forever).
+  const known = await filterToKnownProductIds(
+    supabase,
+    exp.cards.map((c) => c.idProduct),
+  );
+  const valid = exp.cards.filter((c) => known.has(c.idProduct));
+  const dropped = exp.cards.length - valid.length;
+  if (dropped > 0) {
+    console.log(
+      `    dropped ${dropped}/${exp.cards.length} orphan id_product(s) — not in cardmarket_products dump yet`,
+    );
+  }
+  if (valid.length === 0) return;
+
+  const rows = valid.map((c) => ({
     id_product: c.idProduct,
     id_expansion: exp.idExpansion,
     set_number: c.setNumber,

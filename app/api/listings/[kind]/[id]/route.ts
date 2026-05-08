@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
 
 export const runtime = 'nodejs';
 
@@ -9,13 +10,13 @@ export async function DELETE(
 ) {
   const { kind, id } = await params;
   if (kind !== 'card' && kind !== 'lot') {
-    return NextResponse.json({ error: 'kind must be "card" or "lot"' }, { status: 400 });
+    return validationResponse('kind must be "card" or "lot"');
   }
 
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   const table = kind === 'card' ? 'card_listings' : 'lot_listings';
@@ -28,7 +29,7 @@ export async function DELETE(
     .eq('user_id', auth.user.id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError('delete_failed', { status: 500, message: error.message });
   }
   return NextResponse.json({ deleted: count ?? 0 });
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
 
 export const runtime = 'nodejs';
 
@@ -13,21 +14,21 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as PostBody;
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    return validationResponse('Invalid JSON');
   }
 
   const { kind, id } = body;
   if (kind !== 'card' && kind !== 'lot') {
-    return NextResponse.json({ error: 'kind must be "card" or "lot"' }, { status: 400 });
+    return validationResponse('kind must be "card" or "lot"');
   }
   if (!id || typeof id !== 'string') {
-    return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    return validationResponse('id is required');
   }
 
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   const table = kind === 'card' ? 'card_listings' : 'lot_listings';
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError('upsert_failed', { status: 500, message: error.message });
   }
   return NextResponse.json(data);
 }

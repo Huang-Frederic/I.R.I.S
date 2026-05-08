@@ -1,6 +1,12 @@
 // app/api/lots/[id]/route.ts
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import {
+  apiError,
+  unauthorizedResponse,
+  validationResponse,
+  notFoundResponse,
+} from '@/lib/utils/api-response';
 import type { CardCondition, CardLanguage } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -14,10 +20,6 @@ interface PatchBody {
   status?: 'for_sale' | 'sold';
   date_sold?: string | null;
   sold_price?: number | null;
-}
-
-function bad(msg: string, status = 400): NextResponse {
-  return NextResponse.json({ error: msg }, { status });
 }
 
 function sanitizeNumber(v: unknown): number | null | undefined {
@@ -34,18 +36,18 @@ export async function PATCH(
   ctx: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const { id } = await ctx.params;
-  if (!id) return bad('missing id');
+  if (!id) return validationResponse('missing id');
 
   let body: PatchBody;
   try {
     body = (await request.json()) as PatchBody;
   } catch {
-    return bad('Invalid JSON body');
+    return validationResponse('Invalid JSON body');
   }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return bad('Unauthorized', 401);
+  if (!user) return unauthorizedResponse();
 
   const update: Record<string, unknown> = {};
   if (body.name !== undefined) update.name = String(body.name);
@@ -59,12 +61,12 @@ export async function PATCH(
     const sold_price = sanitizeNumber(body.sold_price);
     if (sold_price !== undefined) update.sold_price = sold_price;
   } catch {
-    return bad('invalid number');
+    return apiError('invalid_number', { status: 400, message: 'invalid number' });
   }
 
   if (body.status !== undefined) {
     if (body.status !== 'for_sale' && body.status !== 'sold') {
-      return bad('invalid status');
+      return apiError('invalid_status', { status: 400, message: 'invalid status' });
     }
     update.status = body.status;
     if (body.status === 'sold') {
@@ -76,7 +78,9 @@ export async function PATCH(
   }
   if (body.date_sold !== undefined) update.date_sold = body.date_sold;
 
-  if (Object.keys(update).length === 0) return bad('no fields to update');
+  if (Object.keys(update).length === 0) {
+    return apiError('no_fields', { status: 400, message: 'no fields to update' });
+  }
 
   const { data: updated, error } = await supabase
     .from('lots')
@@ -85,8 +89,8 @@ export async function PATCH(
     .select('*')
     .single();
   if (error) {
-    if (error.code === 'PGRST116') return bad('lot not found', 404);
-    return NextResponse.json({ error: `update failed: ${error.message}` }, { status: 500 });
+    if (error.code === 'PGRST116') return notFoundResponse('lot');
+    return apiError('update_failed', { status: 500, message: error.message });
   }
   return NextResponse.json({ lot: updated });
 }
@@ -96,11 +100,11 @@ export async function DELETE(
   ctx: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const { id } = await ctx.params;
-  if (!id) return bad('missing id');
+  if (!id) return validationResponse('missing id');
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return bad('Unauthorized', 401);
+  if (!user) return unauthorizedResponse();
 
   // Read the lot to get photo_urls
   const { data: lot } = await supabase
@@ -120,7 +124,7 @@ export async function DELETE(
 
   const { error } = await supabase.from('lots').delete().eq('id', id);
   if (error) {
-    return NextResponse.json({ error: `delete failed: ${error.message}` }, { status: 500 });
+    return apiError('delete_failed', { status: 500, message: error.message });
   }
   return new NextResponse(null, { status: 204 });
 }

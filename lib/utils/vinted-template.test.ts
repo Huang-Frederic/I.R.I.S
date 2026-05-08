@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { buildTitle, buildDescription, MAX_TITLE_LENGTH } from './vinted-template';
+import { makeCard as baseMakeCard } from './test-fixtures';
 import type { Card } from '@/lib/types';
 
 function makeCard(overrides: Partial<Card> = {}): Card {
-  return {
+  return baseMakeCard({
     id: 'c1',
     pokemon_name: 'Simiabraz',
     pokemon_number: 392,
@@ -15,26 +16,8 @@ function makeCard(overrides: Partial<Card> = {}): Card {
     language: 'JP',
     rarity: 'AR',
     rarity_rank: 8,
-    condition: 'NM',
-    status: 'for_sale',
-    image_url: null,
-    tcg_image_url: null,
-    cardmarket_id: null,
-    cardmarket_url: null,
-    cm_price_low: null,
-    cm_price_trend: null,
-    cm_price_avg: null,
-    suggested_price: null,
-    cm_updated_at: null,
-    lot_id: null,
-    date_added: '2026-01-01T00:00:00Z',
-    date_sold: null,
-    sold_price: null,
-    sold_by_user_id: null,
-    notes: null,
-    variant: null,
     ...overrides,
-  };
+  });
 }
 
 describe('buildTitle', () => {
