@@ -208,7 +208,7 @@ The full reset choreography for spinning up a brand-new Supabase project (region
 | What | How |
 |---|---|
 | Wipe `cards` table only + reseed dev cards | `tsx scripts/seed/seed.ts` (⚠️ destructive, dev-only) |
-| Wipe all user data (cards, lots, listings) keeping catalog + Cardmarket intact | `psql $DATABASE_URL -f scripts/seed/wipe-user-data.sql` |
+| Wipe all user data (cards, lots, listings) keeping catalog + Cardmarket intact | `psql $DATABASE_URL -f scripts/wipe-user-data.sql` (also: empty `card-photos` + `lot-photos` buckets in Storage) |
 | Full reset on a new Supabase project | Follow [`SUPABASE.md → Reset procedure`](SUPABASE.md#♻️-reset-procedure) |
 
 ---
