@@ -247,10 +247,10 @@ export function pickAmbiguousIndex(
 }
 
 /**
- * In-memory cache of all 741 expansions. Loaded once per process on first
- * lookup. Both an exact-name index and a token-sorted index are built so
- * we can fall back to fuzzy matching (handles word-reordered localizations
- * like FR "Festival Terastal ex" vs the canonical "Terastal Festival ex").
+ * In-memory cache of all 741 expansions. Both an exact-name index and a
+ * token-sorted index are built so we can fall back to fuzzy matching
+ * (handles word-reordered localizations like FR "Festival Terastal ex" vs
+ * the canonical "Terastal Festival ex").
  */
 interface ExpansionIndex {
   byNameNorm: Map<string, number[]>;
@@ -259,10 +259,17 @@ interface ExpansionIndex {
    *  when the gallery scrape hasn't populated url_path yet. */
   byId: Map<number, string>;
 }
-let expansionsCache: ExpansionIndex | null = null;
+
+/** TTL after which the cache is refetched, so newly-imported expansions
+ *  (e.g. after a quarterly Cardmarket dump load) become visible without a
+ *  server restart. */
+const EXPANSIONS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+let expansionsCache: { idx: ExpansionIndex; loadedAt: number } | null = null;
 
 async function loadExpansions(service: ServiceClient): Promise<ExpansionIndex> {
-  if (expansionsCache) return expansionsCache;
+  if (expansionsCache && Date.now() - expansionsCache.loadedAt < EXPANSIONS_CACHE_TTL_MS) {
+    return expansionsCache.idx;
+  }
   const { data, error } = await service
     .from('cardmarket_expansions')
     .select('id_expansion, name, name_normalized');
@@ -273,7 +280,7 @@ async function loadExpansions(service: ServiceClient): Promise<ExpansionIndex> {
     pushIntoMap(idx.byTokens, tokensSorted(row.name), row.id_expansion);
     idx.byId.set(row.id_expansion, row.name);
   }
-  expansionsCache = idx;
+  expansionsCache = { idx, loadedAt: Date.now() };
   return idx;
 }
 

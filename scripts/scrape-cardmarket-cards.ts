@@ -16,8 +16,11 @@
 //
 // Anti-bot posture: Cardmarket sits behind Cloudflare with two layers:
 //   1. Bot Fight Mode (403 on fingerprint mismatch) — mitigated via
-//      playwright-extra + stealth plugin and channel: 'chrome' (system Chrome,
-//      not bundled Chromium, for matching TLS handshake + client hints).
+//      rebrowser-playwright (drop-in for playwright that patches CDP-level
+//      tells like Runtime.Enable that the puppeteer-extra stealth plugin
+//      can't reach) plus channel: 'chrome' (system Chrome, matching TLS
+//      handshake + client hints exactly). Earlier playwright-extra+stealth
+//      passed first requests but escalated to 403 after ~9 page loads.
 //   2. Rate-limit → 1015 IP ban (24-72h) after sustained scraping. Previous
 //      run at 2.5s/page + 5s/exp got the dev IP banned. Current pacing:
 //      ~8s/page + ~30s/exp, kill-switch at 2 cumulative 429s — Cloudflare
@@ -45,15 +48,8 @@ dotenvConfig({ path: path.resolve(__dirname, '..', '.env.local') });
 dotenvConfig();
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { chromium } from 'playwright-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import type { Browser, Page } from 'playwright';
+import { chromium, type Browser, type Page } from 'rebrowser-playwright';
 import { createClient } from '@supabase/supabase-js';
-
-// Patches ~15 headless tells (navigator.webdriver, chrome.runtime, plugins
-// array, WebGL vendor, etc.) — Cardmarket sits behind Cloudflare Bot Fight
-// Mode which 403s any client whose JS context exposes these.
-chromium.use(StealthPlugin());
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyClient = any;

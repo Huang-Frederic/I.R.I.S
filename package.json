@@ -28,6 +28,7 @@
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "rebrowser-playwright": "^1.52.0",
     "recharts": "^2.15.4"
   },
   "devDependencies": {
@@ -44,10 +45,8 @@
     "eslint-config-prettier": "^9.1.0",
     "happy-dom": "^20.9.0",
     "playwright": "^1.59.1",
-    "playwright-extra": "^4.3.6",
     "prettier": "^3.4.1",
     "prettier-plugin-tailwindcss": "^0.6.9",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "server-only": "^0.0.1",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",
