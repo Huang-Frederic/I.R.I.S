@@ -25,6 +25,7 @@ import DuplicateForSaleModal from '@/components/cards/DuplicateForSaleModal';
 import DuplicatePhotoModal from '@/components/cards/DuplicatePhotoModal';
 import SaveSuccessModal from '@/components/submit/SaveSuccessModal';
 import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
+import PokemonSpriteBadge from '@/components/ui/PokemonSpriteBadge';
 import { detectNumberMismatch } from '@/lib/utils/pokedex-mismatch';
 import { Field, Input, Select, CandidatePicker } from './CardScanFormUI';
 
@@ -1066,6 +1067,10 @@ export default function CardScanForm({
                           ? 'mx-auto w-full max-w-[14rem] border-2 border-border shadow-lg'
                           : 'mx-auto w-full max-w-md border-2 border-border shadow-lg lg:max-w-none'
                       }
+                    />
+                    <PokemonSpriteBadge
+                      pokemonNumber={form.pokemon_number === '' ? null : Number(form.pokemon_number)}
+                      className="absolute top-2 right-2 z-10"
                     />
                     {phase === 'scanning' && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
