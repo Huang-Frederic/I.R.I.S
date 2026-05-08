@@ -1,4 +1,15 @@
 // app/api/prices/update/route.ts
+//
+// Two entry paths sharing one per-card pipeline:
+//
+//   GET  /api/prices/update                    → cron (auth: Bearer CRON_SECRET) → bulk
+//   POST /api/prices/update?card_id=<uuid>     → UI button (auth: Supabase session) → single
+//   GET  /api/prices/update?card_id=<uuid>     → also single (same handler)
+//
+// Per-card logic lives in processCardForPricing() and returns a discriminated
+// union; the bulk + single paths each translate the result into their own
+// response shape (summary counters vs HTTP body).
+
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { createClient } from '@/lib/supabase/server';
@@ -20,6 +31,9 @@ const TCGDEX_BASE = 'https://api.tcgdex.net/v2';
 // the UI for 15s on a TCGdex hiccup. The Cardmarket-dump path is the
 // primary; TCGdex is just a best-effort fallback.
 const TCGDEX_TIMEOUT_MS = 5_000;
+const CARDMARKET_BASE_URL = 'https://www.cardmarket.com';
+
+type ServiceClient = ReturnType<typeof createServiceClient>;
 
 interface UpdateSummary {
   ok: boolean;
@@ -47,7 +61,17 @@ interface ResolvedPricing {
   url: string | null;
 }
 
-const CARDMARKET_BASE_URL = 'https://www.cardmarket.com';
+/**
+ * Per-card outcome — both bulk and single-card paths translate this into their
+ * native response shape (summary entry vs NextResponse).
+ */
+type CardProcessResult =
+  | { kind: 'updated'; updatedCard: Card; pricing: ResolvedPricing; backfilled: boolean }
+  | { kind: 'skipped'; reason: 'not_eligible' | 'backfill_no_match' | 'no_pricing_yet' }
+  | { kind: 'invalid_for_pricing'; code: 'card_not_eligible' | 'no_catalog_match'; message?: string }
+  | { kind: 'pricing_failed'; reason: string }
+  | { kind: 'update_failed'; message: string }
+  | { kind: 'unexpected'; message: string };
 
 interface TCGdexCardmarket {
   idProduct?: number;
@@ -60,9 +84,9 @@ interface TCGdexCardResponse {
   pricing?: { cardmarket?: TCGdexCardmarket | null };
 }
 
-function unauthorized(): NextResponse {
-  return unauthorizedResponse();
-}
+// ---------------------------------------------------------------------------
+// Entry routing
+// ---------------------------------------------------------------------------
 
 async function handleRequest(request: Request): Promise<NextResponse> {
   const url = new URL(request.url);
@@ -71,7 +95,7 @@ async function handleRequest(request: Request): Promise<NextResponse> {
 
   const auth = request.headers.get('authorization');
   const secret = process.env.CRON_SECRET;
-  if (!auth || !secret || auth !== `Bearer ${secret}`) return unauthorized();
+  if (!auth || !secret || auth !== `Bearer ${secret}`) return unauthorizedResponse();
 
   return handleBulk();
 }
@@ -80,6 +104,99 @@ async function handleRequest(request: Request): Promise<NextResponse> {
 // The single-card refresh from the UI uses POST. Share the same logic.
 export const GET = handleRequest;
 export const POST = handleRequest;
+
+// ---------------------------------------------------------------------------
+// Per-card pipeline (shared between bulk + single)
+// ---------------------------------------------------------------------------
+
+/**
+ * Run the full pricing flow for one card: categorize → backfill if needed →
+ * resolve pricing (Cardmarket dumps then TCGdex) → persist update. Returns a
+ * structured result for the caller to translate into its response.
+ */
+async function processCardForPricing(
+  card: Card,
+  service: ServiceClient,
+): Promise<CardProcessResult> {
+  const cat = categorizePricingCard(card);
+  if (cat === 'skip') {
+    return {
+      kind: 'invalid_for_pricing',
+      code: 'card_not_eligible',
+      message: card.variant
+        ? 'Variants (Pokéball, Master Ball, etc.) gardent leur prix manuel.'
+        : 'Identifiants de set manquants — édite le prix à la main.',
+    };
+  }
+
+  let cardIdTcg = card.card_id_tcg;
+  let backfilled = false;
+
+  if (cat === 'backfill') {
+    if (!card.set_code || !card.set_number) {
+      return { kind: 'invalid_for_pricing', code: 'no_catalog_match' };
+    }
+    try {
+      const row = await lookupByCode(service, card.set_code, card.set_number, card.language);
+      if (!row) {
+        return { kind: 'invalid_for_pricing', code: 'no_catalog_match' };
+      }
+      cardIdTcg = `${row.set_code}-${row.set_number}`;
+      backfilled = true;
+    } catch (err) {
+      return { kind: 'unexpected', message: `backfill: ${(err as Error).message}` };
+    }
+  }
+
+  // cardIdTcg may still be null (e.g. JP card with no catalog match) — that's
+  // fine, the cardmarket dumps don't need it. We pass it as a fallback for
+  // TCGdex if the dumps miss.
+  const resolved = await resolvePricing(service, card, cardIdTcg);
+  if (!resolved.ok) {
+    if (resolved.terminal) return { kind: 'pricing_failed', reason: resolved.reason };
+    return { kind: 'skipped', reason: 'no_pricing_yet' };
+  }
+
+  const update = buildUpdatePayload(resolved.pricing, backfilled, cardIdTcg);
+  const { data: updated, error: updErr } = await service
+    .from('cards')
+    .update(update)
+    .eq('id', card.id)
+    .select('*')
+    .single();
+  if (updErr) {
+    return { kind: 'update_failed', message: updErr.message };
+  }
+
+  return {
+    kind: 'updated',
+    updatedCard: updated as Card,
+    pricing: resolved.pricing,
+    backfilled,
+  };
+}
+
+/** Build the SQL UPDATE payload from a resolved pricing — used by both paths. */
+function buildUpdatePayload(
+  p: ResolvedPricing,
+  backfilled: boolean,
+  cardIdTcg: string | null,
+): Record<string, unknown> {
+  const update: Record<string, unknown> = {
+    cm_price_low: p.low,
+    cm_price_trend: p.trend,
+    cm_price_avg: p.avg,
+    cm_updated_at: new Date().toISOString(),
+    cardmarket_url: p.url,
+  };
+  if (p.idProduct != null) update.cardmarket_id = String(p.idProduct);
+  if (backfilled && cardIdTcg) update.card_id_tcg = cardIdTcg;
+  return update;
+}
+
+// ---------------------------------------------------------------------------
+// Bulk path (cron)
+// ---------------------------------------------------------------------------
 
 async function handleBulk(): Promise<NextResponse> {
   const service = createServiceClient();
@@ -106,12 +223,15 @@ async function handleBulk(): Promise<NextResponse> {
   for (let i = 0; i < cards.length; i += PARALLELISM) {
     const slice = cards.slice(i, i + PARALLELISM);
     await Promise.all(
-      slice.map((card) =>
-        processCard(card, service, summary).catch((err: unknown) => {
+      slice.map(async (card) => {
+        try {
+          const result = await processCardForPricing(card, service);
+          applyResultToSummary(card, result, summary);
+        } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);
           summary.errors.push({ card_id: card.id, message: `unexpected: ${message}` });
-        }),
-      ),
+        }
+      }),
     );
   }
 
@@ -120,9 +240,42 @@ async function handleBulk(): Promise<NextResponse> {
   return NextResponse.json(summary);
 }
 
-async function snapshotStockValue(
-  service: ReturnType<typeof createServiceClient>,
-): Promise<void> {
+/** Translate a per-card result into UpdateSummary mutations (bulk-only). */
+function applyResultToSummary(card: Card, result: CardProcessResult, summary: UpdateSummary): void {
+  switch (result.kind) {
+    case 'updated':
+      summary.updated += 1;
+      if (result.backfilled) summary.backfilled += 1;
+      if (result.pricing.source === 'cardmarket') summary.source_cardmarket += 1;
+      else summary.source_tcgdex += 1;
+      if (result.pricing.ambiguous) summary.ambiguous += 1;
+      return;
+    case 'skipped':
+      summary.skipped += 1;
+      return;
+    case 'invalid_for_pricing':
+      // The cron only sees `card_not_eligible` (categorize=skip) for variant
+      // / missing-id cards — those are silently skipped, not surfaced as errors.
+      // `no_catalog_match` from backfill is also silent (the row is just not
+      // matchable, the user can manually price it).
+      summary.skipped += 1;
+      return;
+    case 'pricing_failed':
+      console.warn(
+        `[prices/cron] ${card.id} (${card.card_name} ${card.set_code}-${card.set_number} ${card.language}) → ${result.reason}`,
+      );
+      summary.errors.push({ card_id: card.id, message: result.reason });
+      return;
+    case 'update_failed':
+      summary.errors.push({ card_id: card.id, message: `update: ${result.message}` });
+      return;
+    case 'unexpected':
+      summary.errors.push({ card_id: card.id, message: result.message });
+      return;
+  }
+}
+
+async function snapshotStockValue(service: ServiceClient): Promise<void> {
   try {
     const { data, error } = await service
       .from('cards')
@@ -140,96 +293,68 @@ async function snapshotStockValue(
   }
 }
 
-async function processCard(
-  card: Card,
-  service: ReturnType<typeof createServiceClient>,
-  summary: UpdateSummary,
-): Promise<void> {
-  const cat = categorizePricingCard(card);
-  if (cat === 'skip') {
-    summary.skipped += 1;
-    return;
-  }
+// ---------------------------------------------------------------------------
+// Single-card path (UI button)
+// ---------------------------------------------------------------------------
 
-  let cardIdTcg = card.card_id_tcg;
-  let backfilled = false;
+async function handleSingleCard(cardId: string): Promise<NextResponse> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return unauthorizedResponse();
 
-  if (cat === 'backfill') {
-    if (!card.set_code || !card.set_number) {
-      summary.errors.push({ card_id: card.id, message: 'backfill: missing set_code or set_number' });
-      return;
-    }
-    try {
-      const row = await lookupByCode(service, card.set_code, card.set_number, card.language);
-      if (!row) {
-        summary.skipped += 1;
-        return;
-      }
-      cardIdTcg = `${row.set_code}-${row.set_number}`;
-      backfilled = true;
-    } catch (err) {
-      summary.errors.push({ card_id: card.id, message: `backfill: ${(err as Error).message}` });
-      return;
-    }
-  }
+  const service = createServiceClient();
+  const { data: target, error: readErr } = await service
+    .from('cards')
+    .select('*')
+    .eq('id', cardId)
+    .single();
+  if (readErr || !target) return notFoundResponse('card');
 
-  // cardIdTcg may still be null (e.g. JP card with no catalog match) — that's
-  // fine, the cardmarket dumps don't need it. We pass it as a fallback for
-  // TCGdex if the dumps miss.
-  const resolved = await resolvePricing(service, card, cardIdTcg);
-  if (!resolved.ok) {
-    if (resolved.terminal) {
-      console.warn(`[prices/cron] ${card.id} (${card.card_name} ${card.set_code}-${card.set_number} ${card.language}) → ${resolved.reason}`);
-      summary.errors.push({ card_id: card.id, message: resolved.reason });
-    } else {
-      // Soft miss (no pricing yet from either source) — don't bump cm_updated_at.
-      summary.skipped += 1;
-    }
-    return;
-  }
-
-  const p = resolved.pricing;
-  const update: Record<string, unknown> = {
-    cm_price_low: p.low,
-    cm_price_trend: p.trend,
-    cm_price_avg: p.avg,
-    cm_updated_at: new Date().toISOString(),
-    cardmarket_url: p.url,
-  };
-  if (p.idProduct != null) update.cardmarket_id = String(p.idProduct);
-  if (backfilled) update.card_id_tcg = cardIdTcg;
-
-  const { error: updErr } = await service.from('cards').update(update).eq('id', card.id);
-  if (updErr) {
-    summary.errors.push({ card_id: card.id, message: `update: ${updErr.message}` });
-    return;
-  }
-
-  summary.updated += 1;
-  if (backfilled) summary.backfilled += 1;
-  if (p.source === 'cardmarket') summary.source_cardmarket += 1;
-  else summary.source_tcgdex += 1;
-  if (p.ambiguous) summary.ambiguous += 1;
+  const result = await processCardForPricing(target as Card, service);
+  return resultToSingleCardResponse(target as Card, result);
 }
 
-/**
- * Pricing pipeline: Cardmarket dumps first (local lookup, no network), TCGdex
- * fallback (live API) for cards we can't match in the dumps. Returns a
- * discriminated union so the caller can distinguish a terminal error (worth
- * surfacing in summary.errors) from a soft miss (no pricing yet, skip & retry).
- */
+/** Translate a per-card result into a NextResponse (single-card path only). */
+function resultToSingleCardResponse(card: Card, result: CardProcessResult): NextResponse {
+  switch (result.kind) {
+    case 'updated':
+      return NextResponse.json({ ok: true, card: result.updatedCard });
+    case 'invalid_for_pricing':
+      return apiError(result.code, { status: 422, message: result.message });
+    case 'skipped':
+      // No pricing available yet (typically backfill matched but TCGdex has no pricing
+      // returned for that ID). Surface as 422 so the UI shows "no_pricing_yet".
+      return apiError('no_pricing_yet', { status: 422, message: result.reason });
+    case 'pricing_failed':
+      console.warn(
+        `[prices/single] ${card.id} (${card.card_name} ${card.set_code}-${card.set_number} ${card.language}) → ${result.reason}`,
+      );
+      return apiError('pricing_failed', { status: 502, message: result.reason });
+    case 'update_failed':
+      return apiError('update_failed', { status: 500, message: result.message });
+    case 'unexpected':
+      return apiError('unexpected', { status: 500, message: result.message });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pricing resolver — Cardmarket dumps then TCGdex live fallback
+// ---------------------------------------------------------------------------
+
 type ResolveResult =
   | { ok: true; pricing: ResolvedPricing }
   | { ok: false; reason: string; terminal: boolean };
 
 async function resolvePricing(
-  service: ReturnType<typeof createServiceClient>,
+  service: ServiceClient,
   card: Card,
   cardIdTcgForFallback: string | null,
 ): Promise<ResolveResult> {
   const cm = await lookupCardmarketPricing(service, card);
   if (cm.ok) {
-    console.warn(`[cm-lookup] ${card.id} ${card.set_name}/${card.card_name} (${card.language}) → matched idProduct=${cm.idProduct}${cm.ambiguous ? ' [AMBIG]' : ''} src=${cm.source}`);
+    console.warn(
+      `[cm-lookup] ${card.id} ${card.set_name}/${card.card_name} (${card.language}) → matched idProduct=${cm.idProduct}${cm.ambiguous ? ' [AMBIG]' : ''} src=${cm.source}`,
+    );
     return {
       ok: true,
       pricing: {
@@ -243,7 +368,9 @@ async function resolvePricing(
       },
     };
   }
-  console.warn(`[cm-lookup] ${card.id} ${card.set_name}/${card.card_name} (${card.language}) → ${cm.reason}${cm.details ? ` [${cm.details}]` : ''}; falling back to TCGdex`);
+  console.warn(
+    `[cm-lookup] ${card.id} ${card.set_name}/${card.card_name} (${card.language}) → ${cm.reason}${cm.details ? ` [${cm.details}]` : ''}; falling back to TCGdex`,
+  );
 
   if (!cardIdTcgForFallback) {
     return { ok: false, reason: `dumps:${cm.reason} + no_card_id_tcg`, terminal: false };
@@ -253,7 +380,11 @@ async function resolvePricing(
   const finalId = translatedId ?? cardIdTcgForFallback;
   const fetched = await fetchTCGdexPricing(finalId, card.language);
   if (fetched.error) {
-    return { ok: false, reason: `dumps:${cm.reason} + tcgdex:${fetched.error} (id=${finalId})`, terminal: true };
+    return {
+      ok: false,
+      reason: `dumps:${cm.reason} + tcgdex:${fetched.error} (id=${finalId})`,
+      terminal: true,
+    };
   }
   const t = fetched.cm;
   if (!t || (t.low == null && t.trend == null && t.avg == null)) {
@@ -291,81 +422,4 @@ async function fetchTCGdexPricing(
   } finally {
     clearTimeout(timer);
   }
-}
-
-async function handleSingleCard(cardId: string): Promise<NextResponse> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return unauthorized();
-
-  const service = createServiceClient();
-
-  const { data: target, error: readErr } = await service
-    .from('cards')
-    .select('*')
-    .eq('id', cardId)
-    .single();
-  if (readErr || !target) {
-    return notFoundResponse('card');
-  }
-
-  const card = target as Card;
-  const cat = categorizePricingCard(card);
-  if (cat === 'skip') {
-    return apiError('card_not_eligible', {
-      status: 422,
-      message: card.variant
-        ? 'Variants (Pokéball, Master Ball, etc.) gardent leur prix manuel.'
-        : 'Identifiants de set manquants — édite le prix à la main.',
-    });
-  }
-
-  let cardIdTcg = card.card_id_tcg;
-  let backfilled = false;
-  if (cat === 'backfill') {
-    if (!card.set_code || !card.set_number) {
-      return apiError('no_catalog_match', { status: 422 });
-    }
-    const row = await lookupByCode(service, card.set_code, card.set_number, card.language);
-    if (!row) {
-      return apiError('no_catalog_match', { status: 422 });
-    }
-    cardIdTcg = `${row.set_code}-${row.set_number}`;
-    backfilled = true;
-  }
-
-  // The Cardmarket dumps don't need cardIdTcg, so we no longer hard-fail when
-  // it's null. resolvePricing() will try the dumps first, then TCGdex if a
-  // cardIdTcg is available.
-  const resolved = await resolvePricing(service, card, cardIdTcg);
-  if (!resolved.ok) {
-    console.warn(`[prices/single] ${card.id} (${card.card_name} ${card.set_code}-${card.set_number} ${card.language}) → ${resolved.reason}`);
-    return apiError(resolved.terminal ? 'pricing_failed' : 'no_pricing_yet', {
-      status: resolved.terminal ? 502 : 422,
-      message: resolved.reason,
-    });
-  }
-
-  const p = resolved.pricing;
-  const update: Record<string, unknown> = {
-    cm_price_low: p.low,
-    cm_price_trend: p.trend,
-    cm_price_avg: p.avg,
-    cm_updated_at: new Date().toISOString(),
-    cardmarket_url: p.url,
-  };
-  if (p.idProduct != null) update.cardmarket_id = String(p.idProduct);
-  if (backfilled) update.card_id_tcg = cardIdTcg;
-
-  const { data: updated, error: updErr } = await service
-    .from('cards')
-    .update(update)
-    .eq('id', cardId)
-    .select('*')
-    .single();
-  if (updErr) {
-    return apiError('update_failed', { status: 500, message: updErr.message });
-  }
-
-  return NextResponse.json({ ok: true, card: updated });
 }

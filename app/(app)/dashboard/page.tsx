@@ -16,7 +16,6 @@ import RefreshButton from '@/components/dashboard/RefreshButton';
 import DayDetailKpi from '@/components/dashboard/DayDetailKpi';
 import DashboardKpiStrip from '@/components/dashboard/DashboardKpiStrip';
 import CostBarChart from '@/components/dashboard/CostBarChart';
-import StockValueLineChart from '@/components/dashboard/StockValueLineChart';
 import RarityDonut from '@/components/dashboard/RarityDonut';
 import ScanHeatmap from '@/components/dashboard/ScanHeatmap';
 import TopRaresList from '@/components/dashboard/TopRaresList';
@@ -66,7 +65,6 @@ export default async function DashboardPage({
   const [
     { data: pricedCards },
     { data: ocrLogPeriod },
-    { data: stockSnapshots },
     { data: ocrLog24w },
     { data: cardsAdded24w },
     { data: lastSales },
@@ -76,16 +74,14 @@ export default async function DashboardPage({
     supabase
       .from('cards')
       .select('id, status, rarity, cm_price_avg, cm_price_trend, cm_price_low, card_name, pokemon_name, pokemon_number, image_url, tcg_image_url')
-      .in('status', ['for_sale', 'collection']),
+      // Include pokedex cards in stock value / rarity stats / top rares —
+      // they're part of the collection's intrinsic value even if not for sale.
+      .in('status', ['for_sale', 'collection', 'pokedex']),
     supabase
       .from('ocr_usage_log')
       .select('created_at, engine, cost_eur')
       .gte('created_at', sincePeriod)
       .order('created_at', { ascending: true }),
-    supabase
-      .from('stock_value_snapshots')
-      .select('*')
-      .order('date', { ascending: true }),
     supabase
       .from('ocr_usage_log')
       .select('created_at, engine, cost_eur, tokens_in, tokens_out')
@@ -154,7 +150,12 @@ export default async function DashboardPage({
       </div>
 
       <DashboardKpiStrip
-        valueStock={{ label: 'Valeur stock', value: formatEur(stockValue.value_for_sale + stockValue.value_collection) }}
+        valueStock={{
+          label: 'Valeur stock',
+          value: formatEur(
+            stockValue.value_for_sale + stockValue.value_collection + stockValue.value_pokedex,
+          ),
+        }}
         cost={{ label: `Coût OCR ${periodLabel(days)}`, value: formatEur(costPeriodTotal) }}
         scans={{ label: `Scans ${periodLabel(days)}`, value: String(scansPeriodCount) }}
         cardsAdded={{ label: `Cartes ajoutées ${periodLabel(days)}`, value: String(cardsAddedPeriod) }}
@@ -171,12 +172,8 @@ export default async function DashboardPage({
       </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <StockValueLineChart data={stockSnapshots ?? []} />
-        <TopRaresList cards={topRares} />
-      </div>
-
-      <div className="mt-4">
         <LastSalesList sales={lastSales ?? []} />
+        <TopRaresList cards={topRares} />
       </div>
     </section>
   );

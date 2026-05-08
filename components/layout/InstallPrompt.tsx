@@ -9,6 +9,7 @@ import {
 
 const DISMISS_KEY = 'iris.pwa.installDismissedAt';
 const DISMISS_TTL_MS = 14 * 86_400_000; // re-prompt 2 weeks after dismissal
+const SESSION_SHOWN_KEY = 'iris.pwa.shownThisSession';
 
 function dismissedRecently(): boolean {
   if (typeof localStorage === 'undefined') return false;
@@ -19,6 +20,17 @@ function dismissedRecently(): boolean {
   return Date.now() - dismissedAt < DISMISS_TTL_MS;
 }
 
+function shownThisSession(): boolean {
+  if (typeof sessionStorage === 'undefined') return false;
+  return sessionStorage.getItem(SESSION_SHOWN_KEY) === '1';
+}
+
+function markShownThisSession(): void {
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem(SESSION_SHOWN_KEY, '1');
+  }
+}
+
 export default function InstallPrompt() {
   const [event, setEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [platform, setPlatform] = useState<Platform | null>(null);
@@ -26,11 +38,16 @@ export default function InstallPrompt() {
   const [showIosSteps, setShowIosSteps] = useState(false);
 
   useEffect(() => {
-    if (dismissedRecently()) return;
+    // The (app) layout re-mounts this component on every navigation, so we
+    // need to suppress within the same session — otherwise the banner pops
+    // back up on every page change. Hard dismissal still uses the 14-day
+    // localStorage TTL.
+    if (dismissedRecently() || shownThisSession()) return;
     const initial = detectInitialPlatform();
     setPlatform(initial);
     if (initial === 'ios') {
       setHidden(false);
+      markShownThisSession();
       return;
     }
     if (initial === 'installed') return;
@@ -41,6 +58,7 @@ export default function InstallPrompt() {
       setEvent(e as BeforeInstallPromptEvent);
       setPlatform('beforeinstallprompt');
       setHidden(false);
+      markShownThisSession();
     };
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
