@@ -74,6 +74,37 @@ export function tokensSorted(s: string): string {
   return normalize(s).split(/\s+/).filter(Boolean).sort().join(' ');
 }
 
+/** Cardmarket FR locale — expansions are loaded from the FR dropdown. */
+const CARDMARKET_LOCALE = 'fr';
+
+/**
+ * Slugify the Cardmarket way: NFD-strip diacritics, preserve case (CM URLs
+ * keep "Crown-Zenith" capitalized), collapse any non-alphanumeric run into
+ * a single hyphen, trim leading/trailing hyphens.
+ */
+export function cardmarketSlugify(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Best-effort canonical Cardmarket product URL path. Used as a fallback when
+ * the gallery scrape (cardmarket_card_index) hasn't populated url_path for
+ * the picked product yet — derived purely from the expansion name and the
+ * card prefix we already have in the dumps.
+ *
+ * Works for ~90% of cards (unique prefix per expansion). Cards with
+ * multiple variants sharing a prefix in the same expansion may resolve to
+ * the wrong variant or 404; the next gallery scrape replaces the synthetic
+ * URL with the canonical one.
+ */
+export function buildSyntheticCardmarketUrlPath(expansionName: string, cardPrefix: string): string {
+  return `/${CARDMARKET_LOCALE}/Pokemon/Products/Singles/${cardmarketSlugify(expansionName)}/${cardmarketSlugify(cardPrefix)}`;
+}
+
 /** Game-name prefixes the user's stored set_name might carry that the
  *  Cardmarket dropdown omits. "Pokémon 151" → "151" handles SV03.5 FR. */
 const GAME_PREFIX_RE = /^pok[eé]mon(\s+card|\s+tcg)?\s+/i;
@@ -226,6 +257,9 @@ export function pickAmbiguousIndex(
 interface ExpansionIndex {
   byNameNorm: Map<string, number[]>;
   byTokens: Map<string, number[]>;
+  /** id_expansion → original (display) name. Used to synthesize URL paths
+   *  when the gallery scrape hasn't populated url_path yet. */
+  byId: Map<number, string>;
 }
 let expansionsCache: ExpansionIndex | null = null;
 
@@ -235,10 +269,11 @@ async function loadExpansions(service: ServiceClient): Promise<ExpansionIndex> {
     .from('cardmarket_expansions')
     .select('id_expansion, name, name_normalized');
   if (error) throw new Error(`cardmarket_expansions load: ${error.message}`);
-  const idx: ExpansionIndex = { byNameNorm: new Map(), byTokens: new Map() };
+  const idx: ExpansionIndex = { byNameNorm: new Map(), byTokens: new Map(), byId: new Map() };
   for (const row of (data ?? []) as Array<{ id_expansion: number; name: string; name_normalized: string }>) {
     pushIntoMap(idx.byNameNorm, row.name_normalized, row.id_expansion);
     pushIntoMap(idx.byTokens, tokensSorted(row.name), row.id_expansion);
+    idx.byId.set(row.id_expansion, row.name);
   }
   expansionsCache = idx;
   return idx;
@@ -387,7 +422,7 @@ export async function lookupCardmarketPricing(
         card,
         urlByProduct,
       );
-      if (result) return result;
+      if (result) return await maybeSynthesizeUrl(service, result, idx);
     }
   }
 
@@ -413,7 +448,7 @@ export async function lookupCardmarketPricing(
       card,
       null,
     );
-    if (result) return result;
+    if (result) return await maybeSynthesizeUrl(service, result, idx);
   }
 
   return {
@@ -421,6 +456,30 @@ export async function lookupCardmarketPricing(
     reason: 'no_product',
     details: `match=${matchKind} expansion(s)=[${expansionIds.join(',')}] tried prefixes: ${prefixes.map((p) => `"${p}"`).join(', ')}`,
   };
+}
+
+/**
+ * If the result has no urlPath (gallery row missing), synthesize one from
+ * the picked product's expansion name + card_prefix. One DB query — only
+ * fires when synthesis is actually needed (urlPath null), so the gallery-
+ * present path pays no cost.
+ */
+async function maybeSynthesizeUrl(
+  service: ServiceClient,
+  result: LookupOutcome,
+  idx: ExpansionIndex,
+): Promise<LookupOutcome> {
+  if (!result.ok || result.urlPath) return result;
+  const { data, error } = await service
+    .from('cardmarket_products')
+    .select('id_expansion, card_prefix')
+    .eq('id_product', result.idProduct)
+    .maybeSingle();
+  if (error || !data) return result;
+  const row = data as { id_expansion: number; card_prefix: string };
+  const expansionName = idx.byId.get(row.id_expansion);
+  if (!expansionName) return result;
+  return { ...result, urlPath: buildSyntheticCardmarketUrlPath(expansionName, row.card_prefix) };
 }
 
 /**
