@@ -19,12 +19,23 @@
 //      rebrowser-playwright (drop-in for playwright that patches CDP-level
 //      tells like Runtime.Enable that the puppeteer-extra stealth plugin
 //      can't reach) plus channel: 'chrome' (system Chrome, matching TLS
-//      handshake + client hints exactly). Earlier playwright-extra+stealth
-//      passed first requests but escalated to 403 after ~9 page loads.
+//      handshake + client hints exactly), and a UA aligned with the host
+//      OS so navigator.platform doesn't contradict the UA string.
 //   2. Rate-limit → 1015 IP ban (24-72h) after sustained scraping. Previous
-//      run at 2.5s/page + 5s/exp got the dev IP banned. Current pacing:
-//      ~8s/page + ~30s/exp, kill-switch at 2 cumulative 429s — Cloudflare
-//      memorises fast, abort early to avoid extending the ban.
+//      runs at 2.5s/page and 8s/page both got flagged after ~9 page loads.
+//      Current pacing: ~15s/page + ~60s/exp + 3-5min cooldown every 25
+//      successful expansions (drains the sliding window before it crosses
+//      Cloudflare's threshold). Kill switch at 2 cumulative 429s — abort
+//      early so we don't extend the ban via continued requests.
+//
+// Pre-flight: hits the Pokemon homepage once before iterating expansions.
+// 403 here = IP/fingerprint already flagged → bail BEFORE burning the IP
+// further on a doomed run.
+//
+// Diagnostics: every 403 (BAD_SLUG or real) dumps cf-ray, cf-cache-status,
+// and a screenshot to scripts/data/403-{ts}.png. Cf-ray maps 1:1 to a
+// Cloudflare firewall log entry — keep it for cross-reference if you ever
+// get access to their logs (or to share with their support).
 //
 // If you got flagged (403 mid-scrape, 1015 page in browser, or BAD_SLUG on a
 // trusted slug like one in cardmarket-modern-expansions.json):
@@ -42,8 +53,8 @@
 //
 // Usage:
 //   npm run scrape-cardmarket -- Crimson-Haze Mascarade-Crepusculaire
-//   npm run scrape-cardmarket -- --modern              # ~280 modern sets (SV+, ~6h)
-//   npm run scrape-cardmarket -- --all                 # all 741 expansions (~16h)
+//   npm run scrape-cardmarket -- --modern              # ~280 modern sets (~10h)
+//   npm run scrape-cardmarket -- --all                 # all 741 expansions (~24-26h)
 //
 // Env optional:
 //   BROWSER_CHANNEL=chromium  # use bundled Chromium instead of system Chrome
@@ -62,7 +73,8 @@ dotenvConfig({ path: path.resolve(__dirname, '..', '.env.local') });
 dotenvConfig();
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { chromium, type Browser, type Page } from 'rebrowser-playwright';
+import os from 'node:os';
+import { chromium, type Browser, type Page, type Response as PWResponse } from 'rebrowser-playwright';
 import { createClient } from '@supabase/supabase-js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,14 +83,18 @@ type AnyClient = any;
 const ROOT = path.resolve(__dirname, '..');
 const MODERN_FILE = path.join(ROOT, 'scripts', 'data', 'cardmarket-modern-expansions.json');
 const BASE_URL = 'https://www.cardmarket.com/fr/Pokemon/Products/Singles';
+const PREFLIGHT_URL = 'https://www.cardmarket.com/fr/Pokemon';
 const PAGE_TIMEOUT = 30_000;
-const INTER_PAGE_DELAY_MS = 8_000;       // jittered ±2s
-const INTER_EXPANSION_DELAY_MS = 30_000; // jittered ±10s
+const INTER_PAGE_DELAY_MS = 15_000;      // jittered +5s — slow enough to dodge Cloudflare's sliding-window rate
+const INTER_EXPANSION_DELAY_MS = 60_000; // jittered +20s
 const PAGE_429_COOLDOWN_MS = 60_000;     // base, multiplied by retry attempt
 const PAGE_MAX_RETRIES = 3;
 const KILL_SWITCH_429_THRESHOLD = 2;
 const CONSECUTIVE_BAD_SLUG_THRESHOLD = 3;  // 3+ in a row = probably bot detection masquerading as bad slugs
+const BATCH_SIZE = 25;                   // # of successful expansions between long cooldowns
+const BATCH_COOLDOWN_MS = 180_000;       // base 3 min, jittered up to +2 min — drains the request-window counter
 const BAD_SLUGS_FILE = path.join(__dirname, 'data', 'cardmarket-bad-slugs.json');
+const DIAG_DIR = path.join(__dirname, 'data');
 const LOCALE = 'fr';
 const DRY_RUN = process.argv.includes('--dry-run');
 const FORCE = process.argv.includes('--force');
@@ -88,6 +104,47 @@ function sleep(ms: number): Promise<void> {
 }
 function jitter(baseMs: number, spreadMs: number): number {
   return baseMs + Math.random() * spreadMs;
+}
+
+/**
+ * Build a User-Agent string that matches the host platform — Cardmarket /
+ * Cloudflare can cross-check `navigator.platform` against UA, and a Linux UA
+ * on a Windows host (or vice versa) is a small but real bot signal.
+ */
+function realisticUA(): string {
+  const platform = os.platform();
+  if (platform === 'win32') {
+    return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+  }
+  if (platform === 'linux') {
+    return 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+  }
+  // darwin / other → mac
+  return 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+}
+
+/**
+ * On a 403, capture the Cloudflare diagnostic headers (cf-ray identifies the
+ * exact firewall rule that fired, cf-cache-status tells if it was an edge
+ * decision) and a screenshot of the response page. Saves to scripts/data/ so
+ * later debug sessions can correlate "scrape died at HH:MM" with a specific
+ * Cloudflare rule firing in their logs.
+ */
+async function dump403Diagnostics(page: Page, response: PWResponse, url: string): Promise<void> {
+  try {
+    const headers = response.headers();
+    const cfRay = headers['cf-ray'] ?? 'none';
+    const cfCache = headers['cf-cache-status'] ?? 'none';
+    const server = headers['server'] ?? 'none';
+    console.error(`    diagnostic: cf-ray=${cfRay} cf-cache=${cfCache} server=${server}`);
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    const screenshotPath = path.join(DIAG_DIR, `403-${ts}.png`);
+    await page.screenshot({ path: screenshotPath, fullPage: false });
+    console.error(`    screenshot: ${screenshotPath}`);
+    console.error(`    url: ${url}`);
+  } catch (err) {
+    console.error(`    diagnostic capture failed: ${(err as Error).message}`);
+  }
 }
 
 interface ModernEntry { name: string; slug: string }
@@ -201,6 +258,11 @@ async function scrapeOneExpansion(
         continue;
       }
 
+      // Capture Cloudflare diagnostics on ANY 403 (BAD_SLUG or real bot
+      // detection) before throwing — once thrown the page state is gone.
+      if (status === 403 && resp) {
+        await dump403Diagnostics(page, resp, url);
+      }
       // 403 on page 1 with an UNTRUSTED slug = probably Cardmarket's
       // "extension invalide" page (the slug derivation got it wrong). Skip
       // and log for manual fixup. With a TRUSTED slug (curated in modern
@@ -446,16 +508,31 @@ async function main(): Promise<void> {
     args: ['--disable-blink-features=AutomationControlled'],
   });
   const ctx = await browser.newContext({
-    userAgent:
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    userAgent: realisticUA(),
     viewport: { width: 1440, height: 900 },
     locale: 'fr-FR',
   });
   const page = await ctx.newPage();
 
+  // Pre-flight: load the Pokemon homepage once. If Cloudflare 403s us here,
+  // the IP/fingerprint is already flagged — abort BEFORE iterating expansions
+  // so we don't burn the IP further by hammering it on a doomed run.
+  console.log(`Pre-flight: ${PREFLIGHT_URL}`);
+  const preflight = await page.goto(PREFLIGHT_URL, { waitUntil: 'domcontentloaded', timeout: PAGE_TIMEOUT });
+  const preflightStatus = preflight?.status() ?? 0;
+  if (preflightStatus !== 200) {
+    if (preflight && preflightStatus === 403) {
+      await dump403Diagnostics(page, preflight, PREFLIGHT_URL);
+    }
+    await browser.close();
+    throw new Error(`Pre-flight failed: HTTP ${preflightStatus} — IP/fingerprint already flagged. Wait or switch IP before retrying.`);
+  }
+  console.log(`Pre-flight OK (HTTP 200) — starting scrape.`);
+
   let totalCardsScraped = 0;
   let totalBlocked = 0;
   let consecutiveBadSlugs = 0;
+  let successfulCount = 0;
   let abortAll = false;
   const failures: Array<{ slug: string; reason: string }> = [];
   const badSlugs: Array<{ idExpansion: number; name: string; derivedSlug: string }> = [];
@@ -477,6 +554,7 @@ async function main(): Promise<void> {
       totalCardsScraped += cards.length;
       totalBlocked += blocked;
       consecutiveBadSlugs = 0;
+      successfulCount++;
       abortAll = tripped();
     } catch (err) {
       const reason = (err as Error).message;
@@ -508,9 +586,16 @@ async function main(): Promise<void> {
     }
 
     if (i < targets.length - 1 && !abortAll) {
-      const delay = jitter(INTER_EXPANSION_DELAY_MS, 10_000);
-      console.log(`    waiting ${Math.round(delay / 1000)}s before next expansion...`);
-      await sleep(delay);
+      const isBatchBoundary = successfulCount > 0 && successfulCount % BATCH_SIZE === 0;
+      if (isBatchBoundary) {
+        const cool = jitter(BATCH_COOLDOWN_MS, 120_000);
+        console.log(`    batch boundary: cooling ${Math.round(cool / 1000)}s after ${successfulCount} successful expansions...`);
+        await sleep(cool);
+      } else {
+        const delay = jitter(INTER_EXPANSION_DELAY_MS, 20_000);
+        console.log(`    waiting ${Math.round(delay / 1000)}s before next expansion...`);
+        await sleep(delay);
+      }
     }
   }
 
