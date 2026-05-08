@@ -17,6 +17,11 @@ export const metadata: Metadata = {
   title: 'I.R.I.S',
   description: 'Gestion de collection Pokémon TCG',
   applicationName: 'I.R.I.S',
+  appleWebApp: {
+    capable: true,
+    title: 'I.R.I.S',
+    statusBarStyle: 'black-translucent',
+  },
 };
 
 export const viewport: Viewport = {

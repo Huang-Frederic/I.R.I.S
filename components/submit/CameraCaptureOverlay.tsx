@@ -36,8 +36,9 @@ export default function CameraCaptureOverlay({
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: 'environment',
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
+            aspectRatio: { ideal: 3 / 4 },
+            width: { ideal: 1440 },
+            height: { ideal: 1920 },
           },
           audio: false,
         });
@@ -166,13 +167,18 @@ export default function CameraCaptureOverlay({
             </button>
           </div>
         ) : (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="h-full w-full object-cover"
-          />
+          <>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="h-full w-full object-cover"
+            />
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="border-red aspect-[5/7] h-[75%] rounded-lg border-2 opacity-80" />
+            </div>
+          </>
         )}
         <canvas ref={canvasRef} className="hidden" />
       </div>
