@@ -22,6 +22,7 @@ export default function PWAInstallSection() {
   const [showIosSteps, setShowIosSteps] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- detectInitialPlatform() reads navigator/matchMedia (no-op in SSR); deferred client-only init is the only option.
     setPlatform(detectInitialPlatform());
 
     // beforeinstallprompt may have already fired before this section mounted —

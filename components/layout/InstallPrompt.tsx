@@ -44,6 +44,7 @@ export default function InstallPrompt() {
     // localStorage TTL.
     if (dismissedRecently() || shownThisSession()) return;
     const initial = detectInitialPlatform();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- detectInitialPlatform() reads navigator/matchMedia (no-op in SSR); deferred client-only init is the only option.
     setPlatform(initial);
     if (initial === 'ios') {
       setHidden(false);
