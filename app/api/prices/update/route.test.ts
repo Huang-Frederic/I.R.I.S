@@ -185,7 +185,9 @@ describe('POST /api/prices/update — single-card mode', () => {
     // Reuse setupServiceRead but for a single-card read instead of a list.
     const targetCard = row({ id: 'abc' });
 
-    serviceMock.from.mockImplementation((table: string) => {
+    // Initial read goes through the session client (so RLS can auto-filter
+    // once cards grow per-user ownership). Service client handles the write.
+    supabaseMock.from.mockImplementation((table: string) => {
       if (table === 'cards') {
         return {
           select: vi.fn(() => ({
@@ -193,6 +195,14 @@ describe('POST /api/prices/update — single-card mode', () => {
               single: vi.fn().mockResolvedValue({ data: targetCard, error: null }),
             })),
           })),
+        };
+      }
+      throw new Error(`unmocked supabase table: ${table}`);
+    });
+
+    serviceMock.from.mockImplementation((table: string) => {
+      if (table === 'cards') {
+        return {
           update: vi.fn(() => ({
             eq: vi.fn(() => ({
               select: vi.fn(() => ({
@@ -214,7 +224,7 @@ describe('POST /api/prices/update — single-card mode', () => {
           })),
         };
       }
-      throw new Error(`unmocked table: ${table}`);
+      throw new Error(`unmocked service table: ${table}`);
     });
 
     global.fetch = vi.fn().mockResolvedValue({

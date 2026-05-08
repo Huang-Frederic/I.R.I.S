@@ -317,14 +317,20 @@ async function handleSingleCard(cardId: string): Promise<NextResponse> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return unauthorizedResponse();
 
-  const service = createServiceClient();
-  const { data: target, error: readErr } = await service
+  // Read through the session client so RLS auto-filters the moment cards
+  // grow per-user ownership (today the policy is `using (true)` so behavior
+  // is identical, but this preserves the right semantics for future-proofing).
+  const { data: target, error: readErr } = await supabase
     .from('cards')
     .select('*')
     .eq('id', cardId)
     .single();
   if (readErr || !target) return notFoundResponse('card');
 
+  // Pricing pipeline keeps the service role for the catalog/cardmarket
+  // lookups + the cards UPDATE — those are infrastructure-level writes that
+  // should bypass RLS regardless of how the cards policy evolves.
+  const service = createServiceClient();
   const result = await processCardForPricing(target as Card, service);
   return resultToSingleCardResponse(target as Card, result);
 }
