@@ -1,8 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import Image from 'next/image';
-import { ScanLine, AlertTriangle, CheckCircle2, XCircle, X, Camera } from 'lucide-react';
+import { ScanLine, AlertTriangle, CheckCircle2, XCircle, Camera } from 'lucide-react';
 import {
   UI_LANGUAGES,
   type CardCondition,

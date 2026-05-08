@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sortVintedGroups } from './vinted-sort';
-import {
-  makeCardWithListings as baseMakeCard,
-  makeGroup,
-  type CardGroupWithListings,
-} from './test-fixtures';
+import { makeCardWithListings as baseMakeCard, makeGroup } from './test-fixtures';
 import type { CardWithListings, CardListing } from '@/lib/types';
 
 const NOW = new Date('2026-04-30T12:00:00Z').getTime();
