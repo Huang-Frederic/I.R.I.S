@@ -1,27 +1,29 @@
 # Setup guide
 
-End-to-end local installation: from a fresh clone to a running app with multilingual OCR, live Cardmarket pricing, and the daily cron jobs.
+Provisioning takes about 30–45 minutes if you have all the API keys lined up — most of that is the catalog scrape running in the background. This guide walks you through the full stack: Supabase project creation, Google Vision and Gemini keys, database migrations, catalog population, and the optional Cardmarket gallery scrape. By the end you'll have a running PWA with multilingual OCR, live pricing, and automated daily cron jobs.
 
-Estimated time: **30–45 minutes** for first-time setup (most of it waiting for the catalog scrape).
+If you just want the abridged "clone-and-run" path, see the **Quick start** section in the [main README](../README.md#-try-it-yourself). This doc is the detailed walkthrough.
 
 ## Table of contents
 
-1. [Prerequisites](#1-prerequisites)
-2. [Supabase project](#2-supabase-project)
-3. [Google Cloud Vision (OCR fallback)](#3-google-cloud-vision-ocr-fallback)
-4. [Gemini API (primary OCR)](#4-gemini-api-primary-ocr)
-5. [Environment variables](#5-environment-variables)
-6. [Database migrations](#6-database-migrations)
-7. [Populate the offline catalog](#7-populate-the-offline-catalog)
-8. [Pull Cardmarket pricing dumps](#8-pull-cardmarket-pricing-dumps)
-9. [Optional: scrape Cardmarket gallery for fast lookups](#9-optional-scrape-cardmarket-gallery-for-fast-lookups)
-10. [Run the app](#10-run-the-app)
-11. [Production deployment (Vercel)](#11-production-deployment-vercel)
-12. [Troubleshooting](#12-troubleshooting)
+1. [📋 Prerequisites](#1--prerequisites)
+2. [🟢 Supabase project](#2--supabase-project)
+3. [👁 Google Cloud Vision (OCR fallback)](#3--google-cloud-vision-ocr-fallback)
+4. [✨ Gemini API (primary OCR)](#4--gemini-api-primary-ocr)
+5. [🌱 Environment variables](#5--environment-variables)
+6. [🗄 Database migrations](#6--database-migrations)
+7. [📚 Populate the offline catalog](#7--populate-the-offline-catalog)
+8. [💰 Pull Cardmarket pricing dumps](#8--pull-cardmarket-pricing-dumps)
+9. [🔍 Optional: scrape Cardmarket gallery for fast lookups](#9--optional-scrape-cardmarket-gallery-for-fast-lookups)
+10. [🚀 Run the app](#10--run-the-app)
+11. [🌐 Production deployment (Vercel)](#11--production-deployment-vercel)
+12. [🔧 Troubleshooting](#12--troubleshooting)
 
 ---
 
-## 1. Prerequisites
+## 1. 📋 Prerequisites
+
+You'll need Node 22, the Supabase CLI (used via `npx`), and a browser that supports PWA install. Here's the checklist.
 
 | Tool | Version | Notes |
 |---|---|---|
@@ -34,9 +36,9 @@ Estimated time: **30–45 minutes** for first-time setup (most of it waiting for
 
 ---
 
-## 2. Supabase project
+## 2. 🟢 Supabase project
 
-**~5 minutes**, blocking for everything else.
+You'll need a Supabase project to host the database, storage, and auth. This is the foundation — everything else depends on it. **~5 minutes**, blocking for everything else.
 
 ### 2.1 Create the project
 
@@ -73,9 +75,9 @@ The migrations will create the `card-photos`, `lot-photos`, and `manual-backups`
 
 ---
 
-## 3. Google Cloud Vision (OCR fallback)
+## 3. 👁 Google Cloud Vision (OCR fallback)
 
-**~5 minutes**, required as the OCR safety net when Gemini fails.
+Vision is the OCR fallback. You only need it if Gemini's quota runs out — but provisioning it now is cheaper than scrambling later. **~5 minutes**, required as the OCR safety net when Gemini fails.
 
 ### 3.1 Project + billing
 
@@ -94,11 +96,9 @@ The migrations will create the `card-photos`, `lot-photos`, and `manual-backups`
 
 ---
 
-## 4. Gemini API (primary OCR)
+## 4. ✨ Gemini API (primary OCR)
 
-**~3 minutes**, required for the 93% accuracy bench.
-
-The app falls back to Vision if Gemini fails, but Vision-only lookups drop to ~63% match rate.
+Gemini is your primary OCR engine — it's what gets you to 93% accuracy. Vision is the backup, but Vision-only lookups drop to ~63% match rate. **~3 minutes**, required for the 93% accuracy bench.
 
 ### 4.1 Get a Gemini API key
 
@@ -125,9 +125,9 @@ The `thinkingConfig: { thinkingBudget: 0 }` setting is critical for Gemini 3.x r
 
 ---
 
-## 5. Environment variables
+## 5. 🌱 Environment variables
 
-Create a `.env.local` at the repo root (it's gitignored). Final shape:
+Now you'll wire up the keys you collected in steps 2–4. Create a `.env.local` at the repo root (it's gitignored). Final shape:
 
 ```env
 # Supabase (step 2)
@@ -150,9 +150,9 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ---
 
-## 6. Database migrations
+## 6. 🗄 Database migrations
 
-All migrations live in [`supabase/migrations/`](../supabase/migrations/) and apply in chronological order.
+With your Supabase project live and env vars in place, it's time to create the schema. All migrations live in [`supabase/migrations/`](../supabase/migrations/) and apply in chronological order.
 
 ### Option A — Supabase CLI (recommended)
 
@@ -181,11 +181,9 @@ For the full migration breakdown, see **[docs/SUPABASE.md](SUPABASE.md)**.
 
 ---
 
-## 7. Populate the offline catalog
+## 7. 📚 Populate the offline catalog
 
-The app's enrichment pipeline queries a local Postgres catalog of ~52K cards (JP + EN + FR + illustrator) before falling back to TCGdex live API.
-
-**~12 minutes** without illustrator, **~3 hours** with full illustrator scrape.
+The app's enrichment pipeline queries a local Postgres catalog of ~52K cards (JP + EN + FR + illustrator) before falling back to TCGdex live API. This step downloads and indexes the entire catalog. **~12 minutes** without illustrator, **~3 hours** with full illustrator scrape.
 
 ```bash
 npm install                                         # if not done already
@@ -213,9 +211,9 @@ select language, count(*) from tcg_catalog group by 1 order by 1;
 
 ---
 
-## 8. Pull Cardmarket pricing dumps
+## 8. 💰 Pull Cardmarket pricing dumps
 
-Cardmarket publishes their full product catalog and pricing as public S3 JSON dumps (refreshed nightly). The app mirrors them into `cardmarket_expansions`, `cardmarket_products`, and `cardmarket_pricing` tables.
+Cardmarket publishes their full product catalog and pricing as public S3 JSON dumps (refreshed nightly). You'll mirror them into `cardmarket_expansions`, `cardmarket_products`, and `cardmarket_pricing` tables — no API key needed.
 
 ```bash
 npm run upload-cardmarket-dumps
@@ -231,11 +229,9 @@ select count(*) from cardmarket_pricing;      -- expected: ~67,650
 
 ---
 
-## 9. Optional: scrape Cardmarket gallery for fast lookups
+## 9. 🔍 Optional: scrape Cardmarket gallery for fast lookups
 
-Without this step, the lookup helper falls back to fuzzy name matching on `cardmarket_products` — works but can pick wrong prints when multiple variants of the same card exist.
-
-**With this step**, the helper uses an exact `(expansion, set_number) → idProduct` index for instant, unambiguous lookups.
+Without this step, the lookup helper falls back to fuzzy name matching on `cardmarket_products` — works but can pick wrong prints when multiple variants of the same card exist. **With this step**, the helper uses an exact `(expansion, set_number) → idProduct` index for instant, unambiguous lookups.
 
 ```bash
 # Recommended: scrape only the expansions of cards you actually have
@@ -252,7 +248,9 @@ For the full scrape policy and rate-limit behavior, see [`scripts/scrape-cardmar
 
 ---
 
-## 10. Run the app
+## 10. 🚀 Run the app
+
+You're ready to launch. Here's how to run locally, including the HTTPS mode you'll need for camera scanning on mobile.
 
 ```bash
 npm run dev                                         # http://localhost:3000
@@ -268,7 +266,9 @@ Accept the certificate warning in the browser. The phone needs to be on the same
 
 ---
 
-## 11. Production deployment (Vercel)
+## 11. 🌐 Production deployment (Vercel)
+
+When you're ready to ship, Vercel automates the build, cron scheduling, and environment variable management. Here's the click-path.
 
 ### 11.1 Connect repo
 
@@ -311,7 +311,9 @@ To enable:
 
 ---
 
-## 12. Troubleshooting
+## 12. 🔧 Troubleshooting
+
+Common setup issues and their fixes. If you hit something not listed here, check the [CHANGELOG.md](CHANGELOG.md) for recent known issues from each phase.
 
 | Symptom | Cause | Fix |
 |---|---|---|

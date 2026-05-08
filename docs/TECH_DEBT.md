@@ -1,22 +1,10 @@
 # Tech debt
 
-Honest catalog of what's not perfect in the codebase, why each item was left as-is, and what it would take to fix. Maintained alongside the code so the trade-offs stay visible — not buried in commit history.
-
-> Items here passed a deliberate cost-benefit check at some point. If you (or future-you) decide one is suddenly worth fixing, the context is here.
-
-## Table of contents
-
-- [Component size](#component-size)
-- [Modal primitive migration](#modal-primitive-migration)
-- [Testing](#testing)
-- [Pricing accuracy](#pricing-accuracy)
-- [Operational](#operational)
-- [Documentation](#documentation)
-- [Won't do](#wont-do)
+You're looking at the catalog of deferred items. Each one passed a deliberate cost-benefit check — the 1,445-line `CardScanForm` that earns its size, the 8 ad-hoc modals waiting on a primitive migration, the heuristic Cardmarket disambig that handles 95 % of cases. The trade-offs stay visible here, not buried in commit history.
 
 ---
 
-## Component size
+## 🧱 Component size
 
 ### `CardScanForm.tsx` — 1,445 lines, 24 `useState` calls
 
@@ -44,7 +32,7 @@ The sold → restock → promote → partner-cleanup chain (~200 lines, ~6 inter
 
 ---
 
-## Modal primitive migration
+## 🪟 Modal primitive migration
 
 The `<Modal>` primitive in [components/ui/Modal.tsx](../components/ui/Modal.tsx) handles backdrop, Escape key, click-outside, body scroll lock. Three modals migrated as proof: `ConfirmDialog`, `CardZoomModal`, `RetireListingModal`. Eight remain on ad-hoc implementations.
 
@@ -66,7 +54,7 @@ The `<Modal>` primitive in [components/ui/Modal.tsx](../components/ui/Modal.tsx)
 
 ---
 
-## Testing
+## 🧪 Testing
 
 ### Test runner needs Node 22
 
@@ -92,7 +80,7 @@ No Playwright / Cypress suite. Critical flows (scan → enrich → save, sold �
 
 ---
 
-## Pricing accuracy
+## 💰 Pricing accuracy
 
 ### Heuristic disambig for non-modern sets
 
@@ -121,7 +109,7 @@ Current `lookupByCode` uses `ilike` (case-insensitive) which forces a full table
 
 ---
 
-## Operational
+## ⚙️ Operational
 
 ### Card photos inlined in `cards.image_url`
 
@@ -147,7 +135,7 @@ The daily pricing cron writes to `stock_value_snapshots` (1 row/day) but the das
 
 ---
 
-## Documentation
+## 📚 Documentation
 
 ### Screenshots not captured
 
@@ -163,9 +151,9 @@ A handful of `// Phase 2.1: ...` / `// Phase 4 follow-up` comments remain in the
 
 ---
 
-## Won't do
+## 🚫 Won't do
 
-These are intentionally out of scope and will not be built unless the project grows beyond its current 2-user scope:
+What stays untouched, no matter how the project grows. These are intentionally out of scope and will not be built unless the project grows beyond its current 2-user scope:
 
 - **Public signup** — auth is whitelist by design (only the 2 user accounts created at install time).
 - **Multi-language UI** — French only. The user-facing copy is FR. Adding i18n to a 2-user app is over-engineering.
@@ -176,7 +164,7 @@ These are intentionally out of scope and will not be built unless the project gr
 
 ---
 
-## Assessment
+## 🎯 Assessment
 
 The codebase is feature-complete and used daily for its intended purpose. The remaining items are largely **incremental polish** (modal migrations, component splits) or **deliberate trade-offs** (heuristic disambig vs. per-card scrape, no UI restore vs. CLI restore). None block any user-facing functionality.
 

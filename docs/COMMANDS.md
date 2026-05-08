@@ -1,21 +1,23 @@
 # Commands reference
 
-Every command available in the repo, what it does, and when you'd use it.
+Every script you'll run, and what it actually does. From daily dev workflow to one-off catalog re-scrapes, this is the complete reference organized by purpose.
 
 ## Table of contents
 
-- [npm scripts](#npm-scripts) — daily dev workflow
-- [Catalog scripts](#catalog-scripts) — populate / refresh the offline TCG catalog
-- [Cardmarket scripts](#cardmarket-scripts) — pricing dumps + per-expansion gallery scrape
-- [Backup / snapshot scripts](#backup--snapshot-scripts) — manual data dumps
-- [Diagnostic scripts](#diagnostic-scripts) — inspect Supabase state, OCR debug, model benchmarks
-- [Utility scripts](#utility-scripts) — one-off helpers
+- [📦 npm scripts](#-npm-scripts) — daily dev workflow
+- [🎴 Catalog scripts](#-catalog-scripts) — populate / refresh the offline TCG catalog
+- [💰 Cardmarket scripts](#-cardmarket-scripts) — pricing dumps + per-expansion gallery scrape
+- [💾 Backup / snapshot scripts](#-backup--snapshot-scripts) — manual data dumps
+- [🔍 Diagnostic scripts](#-diagnostic-scripts) — inspect Supabase state, OCR debug, model benchmarks
+- [🛠 Utility scripts](#-utility-scripts) — one-off helpers
+- [🔌 API endpoints](#-api-endpoints-cron--authenticated) — cron / authenticated
+- [🔑 Environment variables](#-environment-variables-reference) — all env vars
 
 ---
 
-## npm scripts
+## 📦 npm scripts
 
-Defined in [`package.json`](../package.json), invoked via `npm run <name>`.
+Your daily dev workflow lives here. Defined in [`package.json`](../package.json), invoked via `npm run <name>`.
 
 | Command | Purpose |
 |---|---|
@@ -46,13 +48,13 @@ Defined in [`package.json`](../package.json), invoked via `npm run <name>`.
 
 ---
 
-## Catalog scripts
+## 🎴 Catalog scripts
 
-Located in [`scripts/`](../scripts/), invoked with `npx tsx scripts/<name>.ts`.
+You won't touch these often — but when you need to rebuild the offline TCG catalog or update Pokémon names, this is where you go. Located in [`scripts/`](../scripts/), invoked with `npx tsx scripts/<name>.ts`.
 
 ### `scrape-limitlesstcg.ts`
 
-Populates the local Pokémon TCG catalog from LimitlessTCG (the offline lookup source for enrichment).
+This is how you populate the 52K-card local catalog from LimitlessTCG — the offline lookup source for enrichment. Resume-safe, concurrency 5.
 
 ```bash
 npx tsx scripts/scrape-limitlesstcg.ts                       # base scrape, JP+EN+FR, ~12 min
@@ -61,8 +63,6 @@ LANGUAGES=jp,en npx tsx scripts/scrape-limitlesstcg.ts       # restrict to speci
 MODE=full npx tsx scripts/scrape-limitlesstcg.ts             # full scrape (default)
 ```
 
-Resume-safe: queries the DB to skip sets already scraped. Concurrency 5.
-
 If the script fails with `UNABLE_TO_VERIFY_LEAF_SIGNATURE` (Node 22 on WSL2 behind strict proxy):
 ```bash
 export INSECURE_HTTPS=1
@@ -70,7 +70,7 @@ export INSECURE_HTTPS=1
 
 ### `fetch-pokemon-names.ts`
 
-Refreshes [`lib/data/pokemon-names.ts`](../lib/data/pokemon-names.ts) from PokeAPI. Run when a new generation drops.
+Refreshes [`lib/data/pokemon-names.ts`](../lib/data/pokemon-names.ts) from PokeAPI. Run this when a new generation drops and you need the latest 1 025+ Pokémon names.
 
 ```bash
 npx tsx scripts/fetch-pokemon-names.ts
@@ -78,13 +78,13 @@ npx tsx scripts/fetch-pokemon-names.ts
 
 ---
 
-## Cardmarket scripts
+## 💰 Cardmarket scripts
+
+The pricing machinery. Daily dumps, gallery scrapes, and one-off expansion probes — everything you need to keep the `(expansion, set_number) → idProduct` index fresh.
 
 ### `parse-cardmarket-expansions.ts`
 
-One-off: parses Cardmarket's FR-locale expansion dropdown HTML to produce [`cardmarket_expansions.json`](../cardmarket_expansions.json) (741 entries committed in repo).
-
-Re-run only when Cardmarket adds new expansions:
+One-off helper. Parses Cardmarket's FR-locale expansion dropdown HTML to produce [`cardmarket_expansions.json`](../cardmarket_expansions.json) (741 entries committed in repo). Re-run only when Cardmarket adds new expansions:
 
 ```bash
 # 1. Save the rendered HTML of the FR singles dropdown to cardmarket_expansions.html
@@ -94,7 +94,7 @@ npx tsx scripts/parse-cardmarket-expansions.ts
 
 ### `upload-cardmarket-dumps.ts`
 
-Mirrors Cardmarket's public S3 dumps into Supabase tables `cardmarket_expansions`, `cardmarket_products`, `cardmarket_pricing`.
+This is the daily price sync. Mirrors Cardmarket's public S3 dumps (67K products + 72K pricing rows) into Supabase tables `cardmarket_expansions`, `cardmarket_products`, `cardmarket_pricing`. Runs daily via GitHub Action.
 
 ```bash
 npm run upload-cardmarket-dumps          # default: fetch from S3
@@ -105,7 +105,7 @@ Required env: `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
 
 ### `scrape-cardmarket-cards.ts` (gallery scraper)
 
-Per-expansion Playwright scrape that builds the fast-path lookup index `cardmarket_card_index`. For each card on a Cardmarket gallery page, captures `idProduct`, `set_number`, `url_variant`, and `url_path`.
+The heavy lifter. Per-expansion Playwright scrape that builds the exact-match lookup index `cardmarket_card_index`. For each card on a Cardmarket gallery page, captures `idProduct`, `set_number`, `url_variant`, and `url_path`. Resume-safe, rate-limit aware.
 
 ```bash
 # Single expansion
@@ -130,23 +130,19 @@ npm run scrape-cardmarket -- --force --modern
 npm run scrape-cardmarket -- --dry-run Crimson-Haze
 ```
 
-**Resume-safe**: skips expansions that already have rows in `cardmarket_card_index`.
-
 **Rate-limit posture**: 2.5s between pages, 5–8s between expansions, retries with exponential cooldown on HTTP 429, kill switch at 5 cumulative 429s.
 
 ### `recommend-scrape-targets.ts`
 
-Reads your `cards` table, matches each distinct `set_name` against `cardmarket_expansions`, and prints the optimal targeted scrape command (only the expansions you actually own).
+Smart scraper planner. Reads your `cards` table, matches each distinct `set_name` against `cardmarket_expansions`, and prints the optimal targeted scrape command — only the expansions you actually own. Outputs are deduplicated, include FR-translation hints (Prismatic Evolutions → Évolutions Prismatiques), and skip already-scraped expansions.
 
 ```bash
 npx tsx scripts/recommend-scrape-targets.ts
 ```
 
-Outputs are deduplicated, include FR-translation hints (Prismatic Evolutions → Évolutions Prismatiques), and skip already-scraped expansions.
-
 ### `probe-cardmarket-expansion.ts`
 
-One-shot Playwright probe: opens one Cardmarket page, saves the HTML, prints quick stats. Useful when CM changes their DOM and you need to update the scraper.
+One-shot debug probe. Opens one Cardmarket page, saves the HTML, prints quick stats. Useful when CM changes their DOM and you need to update the scraper.
 
 ```bash
 npx tsx scripts/probe-cardmarket-expansion.ts Crimson-Haze
@@ -155,11 +151,13 @@ npx tsx scripts/probe-cardmarket-expansion.ts Crimson-Haze/Bloodmoon-Ursaluna-ex
 
 ---
 
-## Backup / snapshot scripts
+## 💾 Backup / snapshot scripts
+
+You won't touch most of these directly. They're called by cron, by other scripts, or by you when something breaks and you need to rewind.
 
 ### `snapshot-catalog.ts`
 
-Dumps `tcg_catalog` to a gzipped JSON file in [`backups/`](../backups/). Used before re-scraping (catalog version snapshot).
+Catalog snapshot. Dumps `tcg_catalog` to a gzipped JSON file in [`backups/`](../backups/). Run this before major re-scrapes so you can roll back if needed.
 
 ```bash
 npm run snapshot-catalog                                     # writes backups/tcg-catalog-<timestamp>.json.gz
@@ -167,7 +165,7 @@ npm run snapshot-catalog                                     # writes backups/tc
 
 ### `restore-catalog.ts`
 
-Restores the catalog from a snapshot file.
+Catalog restore. Restores the catalog from a snapshot file. Pass a specific path or let it pick the latest.
 
 ```bash
 npm run restore-catalog                                      # restores latest backups/tcg-catalog-*.json.gz
@@ -176,21 +174,21 @@ npm run restore-catalog -- <path/to/snapshot.json.gz>        # restores a specif
 
 ### Manual backups via the UI
 
-The Options page exposes **Sauvegarde manuelle** which dumps 8 user-data tables to a gzipped JSON file in the Supabase `manual-backups` bucket. Files are listed with a Download (signed URL, 1h expiry) and Delete action. Never auto-rotated.
+The Options page exposes **Sauvegarde manuelle** — a one-click backup that dumps 8 user-data tables to a gzipped JSON file in the Supabase `manual-backups` bucket. Files are listed with a Download (signed URL, 1h expiry) and Delete action. Never auto-rotated.
 
 ### Daily backup via GitHub Actions
 
-[`.github/workflows/backup.yml`](../.github/workflows/backup.yml) runs `pg_dump --data-only` on 8 user-data tables, gzips the result, and publishes a tagged release `backup-daily-YYYY-MM-DD`. Rotation: 30 daily / 12 weekly / 12 monthly via [`scripts/backup/rotate.sh`](../scripts/backup/rotate.sh).
-
-Trigger manually via GitHub Actions tab → "Daily backup" → "Run workflow".
+[`.github/workflows/backup.yml`](../.github/workflows/backup.yml) runs `pg_dump --data-only` on 8 user-data tables, gzips the result, and publishes a tagged release `backup-daily-YYYY-MM-DD`. Rotation: 30 daily / 12 weekly / 12 monthly via [`scripts/backup/rotate.sh`](../scripts/backup/rotate.sh). Trigger manually via GitHub Actions tab → "Daily backup" → "Run workflow".
 
 ---
 
-## Diagnostic scripts
+## 🔍 Diagnostic scripts
+
+Inspect Supabase state, debug OCR failures, benchmark model variants, or hunt for catalog gaps — these are your troubleshooting tools.
 
 ### `check-supabase-state.ts`
 
-Lists every expected Supabase table, counts rows, and flags missing tables. Run after applying migrations to verify the DB is fully provisioned.
+Your post-migration sanity check. Lists every expected Supabase table, counts rows, flags missing tables. Run this after applying migrations to verify the DB is fully provisioned.
 
 ```bash
 npx tsx scripts/check-supabase-state.ts
@@ -213,17 +211,15 @@ Cardmarket scrape readiness:
 
 ### `inspect-ocr.ts`
 
-Run the OCR pipeline on a local image and print every intermediate step (Gemini raw response, parsed JSON, fallback decisions).
+OCR debugger. Run the full OCR pipeline on a local image and print every intermediate step — Gemini raw response, parsed JSON, fallback decisions. Useful when a card returns wrong enrichment results; shows you what the engine actually saw.
 
 ```bash
 npx tsx scripts/inspect-ocr.ts <path/to/card.jpg>
 ```
 
-Useful when a card returns wrong enrichment results — shows what the engine actually saw.
-
 ### `bench-multi-model.ts`
 
-Benchmark multiple Gemini model variants against a fixed test set, output CSV with accuracy + cost + latency per model. Used to validate model switches.
+Model comparison benchmark. Tests multiple Gemini model variants against a fixed test set, outputs CSV with accuracy + cost + latency per model. Run this when you're considering a model switch and need hard numbers.
 
 ```bash
 npx tsx scripts/bench-multi-model.ts
@@ -233,7 +229,7 @@ Outputs to [`results/test-bench-*.csv`](../results/).
 
 ### `bench-multilang.ts`
 
-Cross-language enrichment accuracy benchmark — verify the catalog + Gemini handle JP / EN / FR / KO / CN cards equally well.
+Cross-language accuracy check. Verifies the catalog + Gemini handle JP / EN / FR / KO / CN cards equally well.
 
 ```bash
 npx tsx scripts/bench-multilang.ts
@@ -241,7 +237,7 @@ npx tsx scripts/bench-multilang.ts
 
 ### `probe-tcgdex-fails.ts`
 
-Dump TCGdex API failures (cards where the enrichment fell back to live API and got a 404 / timeout). Used to identify catalog gaps.
+Catalog gap finder. Dumps TCGdex API failures — cards where the enrichment fell back to live API and got a 404 / timeout. Use this to identify which sets are missing from the local catalog.
 
 ```bash
 npx tsx scripts/probe-tcgdex-fails.ts
@@ -249,11 +245,13 @@ npx tsx scripts/probe-tcgdex-fails.ts
 
 ---
 
-## Utility scripts
+## 🛠 Utility scripts
+
+One-off helpers and dev setup tools.
 
 ### `seed/seed.ts`
 
-Wipes the `cards` table and inserts ~30 representative cards from `cards_assets/` photos. Distribution covers all UI flows (sold, pokedex, collection, for_sale online/offline/stale).
+Dev setup helper. Wipes the `cards` table and inserts ~30 representative cards from `cards_assets/` photos. Distribution covers all UI flows (sold, pokedex, collection, for_sale online/offline/stale).
 
 ```bash
 npx tsx scripts/seed/seed.ts
@@ -263,7 +261,7 @@ npx tsx scripts/seed/seed.ts
 
 ### `wipe-user-data.sql`
 
-SQL-only script (run manually via psql or SQL Editor). Wipes user data from `cards`, `lots`, `card_listings`, `lot_listings` while preserving the catalog and Cardmarket tables.
+Nuclear option. SQL-only script (run manually via psql or SQL Editor). Wipes user data from `cards`, `lots`, `card_listings`, `lot_listings` while preserving the catalog and Cardmarket tables.
 
 ```bash
 psql $DATABASE_URL -f scripts/wipe-user-data.sql
@@ -273,13 +271,13 @@ psql $DATABASE_URL -f scripts/wipe-user-data.sql
 
 ---
 
-## API endpoints (cron / authenticated)
+## 🔌 API endpoints (cron / authenticated)
 
-These are HTTP endpoints, not CLI scripts, but they're sometimes triggered manually for debugging.
+Not CLI scripts — HTTP endpoints. But you'll trigger them manually for debugging, so here's the reference.
 
 ### `POST /api/prices/update` (cron)
 
-Daily price refresh. Authenticated via `Authorization: Bearer $CRON_SECRET`. Pulls 200 oldest cards `for_sale`, looks up each via `cardmarket-pricing.ts`, updates `cm_price_*` columns.
+The daily price refresh. Authenticated via `Authorization: Bearer $CRON_SECRET`. Pulls 200 oldest cards `for_sale`, looks up each via `cardmarket-pricing.ts`, updates `cm_price_*` columns.
 
 ```bash
 # Manual trigger (production)
@@ -293,11 +291,13 @@ curl -X POST "http://localhost:3000/api/prices/update?card_id=<uuid>" \
 
 ### `POST /api/backup/manual` (auth)
 
-Triggered from the Options page UI. Dumps 8 user-data tables, gzips, uploads to `manual-backups` bucket.
+Triggered from the Options page UI. Dumps 8 user-data tables, gzips them, uploads to `manual-backups` bucket.
 
 ---
 
-## Environment variables reference
+## 🔑 Environment variables reference
+
+Every environment variable used across the app and scripts, and what it's for.
 
 | Variable | Used by | Required for |
 |---|---|---|

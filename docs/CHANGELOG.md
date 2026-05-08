@@ -1,14 +1,14 @@
 # Changelog
 
-Phase-by-phase history of what shipped and why. Most recent first.
+Every phase here is a coherent feature increment that ended on a green test suite. Most recent first — read top-to-bottom for the build narrative, or jump to a specific phase.
 
-> Each phase is a coherent feature increment that ended on a green test suite (`npm test && npm run typecheck && npm run lint` all clean).
+> Each phase ships with `npm test && npm run typecheck && npm run lint` all clean.
 
 ---
 
-## Phase 7 — Cardmarket pricing system (May 2026)
+## 💰 Phase 7 — Cardmarket pricing system (May 2026)
 
-**Goal**: replace TCGdex's slow live API with a local, exact-match pricing pipeline backed by Cardmarket's official S3 dumps and a per-expansion gallery scrape.
+**The problem**: TCGdex's live API was too slow for real-time pricing. **The fix**: mirror Cardmarket's official S3 dumps locally and build an exact-match pipeline backed by per-expansion gallery scrapes.
 
 **Shipped**:
 - Mirror Cardmarket's public S3 dumps (`products_singles_6.json`, `price_guide_6.json`) into 3 Supabase tables. Daily refresh via GitHub Action.
@@ -25,9 +25,9 @@ Phase-by-phase history of what shipped and why. Most recent first.
 
 ---
 
-## Phase 6 — PWA installability (May 2026)
+## 🚀 Phase 6 — PWA installability (May 2026)
 
-**Goal**: make I.R.I.S installable on iOS and Android, accessible from the home screen like a native app.
+**The goal**: make I.R.I.S installable on iOS and Android, accessible from the home screen like a native app. One codebase, zero app stores.
 
 **Shipped**:
 - `app/manifest.ts` declaring the PWA (name, start_url, display:standalone, theme color, lang).
@@ -41,9 +41,9 @@ Phase-by-phase history of what shipped and why. Most recent first.
 
 ---
 
-## Phase 5 — Dashboard + backups (May 2026)
+## 📊 Phase 5 — Dashboard + backups (May 2026)
 
-**Goal**: visualize collection state at a glance, harden against data loss.
+**At the end of the day, you want the whole picture.** A dashboard that answers in one screen. Plus hardened backups — manual and automated — to never lose the inventory.
 
 **Shipped**:
 - Dashboard page (`/dashboard`, 6th sidebar tab):
@@ -64,9 +64,9 @@ Phase-by-phase history of what shipped and why. Most recent first.
 
 ---
 
-## Phase 4 — Multi-user collaboration (May 2026)
+## 👥 Phase 4 — Multi-user collaboration (May 2026)
 
-**Goal**: support 2 users sharing the inventory but each listing on their own Vinted account.
+**The constraint**: two users, one inventory, two Vinted accounts. Each needs to see who's listing what, track their own sales, and coordinate restocks without collisions.
 
 **Shipped**:
 - New tables: `user_profiles`, `card_listings`, `lot_listings`. RLS scoped by `auth.uid()` for writes.
@@ -93,7 +93,7 @@ Phase-by-phase history of what shipped and why. Most recent first.
 
 ---
 
-## Phase 3c — Bulk vendu + token optimization + multilang resilience (May 2026)
+## 🌐 Phase 3c — Bulk vendu + token optimization + multilang resilience (May 2026)
 
 **3 themes**:
 
@@ -111,9 +111,11 @@ Migrations: `rename_zh_to_cn`, `tcg_catalog_illustrator`. **Tests**: 279 passing
 
 ---
 
-## Phase 3b — Lots + bulk import (April–May 2026)
+## 📦 Phase 3b — Lots + bulk import (April–May 2026)
 
-**Phase 3b1**: Lots Vinted (bundles). Pivot away from "≤20 individual photos with per-card OCR" (slow, OCR unreliable). Replaced with `lots` as distinct entity (11 new columns). 5-field quick form + multi-photo dropzone, live annonce preview. Templated description with shipping block. `<LotForm>`, `<LotRow>`, `<LotAnnonceModal>` (carousel + chevrons + dot indicators + arrow keys, copy clipboard, anti-bot image download). Reuses `EditablePriceCell` + `VintedListedToggle` extended with optional `endpoint` prop. `SoldModal` extended with discriminated union `entity: { kind: 'card' | 'lot' }`. Migration `lots_vinted_bundle`.
+**The pivot**: trying to list 20 individual photos with per-card OCR was too slow and unreliable. **The fix**: introduce `lots` as a distinct entity — bundle, multi-photo dropzone, live annonce preview.
+
+**Phase 3b1**: Lots Vinted (bundles). 5-field quick form + multi-photo dropzone, live annonce preview. Templated description with shipping block. `<LotForm>`, `<LotRow>`, `<LotAnnonceModal>` (carousel + chevrons + dot indicators + arrow keys, copy clipboard, anti-bot image download). Reuses `EditablePriceCell` + `VintedListedToggle` extended with optional `endpoint` prop. `SoldModal` extended with discriminated union `entity: { kind: 'card' | 'lot' }`. Migration `lots_vinted_bundle`.
 
 **Phase 3b2**: Bulk import via 4th `/submit` tab "Batch" (≤30 photos, OCR+enrich pre-batched in parallel then `CardScanForm` chained card-by-card with auto-advance). Status conflict for_sale → 409 actionable server-side with `existingCard` payload (photo + price + meta). `<DuplicateForSaleModal>` proposes `[Cancel] / [Add to Stock]`. Helper `lib/utils/resize-image.ts` default 1600px (tested 1024 but 8/30 cards failed in prod, reverted). Status dropdown + Quantity field (POST loop × N, fallback collection on subsequent copies if Pokédex). Search Vinted extended to lots.
 
@@ -121,7 +123,9 @@ Migrations: `rename_zh_to_cn`, `tcg_catalog_illustrator`. **Tests**: 279 passing
 
 ---
 
-## Phase 3a — Daily pricing cron (May 2026)
+## ⏰ Phase 3a — Daily pricing cron (May 2026)
+
+**Keep prices fresh without manual refreshes.** Vercel cron runs daily at 2 AM UTC, updates the oldest 200 cards in bulk, and never touches user-controlled annonce prices.
 
 Vercel cron `0 2 * * *` UTC via TCGdex (`POST /api/prices/update`, protected by `CRON_SECRET`). Bulk mode (LIMIT 200, parallelism 10, oldest first via `cm_updated_at ASC NULLS FIRST`) + single-card mode (`?card_id=X` behind Supabase auth). Pure helpers: `categorize-pricing-card` (skip variant/KO/ZH, auto-backfill), `format-staleness` (4 tones). UI components `<PriceFreshnessBadge>` + `<RefreshPriceButton>` integrated in VintedRow / StockRow / PokedexDrawer. **Cron never touches `suggested_price`** (renamed "Annonce" in UI, 100% user-controlled via `EditablePriceCell`). Cron only writes `cm_price_low/trend/avg` + `cm_updated_at` + auto-backfill `card_id_tcg`/`cardmarket_id`.
 
@@ -129,7 +133,9 @@ Vercel cron `0 2 * * *` UTC via TCGdex (`POST /api/prices/update`, protected by 
 
 ---
 
-## Phase 2 — Vinted module (April 2026)
+## 💸 Phase 2 — Vinted module (April 2026)
+
+**You've scanned the cards. Now sell them.** A dedicated Vinted listing page with FIFO queuing, grouped rows, inline price edits, sold actions, and one-tap annonce generation.
 
 **Phase 2 (initial)**: FIFO list + variant-aware grouping (`card_id_tcg + language + condition + variant`), inline price edit, "Sold" action + restock toast, annonce generator with smart-truncated 80-char title + clipboard.
 
@@ -139,7 +145,9 @@ Vercel cron `0 2 * * *` UTC via TCGdex (`POST /api/prices/update`, protected by 
 
 ---
 
-## Phase 1.13 — Scanner + Pokédex view modes (April 2026)
+## 🔍 Phase 1.13 — Scanner + Pokédex view modes (April 2026)
+
+**Make the scanner friendlier and the Pokédex flexible.** FR translations from Gemini, 2-column scanner UI with magnifier loupe, and 3 view modes for the Pokédex.
 
 FR translations via Gemini (4 new fields `pokemon_number`, `pokemon_name_fr`, `set_name`, `set_name_fr`) → displayed names `"FR (Original)"` (e.g. `"Gruikui (チャオブー)"`). Scanner UI 2-column desktop + magnifier loupe 1.5× + variant dropdown + notes. Pokédex 3 view modes (grid-large / grid-compact / list) persisted in localStorage. Migration `add_cards_variant`.
 
@@ -147,7 +155,9 @@ FR translations via Gemini (4 new fields `pokemon_number`, `pokemon_name_fr`, `s
 
 ---
 
-## Phase 1.12 — Gemini OCR primary (April 2026)
+## 📷 Phase 1.12 — Gemini OCR primary (April 2026)
+
+**Accuracy over speed.** Switched OCR primary from Google Vision to Gemini 3 Flash Preview. Bench: 28/30 (93%). Vision kept as fallback. Cost: ~6¢/month for 100 scans.
 
 Switched OCR primary from Google Vision to Gemini 3 Flash Preview. Structured JSON extraction. Bench: 28/30 (93%). Vision kept as fallback. Cost: ~6¢/month for 100 scans.
 
@@ -155,7 +165,9 @@ Switched OCR primary from Google Vision to Gemini 3 Flash Preview. Structured JS
 
 ---
 
-## Phase 1.11 — Local TCG catalog (April 2026)
+## 📚 Phase 1.11 — Local TCG catalog (April 2026)
+
+**Stop relying on live APIs for enrichment.** Scrape and cache 111K cards locally. Post-scan enrichment jumped from 33% to 63-73%.
 
 Local catalog via LimitlessTCG scrape. 111K cards JP/EN/FR/DE/IT/ES/PT (later wiped DE/IT/ES/PT in Phase 3c). Post-scan enrichment goes from 33% to 63-73% (test bench).
 
@@ -163,7 +175,9 @@ Local catalog via LimitlessTCG scrape. 111K cards JP/EN/FR/DE/IT/ES/PT (later wi
 
 ---
 
-## Phase 1 — Foundation (March 2026)
+## 🏗️ Phase 1 — Foundation (March 2026)
+
+**Everything starts here.** Auth, layout, OCR (Vision), TCGdex enrichment, mobile scan, Pokédex suggestion, Pokédex grid, candidate picker.
 
 Auth, layout, OCR (Vision), TCGdex enrichment, mobile scan, Pokédex suggestion, Pokédex grid, candidate picker.
 

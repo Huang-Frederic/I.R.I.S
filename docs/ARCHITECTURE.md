@@ -1,6 +1,6 @@
 # Architecture
 
-A code map for navigating the I.R.I.S codebase. For user-facing functionality, see [docs/FEATURES.md](docs/FEATURES.md). For the database layer, see [docs/SUPABASE.md](docs/SUPABASE.md).
+Here's how I.R.I.S is built. Read it if you want to understand where things live and why. For user-facing functionality, see [FEATURES.md](FEATURES.md). For the database layer, see [SUPABASE.md](SUPABASE.md).
 
 ## Table of contents
 
@@ -15,26 +15,33 @@ A code map for navigating the I.R.I.S codebase. For user-facing functionality, s
 
 ---
 
-## Guiding principles
+## 🧱 Guiding principles
 
 ### 1. Pure helpers, thin components
+
 All business logic — grouping, filtering, sorting, formatting, validation — lives in `lib/utils/` as **pure functions** that take typed inputs and return typed outputs. Components consume helpers; they don't compute. This makes the logic unit-testable in isolation (no React, no Supabase) and the components a thin transformation of state.
 
 ### 2. Server components for reads, client components for interactivity
-Pages (server components) fan out parallel Supabase queries server-side. Lists / rows / modals (client components) call API routes for mutations. Avoids the latency of client-side waterfalls and keeps the security boundary clear.
+
+Pages (server components) fan out parallel Supabase queries server-side. Lists, rows, and modals (client components) call API routes for mutations. The pattern avoids the latency of client-side waterfalls and keeps the security boundary clear.
 
 ### 3. Catalog-first, network last
-The local Postgres catalog (`tcg_catalog`, 52K cards) is queried before any external API. TCGdex is the network fallback only when the local catalog has no hit. Same for pricing: Cardmarket S3 dumps locally first, TCGdex live as fallback.
+
+The local Postgres catalog (`tcg_catalog`, 52K cards) is queried before any external API. TCGdex is the network fallback only when the local catalog has no hit. Same for pricing: Cardmarket S3 dumps live in Postgres, TCGdex is the live fallback.
 
 ### 4. Per-user RLS, shared inventory
-Cards/lots are shared between the 2 users (both can read). The "listed by" state is per-user (`card_listings` / `lot_listings`) with RLS scoped by `auth.uid()`.
+
+Cards and lots are shared between the two users — both can read. The "listed by" state is per-user (`card_listings` / `lot_listings`) with RLS scoped by `auth.uid()`.
 
 ### 5. No business logic in JSX
+
 If you'd want to write a comment in a component to explain *why* something is computed, the computation belongs in a helper. The component only needs to know what to render.
 
 ---
 
-## Directory layout
+## 🗂 Directory layout
+
+The codebase is organized around Next.js App Router conventions.
 
 ```
 .
@@ -102,13 +109,17 @@ If you'd want to write a comment in a component to explain *why* something is co
 
 ---
 
-## App Router conventions
+## 🧭 App Router conventions
+
+Next.js 16 uses route groups and server-first rendering.
 
 ### Route groups
+
 - `(app)` — authenticated routes, share `(app)/layout.tsx` (UserContextProvider, sidebar, BottomNav, InstallPrompt, RouteChangeRefresher).
 - `(auth)` — public auth routes (login).
 
 ### Server vs client components
+
 By default, components in `app/` are server components. Only files marked with `'use client'` at the top are client components.
 
 | Module | Server component | Client component |
@@ -119,10 +130,13 @@ By default, components in `app/` are server components. Only files marked with `
 | `app/(app)/dashboard/page.tsx` | ✓ (5 parallel Supabase queries) | Charts are client (Recharts) |
 
 ### API routes
+
 Every mutation goes through `app/api/<resource>/route.ts`. Auth is checked via `createClient()` (which reads the Supabase session cookie) for user-triggered endpoints, or via `Authorization: Bearer $CRON_SECRET` for cron.
 
 ### Async params (Next.js 16)
+
 `params` is async — destructure with `await`:
+
 ```ts
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -132,7 +146,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 ---
 
-## Data flow: scan pipeline
+## 📷 Data flow: scan pipeline
+
+You point your phone at a card. Three seconds later, it's in the database.
+
+Here's what happens behind the scenes:
 
 ```
 Browser (mobile or desktop)
@@ -170,11 +188,13 @@ POST /api/cards (single) or /api/cards/batch (multiple)
 { card, success } → toast confirm, navigate or chain next scan
 ```
 
-The pipeline is wired in [`components/submit/CardScanForm.tsx`](components/submit/CardScanForm.tsx). The OCR and enrichment routes are designed to be reusable from `/submit/scan`, `/submit/batch`, and the inline scanner inside `/pokedex` drawer.
+The pipeline is wired in [`../components/submit/CardScanForm.tsx`](../components/submit/CardScanForm.tsx). The OCR and enrichment routes are designed to be reusable from `/submit/scan`, `/submit/batch`, and the inline scanner inside the Pokédex drawer.
 
 ---
 
-## Data flow: pricing pipeline
+## 💰 Data flow: pricing pipeline
+
+Every card in your for-sale pile gets a Cardmarket price. No manual lookup, no stale data.
 
 The pricing system has two execution paths: **daily cron** and **single-card refresh on demand**.
 
@@ -239,7 +259,9 @@ The single-card path (button in PokedexDrawer / Annonce modal) follows the same 
 
 ---
 
-## Data flow: listings (multi-user)
+## 👥 Data flow: listings (multi-user)
+
+Your partner has her own Vinted account. The collection is shared. The listings are not.
 
 ```
 cards (shared)              card_listings (per-user)
@@ -253,26 +275,28 @@ RLS:
   - writes: only auth.uid() = user_id
 ```
 
-When user A clicks "List on my Vinted" for a card:
+**When user A clicks "List on my Vinted" for a card:**
 - POST `/api/listings/card/<card_id>` with `Authorization` from session
 - Inserts `(card_id, user_id_A, NOW())` into `card_listings`
 - RLS prevents user A from inserting `(card_id, user_id_B, ...)`
 
-When user B looks at the same card:
+**When user B looks at the same card:**
 - VintedRow renders `<ListingBadges>` with both my-listing + partner-listing chips
 - Each chip uses the identity color of the corresponding user
 
-When user A marks the card sold:
+**When user A marks the card sold:**
 - PATCH `/api/cards/<card_id>` with `status='sold'` + `sold_by_user_id=A`
 - If user B also has an active listing → `<PartnerCleanupModal>` appears: "Demande à [B] de retirer son annonce"
 
-The "Refresh stamp" chip:
+**The "Refresh stamp" chip:**
 - Click → `<ConfirmDialog>` → POST `/api/listings/card/<card_id>` (upsert with `listed_at = NOW()`)
 - Effectively re-stamps the listing for Vinted's bump algorithm
 
 ---
 
-## Key modules
+## 🧩 Key modules
+
+The business logic lives outside of React. Here's where to find it.
 
 ### `lib/api/`
 
@@ -316,13 +340,17 @@ Three client variants:
 
 ### Pure component patterns
 
+A few components share logic across multiple contexts:
+
 - `<EditablePriceCell>` — accepts `endpoint` prop so it works for both `/api/cards/[id]` and `/api/lots/[id]`.
 - `<SoldModal>` — uses discriminated union `entity: { kind: 'card'; card } | { kind: 'lot'; lot }` for shared logic between cards and lots.
 - `<RefreshPriceButton>` — generic refresh trigger, consumed by Pokédex drawer + Vinted Annonce modal.
 
 ---
 
-## Testing strategy
+## 🧪 Testing strategy
+
+Tests live where the logic lives — in the helpers.
 
 Vitest + happy-dom. Tests focus on pure helpers; UI components are tested through helper coverage.
 
@@ -347,7 +375,7 @@ describe('groupCards', () => {
 });
 ```
 
-UI smoke is covered by the development workflow itself — the user runs the actual flows daily.
+UI smoke is covered by the development workflow itself — you run the actual flows daily.
 
 ### Running
 

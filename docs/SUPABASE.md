@@ -1,6 +1,6 @@
 # Supabase reference
 
-Schema, migrations, RLS policies, storage buckets, and reset procedure.
+This is your database reference — the full schema (12 tables), the migration timeline, the Row-Level Security policies that enforce per-user writes, the storage buckets for photos and backups, the RPCs that handle atomic Pokédex swaps, and the reset procedure when you need to spin up a fresh environment. Everything you need to understand and operate the I.R.I.S backend lives here.
 
 ## Table of contents
 
@@ -14,11 +14,13 @@ Schema, migrations, RLS policies, storage buckets, and reset procedure.
 
 ---
 
-## Tables overview
+## 🗂 Tables overview
 
-Twelve user-data tables organized in four groups:
+You're looking at 12 tables split into four groups — core inventory (cards, lots, listings), catalog (LimitlessTCG mirror), Cardmarket pricing (expansions, products, fast-path index), and Dashboard (OCR logs, stock snapshots). Here's what each one holds and why it exists.
 
 ### Core inventory (Phase 1 + 4)
+
+The inventory lives in `cards` and `lots`. The per-user Vinted listing states live in `card_listings` and `lot_listings`. User profiles hold display names and identity colors.
 
 | Table | Purpose | Notes |
 |---|---|---|
@@ -30,11 +32,15 @@ Twelve user-data tables organized in four groups:
 
 ### Catalog (Phase 1.11 + 3c)
 
+A local mirror of LimitlessTCG — roughly 52K cards across all languages, with indexes on set/number and illustrator.
+
 | Table | Purpose | Row count |
 |---|---|---|
 | `tcg_catalog` | Local mirror of LimitlessTCG (~52K cards) | Indexes on `(set_code, set_number, language)` and `(language, illustrator)`. |
 
 ### Cardmarket pricing (Phase 6)
+
+Cardmarket data comes from daily refreshed S3 dumps. Four tables: expansions metadata, product catalog, pricing data, and a fast-path lookup index built by scraping.
 
 | Table | Purpose | Row count |
 |---|---|---|
@@ -45,6 +51,8 @@ Twelve user-data tables organized in four groups:
 
 ### Dashboard (Phase 5)
 
+Two time-series tables power the dashboard KPIs and charts — OCR cost logs and daily stock value snapshots.
+
 | Table | Purpose |
 |---|---|
 | `ocr_usage_log` | Per-OCR-call cost log (engine, tokens, EUR cost). Used by KPI tile + cost chart. |
@@ -52,9 +60,9 @@ Twelve user-data tables organized in four groups:
 
 ---
 
-## Migrations chronology
+## 📜 Migrations chronology
 
-All migrations live in [`supabase/migrations/`](../supabase/migrations/) and apply alphabetically (timestamp prefix).
+Migrations are applied chronologically and named by phase. All migration files live in [`supabase/migrations/`](../supabase/migrations/) and apply in alphabetical order (timestamp prefix). Here's the timeline.
 
 | File | Purpose |
 |---|---|
@@ -99,9 +107,9 @@ npx supabase db push
 
 ---
 
-## Row-Level Security policies
+## 🔐 Row-Level Security policies
 
-Every table has RLS enabled. Read access is generally granted to any authenticated user (the app is a 2-user whitelist; data is shared). Writes are scoped where appropriate.
+Every table has RLS enabled. Read access is granted to any authenticated user — the app is a 2-user whitelist and the data is shared. Writes are scoped where it matters.
 
 ### Cards / lots / catalog / cardmarket — shared reads
 
@@ -145,7 +153,9 @@ create policy card_photos_insert on storage.objects
 
 ---
 
-## Storage buckets
+## 🪣 Storage buckets
+
+Three buckets handle photos and backups. Card and lot photos use signed URLs. Manual backups are service-role only.
 
 | Bucket | Public | Purpose |
 |---|---|---|
@@ -155,11 +165,13 @@ create policy card_photos_insert on storage.objects
 
 ---
 
-## Database functions / RPCs
+## ⚡ Database functions / RPCs
+
+One RPC handles the tricky case where you want to swap a Pokédex card but the slot is already occupied.
 
 ### `replace_pokedex_card(old_card_id uuid, new_card_id uuid, target_status text)`
 
-Atomic Pokédex slot swap. Used when the user wants to put a freshly scanned card into a Pokédex slot already occupied by another card.
+Atomic Pokédex slot swap. Used when you want to put a freshly scanned card into a Pokédex slot already occupied by another card.
 
 3-step transaction (rewritten in migration `fix_replace_pokedex_card_3step`):
 1. Move the existing pokedex card to a temporary status to free the unique constraint.
@@ -172,9 +184,9 @@ Called from [`/api/pokedex/replace`](../app/api/pokedex/replace/route.ts).
 
 ---
 
-## Reset procedure
+## ♻️ Reset procedure
 
-When you need to wipe everything and start fresh on a new Supabase project (region change, polluted state, etc.):
+When you need to wipe everything and start fresh on a new Supabase project — region change, polluted state, whatever — here's the full reset choreography.
 
 ### 1. Create the new project
 - New project on Supabase dashboard.
@@ -243,7 +255,9 @@ Then click through:
 
 ---
 
-## Inspection queries
+## 🔍 Inspection queries
+
+A handful of useful queries to inspect your data — card distribution, catalog coverage, Cardmarket scrape progress, OCR cost breakdown, and stale Vinted listings that need a bump.
 
 ### Card distribution
 ```sql

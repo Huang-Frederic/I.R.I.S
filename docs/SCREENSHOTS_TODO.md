@@ -1,10 +1,12 @@
 # Screenshots checklist
 
-The README and feature docs reference image files at fixed paths. This is the capture list.
+This is your capture checklist for README and feature docs. The filenames below are load-bearing — the README references these exact paths, so don't rename them.
 
 > Save all images to `docs/screenshots/`. Use PNG for static UI, GIF or short MP4 for flows. Keep file size reasonable (< 500 KB per static image, < 2 MB per GIF).
 
-## Recommended dimensions
+## 📐 Recommended dimensions
+
+Aim for these viewport sizes to keep the gallery consistent.
 
 - **Hero / banner shots**: 1600 × 900 (16:9), light theme + dark theme variants if you want
 - **Mobile screenshots**: 375 × 812 (iPhone 13 viewport) or 390 × 844 (iPhone 14)
@@ -13,9 +15,9 @@ The README and feature docs reference image files at fixed paths. This is the ca
 
 ---
 
-## README hero gallery (`docs/screenshots/`)
+## 🖼 README hero gallery (`docs/screenshots/`)
 
-The README has two 4-column tables of feature shots. Required filenames:
+The README feature tables reference these eight shots. Match the filenames exactly.
 
 | File | What to capture |
 |---|---|
@@ -30,7 +32,9 @@ The README has two 4-column tables of feature shots. Required filenames:
 
 ---
 
-## Optional GIFs (impactful for demos)
+## 🎬 Optional GIFs (impactful for demos)
+
+These animations bring key flows to life. Worth the extra capture time.
 
 | File | What it should show |
 |---|---|
@@ -42,7 +46,9 @@ The README has two 4-column tables of feature shots. Required filenames:
 
 ---
 
-## Capture tips
+## 📸 Capture tips
+
+Tools and settings that save time when you're screenshotting the entire app.
 
 ### Browser
 - Use Chrome DevTools device toolbar for consistent viewport sizes.
@@ -71,7 +77,7 @@ Before capturing, verify nothing sensitive shows:
 
 ---
 
-## After capture
+## ✅ After capture
 
 1. Drop the files into `docs/screenshots/` matching the names above.
 2. Verify the README renders correctly: `cat README.md | grep "screenshots/"` should show every reference, and each file should now exist.
