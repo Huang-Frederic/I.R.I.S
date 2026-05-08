@@ -84,7 +84,7 @@ No Playwright / Cypress suite. Critical flows (scan → enrich → save, sold �
 
 ### Heuristic disambig for non-modern sets — RESOLVED
 
-`cardmarket_card_index` is now populated for **all 738 expansions / 67 423 products** via a deterministic SQL formula derived from the daily dump itself (id_product order + card_prefix grouping → set_number + url_variant). The Playwright gallery scrape was abandoned as the primary path after multiple Cloudflare 1015 IP bans — see [`cardmarket-mapping.md`](cardmarket-mapping.md) for the discovery and validation.
+`cardmarket_card_index` is now populated for **all 738 expansions / 67 423 products** via a deterministic SQL formula derived from the daily dump itself (id_product order + card_prefix grouping → set_number + url_variant). The Playwright gallery scrape was abandoned as the primary path after multiple Cloudflare 1015 IP bans — see [`CARDMARKET_MAPPING.md`](CARDMARKET_MAPPING.md) for the discovery and validation.
 
 The fallback name-prefix matching in `cardmarket_products` is still present in [`lib/api/cardmarket-pricing.ts`](../lib/api/cardmarket-pricing.ts) for safety but rarely hit in practice now.
 
@@ -160,7 +160,7 @@ What stays untouched, no matter how the project grows. These are intentionally o
 - **Mobile native apps** — the PWA covers the use case; native would require 3 codebases.
 - **In-browser image editor** — users either accept the camera capture or re-take. No crop/rotate/filter tools.
 - **OCR for non-Pokémon TCG** — the catalog, prompts, and matching strategies are Pokémon-specific. Generalizing would require rebuilding most of the enrichment pipeline.
-- **Cardmarket marketplace integration** — the Cardmarket API closed to new applicants in 2023. We mirror the public S3 dumps for pricing; we don't list/buy/sell through Cardmarket programmatically.
+- **Cardmarket marketplace integration** — the Cardmarket API closed to new applicants in 2023. I mirror the public S3 dumps for pricing; I don't list/buy/sell through Cardmarket programmatically.
 
 ---
 

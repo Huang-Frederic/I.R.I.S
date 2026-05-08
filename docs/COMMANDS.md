@@ -36,7 +36,7 @@ Your daily dev workflow lives here. Defined in [`package.json`](../package.json)
 | Command | Purpose |
 |---|---|
 | `npm run upload-cardmarket-dumps` | Pull the latest Cardmarket S3 dumps (products + pricing) and bulk-upsert into Supabase. ~30s. Runs daily via GitHub Action. |
-| `npm run scrape-cardmarket -- <args>` | **Fallback only** — the `cardmarket_card_index` table is now populated by a SQL formula derived from the dump (see [`docs/cardmarket-mapping.md`](cardmarket-mapping.md)). The Playwright scraper is kept for wheel-type promo sets where the formula fails. See dedicated section below. |
+| `npm run scrape-cardmarket -- <args>` | **Fallback only** — the `cardmarket_card_index` table is now populated by a SQL formula derived from the dump (see [`docs/CARDMARKET_MAPPING.md`](CARDMARKET_MAPPING.md)). The Playwright scraper is kept for wheel-type promo sets where the formula fails. See dedicated section below. |
 | `npm run probe-cardmarket -- <slug>` | One-shot debug: open one Cardmarket page, dump the HTML to disk, print quick stats. Used for inspecting page structure before changing the scraper. |
 
 ### Backup/restore npm scripts
@@ -107,7 +107,7 @@ Required env: `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
 
 ### `scrape-cardmarket-cards.ts` (gallery scraper — fallback only)
 
-> ⚠️ **Rarely needed.** `cardmarket_card_index` is now populated by a deterministic SQL formula run directly against the daily dump — no scraping, no Cloudflare risk. See [`docs/cardmarket-mapping.md`](cardmarket-mapping.md) for the formula and validation. **Use this scraper only for the rare wheel-type promo sets** (Battle Party Set, Void Blast — collector range 0–9 with non-deterministic ordering) where the formula produces wrong numbers, or if you need accurate `url_path` deep links (the formula leaves `url_path = NULL`).
+> ⚠️ **Rarely needed.** `cardmarket_card_index` is now populated by a deterministic SQL formula run directly against the daily dump — no scraping, no Cloudflare risk. See [`docs/CARDMARKET_MAPPING.md`](CARDMARKET_MAPPING.md) for the formula and validation. **Use this scraper only for the rare wheel-type promo sets** (Battle Party Set, Void Blast — collector range 0–9 with non-deterministic ordering) where the formula produces wrong numbers, or if you need accurate `url_path` deep links (the formula leaves `url_path = NULL`).
 
 When you do need it: per-expansion Playwright scrape that builds the exact-match lookup index `cardmarket_card_index`. For each card on a Cardmarket gallery page, captures `idProduct`, `set_number`, `url_variant`, and `url_path`. Resume-safe, rate-limit aware.
 

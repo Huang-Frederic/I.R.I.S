@@ -52,7 +52,7 @@ You'll need a Supabase project to host the database, storage, and auth. This is 
 
 ### 2.2 Grab the API keys
 
-Project Settings → **API**. Copy these three values into your `.env.local` (we'll create it in step 5):
+Project Settings → **API**. Copy these three values into your `.env.local` (you'll create it in step 5):
 
 | Variable | Where to find it |
 |---|---|
@@ -257,7 +257,7 @@ SELECT g.id_product, g.id_expansion,
 FROM grouped g;
 ```
 
-Populates ~67k product mappings across 738 expansions in seconds. Validated against 5 manually-scraped sets (3 perfect matches, 2 wheel-type promos correctly skipped). Full discovery, caveats, and validation results in [`docs/cardmarket-mapping.md`](cardmarket-mapping.md).
+Populates ~67k product mappings across 738 expansions in seconds. Validated against 5 manually-scraped sets (3 perfect matches, 2 wheel-type promos correctly skipped). Full discovery, caveats, and validation results in [`docs/CARDMARKET_MAPPING.md`](CARDMARKET_MAPPING.md).
 
 ### Advanced: scrape Playwright gallery for wheel-type promo sets
 

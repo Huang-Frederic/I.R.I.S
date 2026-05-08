@@ -66,7 +66,7 @@ And when a single Vinted listing should bundle several cards, **Lots** ship a cu
 
 You don't price your cards. I.R.I.S does.
 
-Cardmarket's official API closed to new applicants in 2023, so the pricing pipeline is bespoke. A daily mirror of their public S3 dumps (**67K products + 72K pricing rows**) lands in Postgres, and a **deterministic SQL formula** derives the exact `(expansion, set_number) → idProduct` index from the dump itself — no scraping needed. (The Playwright gallery scraper is kept as a fallback for the rare wheel-type promo sets where the formula doesn't apply; see [docs/cardmarket-mapping.md](docs/cardmarket-mapping.md).) No fuzzy name guessing — every priced card carries a "View on Cardmarket ↗" deep link so the match is verifiable.
+Cardmarket's official API closed to new applicants in 2023, so the pricing pipeline is bespoke. A daily mirror of their public S3 dumps (**67K products + 72K pricing rows**) lands in Postgres, and a **deterministic SQL formula** derives the exact `(expansion, set_number) → idProduct` index from the dump itself — no scraping needed. (The Playwright gallery scraper is kept as a fallback for the rare wheel-type promo sets where the formula doesn't apply; see [docs/CARDMARKET_MAPPING.md](docs/CARDMARKET_MAPPING.md).) No fuzzy name guessing — every priced card carries a "View on Cardmarket ↗" deep link so the match is verifiable.
 
 The annonce generator turns a saved card into a ready-to-paste Vinted post: bilingual title (smart-truncated to 80 chars), templated description with shipping block, copy-to-clipboard button, downloadable card image (PNG, anti-bot watermark stripped). When a customer buys several cards at once, the bulk-sold flow splits the total across them automatically.
 
@@ -122,7 +122,7 @@ A few architectural choices worth calling out:
 - **Per-user RLS, shared inventory.** `cards` / `lots` are readable by both users; `card_listings` / `lot_listings` are writable only by their owner. The "who listed it" identity is computed at render time.
 - **Helpers are pure.** All logic that doesn't need React or Supabase lives in [`lib/utils/`](lib/utils/) — ~24 modules, all unit-tested. Components consume helpers; no business logic in JSX.
 - **Catalog-first enrichment.** Local Postgres lookup beats live API every time; TCGdex is the network fallback only when the local catalog has no hit.
-- **Cardmarket pricing without the API.** Public S3 dumps + a SQL formula (`id_product` order + `card_prefix` grouping) build the `(set, number) → idProduct` index in seconds. Exact matches, no name fuzzing, no Cloudflare battle. Full discovery and validation in [docs/cardmarket-mapping.md](docs/cardmarket-mapping.md).
+- **Cardmarket pricing without the API.** Public S3 dumps + a SQL formula (`id_product` order + `card_prefix` grouping) build the `(set, number) → idProduct` index in seconds. Exact matches, no name fuzzing, no Cloudflare battle. Full discovery and validation in [docs/CARDMARKET_MAPPING.md](docs/CARDMARKET_MAPPING.md).
 
 Full code map in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 

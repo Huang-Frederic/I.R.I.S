@@ -425,7 +425,7 @@ async function lookupCardmarketPricingInner(
   // Index populated by a SQL formula derived from the daily Cardmarket dump
   // (id_product order + card_prefix grouping → set_number + url_variant).
   // Covers ~95%+ of expansions; scripts/scrape-cardmarket-cards.ts is the
-  // fallback for wheel-type promos. See docs/cardmarket-mapping.md for the
+  // fallback for wheel-type promos. See docs/CARDMARKET_MAPPING.md for the
   // discovery and the ready-to-run query. Returns 1-3 exact idProduct
   // candidates — no name matching, no token tricks.
   if (card.set_number) {

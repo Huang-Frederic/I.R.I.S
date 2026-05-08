@@ -8,7 +8,7 @@
 // expansions in seconds, with no Cloudflare risk. See the full discovery,
 // validation results, and the ready-to-run query in:
 //
-//     docs/cardmarket-mapping.md
+//     docs/CARDMARKET_MAPPING.md
 //
 // This Playwright scraper is kept as the fallback for the cases the formula
 // can't handle:
