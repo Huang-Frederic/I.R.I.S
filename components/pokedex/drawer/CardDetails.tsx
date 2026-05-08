@@ -1,0 +1,145 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { RefreshCcw, Trash2 } from 'lucide-react';
+import type { Card } from '@/lib/types';
+import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
+import PokedexCardActionsModal from '../PokedexCardActionsModal';
+import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
+import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
+import CardmarketLink from '@/components/ui/CardmarketLink';
+import { Figure, Row, Price } from './DrawerUI';
+import ReplaceFlow from './ReplaceFlow';
+
+/** Pokédex drawer body when a card occupies the slot: photos, metadata,
+ *  pricing, replace + remove actions. */
+export default function CardDetails({
+  card,
+  availableCards,
+}: {
+  card: Card;
+  availableCards: Card[];
+}) {
+  const [showReplace, setShowReplace] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const router = useRouter();
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-2 gap-3">
+        {card.image_url && (
+          <Figure src={card.image_url} alt="Photo collection" caption="Ta photo" />
+        )}
+        {card.tcg_image_url && (
+          <Figure src={card.tcg_image_url} alt="Image officielle" caption="Image TCG" />
+        )}
+        {!card.image_url && !card.tcg_image_url && (
+          <p className="text-text-faint col-span-2 text-xs">Aucune image disponible.</p>
+        )}
+      </div>
+
+      <dl className="text-sm">
+        <Row label="Nom carte">{card.card_name}</Row>
+        <Row label="Set">
+          {card.set_name ?? '—'}
+          {card.set_code && (
+            <span className="text-text-faint font-mono text-xs"> ({card.set_code})</span>
+          )}
+        </Row>
+        <Row label="N° set">{card.set_number ?? '—'}</Row>
+        <Row label="Rareté">
+          <span className={RARITY_COLOR[card.rarity] ?? 'text-text-muted'}>{card.rarity}</span>
+          {card.variant && (
+            <span className="bg-surface-off text-text-muted ml-2 inline-flex items-center rounded px-1.5 py-0.5 font-mono text-xs">
+              {VARIANT_LABEL[card.variant] ?? card.variant}
+            </span>
+          )}
+        </Row>
+        <Row label="Langue">{card.language}</Row>
+        <Row label="État">{card.condition}</Row>
+        <Row label="Ajoutée">
+          <span suppressHydrationWarning>
+            {new Date(card.date_added).toLocaleDateString('fr-FR')}
+          </span>
+        </Row>
+      </dl>
+
+      {(card.cm_price_low ?? card.cm_price_trend ?? card.cm_price_avg ?? card.suggested_price) !==
+      null ? (
+        <div className="bg-surface-2 rounded-lg p-4 text-sm">
+          <div className="flex items-stretch gap-3">
+            <div className="grid flex-1 grid-cols-2 gap-3 md:grid-cols-4">
+              <Price label="Low" value={card.cm_price_low} />
+              <Price label="Trend" value={card.cm_price_trend} />
+              <Price label="Avg" value={card.cm_price_avg} />
+              <Price label="Annonce" value={card.suggested_price} highlight />
+            </div>
+            <div className="flex shrink-0 flex-col items-end justify-end gap-1">
+              <RefreshPriceButton
+                cardId={card.id}
+                onRefreshed={() => {
+                  // Pokédex drawer reads from props; re-fetch from the server.
+                  router.refresh();
+                }}
+              />
+              <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
+            </div>
+          </div>
+          {card.cardmarket_url && (
+            <div className="mt-2 text-right">
+              <CardmarketLink url={card.cardmarket_url} />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <p className="text-text-faint text-xs">Pas encore de prix Cardmarket.</p>
+          <RefreshPriceButton cardId={card.id} onRefreshed={() => router.refresh()} />
+        </div>
+      )}
+
+      {availableCards.length > 0 && (
+        <div className="border-border border-t pt-4">
+          {!showReplace ? (
+            <button
+              type="button"
+              onClick={() => setShowReplace(true)}
+              className="border-border text-text-muted hover:bg-surface-2 hover:text-text flex w-full items-center justify-center gap-2 rounded border px-3 py-2 text-sm"
+            >
+              <RefreshCcw className="h-4 w-4" />
+              Remplacer ({availableCards.length} disponible{availableCards.length > 1 ? 's' : ''})
+            </button>
+          ) : (
+            <ReplaceFlow
+              currentCard={card}
+              candidates={availableCards}
+              onCancel={() => setShowReplace(false)}
+            />
+          )}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setActionsOpen(true)}
+        className="bg-surface-2 hover:bg-surface-off border-red text-red mt-4 inline-flex w-full items-center justify-center gap-2 rounded border px-4 py-2 text-sm"
+      >
+        <Trash2 className="h-4 w-4" />
+        Retirer cette carte
+      </button>
+
+      {actionsOpen && (
+        <PokedexCardActionsModal
+          card={card}
+          hasForSaleConflict={false}
+          onClose={() => setActionsOpen(false)}
+          onDone={() => {
+            setActionsOpen(false);
+            router.refresh();
+          }}
+        />
+      )}
+    </div>
+  );
+}

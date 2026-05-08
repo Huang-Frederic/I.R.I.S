@@ -1,7 +1,7 @@
 // components/vinted/VintedList.tsx
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Card, Lot, CardWithListings, LotWithListings, BaseListing } from '@/lib/types';
 import { groupCards, groupKey, type CardGroup } from '@/lib/utils/group-cards';
@@ -31,6 +31,9 @@ import BulkSoldModal, { type BulkSoldItem } from './BulkSoldModal';
 import BulkSoldRecapModal from './BulkSoldRecapModal';
 import { splitPrice } from '@/lib/utils/split-bulk-price';
 import { useUserContext } from '@/lib/hooks/useUserContext';
+import { useDataSync } from './hooks/useDataSync';
+import { useSelectionMode } from './hooks/useSelectionMode';
+import { useStockCount } from './hooks/useStockCount';
 
 export interface VintedListProps {
   cards: CardWithListings[];
@@ -84,29 +87,25 @@ function matchesAttrFilters(card: CardWithListings, f: VintedFilterState): boole
 export default function VintedList({ cards: initial, lots: initialLots, collectionCards: initialCollection, registered, config }: VintedListProps) {
   const router = useRouter();
   const { myUserId, partnerUserId, partnerName } = useUserContext();
-  const [cards, setCards] = useState<CardWithListings[]>(initial);
-  const [lots, setLots] = useState<LotWithListings[]>(initialLots);
-  const [collectionCards, setCollectionCards] = useState<Card[]>(initialCollection);
-  /** Set of group keys currently mid-clone/delete — used to disable the chip
-   *  during the round-trip and avoid double-clicks. */
-  const [stockBusyKeys, setStockBusyKeys] = useState<Set<string>>(new Set());
 
-  // Re-sync local state when the server-rendered props change (after a
-  // router.refresh() following a listing toggle / sold action / etc.).
-  // Without this, useState's initial value stays frozen and the UI doesn't
-  // reflect SSR re-fetches. The setState-in-effect cascade fires once per
-  // SSR refetch — that's the explicit goal here, not a bug.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setCards(initial); }, [initial]);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setLots(initialLots); }, [initialLots]);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setCollectionCards(initialCollection); }, [initialCollection]);
+  // Data state — see useDataSync for the prop→state re-sync rationale.
+  const { cards, setCards, lots, setLots, collectionCards, setCollectionCards } = useDataSync(
+    initial,
+    initialLots,
+    initialCollection,
+  );
+
   const [filters, setFilters] = useState<VintedFilterState>(INITIAL_FILTERS);
   const [now] = useState(() => Date.now());
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const { selectionMode, selectedIds, toggleSelect, toggleSelectionMode, cancelSelection } =
+    useSelectionMode();
   const [bulkSoldOpen, setBulkSoldOpen] = useState(false);
+
+  const { stockCountByGroup, stockBusyKeys, handleSetStockCount } = useStockCount(
+    collectionCards,
+    setCollectionCards,
+  );
 
   const storagePublicUrl = (path: string) =>
     `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/lot-photos/${path}`;
@@ -239,30 +238,6 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     setPartnerCleanup(null);
     router.refresh();
   };
-
-  function toggleSelect(id: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleSelectionMode() {
-    setSelectionMode((m) => {
-      if (m) {
-        // Exiting selection mode → clear selection
-        setSelectedIds(new Set());
-      }
-      return !m;
-    });
-  }
-
-  function cancelSelection() {
-    setSelectedIds(new Set());
-    setSelectionMode(false);
-  }
 
   async function handleBulkSold(items: BulkSoldItem[], totalPrice: number, dateSoldIso: string) {
     const prices = splitPrice(totalPrice, items.length);
@@ -447,74 +422,6 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
   }, [cards, lots, filters, now, myUserId, partnerUserId]);
 
   const isEmpty = groups.length === 0 && soldRows.length === 0 && forSaleLots.length === 0 && soldLotsList.length === 0;
-
-  // Per-group count of physical copies in Stock (status='collection'),
-  // keyed by groupKey. Drives the editable StockCountChip on each row.
-  const stockCountByGroup = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const c of collectionCards) {
-      const k = groupKey(c);
-      m.set(k, (m.get(k) ?? 0) + 1);
-    }
-    return m;
-  }, [collectionCards]);
-
-  /** Diff the requested target against the current count for this group's
-   *  collection rows. Cloning uses the for_sale head as source (clone always
-   *  lands in 'collection' per the endpoint). Deleting picks the freshest
-   *  collection rows so the originals stay. target=0 deletes them all. */
-  async function handleSetStockCount(forSaleHead: Card, target: number) {
-    if (target < 0) return;
-    const key = groupKey(forSaleHead);
-    const matching = collectionCards.filter((c) => groupKey(c) === key);
-    const diff = target - matching.length;
-    if (diff === 0) return;
-
-    setStockBusyKeys((prev) => {
-      const next = new Set(prev);
-      next.add(key);
-      return next;
-    });
-    try {
-      if (diff > 0) {
-        const results = await Promise.all(
-          Array.from({ length: diff }, async () => {
-            const res = await fetch(`/api/cards/${forSaleHead.id}/clone`, { method: 'POST' });
-            if (!res.ok) {
-              const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-              throw new Error(body.message ?? body.error ?? `Clone échoué (${res.status})`);
-            }
-            return ((await res.json()) as { card: Card }).card;
-          }),
-        );
-        setCollectionCards((prev) => [...prev, ...results]);
-      } else {
-        // Drop the |diff| FRESHEST copies (or all if target=0).
-        const sorted = [...matching].sort((a, b) => a.date_added.localeCompare(b.date_added));
-        const toDelete = sorted.slice(target);
-        await Promise.all(
-          toDelete.map(async (c) => {
-            const res = await fetch(`/api/cards/${c.id}`, { method: 'DELETE' });
-            if (!res.ok) {
-              const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-              throw new Error(body.message ?? body.error ?? `Suppression échouée (${res.status})`);
-            }
-          }),
-        );
-        const droppedIds = new Set(toDelete.map((c) => c.id));
-        setCollectionCards((prev) => prev.filter((c) => !droppedIds.has(c.id)));
-      }
-    } catch (err) {
-      console.error('handleSetStockCount failed:', err);
-      alert(err instanceof Error ? err.message : 'Erreur inconnue');
-    } finally {
-      setStockBusyKeys((prev) => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
-    }
-  }
 
   return (
     <div>
