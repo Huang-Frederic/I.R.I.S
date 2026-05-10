@@ -231,45 +231,59 @@ select count(*) from cardmarket_pricing;      -- expected: ~67,650
 
 ---
 
-## 9. 🧮 Build the `cardmarket_card_index` (SQL formula, not scraping)
+## 9. 🧮 Build the `cardmarket_card_index` (BrightData scraper)
 
-The exact `(expansion, set_number, variant) → idProduct` index is derived **directly from the dump** by a deterministic SQL formula — no scraping, no Cloudflare risk. Run this once after the first dump upload (step 8) and any time the dump adds new expansions.
+The exact `(expansion, set_number) → id_product` index that powers the FAST PATH lookup in [`lib/api/cardmarket-pricing.ts`](../lib/api/cardmarket-pricing.ts) is built by visiting each expansion's Cardmarket gallery page through **BrightData Web Unlocker**. The scraper also captures each expansion's **`set_prefix`** (the S3 image-URL token like `BRS`/`LOR`/`sv2a`) and writes it to `cardmarket_expansions.set_prefix` — this is what enrichment Strategy 0 and the [`/api/cm-img`](../app/api/cm-img/%5Bid%5D/route.ts) image proxy pivot on.
 
-```sql
--- Run in Supabase SQL editor
-INSERT INTO cardmarket_card_index (id_product, id_expansion, set_number, url_variant, language, url_path)
-WITH ordered AS (
-  SELECT cp.id_expansion, cp.id_product, cp.card_prefix,
-    LAG(cp.card_prefix) OVER (PARTITION BY cp.id_expansion ORDER BY cp.id_product) AS prev_prefix
-  FROM cardmarket_products cp
-  WHERE cp.id_expansion NOT IN (SELECT DISTINCT id_expansion FROM cardmarket_card_index)
-),
-grouped AS (
-  SELECT id_expansion, id_product,
-    SUM(CASE WHEN card_prefix IS DISTINCT FROM prev_prefix THEN 1 ELSE 0 END)
-      OVER (PARTITION BY id_expansion ORDER BY id_product) AS card_group_idx
-  FROM ordered
-)
-SELECT g.id_product, g.id_expansion,
-  DENSE_RANK() OVER (PARTITION BY g.id_expansion ORDER BY g.card_group_idx)::text,
-  CASE WHEN COUNT(*) OVER (PARTITION BY g.id_expansion, g.card_group_idx) > 1
-    THEN 'V' || ROW_NUMBER() OVER (PARTITION BY g.id_expansion, g.card_group_idx ORDER BY g.id_product)::text
-    ELSE NULL END,
-  'fr', NULL
-FROM grouped g;
-```
-
-Populates ~67k product mappings across 738 expansions in seconds. Validated against 5 manually-scraped sets (3 perfect matches, 2 wheel-type promos correctly skipped). Full discovery, caveats, and validation results in [`docs/CARDMARKET_MAPPING.md`](CARDMARKET_MAPPING.md).
-
-### Advanced: scrape Playwright gallery for wheel-type promo sets
-
-For the rare wheel-type promo sets where the formula doesn't apply (Battle Party Set, Void Blast — collector range 0–9 with non-deterministic ordering), use the Playwright scraper:
+The whole sub-project lives in [`scrapers/cardmarket/`](../scrapers/cardmarket/) — full docs in [its README](../scrapers/cardmarket/README.md). Quick start:
 
 ```bash
-npm run scrape-cardmarket -- <slug-of-the-wheel-set>
+# 1. Sign up at https://brightdata.com → create a Web Unlocker zone (mine is named "iris")
+# 2. Copy your API token from https://brightdata.com/cp/api_tokens
+
+# 3. Configure the scraper's .env
+cd scrapers/cardmarket
+cat > .env <<EOF
+BRIGHTDATA_TOKEN=your-token
+BRIGHTDATA_ZONE=iris
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+EOF
+
+# 4. Generate the input JSON listing every NULL-prefix expansion
+cd ../..
+npx tsx scripts/generate-rescrape-input.ts                # all unscraped expansions
+# OR
+npx tsx scripts/generate-rescrape-input.ts --min-id=5200  # SV-era only
+cp scrapers/cardmarket/.actor/RESCRAPE_INPUT.json \
+   scrapers/cardmarket/storage/key_value_stores/default/INPUT.json
+
+# 5. Run it
+cd scrapers/cardmarket
+npx tsx src/main.ts
 ```
 
-Run from a clean residential IP. Cardmarket's Cloudflare protection is aggressive and a full `--all` run is **not recommended** — the SQL formula above replaces it. See [`scripts/scrape-cardmarket-cards.ts`](../scripts/scrape-cardmarket-cards.ts) header for the anti-bot posture (rebrowser-playwright, 15s/page, kill switch at 2 cumulative 429s).
+Cost: ~$4.50 per full backfill (741 expansions × ~4 pages each at $1.50 / CPM). The BrightData free tier ($5 credit) covers one full pass. Coverage today is **529 / 741 expansions (~71 %)** — the missing 212 are mostly very old or niche JP/CN sets. Re-running the scraper for new expansions (typically monthly when Cardmarket adds a set) is mechanical: regenerate the input file, run the scraper.
+
+After a successful run, snapshot the result so a future DB reset doesn't lose work:
+
+```bash
+npm run snapshot-cardmarket-index   # writes backups/cardmarket_card_index.jsonl.gz
+```
+
+### Fallback paths
+
+Two fallback paths exist for cases where the BrightData scraper isn't suitable. Full details in [`docs/CARDMARKET_MAPPING.md`](CARDMARKET_MAPPING.md).
+
+- **SQL formula** — derives `(set_number, url_variant)` from the dump's `id_product` ordering and `card_prefix` grouping. Populates ~67 k mappings across 738 expansions in seconds. Leaves `url_path = NULL` (deep-link is synthesised on demand). Useful for rapid prototyping when BrightData isn't available, and for the historical record of how the index existed before the scraper. Wrong on wheel-type promo sets (Battle Party Set, Void Blast).
+
+- **Playwright scraper** ([`scripts/scrape-cardmarket-cards.ts`](../scripts/scrape-cardmarket-cards.ts)) — wheel-type promo sets where the SQL formula produces wrong collector numbers. Hits Cardmarket directly, rate-limited, Cloudflare-prone. Run only from a clean residential IP, only on the affected slug:
+
+  ```bash
+  npm run scrape-cardmarket -- <slug-of-the-wheel-set>
+  ```
+
+  Do **not** run `npm run scrape-cardmarket -- --all` — BrightData covers the catalogue.
 
 ---
 

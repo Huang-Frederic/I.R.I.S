@@ -19,6 +19,7 @@
     "restore-catalog": "tsx scripts/restore-catalog.ts",
     "snapshot-cardmarket-index": "tsx scripts/snapshot-cardmarket-index.ts",
     "restore-cardmarket-index": "tsx scripts/restore-cardmarket-index.ts",
+    "restore-cardmarket-expansions": "tsx scripts/restore-cardmarket-expansions.ts",
     "upload-cardmarket-dumps": "tsx scripts/upload-cardmarket-dumps.ts",
     "probe-cardmarket": "tsx scripts/probe-cardmarket-expansion.ts",
     "scrape-cardmarket": "tsx scripts/scrape-cardmarket-cards.ts",

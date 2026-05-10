@@ -420,12 +420,13 @@ async function lookupCardmarketPricingInner(
   }
 
   // FAST PATH: cardmarket_card_index lookup by (id_expansion, set_number).
-  // Index populated by a SQL formula derived from the daily Cardmarket dump
-  // (id_product order + card_prefix grouping → set_number + url_variant).
-  // Covers ~95%+ of expansions; scripts/scrape-cardmarket-cards.ts is the
-  // fallback for wheel-type promos. See docs/CARDMARKET_MAPPING.md for the
-  // discovery and the ready-to-run query. Returns 1-3 exact idProduct
-  // candidates — no name matching, no token tricks.
+  // Index populated by the BrightData scraper at scrapers/cardmarket/ —
+  // visits each expansion's gallery page and extracts the real
+  // (id_product, set_number, url_variant, url_path, set_prefix) tuples.
+  // Covers ~71% of expansions today; the SQL formula in CARDMARKET_MAPPING.md
+  // is a rapid-prototyping fallback (no url_path, wrong on wheel-type promos),
+  // and scripts/scrape-cardmarket-cards.ts is the wheel-set escape hatch.
+  // Returns 1-3 exact idProduct candidates — no name matching, no token tricks.
   if (card.set_number) {
     const slashIdx = card.set_number.indexOf('/');
     const numClean = (slashIdx === -1 ? card.set_number : card.set_number.slice(0, slashIdx))
