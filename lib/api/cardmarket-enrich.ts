@@ -157,15 +157,27 @@ export async function lookupBySetPrefixAndName(
   if (expansions.length === 0) return [];
 
   const expansionIds = expansions.map((e) => e.id_expansion);
+  const target = normalize(pokemonName);
+  // Sanitize for ILIKE (% and _ are SQL wildcards). Pokémon names from the
+  // static dex map don't contain these, but defense-in-depth.
+  const targetSafe = target.replace(/[%_]/g, '');
+
+  // Filter at the SQL level — pulling all products of an expansion and
+  // filtering client-side hits a 500-row cap on big sets like LOR (~400+
+  // products with variants) and silently misses cards past the limit.
   const { data: products } = await supabase
     .from('cardmarket_products')
     .select('id_product, name, card_prefix, card_prefix_normalized, id_expansion')
     .in('id_expansion', expansionIds)
-    .limit(500);
+    .ilike('card_prefix_normalized', `%${targetSafe}%`)
+    .limit(50);
   const prods = (products ?? []) as ProductRow[];
   if (prods.length === 0) return [];
 
-  const target = normalize(pokemonName);
+  // Final client-side check: also accept the inverse substring direction
+  // (e.g. OCR pokemon "Charizard V" vs cardmarket "Charizard"). The SQL
+  // ilike already caught the common case (target ⊂ candidate); this catches
+  // the reverse.
   const matched = prods.filter((p) => {
     const candidate = p.card_prefix_normalized || normalize(p.card_prefix || p.name);
     if (!candidate) return false;
