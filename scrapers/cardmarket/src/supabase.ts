@@ -73,5 +73,20 @@ export async function upsertCards(
     }
     inserted += batch.length;
   }
+
+  // Persist the set_prefix on cardmarket_expansions (constant per expansion).
+  // Used by the enrich pipeline to build S3 image URLs.
+  const setPrefix = cards.find((c) => c.setPrefix)?.setPrefix;
+  if (setPrefix) {
+    const { error: updErr } = await client
+      .from('cardmarket_expansions')
+      .update({ set_prefix: setPrefix })
+      .eq('id_expansion', idExpansion);
+    if (updErr) {
+      throw new Error(
+        `Supabase set_prefix update failed (expansion ${idExpansion}): ${updErr.message}`,
+      );
+    }
+  }
   return inserted;
 }

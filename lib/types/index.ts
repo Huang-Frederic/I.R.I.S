@@ -137,20 +137,25 @@ export interface OcrResult {
   confidence: number;
   /** Per-word boxes — used by the smart extractors below. */
   words: WordAnnotation[];
-  /** "<card>/<setSize>" pulled from the bottom-left region (where it's printed on a Pokémon card). */
-  setNumberCandidate: { card: string; total: string; raw: string } | null;
-  /** Set code (e.g. "SV11W") detected near the set number. */
+  /** "<card>/<setSize>" pulled from the bottom-left region.
+   *  card may be null when Gemini detects a TG/GG/SV subseries — the picker
+   *  lookup handles those by name, not by number. */
+  setNumberCandidate: { card: string | null; total: string; raw: string } | null;
+  /** Set abbreviation printed on the card (e.g. "BRS", "LOR", "BKR").
+   *  This IS the set_prefix used by the enrich pipeline — same field, kept
+   *  the legacy name to avoid churning every consumer. */
   setCodeCandidate: string | null;
 
   // Optional, populated only when Gemini provides them (not by Vision fallback)
   pokemonNumber?: number | null;
   pokemonNameFr?: string | null;
+  /** English species name. Used by enrich Strategy 1 to query
+   *  cardmarket_products.card_prefix which is always English. */
+  pokemonNameEn?: string | null;
   /** Full French card name (incl. suffixes for Pokémon, OR Trainer/Energy
    *  translation). When set, takes precedence over the deriveCardNameFr
    *  fallback that just appends a suffix to pokemonNameFr. */
   cardNameFr?: string | null;
-  setName?: string | null;
-  setNameFr?: string | null;
 
   /**
    * Language detected by Gemini (the structured `language` field from the

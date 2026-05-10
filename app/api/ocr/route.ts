@@ -6,6 +6,7 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { createClient } from '@/lib/supabase/server';
 import { computeVisionCostEur } from '@/lib/utils/ocr-cost';
 import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
+import POKEMON_NAMES from '@/lib/data/pokemon-names.json';
 
 export const runtime = 'nodejs';
 
@@ -70,8 +71,34 @@ export async function POST(request: Request) {
   // tokens were burned even though Vision had to step in.
   const { extraction: geminiResult, usage: geminiUsage } = await extractCardFromImage(buffer);
   if (geminiResult) {
+    // Pokémon name translations: NEVER trust Gemini's pokemon_name_fr /
+    // pokemon_name_en — it hallucinates routinely (e.g. "Abo" for dex=3,
+    // "Mew" for dex=5). The national dex number IS language-agnostic ground
+    // truth, and we have a static dex → {fr,en,ja} map (lib/data/pokemon-names.json,
+    // generated once from PokéAPI). Lookup is O(1), zero network, deterministic.
+    if (geminiResult.pokemon_number) {
+      const entry = (POKEMON_NAMES as Record<string, { fr: string; en: string; ja: string }>)[
+        String(geminiResult.pokemon_number)
+      ];
+      if (entry) {
+        if (entry.fr && entry.fr !== geminiResult.pokemon_name_fr) {
+          console.log(
+            `[ocr] override pokemon_name_fr "${geminiResult.pokemon_name_fr}" → "${entry.fr}" (dex=${geminiResult.pokemon_number})`,
+          );
+        }
+        if (entry.en && entry.en !== geminiResult.pokemon_name_en) {
+          console.log(
+            `[ocr] override pokemon_name_en "${geminiResult.pokemon_name_en}" → "${entry.en}" (dex=${geminiResult.pokemon_number})`,
+          );
+        }
+        if (entry.fr) geminiResult.pokemon_name_fr = entry.fr;
+        if (entry.en) geminiResult.pokemon_name_en = entry.en;
+      }
+    }
+    const setNumStr = geminiResult.set_number ?? '';
+    const setPrefixStr = geminiResult.set_prefix ?? '';
     const ocrResult: OcrResult = {
-      text: `${geminiResult.card_name} | ${geminiResult.pokemon_name ?? ''} | ${geminiResult.set_code}-${geminiResult.set_number} | ${geminiResult.language}`,
+      text: `${geminiResult.card_name} | ${geminiResult.pokemon_name ?? ''} | ${setPrefixStr}-${setNumStr} | ${geminiResult.language}`,
       confidence:
         geminiResult.confidence === 'high'
           ? 0.95
@@ -80,23 +107,22 @@ export async function POST(request: Request) {
             : 0.5,
       words: [], // Gemini doesn't give word-level boxes; empty is fine
       setNumberCandidate:
-        geminiResult.set_total != null
+        geminiResult.set_total != null && geminiResult.set_number
           ? {
               card: geminiResult.set_number,
               total: String(geminiResult.set_total),
               raw: `${geminiResult.set_number}/${geminiResult.set_total}`,
             }
           : {
-              card: geminiResult.set_number,
+              card: geminiResult.set_number, // null for TG/GG → triggers picker
               total: '',
-              raw: geminiResult.set_number,
+              raw: geminiResult.set_number ?? '',
             },
-      setCodeCandidate: geminiResult.set_code,
+      setCodeCandidate: geminiResult.set_prefix, // set_prefix doubles as the form's set code
       pokemonNumber: geminiResult.pokemon_number,
       pokemonNameFr: geminiResult.pokemon_name_fr,
+      pokemonNameEn: geminiResult.pokemon_name_en,
       cardNameFr: geminiResult.card_name_fr,
-      setName: geminiResult.set_name,
-      setNameFr: geminiResult.set_name_fr,
       language: normalizeGeminiLanguage(geminiResult.language),
       cardName: geminiResult.card_name,
       pokemonName: geminiResult.pokemon_name,
@@ -139,3 +165,4 @@ export async function POST(request: Request) {
     });
   }
 }
+

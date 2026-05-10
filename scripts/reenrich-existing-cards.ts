@@ -23,7 +23,6 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const CM_IMG_BASE = 'https://product-images.s3.cardmarket.com/51';
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   throw new Error('NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY required in .env.local');
@@ -87,6 +86,7 @@ interface ExpansionRow {
   name: string | null;
   name_en: string | null;
   name_ja: string | null;
+  set_prefix: string | null;
 }
 
 let expansionsCache: ExpansionRow[] | null = null;
@@ -95,7 +95,7 @@ async function loadExpansions(supabase: SupabaseClient): Promise<ExpansionRow[]>
   if (expansionsCache) return expansionsCache;
   const { data } = await supabase
     .from('cardmarket_expansions')
-    .select('id_expansion, name, name_en, name_ja');
+    .select('id_expansion, name, name_en, name_ja, set_prefix');
   expansionsCache = (data ?? []) as ExpansionRow[];
   return expansionsCache;
 }
@@ -119,6 +119,7 @@ async function lookupCardmarket(
   if (!expansion) return null;
   const idExpansion: number = expansion.id_expansion;
   const setNameEn: string | null = expansion.name_en ?? expansion.name ?? null;
+  const setPrefix: string | null = expansion.set_prefix;
 
   // Step 2: lookup index row.
   const { data: indexRow } = await supabase
@@ -131,23 +132,29 @@ async function lookupCardmarket(
   if (!indexRow) return null;
   const idProduct: number = indexRow.id_product;
 
-  // Step 3: fetch product name + card_prefix (required for image URL).
+  // Step 3: fetch product display name (use card_prefix, not name, to avoid
+  // bracketed attack disambig like "Pansage [Collect | Scratch | SV]").
   const { data: product } = await supabase
     .from('cardmarket_products')
     .select('id_product, name, card_prefix')
     .eq('id_product', idProduct)
     .single();
+  if (!product) return null;
+  const displayName: string =
+    (product.card_prefix as string | null)?.trim() ||
+    (product.name as string | null)?.replace(/\s*\[.*$/, '').trim() ||
+    '';
 
-  const cardPrefix: string = product?.card_prefix ?? '';
-  // Pattern: https://product-images.s3.cardmarket.com/51/{set_prefix}/{idProduct}/{idProduct}.jpg
-  // The set_prefix is required — flat path returns 403.
-  const imageUrl = cardPrefix
-    ? `${CM_IMG_BASE}/${cardPrefix}/${idProduct}/${idProduct}.jpg`
-    : `${CM_IMG_BASE}/${idProduct}/${idProduct}.jpg`;
+  // Goes through our /api/cm-img proxy (cardmarket S3 returns 403 to direct
+  // hotlinks). set_prefix lives on cardmarket_expansions; empty when not
+  // backfilled → UI shows no image instead of a broken one.
+  const imageUrl = setPrefix
+    ? `/api/cm-img/${idProduct}?prefix=${encodeURIComponent(setPrefix)}`
+    : '';
 
   return {
     cardmarket_id: String(idProduct),
-    card_name: product?.name ?? '',
+    card_name: displayName,
     set_name: setNameEn ?? '',
     tcg_image_url: imageUrl,
   };

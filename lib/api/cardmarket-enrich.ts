@@ -1,108 +1,211 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-const CM_IMG_BASE = 'https://product-images.s3.cardmarket.com/51';
+// Cardmarket S3 + CloudFront flag direct hotlinks (403). All image URLs we
+// surface to the client go through our proxy at /api/cm-img/[id]?prefix=...
+// which fetches with browser-like headers and caches at the edge.
 
-export interface CardmarketLookupInput {
-  setName: string;
-  setNumber: string;
-  language: string;
-}
-
-export interface CardmarketLookupResult {
+export interface CardmarketCard {
   cardmarket_id: string;
   cardmarket_url_path: string;
+  /** Pokémon/card name without bracketed attack disambig.
+   *  e.g. "Dracaufeu V" not "Dracaufeu V [Wing Attack | Crimson Dive]". */
   card_name: string;
+  set_prefix: string;
   set_name: string;
-  set_name_ja: string | null;
+  set_number: string;
   tcg_image_url: string;
 }
 
 /**
- * Strategy 0 of the enrich pipeline: resolve a card identity entirely from
- * our local Cardmarket-derived tables (no network).
- *
- * Steps:
- *   1. Resolve set_name (any locale) → id_expansion via cardmarket_expansions
- *      (matches against name, name_en, or name_ja).
- *   2. Lookup (id_expansion, set_number) in cardmarket_card_index → id_product.
- *   3. Fetch the product display name from cardmarket_products.
- *   4. Build the canonical S3 image URL from the cardmarket image pattern.
- *
- * Returns null on any miss — caller falls back to TCGdex strategies.
+ * Strip bracketed attack/variant disambig that Cardmarket appends to product
+ * names ("Pansage [Collect | Scratch | SV]" → "Pansage"). Prefer card_prefix
+ * (already stripped server-side at scrape time) when available.
  */
-export async function lookupCardmarketStrategy0(
+function displayName(name: string, cardPrefix?: string | null): string {
+  const prefix = (cardPrefix ?? '').trim();
+  if (prefix) return prefix;
+  return name.replace(/\s*\[.*$/, '').trim();
+}
+
+/**
+ * Build the proxied image URL for a cardmarket product.
+ * Goes through /api/cm-img/[id]?prefix=... which fetches with browser headers
+ * server-side (avoids CloudFront 403) and caches.
+ * Returns "" when set_prefix is null — UI shows no image instead of broken.
+ */
+function buildImageUrl(setPrefix: string | null, idProduct: number): string {
+  if (!setPrefix) return '';
+  return `/api/cm-img/${idProduct}?prefix=${encodeURIComponent(setPrefix)}`;
+}
+
+interface ExpansionRow {
+  id_expansion: number;
+  name: string;
+  name_en: string | null;
+  set_prefix: string | null;
+}
+
+/**
+ * Resolve set_prefix → expansion row(s). Multiple expansions can share the
+ * same prefix in theory (none observed yet); we return all matches and let
+ * the caller deal with it.
+ */
+async function resolveExpansionsByPrefix(
   supabase: SupabaseClient,
-  input: CardmarketLookupInput,
-): Promise<CardmarketLookupResult | null> {
-  const { setName, setNumber, language } = input;
-  if (!setName || !setNumber) return null;
-
-  // Step 1: resolve the expansion via in-memory match against name/name_en/name_ja.
-  // We pull the full list (~741 rows, ~50 KB) and filter client-side instead of
-  // using PostgREST's `.or()` clause, which is vulnerable to filter-injection
-  // when the value contains commas/periods/quotes (cf. Supabase discussions
-  // around .or() escaping). The set is small and read-mostly, so the round-trip
-  // overhead is negligible.
-  const { data: allExpansions } = await supabase
+  setPrefix: string,
+): Promise<ExpansionRow[]> {
+  const { data } = await supabase
     .from('cardmarket_expansions')
-    .select('id_expansion, name, name_en, name_ja');
+    .select('id_expansion, name, name_en, set_prefix')
+    .ilike('set_prefix', setPrefix)
+    .limit(10);
+  return (data ?? []) as ExpansionRow[];
+}
 
-  if (!allExpansions) return null;
-  const expansion = (
-    allExpansions as Array<{
-      id_expansion: number;
-      name: string | null;
-      name_en: string | null;
-      name_ja: string | null;
-    }>
-  ).find(
-    (e) => e.name === setName || e.name_en === setName || e.name_ja === setName,
-  );
+interface CardIndexRow {
+  id_product: number;
+  id_expansion: number;
+  set_number: string;
+  url_path: string | null;
+  url_variant: string | null;
+}
 
-  if (!expansion) return null;
-  const idExpansion: number = expansion.id_expansion;
-  const setNameEn: string | null = expansion.name_en ?? expansion.name ?? null;
-  const setNameJa: string | null = expansion.name_ja ?? null;
+interface ProductRow {
+  id_product: number;
+  name: string;
+  card_prefix: string | null;
+  card_prefix_normalized: string | null;
+  id_expansion: number;
+}
 
-  // Step 2: lookup the index row.
-  const { data: indexRow } = await supabase
+function normalize(s: string | null | undefined): string {
+  if (!s) return '';
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, '');
+}
+
+/**
+ * Strategy 0 — direct lookup by (set_prefix + set_number).
+ *
+ * Both fields must be non-null. For Trainer Gallery / subseries cards the
+ * caller will have set_number=null (per the prompt contract) and should call
+ * lookupBySetPrefixAndName instead.
+ *
+ * Returns:
+ *   - 1 card → unique match, return it.
+ *   - 0 cards → null, caller falls through.
+ *   - >1 cards → all of them (e.g. reverse holo variants of the same number).
+ *     Caller exposes as picker.
+ */
+export async function lookupBySetPrefixAndNumber(
+  supabase: SupabaseClient,
+  setPrefix: string,
+  setNumber: string,
+): Promise<CardmarketCard[]> {
+  if (!setPrefix || !setNumber) return [];
+  const expansions = await resolveExpansionsByPrefix(supabase, setPrefix);
+  if (expansions.length === 0) return [];
+
+  const expansionIds = expansions.map((e) => e.id_expansion);
+  const { data: indexRows } = await supabase
     .from('cardmarket_card_index')
-    .select('id_product, url_path')
-    .eq('id_expansion', idExpansion)
+    .select('id_product, id_expansion, set_number, url_path, url_variant')
+    .in('id_expansion', expansionIds)
     .eq('set_number', setNumber)
-    .single();
+    .limit(20);
 
-  if (!indexRow) return null;
-  const idProduct: number = indexRow.id_product;
-  const urlPath: string = indexRow.url_path ?? '';
+  const idx = (indexRows ?? []) as CardIndexRow[];
+  if (idx.length === 0) return [];
 
-  // Step 3: fetch the product name + card_prefix (needed for image URL).
-  const { data: product } = await supabase
+  const idProducts = idx.map((r) => r.id_product);
+  const { data: products } = await supabase
     .from('cardmarket_products')
-    .select('id_product, name, card_prefix')
-    .eq('id_product', idProduct)
-    .single();
+    .select('id_product, name, card_prefix, card_prefix_normalized, id_expansion')
+    .in('id_product', idProducts);
+  const prods = (products ?? []) as ProductRow[];
 
-  const cardName: string = product?.name ?? '';
-  const cardPrefix: string = product?.card_prefix ?? '';
+  const productById = new Map<number, ProductRow>();
+  for (const p of prods) productById.set(p.id_product, p);
+  const expansionById = new Map<number, ExpansionRow>();
+  for (const e of expansions) expansionById.set(e.id_expansion, e);
 
-  // Step 4: build the canonical S3 image URL.
-  // Pattern: https://product-images.s3.cardmarket.com/51/{set_prefix}/{idProduct}/{idProduct}.jpg
-  // The set_prefix (e.g. "BRS", "PHF") is REQUIRED — flat path without prefix
-  // returns 403. If we somehow lack the prefix, fall back to flat path which
-  // at least resolves correctly for the small minority of products without
-  // a card_prefix entry in cardmarket_products.
-  const imageUrl = cardPrefix
-    ? `${CM_IMG_BASE}/${cardPrefix}/${idProduct}/${idProduct}.jpg`
-    : `${CM_IMG_BASE}/${idProduct}/${idProduct}.jpg`;
+  return idx
+    .map((r) => buildCard(r, productById.get(r.id_product), expansionById.get(r.id_expansion)))
+    .filter((c): c is CardmarketCard => c !== null);
+}
 
+/**
+ * Strategy 1 — picker lookup by (set_prefix + pokemon_name).
+ *
+ * Used when set_number is null/unreliable (TG/GG cards, illegible numbers).
+ * Returns up to 10 candidates from the expansion(s) matching the prefix
+ * whose card_prefix_normalized contains the OCR pokemon name. Substring match
+ * works in both directions to handle suffixes ("Charizard V" matches "Charizard"
+ * and vice-versa).
+ */
+export async function lookupBySetPrefixAndName(
+  supabase: SupabaseClient,
+  setPrefix: string,
+  pokemonName: string,
+): Promise<CardmarketCard[]> {
+  if (!setPrefix || !pokemonName) return [];
+  const expansions = await resolveExpansionsByPrefix(supabase, setPrefix);
+  if (expansions.length === 0) return [];
+
+  const expansionIds = expansions.map((e) => e.id_expansion);
+  const { data: products } = await supabase
+    .from('cardmarket_products')
+    .select('id_product, name, card_prefix, card_prefix_normalized, id_expansion')
+    .in('id_expansion', expansionIds)
+    .limit(500);
+  const prods = (products ?? []) as ProductRow[];
+  if (prods.length === 0) return [];
+
+  const target = normalize(pokemonName);
+  const matched = prods.filter((p) => {
+    const candidate = p.card_prefix_normalized || normalize(p.card_prefix || p.name);
+    if (!candidate) return false;
+    return candidate.includes(target) || target.includes(candidate);
+  });
+  if (matched.length === 0) return [];
+
+  const idProducts = matched.map((p) => p.id_product);
+  const { data: indexRows } = await supabase
+    .from('cardmarket_card_index')
+    .select('id_product, id_expansion, set_number, url_path, url_variant')
+    .in('id_product', idProducts)
+    .limit(50);
+  const idx = (indexRows ?? []) as CardIndexRow[];
+
+  const productById = new Map<number, ProductRow>();
+  for (const p of matched) productById.set(p.id_product, p);
+  const expansionById = new Map<number, ExpansionRow>();
+  for (const e of expansions) expansionById.set(e.id_expansion, e);
+
+  return idx
+    .map((r) => buildCard(r, productById.get(r.id_product), expansionById.get(r.id_expansion)))
+    .filter((c): c is CardmarketCard => c !== null)
+    .slice(0, 10);
+}
+
+function buildCard(
+  index: CardIndexRow,
+  product: ProductRow | undefined,
+  expansion: ExpansionRow | undefined,
+): CardmarketCard | null {
+  if (!product || !expansion) return null;
+  const setPrefix = expansion.set_prefix ?? '';
   return {
-    cardmarket_id: String(idProduct),
-    cardmarket_url_path: urlPath,
-    card_name: cardName,
-    set_name: setNameEn ?? '',
-    set_name_ja: language.toLowerCase() === 'ja' ? setNameJa : null,
-    tcg_image_url: imageUrl,
+    cardmarket_id: String(index.id_product),
+    cardmarket_url_path: index.url_path ?? '',
+    card_name: displayName(product.name, product.card_prefix),
+    set_prefix: setPrefix,
+    set_name: expansion.name_en ?? expansion.name,
+    set_number: index.set_number,
+    tcg_image_url: buildImageUrl(setPrefix || null, index.id_product),
   };
 }

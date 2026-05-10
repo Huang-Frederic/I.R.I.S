@@ -4,6 +4,8 @@ export interface ScrapedCard {
   urlVariant: string | null;
   urlPath: string;
   name: string;
+  /** S3 image-URL prefix (e.g. "BRS", "LOR"). Constant per expansion. */
+  setPrefix: string | null;
 }
 
 export interface ScrapedExpansion {
@@ -11,6 +13,8 @@ export interface ScrapedExpansion {
   slug: string;
   name: string;
   cards: ScrapedCard[];
+  /** Derived from the first card's image URL. Used to build S3 image URLs. */
+  setPrefix: string | null;
 }
 
 export interface ExpansionInput {

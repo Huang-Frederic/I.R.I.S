@@ -9,7 +9,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-// Load .env.local manually (mirrors test-bench-gemini.ts)
+// Load .env.local manually before importing anything that reads env vars.
 const envPath = resolve(process.cwd(), '.env.local');
 if (existsSync(envPath)) {
   for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
@@ -22,6 +22,10 @@ if (existsSync(envPath)) {
     if (!process.env[k]) process.env[k] = v;
   }
 }
+
+// Single source of truth — modify in lib/api/gemini-vision.ts and this bench
+// reflects the change automatically. Never copy-paste the prompt here.
+import { buildPrompt, SCHEMA } from '../lib/api/gemini-vision';
 
 const MODELS = [
   'gemini-3-flash-preview',
@@ -38,46 +42,6 @@ const PRICING: Record<string, { input: number; output: number }> = {
   'gemini-2.5-flash-lite':          { input: 0.10, output: 0.40 },
 };
 const USD_TO_EUR = 0.92;
-
-// Replicated from lib/api/gemini-vision.ts so the bench reflects prod exactly.
-const PROMPT = `Lis une carte Pokémon JCC et retourne le JSON ci-dessous. NE DEVINE PAS — si non lisible, mets null (sauf champs requis).
-
-ZONE BAS : ligne fine sous le texte d'attaque avec illustrateur, numéro XXX/YYY (ex 012/086), et code d'extension court (ex SV11W, BW5, sm8b — casse exacte).
-ZONE HAUT : nom du Pokémon (langue de la carte).
-
-{
-  "card_name": "<nom haut, ex 'チャオブー' ou 'Pikachu ex'>",
-  "pokemon_name": "<sans suffixe ex/V/VMAX, ex 'Pikachu'>",
-  "set_code": "<code exact, casse sensible>",
-  "set_number": "<XXX sans zéros initiaux: '12' pas '012'>",
-  "set_total": <YYY ou null>,
-  "language": "<JP|EN|FR|DE|IT|ES|PT|KO|ZH>",
-  "rarity": "<Common|Uncommon|Rare|Holo Rare|Double Rare|Ultra Rare|Art Rare|Special Art Rare|Secret Rare|Hyper Rare|Promo|Other ou null>",
-  "confidence": "high|medium|low",
-  "pokemon_number": <national dex 1-1025 si carte Pokémon, null pour Trainer/Energy/Stadium>,
-  "pokemon_name_fr": "<nom FR standard (ex 'Gruikui'), null si non-Pokémon ou incertain>",
-  "set_name": "<nom extension imprimé (ex 'White Flare'), null si invisible>",
-  "set_name_fr": "<traduction FR (ex 'Combat de Maîtres'), null si incertain>"
-}`;
-
-const SCHEMA = {
-  type: 'object',
-  properties: {
-    card_name: { type: 'string' },
-    pokemon_name: { type: 'string' },
-    set_code: { type: 'string' },
-    set_number: { type: 'string' },
-    set_total: { type: 'integer' },
-    language: { type: 'string' },
-    rarity: { type: 'string' },
-    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
-    pokemon_number: { type: 'integer' },
-    pokemon_name_fr: { type: 'string' },
-    set_name: { type: 'string' },
-    set_name_fr: { type: 'string' },
-  },
-  required: ['card_name', 'set_code', 'set_number', 'language', 'confidence'],
-};
 
 interface CardResult {
   filename: string;
@@ -110,7 +74,7 @@ function extractJsonObject(text: string): string {
   return text.slice(start, end + 1);
 }
 
-async function callModel(model: string, base64: string): Promise<{
+async function callModel(model: string, prompt: string, base64: string): Promise<{
   tokensIn: number; tokensOut: number; costEur: number;
   parsed: { set_code?: string; set_number?: string } | null;
   error?: string; latencyMs: number;
@@ -126,7 +90,7 @@ async function callModel(model: string, base64: string): Promise<{
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: 'image/jpeg', data: base64 } }] }],
+        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: base64 } }] }],
         generationConfig: {
           temperature: 0,
           responseMimeType: 'application/json',
@@ -188,6 +152,9 @@ async function main() {
   console.log(`Bench: ${MODELS.length} models × ${sample.length} cards = ${MODELS.length * sample.length} calls\n`);
   console.log(`Cards: ${sample.join(', ')}\n`);
 
+  // Build the prod prompt once (includes the ~741-expansion constraint list).
+  const prompt = await buildPrompt();
+
   const summaries: ModelSummary[] = [];
 
   for (const model of MODELS) {
@@ -197,7 +164,7 @@ async function main() {
       const expected = parseFilename(filename);
       const buf = readFileSync(join(dir, filename));
       const base64 = buf.toString('base64');
-      const result = await callModel(model, base64);
+      const result = await callModel(model, prompt, base64);
       const setMatch = result.parsed?.set_code?.toLowerCase() === expected.set.toLowerCase();
       const numMatch = result.parsed?.set_number === expected.num;
       perCard.push({

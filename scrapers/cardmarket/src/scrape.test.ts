@@ -36,6 +36,7 @@ describe('extractCardsFromHtml', () => {
       urlVariant: null,
       urlPath: '/en/Pokemon/Products/Singles/Brilliant-Stars/Exeggcute-BRS001',
       name: 'Exeggcute (BRS 001)',
+      setPrefix: 'BRS',
     });
 
     expect(cards[1]).toEqual({
@@ -44,6 +45,7 @@ describe('extractCardsFromHtml', () => {
       urlVariant: 'V3',
       urlPath: '/en/Pokemon/Products/Singles/Brilliant-Stars/Shaymin-VSTAR-V3-BRS014',
       name: 'Shaymin VSTAR (BRS 014)',
+      setPrefix: 'BRS',
     });
   });
 

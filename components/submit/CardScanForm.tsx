@@ -193,8 +193,8 @@ export default function CardScanForm({
   const [ocrGemini, setOcrGemini] = useState<{
     pokemonNumber?: number | null;
     pokemonNameFr?: string | null;
-    setName?: string | null;
-    setNameFr?: string | null;
+    pokemonNameEn?: string | null;
+    cardNameFr?: string | null;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   /** Stashed firstCardId between save success and SaveSuccessModal dismiss
@@ -276,8 +276,8 @@ export default function CardScanForm({
     setOcrGemini({
       pokemonNumber: initialOcr.pokemonNumber,
       pokemonNameFr: initialOcr.pokemonNameFr,
-      setName: initialOcr.setName,
-      setNameFr: initialOcr.setNameFr,
+      pokemonNameEn: initialOcr.pokemonNameEn,
+      cardNameFr: initialOcr.cardNameFr,
     });
     setOcrUsage(initialOcr._usage ?? null);
     setOcrEngine(initialOcr._engine ?? null);
@@ -428,33 +428,32 @@ export default function CardScanForm({
   /**
    * Re-trigger enrichment using what the user has typed.
    *
-   * The server is smart now: it will use setCode for a direct lookup if both
-   * setCode AND localId are present, otherwise it falls back to scanning all
-   * sets with the matching total. So even with just "111/086" and no set_code,
-   * we send the structured body and let the server figure it out.
+   * The server runs the same 4-strategy pipeline used for OCR scans:
+   * (set_prefix + set_number) → (set_prefix + name picker) → TCGdex → Gemini-only.
+   * For TG/GG cards leave set_number blank — the picker handles them by name.
    */
   async function handleResearch() {
-    const setCode = form.set_code.trim();
-    const setNumber = form.set_number.trim();
-    const [localId, totalStr] = setNumber.split('/').map((s) => s.trim());
+    const setPrefix = form.set_code.trim().toUpperCase();
+    const setNumberRaw = form.set_number.trim();
+    const [localId, totalStr] = setNumberRaw.split('/').map((s) => s.trim());
 
-    if (!localId) {
-      setResearchMsg('Renseigne au moins un n° de set (ex. 111/086) avant de relancer.');
+    if (!setPrefix && !form.pokemon_name && !form.card_name) {
+      setResearchMsg('Renseigne au moins un set (BRS, LOR…) ou un nom de carte avant de relancer.');
       return;
     }
 
-    const total = totalStr ? Number(totalStr) : undefined;
     const body = {
-      text: ocrText || undefined,
-      setCode: setCode || undefined,
-      localId,
-      total,
+      setPrefix: setPrefix || undefined,
+      setNumber: localId || undefined,
+      setTotal: totalStr ? Number(totalStr) : undefined,
       language: form.language,
-      // Include OCR Gemini fields if available (preserves FR translations)
+      pokemonName: form.pokemon_name || undefined,
       pokemonNumber: ocrGemini?.pokemonNumber ?? undefined,
       pokemonNameFr: ocrGemini?.pokemonNameFr ?? undefined,
-      setName: ocrGemini?.setName ?? undefined,
-      setNameFr: ocrGemini?.setNameFr ?? undefined,
+      pokemonNameEn: ocrGemini?.pokemonNameEn ?? undefined,
+      cardName: form.card_name || undefined,
+      cardNameFr: ocrGemini?.cardNameFr ?? undefined,
+      illustrator: ocrIllustrator ?? undefined,
     };
 
     setResearching(true);
@@ -473,9 +472,9 @@ export default function CardScanForm({
       if (!enrich.bestMatch) {
         setEnrichFound(false);
         setResearchMsg(
-          total
-            ? `Aucune carte ${localId} trouvée dans un set de ${total} cartes (${form.language}). Continue à la main.`
-            : `Carte introuvable dans TCGdex (${form.language}). Renseigne le total du set (ex. 111/086) ou continue à la main.`,
+          setPrefix && localId
+            ? `Aucune carte ${setPrefix}-${localId} trouvée (${form.language}). Continue à la main.`
+            : `Carte introuvable. Renseigne au moins set_prefix (BRS, LOR…) + n° ou nom de carte.`,
         );
         return;
       }
@@ -569,50 +568,31 @@ export default function CardScanForm({
       setOcrGemini({
         pokemonNumber: ocr.pokemonNumber,
         pokemonNameFr: ocr.pokemonNameFr,
-        setName: ocr.setName,
-        setNameFr: ocr.setNameFr,
+        cardNameFr: ocr.cardNameFr,
       });
       setOcrUsage(ocr._usage ?? null);
       setOcrEngine(ocr._engine ?? null);
       setOcrIllustrator(ocr.illustrator ?? null);
 
-      // Smart extraction: if Vision pinned the set number / set code in the
-      // bottom-left footer, pre-fill them and let the server resolve the card.
-      // Server uses setCode if provided, otherwise falls back to scanning sets
-      // with matching `total`.
       const language = resolveLanguage(ocr);
       const setNumberParsed = ocr.setNumberCandidate;
       const setCode = ocr.setCodeCandidate ?? '';
       const setNumber = setNumberParsed?.raw ?? '';
 
-      // Common Gemini fields piped to /api/enrich. Includes Strategy 5
-      // fallback inputs (cardName, pokemonName, rarity) so the route can
-      // build a usable EnrichedCard when no catalog source has the card
-      // (typical for KO/ZH Crown Series).
-      const geminiFields = {
-        pokemonNumber: ocr.pokemonNumber,
-        pokemonNameFr: ocr.pokemonNameFr,
-        cardNameFr: ocr.cardNameFr,
-        setName: ocr.setName,
-        setNameFr: ocr.setNameFr,
-        cardName: ocr.cardName,
-        pokemonName: ocr.pokemonName,
-        rarity: ocr.rarity,
-        illustrator: ocr.illustrator,
+      const enrichBody = {
+        setPrefix: ocr.setCodeCandidate ?? undefined,
+        setNumber: setNumberParsed?.card ?? undefined,
+        setTotal: setNumberParsed?.total ? Number(setNumberParsed.total) : undefined,
+        language,
+        pokemonName: ocr.pokemonName ?? undefined,
+        pokemonNumber: ocr.pokemonNumber ?? undefined,
+        pokemonNameFr: ocr.pokemonNameFr ?? undefined,
+        pokemonNameEn: ocr.pokemonNameEn ?? undefined,
+        cardName: ocr.cardName ?? undefined,
+        cardNameFr: ocr.cardNameFr ?? undefined,
+        rarity: ocr.rarity ?? undefined,
+        illustrator: ocr.illustrator ?? undefined,
       };
-      const enrichBody = setNumberParsed
-        ? {
-            setCode: setCode || undefined,
-            localId: setNumberParsed.card,
-            total: Number(setNumberParsed.total),
-            language,
-            text: ocr.text,
-            ...geminiFields,
-          }
-        : {
-            text: ocr.text,
-            ...geminiFields,
-          };
 
       const enrichRes = await fetch('/api/enrich', {
         method: 'POST',

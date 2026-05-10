@@ -1,17 +1,10 @@
 import 'server-only';
-import { createClient } from '@supabase/supabase-js';
 
-// Gemini pricing (paid tier, per 1M tokens).
-// Empirically calibrated 2026-05-08 against actual GCP billing:
-//   13K input + 1K output across 7 requests = €0.029 (= $0.0315 with USD_TO_EUR=0.92)
-//   → matches input $2.00/M + output $5.00/M
-// The originally-documented "preview" rates ($0.25/M in + $1.50/M out for
-// gemini-3.1-flash-lite-preview) don't match what Google actually bills —
-// preview pricing may be retired, or there's a Vertex AI / image-token
-// surcharge in play. If you can pin the SKU down from GCP billing, refine.
-const PROMPT_TOKEN_ESTIMATE = 360; // base prompt; runtime adds ~10-15k tokens for the expansion constraint list
-const COST_USD_PER_M_INPUT = 2.0;   // text / image / video — empirical
-const COST_USD_PER_M_OUTPUT = 5.0;  // empirical
+// Gemini pricing (paid tier, per 1M tokens). Empirically calibrated against
+// actual GCP billing — input $2.00/M, output $5.00/M.
+const PROMPT_TOKEN_ESTIMATE = 250; // base prompt only — no constraint list anymore
+const COST_USD_PER_M_INPUT = 2.0;
+const COST_USD_PER_M_OUTPUT = 5.0;
 const USD_TO_EUR = 0.92;
 
 const GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
@@ -21,7 +14,7 @@ const TIMEOUT_MS = 15000;
 export interface GeminiUsage {
   tokens_in: number;
   tokens_out: number;
-  /** Estimated image tokens (Gemini doesn't break this out, derived = promptTokenCount - PROMPT_TOKEN_ESTIMATE). */
+  /** Estimated image tokens (Gemini doesn't break this out separately). */
   tokens_image: number;
   cost_eur: number;
 }
@@ -29,104 +22,115 @@ export interface GeminiUsage {
 export interface GeminiCardExtraction {
   card_name: string;
   pokemon_name: string | null;
-  set_code: string;
-  set_number: string;
+  /** 3-4 letter set abbreviation printed bottom-left of the card.
+   *  e.g. "BRS" (Brilliant Stars), "LOR" (Lost Origin), "BKR" (BREAKpoint).
+   *  Null when illegible (very old sets, blurred prints). */
+  set_prefix: string | null;
+  /** Pure-digit set number printed on the card.
+   *  Null when Gemini detects a TG/GG/SV subseries prefix on the number
+   *  (e.g. "TG03", "GG10") — these are stored differently in cardmarket and
+   *  need a name-based picker lookup. */
+  set_number: string | null;
   set_total: number | null;
-  language: string; // 2-letter code: JP, EN, FR, DE, IT, ES, PT, KO, CN
+  language: string; // 2-letter: JP, EN, FR, DE, IT, ES, PT, KO, ZH
   rarity: string | null;
   confidence: 'high' | 'medium' | 'low';
 
-  // Pokédex info from Gemini training data
-  pokemon_number: number | null; // National dex 1-1025, null for non-Pokémon cards (Trainers/Energies)
-  pokemon_name_fr: string | null; // French species name, e.g. "Gruikui" for "チャオブー"
-  /** French translation of the FULL card name (incl. suffixes for Pokémon, OR the
-   *  Trainer/Energy/Stadium name like "Le Plan de N" for "Nの筋書き"). Null when
-   *  the card is already FR or Gemini doesn't know a confident translation. */
-  card_name_fr: string | null;
-
-  // Set translation
-  set_name: string | null; // Set name as printed on card (in card's language)
-  set_name_fr: string | null; // French translation of set name from training data
-
-  // Illustrator credit printed at the bottom of the card. Unique per card +
-  // language combination — useful as a disambiguation signal when set_code is
-  // ambiguous (currently displayed in the OCR debug snippet; future versions
-  // could match it against catalog if we re-scrape with that field).
-  illustrator: string | null;
+  pokemon_number: number | null; // National dex 1-1025, null for Trainers/Energy
+  pokemon_name_fr: string | null; // French species name from Gemini training data
+  /** English species name (e.g. "Charmander" for "Salamèche"/"ヒトカゲ"). Used
+   *  by Strategy 1 to query cardmarket_products.card_prefix which is always EN.
+   *  Null for non-Pokémon (Trainers/Energy) or unknown species. */
+  pokemon_name_en: string | null;
+  card_name_fr: string | null;    // French translation of full card name
+  illustrator: string | null;     // Bottom credit line
 
   _usage?: GeminiUsage;
 }
 
-let cachedExpansionList: string[] | null = null;
+/**
+ * Prod OCR prompt. Single source of truth — used by `app/api/ocr/route.ts` and
+ * the bench scripts. Never copy-paste into another file — modify here only.
+ *
+ * English (Gemini handles English instructions more reliably than French).
+ * No constraint list — relies entirely on the printed set_prefix code, which
+ * is short (3-4 chars) and unambiguous when readable.
+ */
+export const BASE_PROMPT = `Read this Pokémon TCG card photo. Extract printed fields. NEVER guess — return null when illegible (except required fields below).
 
-async function getExpansionConstraintList(): Promise<string[]> {
-  if (cachedExpansionList) return cachedExpansionList;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return [];
-  const supabase = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data } = await supabase
-    .from('cardmarket_expansions')
-    .select('name, name_en, name_ja');
-  if (!data) return [];
-  const set = new Set<string>();
-  for (const row of data as Array<{ name: string | null; name_en: string | null; name_ja: string | null }>) {
-    if (row.name) set.add(row.name);
-    if (row.name_en) set.add(row.name_en);
-    if (row.name_ja) set.add(row.name_ja);
-  }
-  cachedExpansionList = Array.from(set).sort();
-  return cachedExpansionList;
-}
+WHERE TO LOOK:
+- card_name: top of the card, in the card's printed language.
+- pokemon_name: same area, but strip suffixes (ex/V/VMAX/VSTAR/GX/EX). Null for Trainers/Energy/Stadium.
+- set_prefix + set_number: bottom edge. On EN/FR/DE/IT/ES/PT cards they sit in a small block bottom-left near the set logo. On JP cards the prefix is printed adjacent to the number.
+- illustrator: small "Illus." credit line at the very bottom.
 
-const BASE_PROMPT = `Lis une carte Pokémon JCC. Extrais ce qui est IMPRIMÉ sur la carte, ne traduis pas vers une autre langue. NE DEVINE PAS — si non lisible, mets null (sauf champs requis).
+SET PREFIX RULES:
+- Latin-script cards (EN/FR/DE/IT/ES/PT) → ALWAYS 3-letter UPPERCASE codes (BRS, OBF, MEW, BKP, LOR, EVO, BKR, JTG, SCR, PRE, …). NEVER use a JP-style code on a Latin card — that's a hallucination.
+- Japanese cards → mixed-case codes with letter suffixes (sv11W, s12a, sm8b, BW4, XY9, smp, xyp).
+- Chinese (ZH) → "cs"-prefixed codes (cs4bc, cs1c).
+- Korean → similar to JP or EN depending on the era.
+- If you cannot read the prefix clearly, return null. Do NOT guess.
 
-LOCALISATION :
-- Numéro XXX/YYY (ex 012/086, 199/198, 175/175) : en bas, souvent à droite. Sans zéros initiaux dans la sortie.
-- set_code : court code alphanumérique imprimé en bas, soit collé au numéro (cartes JP), soit dans un bloc séparé en bas-gauche près du logo de set (cartes EN/FR/DE/IT/ES/PT modernes).
-- Nom du Pokémon : en HAUT.
+SET NUMBER — CRITICAL:
+- ALWAYS extract the card-position digits. Strip leading zeros: "012/198" → "12", "088/SV-P" → "88", "199/198" → "199", "075" → "75".
+- The number is printed bottom-right (or bottom-center on JP cards), often as "X/Y". X is ALWAYS digits (the card position) — extract those. Y can be a number (set total) OR a set marker (SV-P, RC, etc.) — IGNORE the part after the slash for set_number.
+- Even when the printed format looks unusual (just "088", "088/SV-P", "088 SVP", etc.), the number you want is the FIRST digit run. Extract it.
+- ⚠️ ONLY return null when the printed number ITSELF starts with TG or GG (e.g. "TG03", "GG10/GG70"). Those are Trainer/Galarian Gallery subseries that need a name-based lookup. Anything else: extract the digits.
+- Promo cards (SWSH201, XY41, SM12 printed in the corner without slash): the full token IS the set_number ("SWSH201"), and set_prefix should be the promo set code (e.g. "SWSHP").
 
-CODES DE SET PAR LANGUE — extrais ce qui est imprimé, JAMAIS l'équivalent d'une autre langue :
-- JP : codes mixed-case avec suffixes lettres → sv11W, s12a, BW4, sm8b, sv8a, XY9, smp, xyp
-- EN : codes uppercase 3 lettres → OBF, MEW, JTG, SCR, PRE, PAL, BKP, BKT, AOR, STS, GEN, FCO, EVO, SVI
-- FR/DE/IT/ES/PT : MÊMES codes uppercase 3 lettres que EN (BKP, OBF, MEW, SCR, PRE, JTG, …)
-- CN (chinois) : codes 'cs'+suffixe → cs4bc, cs4aC, cs1c, csm1a (équivalent ZH)
-- KO : codes similaires à JP ou EN selon la série
+RARITY GUIDE — the small symbol next to the set_number on the bottom edge identifies it. Map carefully:
 
-⚠️ ANTI-PIÈGE : si la carte est en alphabet latin (Pikachu, Dracaufeu, …), le set_code est OBLIGATOIREMENT en format EN/FR (3 lettres UPPERCASE comme BKP, OBF, MEW). N'INVENTE PAS de code JP (XY9, sv11W, BW5) sur une carte FR/EN — ce serait une hallucination.
+EN/FR/DE/IT/ES/PT cards (modern Sword & Shield onwards):
+- ● (filled black circle) → "Common"
+- ◆ (filled black diamond) → "Uncommon"
+- ★ (filled black star, no flair) → "Rare" (regular non-holo)
+- ★ with holographic foil on the artwork → "Holo Rare"
+- ★ ★ (two stars) → "Double Rare" (typically Pokémon ex)
+- ★ ★ ★ (three stars) → "Ultra Rare" (full-art ex / V / VMAX)
+- ◇ ◇ ◇ (three diamonds) → "Art Rare"
+- ◇ ◇ ◇ ◇ (four diamonds) → "Special Art Rare"
+- ★ ★ ★ ★ (four stars / shiny) → "Hyper Rare" (gold/rainbow)
+- "PROMO" word printed → "Promo"
 
-⚠️ SET_CODE PEUT ÊTRE NULL : si tu ne distingues pas le code clairement (texte trop petit, vieux set sans code visible comme Origines Perdues / Lost Origin où parfois le code est très discret), retourne null pour set_code plutôt qu'inventer. Le pipeline a un fallback qui matche par (set_name + set_number) — préserver l'intégrité du set_code est plus important que de remplir le champ.
+Older sets (XY, SM era):
+- "C" letter symbol → "Common"
+- "U" letter → "Uncommon"
+- "R" letter → "Rare"
+- "RR" → "Double Rare"
+- "SR" / "HR" / "UR" → "Secret Rare" / "Hyper Rare" / "Ultra Rare"
 
+JP cards:
+- Same symbols as EN. Plus: 「U」「R」「RR」「RRR」「SR」「SAR」「UR」printed near the number.
+- 「C」(common), 「U」(uncommon), 「R」(rare), 「RR」(double rare), 「RRR」(ultra rare), 「AR」(art rare), 「SAR」(special art rare), 「UR」(hyper rare).
+
+If you see ANY rarity symbol or letter, map it to the closest enum value. Only return null if the card has NO visible rarity marker (very old base set cards sometimes).
+
+Allowed values: Common | Uncommon | Rare | Holo Rare | Double Rare | Ultra Rare | Art Rare | Special Art Rare | Secret Rare | Hyper Rare | Promo | Other
+
+SCHEMA:
 {
-  "card_name": "<nom haut, ex 'チャオブー' (JP), 'Pikachu ex' (EN), 'Dracaufeu ex' (FR)>",
-  "pokemon_name": "<sans suffixe ex/V/VMAX, ex 'Pikachu' / 'Dracaufeu'>",
-  "set_code": "<code exact tel qu'imprimé, casse sensible, OU null si pas visible>",
-  "set_number": "<XXX sans zéros initiaux: '12' pas '012'>",
-  "set_total": <YYY ou null>,
-  "language": "<JP|EN|FR|KO|CN (utilise CN pour chinois, pas ZH)>",
-  "rarity": "<Common|Uncommon|Rare|Holo Rare|Double Rare|Ultra Rare|Art Rare|Special Art Rare|Secret Rare|Hyper Rare|Promo|Other ou null>",
-  "confidence": "high|medium|low",
-  "pokemon_number": <national dex 1-1025 si Pokémon, null pour Trainer/Energy/Stadium>,
-  "pokemon_name_fr": "<nom FR standard (ex 'Gruikui', 'Dracaufeu'), null si non-Pokémon ou incertain>",
-  "card_name_fr": "<traduction FR du nom COMPLET de la carte (ex 'Dracaufeu ex' pour 'リザードンex', 'Le Plan de N' pour 'Nの筋書き', 'Marnie' identique). Null si carte d\\u00e9j\\u00e0 en FR ou si traduction incertaine>",
-  "set_name": "<nom extension imprimé (ex 'White Flare', 'BREAKpoint'), null si invisible>",
-  "set_name_fr": "<traduction FR (ex 'Combat de Maîtres', 'Rupture Turbo'), null si incertain>",
-  "illustrator": "<crédit illustrateur en bas de carte (ex 'Ryuta Fuse', 'YASHIRO Nanaco', 'kirisAki'), null si illisible>"
+  "card_name":      "<top name as printed, with suffix e.g. 'Charizard ex'>",
+  "pokemon_name":   "<species without suffix, e.g. 'Charizard'. null for non-Pokémon>",
+  "pokemon_number": <national dex 1-1025, null for Trainers/Energy/Stadium>,
+  "pokemon_name_fr":"<French species name e.g. 'Dracaufeu', null if unknown or non-Pokémon>",
+  "pokemon_name_en":"<English species name e.g. 'Charizard' for 'Dracaufeu'/'リザードン'. Required when pokemon_number is set — used to query our English-only product DB. null for non-Pokémon>",
+  "card_name_fr":   "<French translation of full card_name e.g. 'Dracaufeu ex'. null if already FR or unknown>",
+  "set_prefix":     "<short code e.g. 'BRS', null if illegible>",
+  "set_number":     "<digits only e.g. '12', null for TG/GG/SV/SVE/RC subseries>",
+  "set_total":      <denominator e.g. 198, null if not visible>,
+  "language":       "<JP|EN|FR|DE|IT|ES|PT|KO|ZH>",
+  "rarity":         "<see RARITY GUIDE below — null only when truly invisible/missing>",
+  "illustrator":    "<artist credit e.g. 'Ryuta Fuse', null if illegible>",
+  "confidence":     "<high|medium|low>"
 }`;
 
-async function buildPrompt(): Promise<string> {
-  const list = await getExpansionConstraintList();
-  if (list.length === 0) return BASE_PROMPT;
-  const constraintBlock = `
-
-CONTRAINTE EXTENSION — Le champ "set_name" DOIT correspondre EXACTEMENT à un des noms suivants (copie verbatim, accents et casse respectés). Si tu ne peux pas identifier le set avec une confiance > 80%, retourne null pour set_name plutôt qu'inventer.
-
-Liste exhaustive (${list.length} entrées):
-${list.map((n) => `- ${n}`).join('\n')}
-`;
-  return BASE_PROMPT + constraintBlock;
+/**
+ * Returns the prompt. No constraint list — kept async for the bench scripts
+ * that already `await buildPrompt()`. May add per-call dynamic context here
+ * later if useful.
+ */
+export async function buildPrompt(): Promise<string> {
+  return BASE_PROMPT;
 }
 
 /**
@@ -142,10 +146,7 @@ function extractJsonObject(text: string): string {
 }
 
 /** Coerce "null" / "undefined" / "n/a" / empty / whitespace to actual null.
- *  Gemini sometimes emits the literal string "null" instead of the JSON null
- *  for fields it can't fill — without this, downstream code happily formats
- *  things like `"null (Nの筋書き)"` because the string is truthy.
- *  Exported for direct unit testing. */
+ *  Gemini sometimes emits the literal string "null" instead of JSON null. */
 export function cleanNull(s: unknown): string | null {
   if (typeof s !== 'string') return null;
   const t = s.trim();
@@ -155,63 +156,47 @@ export function cleanNull(s: unknown): string | null {
 }
 
 /**
- * Strip the dash that some Gemini outputs insert between Pokémon name and
- * EX/ex/V/VMAX/etc. — e.g. "Aquali-ex" → "Aquali ex". The TCG official
- * convention since SV-era is no dash, and Cardmarket/LimitlessTCG never use
- * dashes regardless of era. Applied to all name fields post-parse.
- *
- * Old XY-era cards (Pokémon-EX) DID have dashes on the actual cards, but for
- * matching purposes we always normalize to space since that's what every
- * downstream system uses.
+ * Strip the dash some Gemini outputs insert between Pokémon name and ex/V/etc.
+ * "Aquali-ex" → "Aquali ex". TCG official + Cardmarket + LimitlessTCG all use
+ * spaces — normalize to space for matching.
  */
 export function normalizeSuffixDash(s: string | null): string | null {
   if (!s) return s;
   return s.replace(/-(ex|EX|GX|V|VMAX|VSTAR|V-?UNION|BREAK|LEGEND)\b/g, ' $1');
 }
 
-const SCHEMA = {
+export const SCHEMA = {
   type: 'object',
   properties: {
     card_name: { type: 'string' },
-    pokemon_name: { type: 'string' }, // can be empty string if non-Pokémon
-    set_code: { type: 'string' },
+    pokemon_name: { type: 'string' },
+    pokemon_number: { type: 'integer' },
+    pokemon_name_fr: { type: 'string' },
+    pokemon_name_en: { type: 'string' },
+    card_name_fr: { type: 'string' },
+    set_prefix: { type: 'string' },
     set_number: { type: 'string' },
     set_total: { type: 'integer' },
     language: { type: 'string' },
     rarity: { type: 'string' },
-    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
-    pokemon_number: { type: 'integer' },
-    pokemon_name_fr: { type: 'string' },
-    card_name_fr: { type: 'string' },
-    set_name: { type: 'string' },
-    set_name_fr: { type: 'string' },
     illustrator: { type: 'string' },
+    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
   },
-  required: ['card_name', 'set_code', 'set_number', 'language', 'confidence'],
+  // set_prefix and set_number can legitimately be null (illegible code, TG/GG)
+  // — kept out of required so Gemini doesn't hallucinate a value.
+  required: ['card_name', 'language', 'confidence'],
 };
 
 /**
  * Result of a Gemini vision call. `extraction` is null when the call failed
- * (missing key, network error, parse failure, incomplete payload). `usage`
- * is non-null whenever Gemini actually responded with usageMetadata —
- * including parse-failure cases where we burned tokens but couldn't read the
- * JSON. Callers can then attribute the cost even when falling back to Vision.
+ * (missing key, network error, parse failure). `usage` is non-null whenever
+ * Gemini responded with usageMetadata — including parse-failure cases.
  */
 export interface GeminiResult {
   extraction: GeminiCardExtraction | null;
   usage: GeminiUsage | null;
 }
 
-/**
- * Send a card image to Gemini 3 Flash Preview and extract structured fields.
- * Returns `{ extraction: null, usage: null }` on configuration errors and
- * pre-response failures. Returns `{ extraction: null, usage: <tokens> }` on
- * post-response failures so the caller can still surface cost.
- *
- * Low-confidence responses are returned as-is — the UI surfaces a warning
- * via the confidence threshold check, but data still flows. We do NOT fall
- * back to Vision on low confidence (Gemini-low > Vision-anything per bench).
- */
 export async function extractCardFromImage(
   imageBuffer: Buffer,
 ): Promise<GeminiResult> {
@@ -238,10 +223,7 @@ export async function extractCardFromImage(
           responseMimeType: 'application/json',
           responseSchema: SCHEMA,
           maxOutputTokens: 300,
-          // Gemini 3 Flash is a reasoning model — by default it burns the
-          // output budget on internal "thinking" tokens before producing the
-          // JSON, hitting MAX_TOKENS with content: {}. OCR extraction is a
-          // structural task that needs zero reasoning, so disable it entirely.
+          // Disable reasoning — OCR extraction is structural, not reasoning.
           thinkingConfig: { thinkingBudget: 0 },
         },
       }),
@@ -264,7 +246,6 @@ export async function extractCardFromImage(
     }
     const data = (await response.json()) as GeminiResp;
 
-    // Extract usage FIRST so we can report it even on downstream failures.
     let usage: GeminiUsage | null = null;
     const meta = data.usageMetadata;
     if (meta && typeof meta.promptTokenCount === 'number' && typeof meta.candidatesTokenCount === 'number') {
@@ -284,23 +265,14 @@ export async function extractCardFromImage(
     try {
       parsed = JSON.parse(extractJsonObject(text)) as Partial<GeminiCardExtraction>;
     } catch (parseErr) {
-      // Flash Preview occasionally returns prose-only ("Here is the JSON:") and
-      // hits maxOutputTokens before producing the object. Log the full raw text
-      // so we can diagnose recurring failures from the server logs.
       console.warn(
-        `Gemini parse failed (${parseErr instanceof Error ? parseErr.message : 'unknown'}). Raw response: ${JSON.stringify(text).slice(0, 500)}`,
+        `Gemini parse failed (${parseErr instanceof Error ? parseErr.message : 'unknown'}). Raw: ${JSON.stringify(text).slice(0, 500)}`,
       );
       return { extraction: null, usage };
     }
 
-    // Sanity check: must have set_code + set_number
-    if (
-      !parsed.card_name ||
-      !parsed.set_code ||
-      !parsed.set_number ||
-      !parsed.language ||
-      !parsed.confidence
-    ) {
+    // card_name + language + confidence are the only hard requirements.
+    if (!parsed.card_name || !parsed.language || !parsed.confidence) {
       console.warn('Gemini returned incomplete data:', parsed);
       return { extraction: null, usage };
     }
@@ -308,8 +280,10 @@ export async function extractCardFromImage(
     const extraction: GeminiCardExtraction = {
       card_name: normalizeSuffixDash(parsed.card_name) ?? parsed.card_name,
       pokemon_name: normalizeSuffixDash(parsed.pokemon_name || null),
-      set_code: parsed.set_code,
-      set_number: String(parsed.set_number).replace(/^0+/, '') || '0',
+      set_prefix: cleanNull(parsed.set_prefix),
+      set_number: parsed.set_number
+        ? String(parsed.set_number).replace(/^0+/, '') || '0'
+        : null,
       set_total: parsed.set_total ?? null,
       language: parsed.language,
       rarity: parsed.rarity || null,
@@ -322,9 +296,8 @@ export async function extractCardFromImage(
           ? parsed.pokemon_number
           : null,
       pokemon_name_fr: normalizeSuffixDash(cleanNull(parsed.pokemon_name_fr)),
+      pokemon_name_en: normalizeSuffixDash(cleanNull(parsed.pokemon_name_en)),
       card_name_fr: normalizeSuffixDash(cleanNull(parsed.card_name_fr)),
-      set_name: cleanNull(parsed.set_name),
-      set_name_fr: cleanNull(parsed.set_name_fr),
       illustrator: cleanNull(parsed.illustrator),
       _usage: usage ?? undefined,
     };

@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'images.pokemontcg.io' },
       // PokeAPI sprites (used for Pokédex grid)
       { protocol: 'https', hostname: 'raw.githubusercontent.com', pathname: '/PokeAPI/**' },
+      // Cardmarket product images (Strategy 0 + cross-validate cardmarket fallback)
+      { protocol: 'https', hostname: 'product-images.s3.cardmarket.com' },
     ],
   },
   async headers() {

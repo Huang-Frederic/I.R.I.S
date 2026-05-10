@@ -31,56 +31,9 @@ const MODEL = 'gemini-3.1-flash-lite-preview';
 const PRICING = { input: 0.25, output: 1.50 };
 const USD_TO_EUR = 0.92;
 
-// Mirrors prod prompt in lib/api/gemini-vision.ts. Update both together.
-const PROMPT = `Lis une carte Pokémon JCC. Extrais ce qui est IMPRIMÉ sur la carte, ne traduis pas vers une autre langue. NE DEVINE PAS — si non lisible, mets null (sauf champs requis).
-
-LOCALISATION :
-- Numéro XXX/YYY (ex 012/086, 199/198, 175/175) : en bas, souvent à droite. Sans zéros initiaux dans la sortie.
-- set_code : court code alphanumérique imprimé en bas, soit collé au numéro (cartes JP), soit dans un bloc séparé en bas-gauche près du logo de set (cartes EN/FR/DE/IT/ES/PT modernes).
-- Nom du Pokémon : en HAUT.
-
-CODES DE SET PAR LANGUE — extrais ce qui est imprimé, JAMAIS l'équivalent d'une autre langue :
-- JP : codes mixed-case avec suffixes lettres → sv11W, s12a, BW4, sm8b, sv8a, XY9, smp, xyp
-- EN : codes uppercase 3 lettres → OBF, MEW, JTG, SCR, PRE, PAL, BKP, BKT, AOR, STS, GEN, FCO, EVO, SVI
-- FR/DE/IT/ES/PT : MÊMES codes uppercase 3 lettres que EN (BKP, OBF, MEW, SCR, PRE, JTG, …)
-- ZH : codes 'cs'+suffixe → cs4bc, cs4aC, cs1c
-- KO : codes similaires à JP ou EN selon la série
-
-⚠️ ANTI-PIÈGE : si la carte est en alphabet latin (Pikachu, Dracaufeu, …), le set_code est OBLIGATOIREMENT en format EN/FR (3 lettres UPPERCASE comme BKP, OBF, MEW). N'INVENTE PAS de code JP (XY9, sv11W, BW5) sur une carte FR/EN — ce serait une hallucination.
-
-{
-  "card_name": "<nom haut, ex 'チャオブー' (JP), 'Pikachu ex' (EN), 'Dracaufeu ex' (FR)>",
-  "pokemon_name": "<sans suffixe ex/V/VMAX, ex 'Pikachu' / 'Dracaufeu'>",
-  "set_code": "<code exact tel qu'imprimé, casse sensible>",
-  "set_number": "<XXX sans zéros initiaux: '12' pas '012'>",
-  "set_total": <YYY ou null>,
-  "language": "<JP|EN|FR|DE|IT|ES|PT|KO|ZH>",
-  "rarity": "<Common|Uncommon|Rare|Holo Rare|Double Rare|Ultra Rare|Art Rare|Special Art Rare|Secret Rare|Hyper Rare|Promo|Other ou null>",
-  "confidence": "high|medium|low",
-  "pokemon_number": <national dex 1-1025 si Pokémon, null pour Trainer/Energy/Stadium>,
-  "pokemon_name_fr": "<nom FR standard (ex 'Gruikui', 'Dracaufeu'), null si non-Pokémon ou incertain>",
-  "set_name": "<nom extension imprimé (ex 'White Flare', 'BREAKpoint'), null si invisible>",
-  "set_name_fr": "<traduction FR (ex 'Combat de Maîtres', 'Rupture Turbo'), null si incertain>"
-}`;
-
-const SCHEMA = {
-  type: 'object',
-  properties: {
-    card_name: { type: 'string' },
-    pokemon_name: { type: 'string' },
-    set_code: { type: 'string' },
-    set_number: { type: 'string' },
-    set_total: { type: 'integer' },
-    language: { type: 'string' },
-    rarity: { type: 'string' },
-    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
-    pokemon_number: { type: 'integer' },
-    pokemon_name_fr: { type: 'string' },
-    set_name: { type: 'string' },
-    set_name_fr: { type: 'string' },
-  },
-  required: ['card_name', 'set_code', 'set_number', 'language', 'confidence'],
-};
+// Single source of truth — modify in lib/api/gemini-vision.ts and this bench
+// reflects the change automatically. Never copy-paste the prompt here.
+import { buildPrompt, SCHEMA } from '../lib/api/gemini-vision';
 
 interface GeminiCall {
   ok: boolean;
@@ -119,7 +72,7 @@ function normalizeSetCode(c: string): string {
   return c.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
 }
 
-async function callGemini(base64: string): Promise<GeminiCall> {
+async function callGemini(prompt: string, base64: string): Promise<GeminiCall> {
   const apiKey = process.env.GEMINI_API_KEY!;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
   const start = Date.now();
@@ -129,7 +82,7 @@ async function callGemini(base64: string): Promise<GeminiCall> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: 'image/jpeg', data: base64 } }] }],
+        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: base64 } }] }],
         generationConfig: {
           temperature: 0,
           responseMimeType: 'application/json',
@@ -219,6 +172,9 @@ async function main() {
   const files = readdirSync(dir).filter((f) => f.endsWith('.jpg')).sort();
   console.log(`Bench multilang: ${files.length} cards × ${MODEL}\n`);
 
+  // Build the prod prompt once (includes the ~741-expansion constraint list).
+  const prompt = await buildPrompt();
+
   interface Result {
     filename: string;
     gemini: GeminiCall;
@@ -229,7 +185,7 @@ async function main() {
   for (const filename of files) {
     const buf = readFileSync(join(dir, filename));
     const base64 = buf.toString('base64');
-    const gemini = await callGemini(base64);
+    const gemini = await callGemini(prompt, base64);
     let match: CatalogMatch | null = null;
     if (gemini.ok && gemini.set_code && gemini.set_number && gemini.language) {
       try {

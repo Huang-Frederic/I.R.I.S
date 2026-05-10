@@ -103,9 +103,9 @@ export function CandidatePicker(props: {
       </div>
 
       <div className="grid grid-cols-2 gap-3 overflow-y-auto p-4 sm:grid-cols-3">
-        {props.candidates.map((c) => (
+        {props.candidates.map((c, i) => (
           <button
-            key={c.card_id_tcg}
+            key={c.cardmarket_id || `${c.card_id_tcg}-${i}`}
             type="button"
             onClick={() => props.onSelect(c)}
             className="border-border hover:border-red group flex flex-col items-center gap-2 rounded-lg border p-2 transition-colors"

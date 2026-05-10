@@ -44,12 +44,17 @@ export function extractCardsFromDocument(doc: Document): ScrapedCard[] {
       setNumber = String(parseInt(numRaw, 10));
     }
 
-    // idProduct from <img src="https://product-images.s3.cardmarket.com/51/{set}/{idProduct}/{idProduct}.jpg">
+    // idProduct + setPrefix from
+    //   <img src="https://product-images.s3.cardmarket.com/51/{set_prefix}/{id_product}/{id_product}.jpg">
+    // The set_prefix is constant per expansion (BRS, LOR, BKR, EVO, …) and is
+    // what we need to build any other product's image URL — without it, the
+    // enrich pipeline can't display card images.
     const img = a.querySelector('img');
     const dataEcho =
       img?.getAttribute('data-echo') ?? img?.getAttribute('src') ?? '';
-    const idMatch = dataEcho.match(/\/(\d+)\/\d+\.(jpg|webp|png)/i);
-    const idProduct = idMatch ? Number(idMatch[1]) : null;
+    const imgMatch = dataEcho.match(/\/51\/([^/]+)\/(\d+)\/\d+\.(jpg|webp|png)/i);
+    const setPrefix = imgMatch ? imgMatch[1] : null;
+    const idProduct = imgMatch ? Number(imgMatch[2]) : null;
 
     // Display name from <h2> or img alt.
     const h2 = a.querySelector('h2');
@@ -63,6 +68,7 @@ export function extractCardsFromDocument(doc: Document): ScrapedCard[] {
         urlVariant,
         urlPath: href,
         name,
+        setPrefix,
       });
     }
   }

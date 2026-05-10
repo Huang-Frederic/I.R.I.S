@@ -6,7 +6,7 @@ const MOCK_API_KEY = 'test-gemini-key';
 const FULL_EXTRACTION = {
   card_name: 'Pikachu ex',
   pokemon_name: 'Pikachu',
-  set_code: 'SV11W',
+  set_prefix: 'SV11W',
   set_number: '12',
   set_total: 86,
   language: 'EN',
@@ -14,9 +14,8 @@ const FULL_EXTRACTION = {
   confidence: 'high',
   pokemon_number: 25,
   pokemon_name_fr: 'Pikachu',
+  pokemon_name_en: 'Pikachu',
   card_name_fr: 'Pikachu ex',
-  set_name: 'Battle Partners',
-  set_name_fr: 'Partenaires de Combat',
   illustrator: 'Ryuta Fuse',
 };
 
@@ -61,7 +60,7 @@ describe('gemini-vision', () => {
                 text: JSON.stringify({
                   ...FULL_EXTRACTION,
                   card_name: 'Charizard',
-                  set_code: 'BW5',
+                  set_prefix: 'BW5',
                   set_number: '012',
                   set_total: 172,
                   rarity: 'Rare',
@@ -141,7 +140,7 @@ describe('gemini-vision', () => {
                 text: JSON.stringify({
                   card_name: 'Professor Oak',
                   pokemon_name: null,
-                  set_code: 'BW1',
+                  set_prefix: 'BW1',
                   set_number: '50',
                   language: 'EN',
                   confidence: 'high',
@@ -168,7 +167,7 @@ describe('gemini-vision', () => {
               {
                 text: JSON.stringify({
                   card_name: 'Pikachu',
-                  set_code: 'SM-P',
+                  set_prefix: 'SM-P',
                   set_number: '27',
                   set_total: null,
                   language: 'JP',
@@ -184,7 +183,7 @@ describe('gemini-vision', () => {
 
     const result = await extractCardFromImage(Buffer.from('fake'));
     expect(result.extraction?.set_total).toBeNull();
-    expect(result.extraction?.set_code).toBe('SM-P');
+    expect(result.extraction?.set_prefix).toBe('SM-P');
   });
 
   it('converts empty string pokemon_name to null', async () => {
@@ -197,7 +196,7 @@ describe('gemini-vision', () => {
                 text: JSON.stringify({
                   card_name: 'Energy Card',
                   pokemon_name: '',
-                  set_code: 'SV1',
+                  set_prefix: 'SV1',
                   set_number: '100',
                   language: 'EN',
                   confidence: 'high',
@@ -224,7 +223,7 @@ describe('gemini-vision', () => {
                 text: JSON.stringify({
                   card_name: 'チャオブー',
                   pokemon_name: 'チャオブー',
-                  set_code: 'BW5',
+                  set_prefix: 'BW5',
                   set_number: '12',
                   set_total: 86,
                   language: 'JP',
@@ -232,8 +231,6 @@ describe('gemini-vision', () => {
                   confidence: 'high',
                   pokemon_number: 499,
                   pokemon_name_fr: 'Grotichon',
-                  set_name: 'ホワイトフレア',
-                  set_name_fr: 'Flamme Blanche',
                 }),
               },
             ],
@@ -246,7 +243,6 @@ describe('gemini-vision', () => {
     const result = await extractCardFromImage(Buffer.from('fake'));
     expect(result.extraction?.pokemon_number).toBe(499);
     expect(result.extraction?.pokemon_name_fr).toBe('Grotichon');
-    expect(result.extraction?.set_name_fr).toBe('Flamme Blanche');
   });
 
   it('extracts usage when usageMetadata is present', async () => {
@@ -258,7 +254,7 @@ describe('gemini-vision', () => {
               {
                 text: JSON.stringify({
                   card_name: 'Pikachu',
-                  set_code: 'SV1',
+                  set_prefix: 'SV1',
                   set_number: '1',
                   language: 'EN',
                   confidence: 'high',
@@ -276,8 +272,8 @@ describe('gemini-vision', () => {
     expect(result.usage).toBeDefined();
     expect(result.usage?.tokens_in).toBe(1500);
     expect(result.usage?.tokens_out).toBe(100);
-    // tokens_image = 1500 (in) - PROMPT_TOKEN_ESTIMATE (360) = 1140
-    expect(result.usage?.tokens_image).toBe(1140);
+    // tokens_image = 1500 (in) - PROMPT_TOKEN_ESTIMATE (250) = 1250
+    expect(result.usage?.tokens_image).toBe(1250);
     // cost: (1500 * 2.0 + 100 * 5.0) / 1M = 0.0035 USD * 0.92 = 0.00322 EUR
     expect(result.usage?.cost_eur).toBeCloseTo(0.00322, 5);
     // _usage is also mirrored on the extraction object for back-compat
@@ -300,7 +296,7 @@ describe('gemini-vision', () => {
   it('tolerates a prose preamble before the JSON object', async () => {
     const validJson = JSON.stringify({
       card_name: 'Pikachu',
-      set_code: 'SV1',
+      set_prefix: 'SV1',
       set_number: '1',
       language: 'EN',
       confidence: 'high',
@@ -317,7 +313,7 @@ describe('gemini-vision', () => {
   it('tolerates markdown fences around the JSON object', async () => {
     const validJson = JSON.stringify({
       card_name: 'Pikachu',
-      set_code: 'SV1',
+      set_prefix: 'SV1',
       set_number: '1',
       language: 'EN',
       confidence: 'high',
@@ -340,7 +336,7 @@ describe('gemini-vision', () => {
               {
                 text: JSON.stringify({
                   card_name: 'Pikachu',
-                  set_code: 'SV1',
+                  set_prefix: 'SV1',
                   set_number: '1',
                   language: 'EN',
                   confidence: 'high',

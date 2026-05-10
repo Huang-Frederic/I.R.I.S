@@ -61,17 +61,18 @@ export default function BatchForm() {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
-              text: ocr.text,
-              setCode: ocr.setCodeCandidate,
-              localId: ocr.setNumberCandidate?.card,
+              setPrefix: ocr.setCodeCandidate,
+              setNumber: ocr.setNumberCandidate?.card,
+              setTotal: ocr.setNumberCandidate?.total
+                ? Number(ocr.setNumberCandidate.total)
+                : null,
               language: ocr.language ?? 'JP',
-              pokemonNumber: ocr.pokemonNumber,
-              pokemonNameFr: ocr.pokemonNameFr,
-              setName: ocr.setName,
-              setNameFr: ocr.setNameFr,
-              // Strategy 5 fallback inputs (Plan D++) + Strategy 2.5 illustrator
-              cardName: ocr.cardName,
               pokemonName: ocr.pokemonName,
+              pokemonNameFr: ocr.pokemonNameFr,
+              pokemonNameEn: ocr.pokemonNameEn,
+              pokemonNumber: ocr.pokemonNumber,
+              cardName: ocr.cardName,
+              cardNameFr: ocr.cardNameFr,
               rarity: ocr.rarity,
               illustrator: ocr.illustrator,
             }),

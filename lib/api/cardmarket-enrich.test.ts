@@ -1,171 +1,194 @@
 import { describe, it, expect, vi } from 'vitest';
-import { lookupCardmarketStrategy0 } from './cardmarket-enrich';
+import {
+  lookupBySetPrefixAndNumber,
+  lookupBySetPrefixAndName,
+} from './cardmarket-enrich';
+
+interface ExpansionStub {
+  id_expansion: number;
+  name: string;
+  name_en: string | null;
+  set_prefix: string | null;
+}
+
+interface ProductStub {
+  id_product: number;
+  name: string;
+  card_prefix: string | null;
+  card_prefix_normalized: string | null;
+  id_expansion: number;
+}
+
+interface IndexStub {
+  id_product: number;
+  id_expansion: number;
+  set_number: string;
+  url_path: string | null;
+  url_variant: string | null;
+}
 
 /**
- * Build a mock Supabase client whose `.from(table)` returns an awaitable
- * thenable for `cardmarket_expansions` (full list) and a chainable .eq().single()
- * for the lookup tables. Matches the shape used by lookupCardmarketStrategy0
- * after the SQL-injection-safe refactor.
+ * Build a Supabase client mock for the new (set_prefix-based) lookups.
+ * Returns a thenable-builder per table — every chain method is no-op chainable
+ * AND the whole builder resolves to { data, error } when awaited. Lets the
+ * test cover any chain shape (.in().eq().limit(), .in() alone, etc.).
  */
 function mockSupabase(opts: {
-  expansions?: Array<{
-    id_expansion: number;
-    name: string | null;
-    name_en: string | null;
-    name_ja: string | null;
-  }> | null;
-  indexRow?: { id_product: number; url_path: string | null } | null;
-  product?: { id_product: number; name: string; card_prefix?: string } | null;
+  expansions?: ExpansionStub[];
+  products?: ProductStub[];
+  indexRows?: IndexStub[];
 }) {
+  function builder<T>(data: T[]) {
+    const result = { data, error: null };
+    const b: Record<string, unknown> = {
+      select: vi.fn(() => b),
+      ilike: vi.fn(() => b),
+      eq: vi.fn(() => b),
+      in: vi.fn(() => b),
+      limit: vi.fn(() => b),
+      then: (resolve: (v: { data: T[]; error: null }) => void) => resolve(result),
+    };
+    return b;
+  }
   return {
     from: vi.fn((table: string) => {
-      if (table === 'cardmarket_expansions') {
-        // Returns a thenable so `await supabase.from(...).select(...)` resolves
-        // to { data, error }.
-        return {
-          select: vi.fn(() =>
-            Promise.resolve({ data: opts.expansions ?? null, error: null }),
-          ),
-        };
-      }
-      if (table === 'cardmarket_card_index') {
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          single: vi.fn(async () => ({ data: opts.indexRow ?? null, error: null })),
-        };
-      }
-      if (table === 'cardmarket_products') {
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          single: vi.fn(async () => ({ data: opts.product ?? null, error: null })),
-        };
-      }
+      if (table === 'cardmarket_expansions') return builder(opts.expansions ?? []);
+      if (table === 'cardmarket_card_index') return builder(opts.indexRows ?? []);
+      if (table === 'cardmarket_products') return builder(opts.products ?? []);
       throw new Error(`Unexpected table: ${table}`);
     }),
   };
 }
 
-describe('lookupCardmarketStrategy0', () => {
-  it('returns null when set_name does not match any expansion', async () => {
+describe('lookupBySetPrefixAndNumber (Strategy 0)', () => {
+  it('returns the unique card when prefix + number resolve to one product', async () => {
     const supabase = mockSupabase({
       expansions: [
-        { id_expansion: 1234, name: 'Other Set', name_en: 'Other Set', name_ja: null },
+        { id_expansion: 4434, name: 'Brilliant Stars', name_en: 'Brilliant Stars', set_prefix: 'BRS' },
+      ],
+      indexRows: [
+        { id_product: 608425, id_expansion: 4434, set_number: '1', url_path: '/x/y', url_variant: null },
+      ],
+      products: [
+        { id_product: 608425, name: 'Exeggcute', card_prefix: 'Exeggcute', card_prefix_normalized: 'exeggcute', id_expansion: 4434 },
       ],
     });
-    const result = await lookupCardmarketStrategy0(supabase as never, {
-      setName: 'NonExistentSet',
-      setNumber: '1',
-      language: 'fr',
-    });
-    expect(result).toBeNull();
+    const cards = await lookupBySetPrefixAndNumber(supabase as never, 'BRS', '1');
+    expect(cards).toHaveLength(1);
+    expect(cards[0].cardmarket_id).toBe('608425');
+    expect(cards[0].card_name).toBe('Exeggcute');
+    expect(cards[0].set_prefix).toBe('BRS');
+    // Goes through our proxy route to avoid cardmarket CloudFront 403.
+    expect(cards[0].tcg_image_url).toBe('/api/cm-img/608425?prefix=BRS');
   });
 
-  it('returns null when expansions list is empty', async () => {
-    const supabase = mockSupabase({ expansions: null });
-    const result = await lookupCardmarketStrategy0(supabase as never, {
-      setName: 'Anything',
-      setNumber: '1',
-      language: 'fr',
-    });
-    expect(result).toBeNull();
-  });
-
-  it('returns enriched card when both expansion and card_index hit', async () => {
+  it('returns multiple cards when number has variants (reverse holo)', async () => {
     const supabase = mockSupabase({
       expansions: [
+        { id_expansion: 4434, name: 'Brilliant Stars', name_en: 'Brilliant Stars', set_prefix: 'BRS' },
+      ],
+      indexRows: [
+        { id_product: 1, id_expansion: 4434, set_number: '14', url_path: '/x/regular', url_variant: null },
+        { id_product: 2, id_expansion: 4434, set_number: '14', url_path: '/x/reverse', url_variant: 'V2' },
+      ],
+      products: [
+        { id_product: 1, name: 'Pikachu', card_prefix: 'Pikachu', card_prefix_normalized: 'pikachu', id_expansion: 4434 },
+        { id_product: 2, name: 'Pikachu (Reverse Holo)', card_prefix: 'Pikachu', card_prefix_normalized: 'pikachu', id_expansion: 4434 },
+      ],
+    });
+    const cards = await lookupBySetPrefixAndNumber(supabase as never, 'BRS', '14');
+    expect(cards).toHaveLength(2);
+  });
+
+  it('returns empty when prefix is unknown', async () => {
+    const supabase = mockSupabase({ expansions: [] });
+    const cards = await lookupBySetPrefixAndNumber(supabase as never, 'UNKNOWN', '1');
+    expect(cards).toEqual([]);
+  });
+
+  it('returns empty when number does not exist in expansion', async () => {
+    const supabase = mockSupabase({
+      expansions: [
+        { id_expansion: 4434, name: 'Brilliant Stars', name_en: 'Brilliant Stars', set_prefix: 'BRS' },
+      ],
+      indexRows: [],
+    });
+    const cards = await lookupBySetPrefixAndNumber(supabase as never, 'BRS', '999');
+    expect(cards).toEqual([]);
+  });
+
+  it('returns empty image URL when expansion has no set_prefix backfilled', async () => {
+    const supabase = mockSupabase({
+      expansions: [
+        { id_expansion: 4434, name: 'Brilliant Stars', name_en: 'Brilliant Stars', set_prefix: null },
+      ],
+      indexRows: [
+        { id_product: 608425, id_expansion: 4434, set_number: '1', url_path: '/x/y', url_variant: null },
+      ],
+      products: [
+        { id_product: 608425, name: 'Exeggcute', card_prefix: 'Exeggcute', card_prefix_normalized: 'exeggcute', id_expansion: 4434 },
+      ],
+    });
+    const cards = await lookupBySetPrefixAndNumber(supabase as never, 'BRS', '1');
+    expect(cards[0].tcg_image_url).toBe('');
+  });
+});
+
+describe('lookupBySetPrefixAndName (Strategy 1 picker)', () => {
+  it('returns all cards in the expansion whose card_prefix matches the pokemon', async () => {
+    const supabase = mockSupabase({
+      expansions: [
+        { id_expansion: 4434, name: 'Brilliant Stars', name_en: 'Brilliant Stars', set_prefix: 'BRS' },
+      ],
+      products: [
+        { id_product: 1, name: 'Dracaufeu V', card_prefix: 'Dracaufeu V', card_prefix_normalized: 'dracaufeuv', id_expansion: 4434 },
+        { id_product: 2, name: 'Dracaufeu', card_prefix: 'Dracaufeu', card_prefix_normalized: 'dracaufeu', id_expansion: 4434 },
+        { id_product: 3, name: 'Pikachu', card_prefix: 'Pikachu', card_prefix_normalized: 'pikachu', id_expansion: 4434 },
+      ],
+      indexRows: [
+        { id_product: 1, id_expansion: 4434, set_number: '17', url_path: '/x/v', url_variant: null },
+        { id_product: 2, id_expansion: 4434, set_number: 'TG3', url_path: '/x/tg', url_variant: null },
+      ],
+    });
+    const cards = await lookupBySetPrefixAndName(supabase as never, 'BRS', 'Dracaufeu');
+    // Both Dracaufeu products match (substring lookup); Pikachu is filtered out.
+    expect(cards).toHaveLength(2);
+    expect(cards.map((c) => c.cardmarket_id).sort()).toEqual(['1', '2']);
+  });
+
+  it('strips bracketed disambig from card_name', async () => {
+    const supabase = mockSupabase({
+      expansions: [
+        { id_expansion: 1, name: 'Black Bolt', name_en: 'Black Bolt', set_prefix: 'BLK' },
+      ],
+      products: [
         {
-          id_expansion: 4434,
-          name: 'Brilliant Stars',
-          name_en: 'Brilliant Stars',
-          name_ja: null,
+          id_product: 835910,
+          name: 'Pansage [Collect | Scratch | SV]',
+          card_prefix: 'Pansage',
+          card_prefix_normalized: 'pansage',
+          id_expansion: 1,
         },
       ],
-      indexRow: {
-        id_product: 608425,
-        url_path: '/fr/Pokemon/Products/Singles/Brilliant-Stars/Exeggcute-BRS001',
-      },
-      product: { id_product: 608425, name: 'Exeggcute', card_prefix: 'BRS' },
-    });
-
-    const result = await lookupCardmarketStrategy0(supabase as never, {
-      setName: 'Brilliant Stars',
-      setNumber: '1',
-      language: 'fr',
-    });
-
-    expect(result).not.toBeNull();
-    expect(result!.cardmarket_id).toBe('608425');
-    expect(result!.set_name).toBe('Brilliant Stars');
-    expect(result!.set_name_ja).toBeNull();
-    expect(result!.tcg_image_url).toContain('608425');
-    expect(result!.card_name).toBe('Exeggcute');
-  });
-
-  it('matches against name_en when input setName is the EN form', async () => {
-    const supabase = mockSupabase({
-      expansions: [
-        {
-          id_expansion: 1521,
-          name: 'Vigueur Spectrale',
-          name_en: 'Phantom Forces',
-          name_ja: null,
-        },
-      ],
-      indexRow: { id_product: 281802, url_path: '/fr/...' },
-      product: { id_product: 281802, name: 'Venonat' },
-    });
-
-    const result = await lookupCardmarketStrategy0(supabase as never, {
-      setName: 'Phantom Forces',
-      setNumber: '1',
-      language: 'fr',
-    });
-
-    expect(result).not.toBeNull();
-    expect(result!.cardmarket_id).toBe('281802');
-    expect(result!.set_name).toBe('Phantom Forces');
-  });
-
-  it('attaches set_name_ja when language is ja and the expansion has it', async () => {
-    const supabase = mockSupabase({
-      expansions: [
-        {
-          id_expansion: 5000,
-          name: 'Crimson Haze',
-          name_en: 'Crimson Haze',
-          name_ja: '黒煙の覇者',
-        },
-      ],
-      indexRow: { id_product: 700001, url_path: '/ja/...' },
-      product: { id_product: 700001, name: 'Pikachu' },
-    });
-
-    const result = await lookupCardmarketStrategy0(supabase as never, {
-      setName: 'Crimson Haze',
-      setNumber: '5',
-      language: 'ja',
-    });
-
-    expect(result).not.toBeNull();
-    expect(result!.set_name_ja).toBe('黒煙の覇者');
-  });
-
-  it('does NOT inject when setName contains PostgREST filter syntax characters', async () => {
-    // Adversarial input: would have broken the old .or(`name.eq.${setName},...`)
-    // by allowing extra filter clauses. With the in-memory match, this is just
-    // a string that legitimately doesn't match any expansion.
-    const supabase = mockSupabase({
-      expansions: [
-        { id_expansion: 1, name: 'Real Set', name_en: 'Real Set', name_ja: null },
+      indexRows: [
+        { id_product: 835910, id_expansion: 1, set_number: '4', url_path: '/x', url_variant: null },
       ],
     });
-    const result = await lookupCardmarketStrategy0(supabase as never, {
-      setName: 'foo,name.neq.bar',
-      setNumber: '1',
-      language: 'fr',
+    const cards = await lookupBySetPrefixAndName(supabase as never, 'BLK', 'Pansage');
+    expect(cards[0].card_name).toBe('Pansage');
+  });
+
+  it('returns empty when no product matches the pokemon name', async () => {
+    const supabase = mockSupabase({
+      expansions: [
+        { id_expansion: 4434, name: 'Brilliant Stars', name_en: 'Brilliant Stars', set_prefix: 'BRS' },
+      ],
+      products: [
+        { id_product: 1, name: 'Pikachu', card_prefix: 'Pikachu', card_prefix_normalized: 'pikachu', id_expansion: 4434 },
+      ],
+      indexRows: [],
     });
-    expect(result).toBeNull();
+    const cards = await lookupBySetPrefixAndName(supabase as never, 'BRS', 'Dracaufeu');
+    expect(cards).toEqual([]);
   });
 });
