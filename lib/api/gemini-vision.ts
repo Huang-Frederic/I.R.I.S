@@ -2,7 +2,12 @@ import 'server-only';
 
 // Gemini pricing (paid tier, per 1M tokens). Empirically calibrated against
 // actual GCP billing — input $2.00/M, output $5.00/M.
-const PROMPT_TOKEN_ESTIMATE = 250; // base prompt only — no constraint list anymore
+//
+// PROMPT_TOKEN_ESTIMATE = text-only cost of BASE_PROMPT, measured via the
+// `:countTokens` endpoint. Recalibrate after editing BASE_PROMPT with
+// `npx tsx scripts/measure-gemini-prompt-tokens.ts`. The responseSchema is
+// NOT included in promptTokenCount — Gemini bills only contents.parts.
+const PROMPT_TOKEN_ESTIMATE = 1465;
 const COST_USD_PER_M_INPUT = 2.0;
 const COST_USD_PER_M_OUTPUT = 5.0;
 const USD_TO_EUR = 0.92;
@@ -14,8 +19,10 @@ const TIMEOUT_MS = 15000;
 export interface GeminiUsage {
   tokens_in: number;
   tokens_out: number;
-  /** Estimated image tokens (Gemini doesn't break this out separately). */
-  tokens_image: number;
+  /** Rough estimate of image-only tokens: tokens_in − PROMPT_TOKEN_ESTIMATE.
+   *  Imprecise — Gemini doesn't break image tokens out, and the prompt baseline
+   *  drifts as BASE_PROMPT evolves. Use tokens_in for accurate billing. */
+  tokens_image_est: number;
   cost_eur: number;
 }
 
@@ -251,11 +258,11 @@ export async function extractCardFromImage(
     if (meta && typeof meta.promptTokenCount === 'number' && typeof meta.candidatesTokenCount === 'number') {
       const tokens_in = meta.promptTokenCount;
       const tokens_out = meta.candidatesTokenCount;
-      const tokens_image = Math.max(0, tokens_in - PROMPT_TOKEN_ESTIMATE);
+      const tokens_image_est = Math.max(0, tokens_in - PROMPT_TOKEN_ESTIMATE);
       const cost_usd = (tokens_in * COST_USD_PER_M_INPUT + tokens_out * COST_USD_PER_M_OUTPUT) / 1_000_000;
       const cost_eur = cost_usd * USD_TO_EUR;
-      usage = { tokens_in, tokens_out, tokens_image, cost_eur };
-      console.log(`[Gemini] ${tokens_in}in / ${tokens_out}out / ${tokens_image}img — €${cost_eur.toFixed(6)}`);
+      usage = { tokens_in, tokens_out, tokens_image_est, cost_eur };
+      console.log(`[Gemini] ${tokens_in}in / ${tokens_out}out / ~${tokens_image_est}img — €${cost_eur.toFixed(6)}`);
     }
 
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;

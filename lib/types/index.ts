@@ -126,8 +126,8 @@ export interface WordAnnotation {
 export interface GeminiUsage {
   tokens_in: number;
   tokens_out: number;
-  /** Estimated image tokens (Gemini doesn't break this out, derived = promptTokenCount - PROMPT_TOKEN_ESTIMATE). */
-  tokens_image: number;
+  /** Rough estimate (tokens_in − PROMPT_TOKEN_ESTIMATE). Imprecise — see GeminiUsage in lib/api/gemini-vision.ts. */
+  tokens_image_est: number;
   cost_eur: number;
 }
 

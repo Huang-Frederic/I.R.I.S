@@ -1,11 +1,16 @@
-// Streams all rows of cardmarket_card_index to a versioned file in backups/.
-// Run after a successful gallery scrape (`npm run scrape-cardmarket -- --modern`
-// or `--all`) so the hours of work + Cloudflare-1015 risk are protected.
+// Snapshot the two scrape-derived cardmarket tables to versioned files in backups/:
+//   - cardmarket_card_index (~48K rows of (expansion, set_number) → id_product)
+//   - cardmarket_expansions  (741 rows, INCLUDES the set_prefix column we
+//                             populate from BrightData scraping — the daily
+//                             dump upload preserves it via partial upsert,
+//                             but a full table reset/restore would lose it)
 //
-// Why a dedicated snapshot: the daily GitHub Action backup only covers the 8
-// user-data tables (cards, lots, listings, etc.). cardmarket_card_index is
-// catalog data that takes ~6h (modern) or ~16h (all expansions) to rebuild
-// from scratch and risks an IP ban — losing it without a snapshot is painful.
+// Run after a successful BrightData scrape (`scrapers/cardmarket/`) — the
+// hours of work + ~$3 of BrightData credits + Cloudflare-1015 risk are then
+// protected.
+//
+// The daily GitHub Action backup only covers the 8 user-data tables
+// (cards, lots, listings, etc.). The cardmarket scrape data isn't in there.
 //
 // Usage: npm run snapshot-cardmarket-index
 
@@ -72,13 +77,36 @@ async function snapshotCardmarketIndex(): Promise<number> {
   return count;
 }
 
+/**
+ * Snapshot cardmarket_expansions. Small enough (~741 rows) for a single query
+ * — no streaming pagination needed. We dump the FULL row including set_prefix
+ * which is the column that costs $1+ of BrightData credits to repopulate.
+ */
+async function snapshotCardmarketExpansions(): Promise<number> {
+  const service = createServiceClient();
+  const { data, error } = await service
+    .from('cardmarket_expansions')
+    .select('*')
+    .order('id_expansion', { ascending: true });
+  if (error) throw new Error(`cardmarket_expansions read failed: ${error.message}`);
+  const rows = data ?? [];
+
+  const out = createWriteStream(path.join(BACKUPS_DIR, 'cardmarket_expansions.jsonl.gz'));
+  const gzip = createGzip();
+  const source = Readable.from(rows.map((r) => JSON.stringify(r) + '\n'));
+  await pipeline(source, gzip, out);
+  return rows.length;
+}
+
 async function main(): Promise<void> {
   mkdirSync(BACKUPS_DIR, { recursive: true });
 
-  console.log('[snapshot-cardmarket-index] starting…');
-  const count = await snapshotCardmarketIndex();
-  console.log(`  ✓ cardmarket_card_index: ${count} rows → backups/cardmarket_card_index.jsonl.gz`);
-  console.log('[snapshot-cardmarket-index] done. Commit backups/ to git.');
+  console.log('[snapshot-cardmarket] starting…');
+  const indexCount = await snapshotCardmarketIndex();
+  console.log(`  ✓ cardmarket_card_index: ${indexCount} rows → backups/cardmarket_card_index.jsonl.gz`);
+  const expansionCount = await snapshotCardmarketExpansions();
+  console.log(`  ✓ cardmarket_expansions: ${expansionCount} rows → backups/cardmarket_expansions.jsonl.gz`);
+  console.log('[snapshot-cardmarket] done. Commit backups/ to git.');
 }
 
 if (require.main === module) {

@@ -264,18 +264,18 @@ describe('gemini-vision', () => {
           },
         },
       ],
-      usageMetadata: { promptTokenCount: 1500, candidatesTokenCount: 100, totalTokenCount: 1600 },
+      usageMetadata: { promptTokenCount: 2500, candidatesTokenCount: 100, totalTokenCount: 2600 },
     };
     global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => mockResponse }) as unknown as typeof fetch;
 
     const result = await extractCardFromImage(Buffer.from('fake'));
     expect(result.usage).toBeDefined();
-    expect(result.usage?.tokens_in).toBe(1500);
+    expect(result.usage?.tokens_in).toBe(2500);
     expect(result.usage?.tokens_out).toBe(100);
-    // tokens_image = 1500 (in) - PROMPT_TOKEN_ESTIMATE (250) = 1250
-    expect(result.usage?.tokens_image).toBe(1250);
-    // cost: (1500 * 2.0 + 100 * 5.0) / 1M = 0.0035 USD * 0.92 = 0.00322 EUR
-    expect(result.usage?.cost_eur).toBeCloseTo(0.00322, 5);
+    // tokens_image_est = 2500 (in) - PROMPT_TOKEN_ESTIMATE (1465) = 1035
+    expect(result.usage?.tokens_image_est).toBe(1035);
+    // cost: (2500 * 2.0 + 100 * 5.0) / 1M = 0.0055 USD * 0.92 = 0.00506 EUR
+    expect(result.usage?.cost_eur).toBeCloseTo(0.00506, 5);
     // _usage is also mirrored on the extraction object for back-compat
     expect(result.extraction?._usage).toEqual(result.usage);
   });

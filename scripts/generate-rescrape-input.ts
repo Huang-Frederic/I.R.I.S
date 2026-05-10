@@ -91,16 +91,17 @@ function isFrLocalisation(row: ExpansionRow): boolean {
   if (fr === en) return false;
 
   // Sealed-product expansions whose FR name starts with "Produits"
+  // (these are sealed-box wrappers with no actual single cards on cardmarket).
   if (/^produits\s/i.test(row.name)) return true;
-  // FR Trainer Kits
+  // Sealed-product Battle Academy / Trainer Kits.
   if (/kit\s+(du\s+)?dresseur/i.test(row.name)) return true;
-  // FR Battle Academy
   if (/^académie de combat/i.test(row.name)) return true;
-  // FR translations of named SV-era sets
-  if (/^poing de fusion$/i.test(row.name)) return true;
   if (/^mon premier combat$/i.test(row.name)) return true;
-  // Other FR-translated card-pack names containing "Pokémon Packs Récompense"
+  // Other FR-translated card-pack names ("Packs Récompense" sealed boxes).
   if (/pokémon\s+packs?\s+récompense/i.test(row.name)) return true;
+  // NOTE: "Poing de Fusion" was previously skipped here as an FR localisation,
+  // but it's the SOLE entry for Fusion Strike (no separate EN id_expansion).
+  // Removing the skip — it's a real expansion with ~300 cards to scrape.
   return false;
 }
 
