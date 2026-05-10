@@ -198,10 +198,29 @@ export async function lookupBySetPrefixAndName(
   const expansionById = new Map<number, ExpansionRow>();
   for (const e of expansions) expansionById.set(e.id_expansion, e);
 
-  return idx
-    .map((r) => buildCard(r, productById.get(r.id_product), expansionById.get(r.id_expansion)))
-    .filter((c): c is CardmarketCard => c !== null)
-    .slice(0, 10);
+  // Build cards from matched products. Prefer card_index entries (have
+  // set_number + url_path + variant), but fall back to a synthesized index
+  // row when the card isn't in our scraped index — this happens when the
+  // BrightData scrape missed cards on later pages of big sets (e.g. LOR
+  // Trainer Gallery cards). Better to return the card with cardmarket_id +
+  // image URL and a blank set_number than to silently drop it.
+  const indexByProduct = new Map<number, CardIndexRow>();
+  for (const r of idx) indexByProduct.set(r.id_product, r);
+
+  const cards: CardmarketCard[] = [];
+  for (const p of matched) {
+    const idxRow = indexByProduct.get(p.id_product) ?? {
+      id_product: p.id_product,
+      id_expansion: p.id_expansion,
+      set_number: '',
+      url_path: null,
+      url_variant: null,
+    };
+    const card = buildCard(idxRow, p, expansionById.get(p.id_expansion));
+    if (card) cards.push(card);
+    if (cards.length >= 10) break;
+  }
+  return cards;
 }
 
 function buildCard(
