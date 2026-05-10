@@ -479,8 +479,9 @@ async function full() {
         }
 
         // Optional: fetch each card-detail page to extract illustrator. Costly
-        // (1 HTTP per card, parallelized at concurrency 5) but worth it once for
-        // disambiguation in /api/enrich Strategy 2.5. Toggle via env var.
+        // (1 HTTP per card, parallelized at concurrency 5) — kept for the
+        // pricing pipeline's name-prefix fallback in cardmarket-pricing.ts.
+        // Toggle via env var.
         if (SCRAPE_ILLUSTRATOR) {
           await enrichWithIllustrators(cards);
         }

@@ -46,10 +46,10 @@ Cardmarket data comes from daily refreshed S3 dumps. Four tables: expansions met
 
 | Table | Purpose | Row count |
 |---|---|---|
-| `cardmarket_expansions` | 741 expansions (idExpansion → name + name_normalized) | Source: FR-locale dropdown HTML. |
+| `cardmarket_expansions` | 741 expansions (idExpansion → name + name_normalized + `set_prefix`) | Source: FR-locale dropdown HTML. `set_prefix` (BRS/LOR/BKR/sv1a/sv2a/…) populated by the BrightData scraper, used by enrich Strategy 0 and the image-URL builder. |
 | `cardmarket_products` | 67K product entries | From the public S3 dump `products_singles_6.json`. |
 | `cardmarket_pricing` | 67K pricing rows (low / trend / avg + holo variants) | From the public S3 dump `price_guide_6.json`. Refreshed daily. |
-| `cardmarket_card_index` | Fast-path lookup `(id_expansion, set_number) → id_product` | Built by a deterministic SQL formula from the daily dump — see [CARDMARKET_MAPPING.md](CARDMARKET_MAPPING.md). [`scripts/scrape-cardmarket-cards.ts`](../scripts/scrape-cardmarket-cards.ts) is the fallback for wheel-type promo sets. |
+| `cardmarket_card_index` | Fast-path lookup `(id_expansion, set_number) → id_product` | Populated by the BrightData scraper at [`scrapers/cardmarket/`](../scrapers/cardmarket/) — see [CARDMARKET_MAPPING.md](CARDMARKET_MAPPING.md). |
 
 ### Dashboard (Phase 5)
 
@@ -85,6 +85,9 @@ Migrations are applied chronologically and named by phase. All migration files l
 | `20260507200000_cardmarket_dumps.sql` | `cardmarket_expansions`, `cardmarket_products`, `cardmarket_pricing`. |
 | `20260508000000_cardmarket_card_index.sql` | `cardmarket_card_index` for fast-path lookup. |
 | `20260509000000_cardmarket_url_path.sql` | Adds `url_path` to card_index + `cardmarket_url` to cards. |
+| `20260510100000_multilang_names.sql` | Multilingual name columns: `cards.{pokemon_name_ocr,card_name_ocr,set_name_ja}` + `cardmarket_expansions.{name_en,name_ja}` for bilingual display. |
+| `20260510200000_cardmarket_set_prefix.sql` | Adds `cardmarket_expansions.set_prefix` (S3 image-URL prefix like BRS/LOR/sv2a, used by enrich Strategy 0 + image builder). Initial backfill from `url_path` slug patterns. |
+| `20260510210000_cardmarket_set_prefix_fix.sql` | Re-derive `set_prefix` with case-insensitive regex (handles JP codes like sv1a/sv2a) + majority-vote per expansion. Replaces buggy distinct-on-without-order-by from previous migration. |
 
 ### Apply
 

@@ -70,12 +70,12 @@ If the script fails with `UNABLE_TO_VERIFY_LEAF_SIGNATURE` (Node 22 on WSL2 behi
 export INSECURE_HTTPS=1
 ```
 
-### `fetch-pokemon-names.ts`
+### `generate-pokemon-names.ts`
 
-Refreshes [`lib/data/pokemon-names.ts`](../lib/data/pokemon-names.ts) from PokeAPI. Run this when a new generation drops and you need the latest 1 025+ Pokémon names.
+Refreshes [`lib/data/pokemon-names.json`](../lib/data/pokemon-names.json) from PokéAPI — 1 025 species × FR/EN/JA, used by the OCR route to override Gemini's hallucinated `pokemon_name_fr`/`pokemon_name_en` with deterministic values keyed by national dex. Re-run when a new generation drops (every 2-3 years).
 
 ```bash
-npx tsx scripts/fetch-pokemon-names.ts
+npx tsx scripts/generate-pokemon-names.ts                    # ~30s, writes lib/data/pokemon-names.json
 ```
 
 ---
@@ -135,6 +135,48 @@ npm run scrape-cardmarket -- --dry-run Crimson-Haze
 ```
 
 **Rate-limit posture** (for the rare cases you actually run it): rebrowser-playwright + system Chrome channel + pre-flight check, 15s between pages, 60s between expansions, batch cooldown 3-5min every 25 successful expansions, retries with exponential cooldown on HTTP 429, kill switch at 2 cumulative 429s. 403 responses dump cf-ray + screenshot to `scripts/data/`. Run only from a clean residential IP.
+
+### BrightData scraper (primary, in [`scrapers/cardmarket/`](../scrapers/cardmarket/))
+
+The BrightData-powered scraper that populates `cardmarket_card_index` (and `cardmarket_expansions.set_prefix`) for every expansion. Apify-runtime compatible but typically run locally. See the [scraper README](../scrapers/cardmarket/README.md) for setup.
+
+```bash
+cd scrapers/cardmarket
+npx apify run --input-file=.actor/RESCRAPE_INPUT.json    # use generated input file
+```
+
+Required env: `BRIGHTDATA_TOKEN`, `BRIGHTDATA_ZONE` (default `iris`), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+
+The scraper extracts `(idProduct, setNumber, urlVariant, urlPath, setPrefix)` per card and writes both the per-card rows and the per-expansion `set_prefix` (image URL prefix used by `/api/cm-img`).
+
+### `generate-rescrape-input.ts`
+
+Generates the input JSON for the BrightData scraper from `cardmarket_expansions` rows where `set_prefix IS NULL` (= never scraped). Skips known FR localisations (Académie de Combat, Produits Écarlate et Violet, etc.) which are duplicates of EN sets already scraped.
+
+```bash
+npx tsx scripts/generate-rescrape-input.ts                    # all NULL expansions
+npx tsx scripts/generate-rescrape-input.ts --min-id=5200      # SV-era only (id_expansion >= 5200)
+```
+
+Output: `scrapers/cardmarket/.actor/RESCRAPE_INPUT.json` (gitignored). Slugs are derived from the expansion's `name_en` (cardmarket URLs are EN even on /fr/ locale).
+
+### `fix-cardmarket-set-prefix.ts`
+
+HTTP fallback to backfill `cardmarket_expansions.set_prefix` for expansions where the SQL migration regex couldn't derive it (very old slugs that don't match `-PREFIX{number}$`). For each NULL expansion, fetches one product page directly with browser headers and parses the S3 image URL to extract the prefix. Reports per-expansion failure causes (set never scraped / no url_path / HTTP error / no S3 URL in HTML).
+
+```bash
+npx tsx scripts/fix-cardmarket-set-prefix.ts
+```
+
+### `debug-scraper-fetch.ts`
+
+One-off helper to fetch a single cardmarket expansion page via BrightData and dump the HTML to `/tmp/cm-debug-<id>-{minimal,full}.html`. Diagnostics: response size, `galleryBox` count, redirect detection, captcha-ish marker. Useful when the scraper returns 0 cards for a set you expect to have data — compare browser-style minimal URL vs scraper-style URL.
+
+```bash
+npx tsx scripts/debug-scraper-fetch.ts <idExpansion> <slug>
+# Example:
+npx tsx scripts/debug-scraper-fetch.ts 5328 Pokemon-Card-151
+```
 
 ### `recommend-scrape-targets.ts`
 

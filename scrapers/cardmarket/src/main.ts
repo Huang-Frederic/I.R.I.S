@@ -34,7 +34,15 @@ function buildUrl(slug: string, idExpansion: number, perPage: number, site: numb
     perSite: String(perPage),
     site: String(site),
   });
-  return `${BASE_URL}/${slug}?${params.toString()}`;
+  // URL-encode each path segment of the slug (keeps the `-` separators
+  // unescaped because they're URI-unreserved). Without this, slugs containing
+  // accents or special chars (Pokémon-Products, Côté-Obscur) make BrightData
+  // reject the request as not a valid URI.
+  const encodedSlug = slug
+    .split('/')
+    .map((seg) => encodeURIComponent(seg))
+    .join('/');
+  return `${BASE_URL}/${encodedSlug}?${params.toString()}`;
 }
 
 async function fetchHtmlViaBrightData(

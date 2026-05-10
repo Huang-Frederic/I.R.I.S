@@ -25,9 +25,9 @@ All business logic — grouping, filtering, sorting, formatting, validation — 
 
 Pages (server components) fan out parallel Supabase queries server-side. Lists, rows, and modals (client components) call API routes for mutations. The pattern avoids the latency of client-side waterfalls and keeps the security boundary clear.
 
-### 3. Catalog-first, network last
+### 3. Cardmarket-first, network last
 
-The local Postgres catalog (`tcg_catalog`, 52K cards) is queried before any external API. TCGdex is the network fallback only when the local catalog has no hit. Same for pricing: Cardmarket S3 dumps live in Postgres, TCGdex is the live fallback.
+For enrichment, the local `cardmarket_card_index` (~33K rows scraped via BrightData) is queried before any external API. TCGdex live is the network fallback only when cardmarket misses. Same for pricing: Cardmarket S3 dumps live in Postgres, TCGdex is the live fallback. The `tcg_catalog` (~52K rows from LimitlessTCG) is no longer the primary enrichment source — kept for the pricing pipeline's name-prefix fallback and for backfilling `cardmarket_id` on legacy cards.
 
 ### 4. Per-user RLS, shared inventory
 
@@ -59,8 +59,9 @@ The codebase is organized around Next.js App Router conventions.
 │   │   ├── cards/               POST/PATCH/DELETE/clone/batch
 │   │   ├── lots/
 │   │   ├── listings/            Per-user listing state
-│   │   ├── ocr/                 Gemini → Vision pipeline
-│   │   ├── enrich/              6-strategy enrichment
+│   │   ├── ocr/                 Gemini → Vision pipeline (+ static dex name override)
+│   │   ├── enrich/              4-strategy enrichment (cardmarket-first)
+│   │   ├── cm-img/[id]/         Cardmarket image proxy (CloudFront 403 workaround)
 │   │   ├── pokedex/             Suggest, replace
 │   │   ├── prices/update/       Cron + single-card refresh
 │   │   └── backup/manual/       Manual database dump
@@ -85,7 +86,7 @@ The codebase is organized around Next.js App Router conventions.
 ├── lib/
 │   ├── api/                     External-source clients (TCGdex, Gemini, Vision, LimitlessTCG, Cardmarket)
 │   ├── constants/               Pricing coefficient, etc.
-│   ├── data/                    Static data (Pokémon names FR/EN)
+│   ├── data/                    Static data (Pokémon names FR/EN/JA — pokemon-names.json from PokéAPI)
 │   ├── hooks/                   useUserContext, …
 │   ├── supabase/                Browser + server + service clients
 │   ├── types/                   Shared TS types (Card, Lot, EnrichedCard, etc.)
@@ -162,19 +163,28 @@ Browser (mobile or desktop)
 POST /api/ocr
   │ Try Gemini 3.1 Flash Lite (primary)
   │   → if timeout/error/parse-fail → fallback to Google Vision
+  │ Override pokemon_name_fr/en from static dex map (lib/data/pokemon-names.json)
+  │   — Gemini's translations hallucinate, the static map is authoritative
   ▼
-{ text, fields, _engine, _usage, _cost }
+{ text, set_prefix, set_number, pokemon_name_{en,fr}, _engine, _usage, _cost }
   │
   │ Client passes fields to /api/enrich
   ▼
 POST /api/enrich
-  │ Strategy 1: tcg_catalog by code (set_code + set_number + language)
-  │ Strategy 2: tcg_catalog by total (printed denominator)
-  │ Strategy 2.5: tcg_catalog by name + setNumber, disambig by illustrator
-  │ Strategy 3a: TCGdex subseries probe (TG/GG/SWSH+/XY+/SM+/SVP+/BW+/HGSS+)
-  │ Strategy 3b: TCGdex blind probe by national-dex
-  │ Strategy 3: TCGdex live (fuzzy + direct)
-  │ Strategy 5: Gemini-only fallback (KO/CN exotic)
+  │ Strategy 0: cardmarket by (set_prefix + set_number)
+  │   → join cardmarket_expansions (set_prefix→id_expansion) +
+  │     cardmarket_card_index (id_expansion+set_number→id_product)
+  │   → 1 hit = unique match; >1 = reverse-holo variants picker;
+  │     0 or self-validation reject (matched name ≠ OCR pokemon) = fall through
+  │ Strategy 1: cardmarket picker by (set_prefix + pokemon_name_en)
+  │   → fallback when set_number is null (TG/GG subseries) or Strategy 0 mismatched
+  │   → reverse-lookup FR/JP→EN via static dex map for manual form input
+  │   → returns up to 10 candidates, surfaces picker UI
+  │ Strategy 2: TCGdex live by (set_prefix + set_number)
+  │   → for cards not in our cardmarket dump (very old sets, exotic locales)
+  │ Strategy 3: Gemini-only fallback
+  │   → no cardmarket_id, but populates set_name from set_prefix lookup
+  │   → user can still record the card with bare OCR fields
   ▼
 { bestMatch: EnrichedCard | null, candidates[] }
   │
@@ -308,12 +318,12 @@ The business logic lives outside of React. Here's where to find it.
 
 | File | Purpose |
 |---|---|
-| `gemini-vision.ts` | Primary OCR. Single API call, structured JSON output, `thinkingConfig: { thinkingBudget: 0 }` to prevent invisible thinking. |
+| `gemini-vision.ts` | Primary OCR. Single API call, structured JSON output (English prompt, ~250 tokens), `thinkingConfig: { thinkingBudget: 0 }` to prevent invisible thinking. Returns `set_prefix` (3-4 letter code printed on card), pokemon translations are NOT trusted (overridden in OCR route via static dex map). |
 | `vision.ts` | Google Cloud Vision fallback OCR. Raw text + bounding boxes. |
-| `tcg-catalog.ts` | Local catalog lookups: `lookupByCode`, `lookupByTotal`, `lookupByNameAndLocalId`, `disambiguateByName`, `disambiguateByIllustrator`, `formatBilingualName`, `deriveCardNameFr`. |
-| `tcgdex.ts` | TCGdex live API client. |
-| `tcgdex-set-mapping.ts` | EN ↔ FR set name translation via TCGdex. Negative cache for failed languages. |
-| `cardmarket-pricing.ts` | Pricing lookup pipeline. FAST PATH via `cardmarket_card_index` (populated by SQL formula from the daily dump — see [CARDMARKET_MAPPING.md](CARDMARKET_MAPPING.md)), fallback via `cardmarket_products` name-prefix matching. Rarity-aware disambig. |
+| `cardmarket-enrich.ts` | **Primary enrichment source.** Two lookups: `lookupBySetPrefixAndNumber` (Strategy 0 — direct match) and `lookupBySetPrefixAndName` (Strategy 1 — picker fallback). Both go through `cardmarket_expansions` → `cardmarket_card_index` → `cardmarket_products`. |
+| `tcgdex.ts` | TCGdex live API client. Strategy 2 fallback for cards not in cardmarket. |
+| `tcg-catalog.ts` | **Pricing pipeline only.** Local LimitlessTCG mirror (~52K cards). Helpers `lookupByCode`/`lookupByTotal`/`lookupByNameAndLocalId`/`disambiguateByIllustrator` are used by `cardmarket-pricing.ts` for legacy cards lacking `cardmarket_id`. Not called from `/api/enrich/route.ts` anymore. |
+| `cardmarket-pricing.ts` | Pricing lookup pipeline. FAST PATH via `cardmarket_card_index` (populated by the BrightData scraper — see [CARDMARKET_MAPPING.md](CARDMARKET_MAPPING.md)), fallback via `cardmarket_products` name-prefix matching. Rarity-aware disambig. |
 
 ### `lib/utils/` (pure helpers, all unit-tested)
 

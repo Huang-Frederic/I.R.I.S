@@ -1,24 +1,18 @@
 # Cardmarket card_index mapping
 
-## ⚠️ Note 2026-05-09 — Approche révisée
+## ⚠️ Note 2026-05-10 — État actuel
 
-La formule SQL décrite ci-dessous a été trouvée **non fiable** en pratique :
-plusieurs expansions étaient mappées avec des `set_number` incorrects (offset
-bug entre l'ordre id_product dans le dump et l'ordre des cartes sur la page
-Cardmarket). Résultat: prix délirants affichés sur des cartes qui matchaient
-la mauvaise idProduct.
+**`cardmarket_card_index` est populé par le scraper BrightData** dans [`scrapers/cardmarket/`](../scrapers/cardmarket/) — pas par la formule SQL ci-dessous. Le scraper visite chaque page d'expansion sur cardmarket via BrightData Web Unlocker et extrait les tuples réels `(id_product, set_number, url_variant, url_path, set_prefix)`.
 
-**Solution actuelle** (depuis 2026-05-09) : `cardmarket_card_index` est populé
-par un scraping complet de Cardmarket via BrightData Web Unlocker, qui parse
-chaque page de gallery et extrait les vraies tuples `(id_product, set_number,
-url_variant, url_path)`. Coût : ~$3 pour les 741 expansions complètes (~33K rows, 99.3% success rate).
+**Important : capture du `set_prefix`.** Depuis 2026-05-10, le scraper extrait aussi le préfixe S3 (`BRS`, `LOR`, `sv2a`, `BKR`...) depuis le `<img src>` de chaque carte et l'écrit sur `cardmarket_expansions.set_prefix`. C'est cette valeur qui :
+- Sert de pivot à la Strategy 0 d'enrich (`set_prefix` → `id_expansion` → `set_number` → `id_product`)
+- Permet à [`/api/cm-img/[id]?prefix={set_prefix}`](../app/api/cm-img/%5Bid%5D/route.ts) de construire l'URL S3 correcte
 
-Le scraper vit dans [`scrapers/cardmarket/`](../scrapers/cardmarket/)
-(nom historique — n'a jamais été déployé sur Apify cloud, voir le README du dossier).
+**Couverture actuelle** : 529/741 expansions scrapées (~71%). Les 212 NULL sont surtout des sets très anciens, FR localisations (doublons EN), promos JP rares. Pour rescraper les manquants, voir [COMMANDS.md → generate-rescrape-input.ts](COMMANDS.md#generate-rescrape-inputts).
 
-La formule SQL ci-dessous reste documentée à titre historique + outil de
-fallback rapide pour les nouvelles expansions ajoutées par Cardmarket entre
-deux scrapes complets.
+**Bug regex JP fixé 2026-05-10** : l'ancien regex `[A-Z]+\d+$` du parser refusait les codes JP avec digits embedded (`sv1a074`, `sv2a169`, `s12a015`) et silencieusement extrayait 0 cartes pour tout le catalogue SV JP. Nouveau regex `[A-Za-z][A-Za-z0-9]*?[A-Za-z]\d+$` (cf [`scrapers/cardmarket/src/scrape.ts`](../scrapers/cardmarket/src/scrape.ts) + [scrape.test.ts](../scrapers/cardmarket/src/scrape.test.ts) avec test de régression).
+
+La formule SQL ci-dessous est gardée comme **historique** + outil de fallback rapide pour les wheel-type promo sets si BrightData devient indisponible.
 
 ---
 

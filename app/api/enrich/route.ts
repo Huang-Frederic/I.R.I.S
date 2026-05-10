@@ -5,7 +5,7 @@
 //   0. Cardmarket by (set_prefix + set_number)  — direct unique match.
 //   1. Cardmarket by (set_prefix + pokemon_name) — picker fallback for TG/GG
 //      cards or when Strategy 0 returns the wrong Pokémon.
-//   2. TCGdex live by (set_code + localId)      — for cards not in our local
+//   2. TCGdex live by (set_prefix + set_number) — for cards not in our local
 //      cardmarket DB (very old sets, exotic locales).
 //   3. Gemini-only                              — last resort, no cardmarket_id,
 //      no price; user can still save the bare OCR fields.

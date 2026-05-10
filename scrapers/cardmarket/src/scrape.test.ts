@@ -49,6 +49,30 @@ describe('extractCardsFromHtml', () => {
     });
   });
 
+  it('parses JP set codes with embedded digits (sv1a, sv2a, s12a) — regression for v1 regex bug', () => {
+    // JP SV-era cards have alphanumeric set codes ending in a letter
+    // ("sv1a074" = code "sv1a", number "074"). The old regex `[A-Z]+\d+$`
+    // refused to match these because it required pure-letter codes, leaving
+    // the entire SV JP catalogue with 0 scraped cards.
+    const fixture = `
+      <a href="/fr/Pokemon/Products/Singles/Triplet-Beat/Tropius-V2-sv1a074" class="card galleryBox">
+        <img src="https://product-images.s3.cardmarket.com/51/sv1a/701530/701530.jpg" alt="Tropius">
+        <h2>Tropius</h2>
+      </a>
+      <a href="/fr/Pokemon/Products/Singles/Pokemon-Card-151/Mew-sv2a169" class="card galleryBox">
+        <img src="https://product-images.s3.cardmarket.com/51/sv2a/701700/701700.jpg" alt="Mew">
+        <h2>Mew</h2>
+      </a>
+    `;
+    const cards = extractCardsFromHtml(fixture);
+    expect(cards).toHaveLength(2);
+    expect(cards[0].setNumber).toBe('74');
+    expect(cards[0].setPrefix).toBe('sv1a');
+    expect(cards[0].idProduct).toBe(701530);
+    expect(cards[1].setNumber).toBe('169');
+    expect(cards[1].setPrefix).toBe('sv2a');
+  });
+
   it('returns empty array when html has no galleryBox elements', () => {
     expect(extractCardsFromHtml('<div>nothing</div>')).toEqual([]);
   });

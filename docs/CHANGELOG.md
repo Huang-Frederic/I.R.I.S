@@ -6,6 +6,24 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-05-10 — Enrich pipeline rewrite + image proxy + static dex map
+
+After the May-09 overhaul ran into too many edge cases (Gemini hallucinating `set_name`/`pokemon_name_fr`, cross-validation chasing wrong sets, broken cardmarket S3 URLs), the whole pipeline was reduced from 7 strategies to 4 with a single source of truth for translations.
+
+- **Gemini prompt** rewritten in **English** (was French), drops the 741-expansion constraint block (~15k tokens → ~250). New `set_prefix` field (3-4 letter code printed on card, e.g. BRS/LOR/BKR) replaces the unreliable `set_name`. `set_number` returns null only on TG/GG subseries. Added `pokemon_name_en`. Dropped `set_code`, `set_name`, `set_name_fr`.
+- **4-strategy enrichment** in [`/api/enrich`](../app/api/enrich/route.ts): (0) cardmarket by `(set_prefix + set_number)` with self-validation, (1) cardmarket picker by `(set_prefix + pokemon_name_en)` for TG/GG and Strategy 0 mismatches, (2) TCGdex live, (3) Gemini-only fallback. Each step logs `[enrich]` entry/exit for debugging.
+- **Static dex map** [`lib/data/pokemon-names.json`](../lib/data/pokemon-names.json) — 1025 species × FR/EN/JA from PokéAPI via [`scripts/generate-pokemon-names.ts`](../scripts/generate-pokemon-names.ts). Used to override Gemini's hallucinated `pokemon_name_fr`/`pokemon_name_en` with deterministic values keyed by national dex. Replaces TCGdex's broken `?dexId=N` filter (it does prefix-match string comparison so `dexId=3` returned Florizarre + Abo + Aron).
+- **Cardmarket image proxy** at [`/api/cm-img/[id]`](../app/api/cm-img/%5Bid%5D/route.ts) — fetches S3 with browser User-Agent + Referer to bypass CloudFront 403, caches 7 days. All image URLs now go through this proxy.
+- **Migrations**: `cardmarket_expansions.set_prefix` column ([`20260510200000`](../supabase/migrations/20260510200000_cardmarket_set_prefix.sql) initial backfill + [`20260510210000`](../supabase/migrations/20260510210000_cardmarket_set_prefix_fix.sql) case-insensitive regex + majority-vote fix). Populated automatically by the scraper now (writes to expansion after each batch).
+- **Scraper regex fix** in [`scrapers/cardmarket/src/scrape.ts`](../scrapers/cardmarket/src/scrape.ts) — old `[A-Z]+\d+$` failed on JP set codes with embedded digits (`sv1a074`, `sv2a169`, `s12a015`), silently extracted 0 cards for the entire JP SV catalogue. New `[A-Za-z][A-Za-z0-9]*?[A-Za-z]\d+$` handles both Latin (BRS001) and JP patterns.
+- **URL encoding** fix in scraper for accented expansion slugs (Pokémon-Card-151) — BrightData rejected non-RFC URLs with 400.
+- **Tooling**: [`generate-rescrape-input.ts`](../scripts/generate-rescrape-input.ts) (build scraper input from NULL expansions), [`fix-cardmarket-set-prefix.ts`](../scripts/fix-cardmarket-set-prefix.ts) (HTTP fallback for backfill), [`debug-scraper-fetch.ts`](../scripts/debug-scraper-fetch.ts) (BrightData HTML dumper for diagnosis).
+- **Bench scripts** consolidated: `bench-multi-model.ts` and `bench-multilang.ts` now import `BASE_PROMPT` + `SCHEMA` from [`lib/api/gemini-vision.ts`](../lib/api/gemini-vision.ts) — single source of truth, no more drift between prod and bench prompts. `scripts/test-bench-gemini.ts` (obsolete English version) deleted.
+- **Removed**: `lib/api/enrich-cross-validate.ts` + tests + the `verifyByIllustrator` machinery (replaced by Strategy 0 self-validation + Strategy 1 picker — simpler, fewer false positives).
+- **Form contract**: `BatchForm` and `CardScanForm` now POST `{ setPrefix, setNumber, pokemonName, pokemonNameEn, pokemonNameFr, pokemonNumber, cardName, cardNameFr, rarity, illustrator, language }` to `/api/enrich` (was `setCode`/`setName`/`setNameFr`/`localId`/`total`).
+
+---
+
 ## 2026-05-09 — Scanner enrich pipeline overhaul
 
 - **Strategy 0** added to `/api/enrich`: local cardmarket_card_index lookup as the fast path before TCGdex chain. ~50ms per card vs 200-500ms with TCGdex round-trip.

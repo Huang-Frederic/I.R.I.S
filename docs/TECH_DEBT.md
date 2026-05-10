@@ -82,30 +82,17 @@ No Playwright / Cypress suite. Critical flows (scan → enrich → save, sold �
 
 ## 💰 Pricing accuracy
 
-### Heuristic disambig for non-modern sets — RESOLVED
+### Cardmarket index populated by BrightData scraper — RESOLVED
 
-`cardmarket_card_index` is now populated for **all 738 expansions / 67 423 products** via a deterministic SQL formula derived from the daily dump itself (id_product order + card_prefix grouping → set_number + url_variant). The Playwright gallery scrape was abandoned as the primary path after multiple Cloudflare 1015 IP bans — see [`CARDMARKET_MAPPING.md`](CARDMARKET_MAPPING.md) for the discovery and validation.
+`cardmarket_card_index` is populated by the BrightData scraper at [`scrapers/cardmarket/`](../scrapers/cardmarket/) — see [`CARDMARKET_MAPPING.md`](CARDMARKET_MAPPING.md). 529/741 expansions covered (~71%). The 212 NULL are mostly very old or niche JP/CN sets — re-scraping is mechanical (run [`scripts/generate-rescrape-input.ts`](../scripts/generate-rescrape-input.ts) → BrightData scrape).
 
-The fallback name-prefix matching in `cardmarket_products` is still present in [`lib/api/cardmarket-pricing.ts`](../lib/api/cardmarket-pricing.ts) for safety but rarely hit in practice now.
+The fallback name-prefix matching in `cardmarket_products` is still present in [`lib/api/cardmarket-pricing.ts`](../lib/api/cardmarket-pricing.ts) for legacy cards lacking `cardmarket_id`, but rarely hit in practice now.
 
-**Remaining edge case — wheel-type promo sets.** A small number of promo sets (Battle Party Set, Void Blast, etc.) use a non-deterministic 0–9 collector wheel where the SQL formula produces wrong numbers. They were already covered by the original Playwright scrape and the formula INSERT skipped them via `WHERE id_expansion NOT IN (...)`. Future wheel sets need to be detected (high `rows / max_collector` ratio after formula run) and re-scraped manually with [`scripts/scrape-cardmarket-cards.ts`](../scripts/scrape-cardmarket-cards.ts).
+### `tcg_catalog.set_code` lookup uses ilike — DEMOTED
 
-### Per-card metadata scrape (Scenario B)
+Was relevant when `tcg_catalog` was the primary enrichment source. Since the May-10 refactor, the enrich pipeline goes cardmarket-first ([`lib/api/cardmarket-enrich.ts`](../lib/api/cardmarket-enrich.ts)) and `tcg_catalog.lookupByCode` is now only called by the pricing pipeline's name-prefix fallback (rare path). The full-table-scan cost is no longer on the hot path.
 
-Originally planned to scrape Cardmarket product detail pages for ground-truth rarity/species, but abandoned during build:
-- Cardmarket's rate-limit threshold is aggressive (HTTP 429 after ~6 rapid requests)
-- 40k+ pages × adaptive concurrency = 24h+ of risky scraping
-- Probe found that Cardmarket pages **don't** expose illustrator (which would have been the killer feature) — net data added is just `rarity` (already inferred well by the heuristic)
-
-**Won't do** unless heuristic disambig produces measurable wrong matches in production.
-
-### `tcg_catalog.set_code` lookup uses ilike
-
-Current `lookupByCode` uses `ilike` (case-insensitive) which forces a full table scan on the 52K-row catalog. Band-aid: 5s timeout on `withTimeout`.
-
-**Real fix:** add a functional index `CREATE INDEX tcg_catalog_set_code_lower_idx ON tcg_catalog (lower(set_code), language)` and rewrite the lookup to query on `lower(set_code)`.
-
-**Estimated effort:** 1 migration + 1 query change = 30 min.
+**Won't do** unless pricing fallback becomes a measurable bottleneck.
 
 ---
 

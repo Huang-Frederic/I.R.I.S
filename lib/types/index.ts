@@ -164,9 +164,10 @@ export interface OcrResult {
    */
   language?: CardLanguage;
 
-  // Raw card identity from Gemini — used by the enrich Strategy 5 (Gemini-only
-  // fallback) when no catalog source has the card, so the form can pre-fill
-  // these fields instead of forcing the user to re-type them.
+  // Raw card identity from Gemini — used by enrich Strategy 1 (cardmarket
+  // picker by name) and Strategy 3 (Gemini-only fallback) when no cardmarket
+  // match is found, so the form can pre-fill these fields instead of forcing
+  // the user to re-type them.
   cardName?: string | null;
   pokemonName?: string | null;
   rarity?: string | null;

@@ -41,26 +41,30 @@ You point your phone at a card. Three seconds later, I.R.I.S knows what it is.
 
 ### OCR pipeline
 
-The OCR runs on **Gemini 3.1 Flash Lite Preview** as primary engine. A single API call returns structured JSON with 14 fields — `card_name`, `pokemon_name`, `set_code`, `set_number`, `set_total`, `language`, `rarity`, `confidence`, `pokemon_number`, `pokemon_name_fr`, `set_name`, `set_name_fr`, `illustrator`, and `card_name_fr` (for Trainer/Energy cards).
+The OCR runs on **Gemini 3.1 Flash Lite Preview** as primary engine. A single API call returns structured JSON with 11 fields — `card_name`, `pokemon_name` (in card's printed language), `set_prefix` (3–4 letter code printed bottom-left), `set_number` (digits only — null for TG/GG subseries), `set_total`, `language`, `rarity`, `confidence`, `pokemon_number` (national dex), `illustrator`, and `card_name_fr` (full French translation for Trainer/Energy cards).
 
 When Gemini times out, errors, or returns unparseable output, **Google Cloud Vision** takes over automatically.
 
 An `_engine` field is propagated to the UI — `Gemini`, `Gemini→Vision`, or `Vision` — alongside token usage and EUR cost displayed under the snippet. Image rotation is handled client-side before upload to avoid OCR confusion.
 
-### Enrichment (7-strategy waterfall)
+### Pokémon name resolution (static dex map)
 
-Knowing the name isn't enough. You need the full metadata — rarity, Pokémon number, price index — and the catalog reference that makes pricing possible.
+Gemini's translations of Pokémon species names hallucinate routinely (it returned `"Mew"` for dex=5 Charmeleon, `"Abo"` for dex=3 Venusaur). To make translations deterministic, the OCR route overrides Gemini's `pokemon_name_fr` and `pokemon_name_en` with values from a static map at [`lib/data/pokemon-names.json`](../lib/data/pokemon-names.json) — 1 025 species × FR/EN/JA, generated once from PokéAPI via [`scripts/generate-pokemon-names.ts`](../scripts/generate-pokemon-names.ts). Lookup is O(1), zero network. Re-run the generator when a new Pokémon generation ships.
 
-For every scan, the pipeline tries strategies in order until one matches:
+### Enrichment (4-strategy pipeline)
 
-0. **Cardmarket local index** — fast-path lookup in `cardmarket_card_index` (~33K rows, scraped via BrightData). If `(set_name, set_number)` matches, returns enriched card with `cardmarket_id` in <50 ms, bypassing all TCGdex strategies below. This is the primary enrichment path for cards with Cardmarket presence.
-1. **Catalog by code** — `lookupByCode(setCode, setNumber, language)` against the local `tcg_catalog` (52K cards). Case-insensitive (handles JP `SV11B` ↔ `sv11b`).
-2. **Catalog by total** — `lookupByTotal(total, setNumber, language)` for cards where the printed denominator differs from the official `cardCount` (common in JP).
-3. **Catalog by name + local ID** — disambiguates between same-numbered prints using `pokemon_name` + `setNumber`. If Gemini provided `illustrator`, auto-picks via `disambiguateByIllustrator` (single match) — otherwise opens a visual picker UI.
-4. **TCGdex subseries probe** — detects patterns like `TG`, `GG`, `SWSH+`, `XY+`, `SM+`, `SVP+`, `BW+`, `HGSS+`, probes parent sets in parallel, disambiguates by national-dex number.
-5. **TCGdex blind probe** — last-chance probe of subseries (TG `swsh9-12`, GG `swsh12.5`) when the OCR'd set code is completely off, matched strictly by national-dex.
-6. **TCGdex live** — direct fetch + fuzzy text match.
-7. **Gemini-only fallback** — for KO / CN / exotic Crown Series cards where catalog + TCGdex both miss. Builds an `EnrichedCard` from Gemini's output; pricing remains null.
+Knowing the name isn't enough. You need the cardmarket reference that makes pricing possible, plus rarity and national-dex metadata.
+
+For every scan, [`/api/enrich`](../app/api/enrich/route.ts) tries strategies in order until one matches. Each entry/exit is logged with `[enrich]` prefix for debugging:
+
+0. **Cardmarket by `(set_prefix + set_number)`** — direct lookup. Resolves `set_prefix` (e.g. "BRS") to `id_expansion` via `cardmarket_expansions`, then fetches the unique `(id_expansion, set_number)` row from `cardmarket_card_index`. If 1 hit → returned. If multiple hits (reverse holo / variants) → exposed as picker. **Self-validation**: if matched product's `card_name` doesn't contain the OCR `pokemon_name_en`, the match is rejected and we fall through.
+1. **Cardmarket picker by `(set_prefix + pokemon_name)`** — fires when set_number is null (Gemini saw a TG/GG subseries marker), or when Strategy 0 returned 0 / was rejected. Uses `pokemon_name_en` (from static dex map, derived via reverse-lookup if user typed FR/JP manually) + suffix from `card_name` (ex/V/VMAX) to query `cardmarket_products.card_prefix`. Returns up to 10 candidates, picker UI surfaces them.
+2. **TCGdex live** — for cards not in the local cardmarket dump (very old sets, exotic locales). HTTP round-trip. Pokémon name translations are still derived from the static map (TCGdex's editorial `dexId` is wrong on themed sets like SV2A "Pokémon Card 151").
+3. **Gemini-only fallback** — last resort. No `cardmarket_id`, no price, no image, but populates `set_name` from `set_prefix` lookup + carries OCR fields through. User can still record the card.
+
+### Card images
+
+Cardmarket S3 images return 403 to direct hotlinks (CloudFront flags non-browser referers). All image URLs go through [`/api/cm-img/[id]?prefix=<set_prefix>`](../app/api/cm-img/%5Bid%5D/route.ts) which fetches with a browser-like Referer/User-Agent header and caches at the edge for 7 days.
 
 ### Bilingual name display
 

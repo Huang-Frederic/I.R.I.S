@@ -34,10 +34,13 @@ export function extractCardsFromDocument(doc: Document): ScrapedCard[] {
     const variantMatch = last.match(/-V(\d+)-/i);
     const urlVariant = variantMatch ? `V${variantMatch[1]}` : null;
 
-    // Extract trailing setcode+number (lowercase letters + digits at the end of slug).
-    // Pattern: -{SETCODE}{NUMBER} where SETCODE is letters+optional digits, NUMBER is pure digits
-    // Example: -BRS001, -BRS014, etc.
-    const setCodeMatch = last.match(/-([A-Z]+)(\d+)$/i);
+    // Extract trailing setcode+number from the slug.
+    //   Latin sets (letter-only codes): "-BRS001", "-LORTG03", "-PRESVP088"
+    //   JP sets (alphanumeric codes ending in letter): "-sv1a074", "-s12a015", "-sm8b042"
+    // The code's last char is ALWAYS a letter — that's how we find the
+    // boundary with the number. Pattern: -<letter><alphanum*?><letter><digits>$
+    // (lazy quantifier in the middle so the trailing letter+digits anchor wins).
+    const setCodeMatch = last.match(/-([A-Za-z][A-Za-z0-9]*?[A-Za-z])(\d+)$/);
     let setNumber: string | null = null;
     if (setCodeMatch) {
       const numRaw = setCodeMatch[2];

@@ -72,6 +72,9 @@ cardmarket_expansions.html
 cardmarket-probe-*.html
 cardmarket-input.json
 
+# Generated scraper input from scripts/generate-rescrape-input.ts.
+scrapers/cardmarket/.actor/RESCRAPE_INPUT.json
+
 # Local development overrides (optional, not committed)
 docs/superpowers/*
 docs/AUDIT*
