@@ -15,8 +15,10 @@ import { NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 // Cache successful fetches at the route level. Cardmarket card images are
 // immutable per id_product — once the right URL works for a card, it always
-// will. 7-day TTL is plenty.
-export const revalidate = 60 * 60 * 24 * 7;
+// will. 7-day TTL = 604800 seconds. NB: Next.js requires a literal here, not
+// an expression like `60 * 60 * 24 * 7` (build fails with "Invalid segment
+// configuration export").
+export const revalidate = 604800;
 
 const S3_BASE = 'https://product-images.s3.cardmarket.com/51';
 // Browser-like headers — CloudFront returns 403 to fetch's default UA.
