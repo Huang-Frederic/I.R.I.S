@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { RARITY_COLOR } from '@/lib/utils/labels';
 import type { Card } from '@/lib/types';
+import { displayCardName } from '@/lib/utils/format-name';
 
 interface Props {
   cards: readonly (Pick<Card, 'id' | 'card_name' | 'pokemon_name' | 'pokemon_number' | 'image_url' | 'tcg_image_url' | 'rarity'> & {
@@ -42,7 +43,7 @@ export default function TopRaresList({ cards }: Props) {
                 className="h-12 w-9 rounded object-cover"
               />
               <div className="min-w-0 flex-1">
-                <div className="text-text truncate text-sm font-medium">{c.card_name}</div>
+                <div className="text-text truncate text-sm font-medium">{displayCardName(c)}</div>
                 <div className="text-text-muted text-xs">
                   <span className={RARITY_COLOR[c.rarity] ?? ''}>{c.rarity}</span>
                 </div>

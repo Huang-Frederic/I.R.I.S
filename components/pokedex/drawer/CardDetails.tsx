@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { RefreshCcw, Trash2 } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
+import { displayCardName, displaySetName } from '@/lib/utils/format-name';
 import PokedexCardActionsModal from '../PokedexCardActionsModal';
 import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
 import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
@@ -40,9 +41,9 @@ export default function CardDetails({
       </div>
 
       <dl className="text-sm">
-        <Row label="Nom carte">{card.card_name}</Row>
+        <Row label="Nom carte">{displayCardName(card)}</Row>
         <Row label="Set">
-          {card.set_name ?? '—'}
+          {displaySetName(card) ?? '—'}
           {card.set_code && (
             <span className="text-text-faint font-mono text-xs"> ({card.set_code})</span>
           )}

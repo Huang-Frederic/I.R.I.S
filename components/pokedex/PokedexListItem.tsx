@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import type { Card } from '@/lib/types';
 import { getPokemonName } from '@/lib/data/pokemon-names';
+import { displayPokemonName, displayCardName } from '@/lib/utils/format-name';
 
 interface PokedexListItemProps {
   number: number;
@@ -33,7 +34,7 @@ export default function PokedexListItem({ number, card, onClick }: PokedexListIt
     <button
       type="button"
       onClick={onClick}
-      aria-label={`${owned ? card!.pokemon_name : getPokemonName(number, 'fr')} n°${number}`}
+      aria-label={`${owned ? displayPokemonName(card!) : getPokemonName(number, 'fr')} n°${number}`}
       data-pokemon-number={number}
       className="bg-surface border-border hover:border-red focus:border-red flex items-center gap-3 rounded border p-2 text-left transition-colors focus:outline-none"
     >
@@ -58,13 +59,13 @@ export default function PokedexListItem({ number, card, onClick }: PokedexListIt
             #{number.toString().padStart(4, '0')}
           </span>
           <span className={`truncate text-sm font-medium ${owned ? 'text-text' : 'text-text-muted'}`}>
-            {card?.pokemon_name ?? getPokemonName(number, 'fr')}
+            {card ? displayPokemonName(card) : getPokemonName(number, 'fr')}
           </span>
         </div>
 
         {owned && card && (
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-text-muted truncate">{card.card_name}</span>
+            <span className="text-text-muted truncate">{displayCardName(card)}</span>
             <span className={RARITY_CLASS[card.rarity] ?? 'text-text-muted'}>
               {card.rarity}
             </span>

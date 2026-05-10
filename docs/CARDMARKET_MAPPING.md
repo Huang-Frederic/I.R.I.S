@@ -1,5 +1,27 @@
 # Cardmarket card_index mapping
 
+## ⚠️ Note 2026-05-09 — Approche révisée
+
+La formule SQL décrite ci-dessous a été trouvée **non fiable** en pratique :
+plusieurs expansions étaient mappées avec des `set_number` incorrects (offset
+bug entre l'ordre id_product dans le dump et l'ordre des cartes sur la page
+Cardmarket). Résultat: prix délirants affichés sur des cartes qui matchaient
+la mauvaise idProduct.
+
+**Solution actuelle** (depuis 2026-05-09) : `cardmarket_card_index` est populé
+par un scraping complet de Cardmarket via BrightData Web Unlocker, qui parse
+chaque page de gallery et extrait les vraies tuples `(id_product, set_number,
+url_variant, url_path)`. Coût : ~$3 pour les 741 expansions complètes (~33K rows, 99.3% success rate).
+
+Le scraper vit dans [`scrapers/cardmarket/`](../scrapers/cardmarket/)
+(nom historique — n'a jamais été déployé sur Apify cloud, voir le README du dossier).
+
+La formule SQL ci-dessous reste documentée à titre historique + outil de
+fallback rapide pour les nouvelles expansions ajoutées par Cardmarket entre
+deux scrapes complets.
+
+---
+
 You're looking at how `cardmarket_card_index` — the `(expansion, set_number, variant) → idProduct` map that powers the FAST PATH in [`lib/api/cardmarket-pricing.ts`](../lib/api/cardmarket-pricing.ts) — actually gets populated. The short answer: a deterministic SQL formula derives it from the daily Cardmarket dump itself, no scraping involved. The long answer is the rest of this file, including how I got there after burning hours fighting Cloudflare.
 
 The Playwright scraper at [`scripts/scrape-cardmarket-cards.ts`](../scripts/scrape-cardmarket-cards.ts) still exists, but it's now a fallback for the rare wheel-type promo sets where the formula doesn't apply. For 95 %+ of the catalogue, you don't need to touch it. For an overview of where this fits in the pricing pipeline, see [ARCHITECTURE.md](ARCHITECTURE.md#data-flow-pricing-pipeline).

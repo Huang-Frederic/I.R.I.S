@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import { getPokemonName } from '@/lib/data/pokemon-names';
+import { displayPokemonName } from '@/lib/utils/format-name';
 import CardDetails from './drawer/CardDetails';
 import EmptyState from './drawer/EmptyState';
 
@@ -70,7 +71,7 @@ export default function PokedexDrawer({
               #{pokemonNumber.toString().padStart(4, '0')}
             </p>
             <h2 className="text-xl font-semibold">
-              {pokedexCard?.pokemon_name ?? getPokemonName(pokemonNumber, 'fr')}
+              {pokedexCard ? displayPokemonName(pokedexCard) : getPokemonName(pokemonNumber, 'fr')}
             </h2>
           </div>
           <button

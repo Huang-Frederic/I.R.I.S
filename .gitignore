@@ -70,3 +70,9 @@ products_nonsingles_6.json
 price_guide_6.json
 cardmarket_expansions.html
 cardmarket-probe-*.html
+cardmarket-input.json
+
+# Local development overrides (optional, not committed)
+docs/superpowers/*
+docs/AUDIT*
+myself.md

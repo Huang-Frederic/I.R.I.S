@@ -1,4 +1,5 @@
 import 'server-only';
+import { createClient } from '@supabase/supabase-js';
 
 // Gemini pricing (paid tier, per 1M tokens).
 // Empirically calibrated 2026-05-08 against actual GCP billing:
@@ -8,7 +9,7 @@ import 'server-only';
 // gemini-3.1-flash-lite-preview) don't match what Google actually bills —
 // preview pricing may be retired, or there's a Vertex AI / image-token
 // surcharge in play. If you can pin the SKU down from GCP billing, refine.
-const PROMPT_TOKEN_ESTIMATE = 360; // measured post-multilang prompt rewrite (was 220 with the old short JP-only prompt)
+const PROMPT_TOKEN_ESTIMATE = 360; // base prompt; runtime adds ~10-15k tokens for the expansion constraint list
 const COST_USD_PER_M_INPUT = 2.0;   // text / image / video — empirical
 const COST_USD_PER_M_OUTPUT = 5.0;  // empirical
 const USD_TO_EUR = 0.92;
@@ -56,7 +57,31 @@ export interface GeminiCardExtraction {
   _usage?: GeminiUsage;
 }
 
-const PROMPT = `Lis une carte Pokémon JCC. Extrais ce qui est IMPRIMÉ sur la carte, ne traduis pas vers une autre langue. NE DEVINE PAS — si non lisible, mets null (sauf champs requis).
+let cachedExpansionList: string[] | null = null;
+
+async function getExpansionConstraintList(): Promise<string[]> {
+  if (cachedExpansionList) return cachedExpansionList;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return [];
+  const supabase = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data } = await supabase
+    .from('cardmarket_expansions')
+    .select('name, name_en, name_ja');
+  if (!data) return [];
+  const set = new Set<string>();
+  for (const row of data as Array<{ name: string | null; name_en: string | null; name_ja: string | null }>) {
+    if (row.name) set.add(row.name);
+    if (row.name_en) set.add(row.name_en);
+    if (row.name_ja) set.add(row.name_ja);
+  }
+  cachedExpansionList = Array.from(set).sort();
+  return cachedExpansionList;
+}
+
+const BASE_PROMPT = `Lis une carte Pokémon JCC. Extrais ce qui est IMPRIMÉ sur la carte, ne traduis pas vers une autre langue. NE DEVINE PAS — si non lisible, mets null (sauf champs requis).
 
 LOCALISATION :
 - Numéro XXX/YYY (ex 012/086, 199/198, 175/175) : en bas, souvent à droite. Sans zéros initiaux dans la sortie.
@@ -88,6 +113,19 @@ CODES DE SET PAR LANGUE — extrais ce qui est imprimé, JAMAIS l'équivalent d'
   "set_name_fr": "<traduction FR (ex 'Combat de Maîtres', 'Rupture Turbo'), null si incertain>",
   "illustrator": "<crédit illustrateur en bas de carte (ex 'Ryuta Fuse', 'YASHIRO Nanaco', 'kirisAki'), null si illisible>"
 }`;
+
+async function buildPrompt(): Promise<string> {
+  const list = await getExpansionConstraintList();
+  if (list.length === 0) return BASE_PROMPT;
+  const constraintBlock = `
+
+CONTRAINTE EXTENSION — Le champ "set_name" DOIT correspondre EXACTEMENT à un des noms suivants (copie verbatim, accents et casse respectés). Si tu ne peux pas identifier le set avec une confiance > 80%, retourne null pour set_name plutôt qu'inventer.
+
+Liste exhaustive (${list.length} entrées):
+${list.map((n) => `- ${n}`).join('\n')}
+`;
+  return BASE_PROMPT + constraintBlock;
+}
 
 /**
  * Flash Preview occasionally ignores responseMimeType and prepends prose
@@ -179,6 +217,7 @@ export async function extractCardFromImage(
   if (!apiKey) return { extraction: null, usage: null };
 
   const base64 = imageBuffer.toString('base64');
+  const prompt = await buildPrompt();
   try {
     const response = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
       method: 'POST',
@@ -187,7 +226,7 @@ export async function extractCardFromImage(
         contents: [
           {
             parts: [
-              { text: PROMPT },
+              { text: prompt },
               { inline_data: { mime_type: 'image/jpeg', data: base64 } },
             ],
           },

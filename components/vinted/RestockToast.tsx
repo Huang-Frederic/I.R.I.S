@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, X } from 'lucide-react';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
+import { displayPokemonName } from '@/lib/utils/format-name';
 
 interface Props {
   alert: RestockAlert;
@@ -25,7 +26,7 @@ export default function RestockToast({ alert, onDismiss }: Props) {
     >
       <AlertTriangle className="text-red mt-0.5 h-5 w-5 shrink-0" />
       <div className="flex-1 text-sm">
-        <p className="font-medium">Plus de stock pour {alert.pokemon_name}</p>
+        <p className="font-medium">Plus de stock pour {displayPokemonName(alert)}</p>
         <p className="text-text-muted mt-1 text-xs">
           Ta carte Pokédex est exposée. <Link href="/pokedex" className="text-red underline">Vérifier le Pokédex</Link>
         </p>

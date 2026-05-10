@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertTriangle, X } from 'lucide-react';
+import { displayCardName, displaySetName } from '@/lib/utils/format-name';
 
 interface ExistingCardLite {
   id: string;
@@ -62,9 +63,9 @@ export default function DuplicateForSaleModal({ existingCard, onConfirmCollectio
               <div className="bg-surface-off h-[100px] w-[72px] shrink-0 rounded" />
             )}
             <div className="min-w-0 flex-1 text-sm">
-              <p className="truncate font-medium">{existingCard.card_name}</p>
+              <p className="truncate font-medium">{displayCardName(existingCard)}</p>
               <p className="text-text-muted text-xs">
-                {existingCard.set_name ?? existingCard.set_code ?? '—'}
+                {displaySetName(existingCard) ?? existingCard.set_code ?? '—'}
               </p>
               <p className="text-text-muted mt-1 text-xs">
                 {existingCard.language} · {existingCard.condition}

@@ -2,6 +2,7 @@
 
 import { Sparkles, BookOpen, Tag } from 'lucide-react';
 import type { SuggestionResult } from '@/lib/utils/pokedex-suggestion';
+import { displayCardName } from '@/lib/utils/format-name';
 
 interface ScanSuggestionProps {
   result: SuggestionResult;
@@ -26,7 +27,7 @@ export default function ScanSuggestion({ result }: ScanSuggestionProps) {
         <p>{result.message}</p>
         {result.existingCard && (
           <p className="text-text-faint text-xs font-mono">
-            Existante : {result.existingCard.card_name} · {result.existingCard.set_code}{' '}
+            Existante : {displayCardName(result.existingCard)} · {result.existingCard.set_code}{' '}
             {result.existingCard.set_number}
           </p>
         )}

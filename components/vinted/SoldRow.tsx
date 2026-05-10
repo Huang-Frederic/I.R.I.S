@@ -4,6 +4,7 @@ import type { Card } from '@/lib/types';
 import { useUserContext } from '@/lib/hooks/useUserContext';
 import { badgeClassesForColor, colorForUserName } from '@/lib/utils/user-colors';
 import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
+import { displayCardName, displaySetName } from '@/lib/utils/format-name';
 
 function thumbUrl(card: Card): string {
   if (card.image_url) return card.image_url;
@@ -37,7 +38,7 @@ export default function SoldRow({ card, onAnnonceClick }: Props) {
         type="button"
         onClick={() => onAnnonceClick(card)}
         className="hover:ring-red shrink-0 rounded transition-shadow hover:ring-2"
-        aria-label={`Voir l'annonce ${card.card_name}`}
+        aria-label={`Voir l'annonce ${displayCardName(card)}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -50,7 +51,7 @@ export default function SoldRow({ card, onAnnonceClick }: Props) {
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className="truncate font-medium">{card.card_name}</p>
+          <p className="truncate font-medium">{displayCardName(card)}</p>
           {variantLabel && (
             <span className="bg-surface text-text-muted shrink-0 rounded px-1.5 py-0.5 font-mono text-xs">
               {variantLabel}
@@ -58,8 +59,8 @@ export default function SoldRow({ card, onAnnonceClick }: Props) {
           )}
         </div>
         <p className="text-text-muted truncate text-xs">
-          {card.set_name ?? card.set_code ?? '?'}
-          {card.set_code && card.set_name ? ` (${card.set_code})` : ''}
+          {displaySetName(card) ?? card.set_code ?? '?'}
+          {card.set_code && displaySetName(card) ? ` (${card.set_code})` : ''}
           {card.set_number ? ` — ${card.set_number}` : ''}
         </p>
         <div className="text-text-muted mt-1 flex items-center gap-2 text-xs">

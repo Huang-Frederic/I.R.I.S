@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { X, Sparkles, Package, Tag } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import { RARITY_COLOR } from '@/lib/utils/labels';
+import { displayCardName } from '@/lib/utils/format-name';
 import Modal from '@/components/ui/Modal';
 
 /** Candidate picker + 2-step swap confirmation flow. The replace RPC is
@@ -138,7 +139,7 @@ function ReplaceConfirm({
         <div>
           <h2 className="text-lg font-semibold">Échanger les exemplaires&nbsp;?</h2>
           <p className="text-text-muted mt-1 text-sm">
-            <strong>{candidate.card_name}</strong> ({candidate.rarity} · {candidate.condition}) prendra la place du Pokédex.
+            <strong>{displayCardName(candidate)}</strong> ({candidate.rarity} · {candidate.condition}) prendra la place du Pokédex.
           </p>
         </div>
         <button

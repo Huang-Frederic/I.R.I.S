@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import type { Card, Lot } from '@/lib/types';
 import { splitPrice } from '@/lib/utils/split-bulk-price';
+import { displayCardName } from '@/lib/utils/format-name';
 
 export type BulkSoldItem =
   | { kind: 'card'; card: Card }
@@ -32,7 +33,7 @@ function thumbUrl(item: BulkSoldItem): string | null {
 }
 
 function displayName(item: BulkSoldItem): string {
-  return item.kind === 'card' ? item.card.card_name : item.lot.name;
+  return item.kind === 'card' ? displayCardName(item.card) : item.lot.name;
 }
 
 function displaySubText(item: BulkSoldItem): string {

@@ -243,7 +243,7 @@ function PhotoDropzone({
           {photos.map((p, i) => (
             <div key={i} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={URL.createObjectURL(p)} alt="" className="h-20 w-full rounded object-cover" />
+              <img src={URL.createObjectURL(p)} alt="" className="aspect-[3/4] w-full rounded object-cover" />
               <button type="button" onClick={() => onRemove(i)} className="bg-surface absolute right-1 top-1 rounded p-0.5">
                 <X className="h-3 w-3" />
               </button>

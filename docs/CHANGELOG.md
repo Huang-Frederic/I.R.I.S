@@ -6,6 +6,21 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-05-09 — Scanner enrich pipeline overhaul
+
+- **Strategy 0** added to `/api/enrich`: local cardmarket_card_index lookup as the fast path before TCGdex chain. ~50ms per card vs 200-500ms with TCGdex round-trip.
+- **BrightData scraper** for `cardmarket_card_index` (replaces unreliable SQL formula). 33k rows, 99.3% success rate, ~$3 cost. Scraper at `scrapers/cardmarket/` (BrightData-powered, never deployed on Apify cloud).
+- **Multilingual name columns**: `cards.{pokemon_name_ocr,card_name_ocr,set_name_ja}` + `cardmarket_expansions.{name_en,name_ja}` (migration `20260510100000_multilang_names.sql`).
+- **Display helpers** `lib/utils/format-name.ts`: `displayPokemonName/displayCardName/displaySetName` compose canonical FR/EN with raw OCR in parens when divergent.
+- **Constrained OCR prompt**: Gemini Vision now receives the 741-expansion list as constraint, set_name must be exactly one of them or null. Reduces hallucinations.
+- **CardMatchPreview component**: bottom-right thumbnail in scanner showing the API-matched card image.
+- **Set names**: now canonical EN throughout the app (`displaySetName` returns `set_name` directly; `set_name_ja` schema kept for future use).
+- **Security**: SQL injection vector in `cardmarket-enrich.or()` clause fixed via in-memory filter.
+- **Quick fixes**: BatchForm photo thumbnails now respect 3:4 portrait aspect (was horizontal slivers).
+- **Scripts**: `scripts/{scrape-cardmarket-expansion-names,reenrich-existing-cards,build-cardmarket-input}.ts` added.
+
+---
+
 ## 💰 Phase 7 — Cardmarket pricing system (May 2026)
 
 **The problem**: TCGdex's live API was too slow for real-time pricing. **The fix**: mirror Cardmarket's official S3 dumps locally and build an exact-match pipeline backed by per-expansion gallery scrapes.

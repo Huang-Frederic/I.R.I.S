@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
+import { displayPokemonName } from '@/lib/utils/format-name';
 
 export default function RestockAlertsList({ alerts }: { alerts: readonly RestockAlert[] }) {
   if (alerts.length === 0) {
@@ -25,7 +26,7 @@ export default function RestockAlertsList({ alerts }: { alerts: readonly Restock
               className="hover:bg-surface-2 flex items-center justify-between px-2 py-2 transition-colors"
             >
               <span className="text-text text-sm">
-                #{a.pokemon_number} — {a.pokemon_name}
+                #{a.pokemon_number} — {displayPokemonName(a)}
               </span>
               <span className="text-red text-xs font-medium">À restocker</span>
             </Link>

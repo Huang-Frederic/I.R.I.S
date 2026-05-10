@@ -1,0 +1,7 @@
+node_modules/
+storage/
+apify_storage/
+crawlee_storage/
+.env
+.env.local
+*.log

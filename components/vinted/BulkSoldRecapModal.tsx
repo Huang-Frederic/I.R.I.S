@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight, X, AlertTriangle, Check } from 'lucide-react';
 import type { BulkSoldItem } from './BulkSoldModal';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
+import { displayCardName } from '@/lib/utils/format-name';
 
 interface Props {
   items: BulkSoldItem[];
@@ -23,7 +24,7 @@ function thumbUrl(item: BulkSoldItem): string | null {
 }
 
 function displayName(item: BulkSoldItem): string {
-  return item.kind === 'card' ? item.card.card_name : item.lot.name;
+  return item.kind === 'card' ? displayCardName(item.card) : item.lot.name;
 }
 
 export default function BulkSoldRecapModal({ items, restocks, onClose }: Props) {

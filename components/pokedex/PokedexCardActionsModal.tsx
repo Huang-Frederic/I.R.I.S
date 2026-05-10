@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, Trash2, Tag, Package } from 'lucide-react';
 import type { Card } from '@/lib/types';
+import { displayCardName } from '@/lib/utils/format-name';
 
 interface Props {
   card: Card;
@@ -58,7 +59,7 @@ export default function PokedexCardActionsModal({ card, hasForSaleConflict, onCl
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-semibold">Retirer cette carte du Pokédex</h2>
-            <p className="text-text-muted mt-1 text-sm">{card.card_name}</p>
+            <p className="text-text-muted mt-1 text-sm">{displayCardName(card)}</p>
           </div>
           <button
             type="button"

@@ -1,0 +1,39 @@
+{
+  "title": "Cardmarket scraper input",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "expansions": {
+      "title": "Expansions to scrape",
+      "type": "array",
+      "description": "List of Cardmarket expansions. Each entry needs idExpansion, name, slug.",
+      "editor": "json",
+      "example": [
+        { "idExpansion": 4434, "name": "Brilliant Stars", "slug": "Brilliant-Stars" }
+      ]
+    },
+    "skipExisting": {
+      "title": "Skip already-indexed expansions",
+      "type": "boolean",
+      "description": "If true, skip expansions that already have rows in cardmarket_card_index.",
+      "default": true
+    },
+    "concurrency": {
+      "title": "Parallel expansions",
+      "type": "integer",
+      "description": "How many expansions to scrape in parallel (1-5 recommended).",
+      "default": 3,
+      "minimum": 1,
+      "maximum": 5
+    },
+    "perPage": {
+      "title": "Cards per Cardmarket page",
+      "type": "integer",
+      "description": "perSite query param sent to Cardmarket. 30 is the default.",
+      "default": 30,
+      "minimum": 30,
+      "maximum": 100
+    }
+  },
+  "required": ["expansions"]
+}

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
+import { displayCardName, displaySetName } from '@/lib/utils/format-name';
 
 interface ExistingCardLite {
   id: string;
@@ -44,7 +45,7 @@ export default function DuplicatePhotoModal({
   const [selected, setSelected] = useState<'new' | 'existing'>('new');
 
   const existingImageSrc = existingCard.image_url ?? existingCard.tcg_image_url ?? '';
-  const setLabel = existingCard.set_name ?? existingCard.set_code ?? '?';
+  const setLabel = displaySetName(existingCard) ?? existingCard.set_code ?? '?';
 
   async function confirm() {
     setBusy(true);
@@ -78,7 +79,7 @@ export default function DuplicatePhotoModal({
 
         {/* Card identity reminder */}
         <div className="mt-4 rounded-md border border-border bg-surface-2 p-3 text-sm">
-          <div className="font-medium text-text">{existingCard.card_name}</div>
+          <div className="font-medium text-text">{displayCardName(existingCard)}</div>
           <div className="mt-0.5 text-xs text-text-muted">
             {setLabel} · {existingCard.language} · {existingCard.condition}
             {existingCard.variant && <> · {existingCard.variant}</>}

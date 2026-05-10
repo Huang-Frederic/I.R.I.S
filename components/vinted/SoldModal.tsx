@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import type { Card, Lot } from '@/lib/types';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
+import { displayCardName } from '@/lib/utils/format-name';
 
 export type SoldEntity =
   | { kind: 'card'; card: Card }
@@ -31,7 +32,7 @@ export default function SoldModal({ entity, onClose, onSold }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const displayName = entity.kind === 'card' ? entity.card.card_name : entity.lot.name;
+  const displayName = entity.kind === 'card' ? displayCardName(entity.card) : entity.lot.name;
   const targetId = entity.kind === 'card' ? entity.card.id : entity.lot.id;
   const endpoint = entity.kind === 'card' ? `/api/cards/${targetId}` : `/api/lots/${targetId}`;
 

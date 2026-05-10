@@ -47,12 +47,13 @@ When Gemini times out, errors, or returns unparseable output, **Google Cloud Vis
 
 An `_engine` field is propagated to the UI — `Gemini`, `Gemini→Vision`, or `Vision` — alongside token usage and EUR cost displayed under the snippet. Image rotation is handled client-side before upload to avoid OCR confusion.
 
-### Enrichment (6-strategy waterfall)
+### Enrichment (7-strategy waterfall)
 
 Knowing the name isn't enough. You need the full metadata — rarity, Pokémon number, price index — and the catalog reference that makes pricing possible.
 
 For every scan, the pipeline tries strategies in order until one matches:
 
+0. **Cardmarket local index** — fast-path lookup in `cardmarket_card_index` (~33K rows, scraped via BrightData). If `(set_name, set_number)` matches, returns enriched card with `cardmarket_id` in <50 ms, bypassing all TCGdex strategies below. This is the primary enrichment path for cards with Cardmarket presence.
 1. **Catalog by code** — `lookupByCode(setCode, setNumber, language)` against the local `tcg_catalog` (52K cards). Case-insensitive (handles JP `SV11B` ↔ `sv11b`).
 2. **Catalog by total** — `lookupByTotal(total, setNumber, language)` for cards where the printed denominator differs from the official `cardCount` (common in JP).
 3. **Catalog by name + local ID** — disambiguates between same-numbered prints using `pokemon_name` + `setNumber`. If Gemini provided `illustrator`, auto-picks via `disambiguateByIllustrator` (single match) — otherwise opens a visual picker UI.
@@ -62,7 +63,13 @@ For every scan, the pipeline tries strategies in order until one matches:
 7. **Gemini-only fallback** — for KO / CN / exotic Crown Series cards where catalog + TCGdex both miss. Builds an `EnrichedCard` from Gemini's output; pricing remains null.
 
 ### Bilingual name display
-For non-EN cards, `applyGeminiEnrichments` reformats `card_name`, `pokemon_name`, `set_name` as `"Translated (Original)"` — e.g. `"Gruikui (チャオブー)"`, `"Iron Crown ex (鋼鉄王ex)"`, `"Mascarade Crépusculaire (Twilight Masquerade)"`.
+
+For cards with divergent OCR vs canonical names, display helpers in `lib/utils/format-name.ts` compose bilingual labels:
+- `displayPokemonName(card)` — returns `"Dracaufeu"` if `pokemon_name_ocr` matches canonical, or `"Dracaufeu (Charizard)"` if OCR differs
+- `displayCardName(card)` — same logic for Trainer/Energy cards
+- `displaySetName(card)` — returns the canonical English set name from `set_name`
+
+The raw OCR values (`pokemon_name_ocr`, `card_name_ocr`) are preserved in separate columns for debugging and future localization. Set names remain in canonical English throughout the app — `set_name_ja` schema column is kept for potential future use but not currently displayed.
 
 ### Variant + notes
 - **Variant dropdown** — `standard`, `pokeball`, `masterball`, `reverse_holo`, `stamp`, `promo`. Affects pricing source (reverse_holo → use holo prices on shared idProducts).
@@ -161,7 +168,7 @@ Cardmarket's official API closed to new applicants in 2023, so the pricing pipel
 Four steps, in order:
 
 1. **Set name to expansion ID** — fuzzy-matched against `cardmarket_expansions` (HTML decode + token-sort + TCGdex bridge for FR localized names).
-2. **(Expansion ID, set_number) to idProduct** — exact lookup via `cardmarket_card_index`. The index is built once per dump by a deterministic SQL formula (id_product order + card_prefix grouping); see [CARDMARKET_MAPPING.md](CARDMARKET_MAPPING.md) for the discovery and validation. The Playwright scraper at `scripts/scrape-cardmarket-cards.ts` is kept as a fallback for the handful of wheel-type promo sets where the formula doesn't apply.
+2. **(Expansion ID, set_number) to idProduct** — exact lookup via `cardmarket_card_index`. The index is populated by BrightData scrape (~33K rows across 741 expansions, ~$3 cost, 99.3% success rate). The BrightData scraper at `scrapers/cardmarket/` parses each expansion's gallery page to extract real `(id_product, set_number, url_variant, url_path)` tuples. The historical SQL formula (see [CARDMARKET_MAPPING.md](CARDMARKET_MAPPING.md)) was found unreliable in practice and is now kept as a fallback for rapid prototyping only.
 3. **Fallback when index missing** — name-prefix matching on `cardmarket_products` with rarity-aware disambiguation.
 4. **Pricing fetch** — `cardmarket_pricing` row by `id_product`. Reverse-holo variants use `*_holo` columns where available.
 

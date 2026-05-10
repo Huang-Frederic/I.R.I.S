@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Card } from '@/lib/types';
 import { groupCards, groupKey, type CardGroup } from '@/lib/utils/group-cards';
+import { displayCardName } from '@/lib/utils/format-name';
 import StockFilters, { INITIAL_STOCK_FILTERS, type StockFilterState } from './StockFilters';
 import StockRow from './StockRow';
 import ExchangeOnConflictModal, { type ExchangeConflictCard } from '@/components/vinted/ExchangeOnConflictModal';
@@ -85,7 +86,7 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
         };
         if (res.status === 409 && body.error === 'for_sale_conflict' && body.conflictCard) {
           setExchangeModal({
-            newCard: { id: card.id, cardName: card.card_name },
+            newCard: { id: card.id, cardName: displayCardName(card) },
             conflictCard: body.conflictCard,
           });
           return;

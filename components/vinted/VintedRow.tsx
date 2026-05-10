@@ -4,6 +4,7 @@ import { BookmarkCheck, Bookmark, Tag } from 'lucide-react';
 import type { Card, BaseListing } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
 import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
+import { displayCardName, displaySetName } from '@/lib/utils/format-name';
 import ListingBadges from './ListingBadges';
 import StockCountChip from './StockCountChip';
 
@@ -68,7 +69,7 @@ export default function VintedRow({
           type="button"
           onClick={() => onImageClick?.(card)}
           className="hover:ring-red shrink-0 rounded transition-shadow hover:ring-2"
-          aria-label={`Voir ${card.card_name} en grand`}
+          aria-label={`Voir ${displayCardName(card)} en grand`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -81,7 +82,7 @@ export default function VintedRow({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate font-medium">{card.card_name}</p>
+            <p className="truncate font-medium">{displayCardName(card)}</p>
             {variantLabel && (
               <span className="bg-surface-off text-text-muted shrink-0 rounded px-1.5 py-0.5 font-mono text-xs">
                 {variantLabel}
@@ -89,8 +90,8 @@ export default function VintedRow({
             )}
           </div>
           <p className="text-text-muted truncate text-xs">
-            {card.set_name ?? card.set_code ?? '?'}
-            {card.set_code && card.set_name ? ` (${card.set_code})` : ''}
+            {displaySetName(card) ?? card.set_code ?? '?'}
+            {card.set_code && displaySetName(card) ? ` (${card.set_code})` : ''}
             {card.set_number ? ` — ${card.set_number}` : ''}
           </p>
           <div className="text-text-muted mt-1 flex flex-wrap items-center gap-2 text-xs">

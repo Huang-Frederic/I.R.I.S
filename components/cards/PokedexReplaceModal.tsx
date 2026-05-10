@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ArrowRight, X } from 'lucide-react';
 import { VARIANT_LABEL } from '@/lib/utils/labels';
 import CardZoomModal from '@/components/vinted/CardZoomModal';
+import { displayCardName, displayPokemonName } from '@/lib/utils/format-name';
 
 export interface PokedexReplaceModalCard {
   id: string;
@@ -70,7 +71,7 @@ export default function PokedexReplaceModal({
           <div>
             <h2 className="text-lg font-semibold">Voulez-vous remplacer ?</h2>
             <p className="text-text-muted mt-1 text-sm">
-              {existingCard.pokemon_name} est déjà dans ton Pokédex. Tu peux remplacer la carte.
+              {displayPokemonName(existingCard)} est déjà dans ton Pokédex. Tu peux remplacer la carte.
             </p>
           </div>
           <button
@@ -85,9 +86,9 @@ export default function PokedexReplaceModal({
         </div>
 
         <div className="my-6 flex items-center justify-center gap-4">
-          <CardPanel label="Existante" thumbUrl={existingThumb} title={existingCard.card_name} subtitle={`${existingCard.rarity} · ${existingCard.language} · ${formatVariant(existingCard.variant)}`} onZoomClick={existingThumb ? () => setZoomSrc(existingThumb) : undefined} />
+          <CardPanel label="Existante" thumbUrl={existingThumb} title={displayCardName(existingCard)} subtitle={`${existingCard.rarity} · ${existingCard.language} · ${formatVariant(existingCard.variant)}`} onZoomClick={existingThumb ? () => setZoomSrc(existingThumb) : undefined} />
           <ArrowRight className="text-text-muted h-6 w-6 shrink-0" />
-          <CardPanel label="Nouvelle" thumbUrl={newThumb} title={newCardSummary.card_name} subtitle={`${newCardSummary.rarity} · ${newCardSummary.language} · ${formatVariant(newCardSummary.variant)}`} highlight onZoomClick={newThumb ? () => setZoomSrc(newThumb) : undefined} />
+          <CardPanel label="Nouvelle" thumbUrl={newThumb} title={displayCardName(newCardSummary)} subtitle={`${newCardSummary.rarity} · ${newCardSummary.language} · ${formatVariant(newCardSummary.variant)}`} highlight onZoomClick={newThumb ? () => setZoomSrc(newThumb) : undefined} />
         </div>
 
         <div className="border-border bg-surface-2 mb-4 rounded border p-3 text-xs">

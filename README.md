@@ -34,9 +34,9 @@ That's why I built **I.R.I.S** — *Intelligent Recognition Inventory System*. S
 
 You point your phone at a card. Three seconds later, I.R.I.S knows the name in two languages, the set, the rarity, the illustrator, and what it's worth on Cardmarket today.
 
-The OCR runs on **Gemini 3.1 Flash Lite Preview** (~93 % accuracy, structured JSON in a single call) with **Google Vision** as automatic fallback. ~€0.0004 per scan, with photos downscaled to 1400 px max edge before upload to keep the token budget tight. Five languages supported — Japanese, English, French, Korean, Chinese — with bilingual name extraction for FR cards (`"Gruikui (チャオブー)"`).
+The OCR runs on **Gemini 3.1 Flash Lite Preview** (~93 % accuracy, structured JSON in a single call) with **Google Vision** as automatic fallback. ~€0.0004 per scan, with photos downscaled to 1400 px max edge before upload to keep the token budget tight. Five languages supported — Japanese, English, French, Korean, Chinese — with bilingual name extraction for FR cards (`"Gruikui (チャオブー)"`). The OCR prompt is constrained by the 741-expansion list to reduce set_name hallucinations.
 
-Once the card is identified, a 6-strategy enrichment pipeline fills in the rest from a **52K-card local catalog** scraped from LimitlessTCG and queried offline-first. When the local lookup misses, TCGdex's live API takes over; when *that* misses too, **Gemini becomes the last-resort fallback** and infers the metadata directly from the photo.
+Once the card is identified, a **7-strategy enrichment pipeline** fills in the rest. **Strategy 0** is a local lookup against `cardmarket_card_index` (~33K rows scraped via BrightData) — if the card matches, enrichment completes in <50ms with `cardmarket_id` attached, skipping all TCGdex strategies entirely. When Strategy 0 misses, the pipeline falls back to a **52K-card local catalog** scraped from LimitlessTCG, then TCGdex's live API, and finally **Gemini as the last-resort fallback**.
 
 ![Scanner](docs/screenshots/scanner.png)
 
@@ -66,7 +66,7 @@ And when a single Vinted listing should bundle several cards, **Lots** ship a cu
 
 You don't price your cards. I.R.I.S does.
 
-Cardmarket's official API closed to new applicants in 2023, so the pricing pipeline is bespoke. A daily mirror of their public S3 dumps (**~67K products + ~67K pricing rows**) lands in Postgres, and a **deterministic SQL formula** derives the exact `(expansion, set_number) → idProduct` index from the dump itself — no scraping needed. (The Playwright gallery scraper is kept as a fallback for the rare wheel-type promo sets where the formula doesn't apply; see [docs/CARDMARKET_MAPPING.md](docs/CARDMARKET_MAPPING.md).) No fuzzy name guessing — every priced card carries a "View on Cardmarket ↗" deep link so the match is verifiable.
+Cardmarket's official API closed to new applicants in 2023, so the pricing pipeline is bespoke. A daily mirror of their public S3 dumps (**~67K products + ~67K pricing rows**) lands in Postgres. The exact `(expansion, set_number) → idProduct` index is populated via **BrightData scraper** (`scrapers/cardmarket/`) that parses Cardmarket gallery pages for all 741 expansions (~$3 cost, 99.3% success rate). The historical SQL formula approach (documented in [docs/CARDMARKET_MAPPING.md](docs/CARDMARKET_MAPPING.md)) was found unreliable in practice and is kept only as a rapid-prototyping fallback. No fuzzy name guessing — every priced card carries a "View on Cardmarket ↗" deep link so the match is verifiable.
 
 The annonce generator turns a saved card into a ready-to-paste Vinted post: bilingual title (smart-truncated to 80 chars), templated description with shipping block, copy-to-clipboard button, downloadable card image (PNG, anti-bot watermark stripped). When a customer buys several cards at once, the bulk-sold flow splits the total across them automatically.
 
@@ -112,7 +112,7 @@ Here's what's holding it all together.
 | **Database** | Supabase (Postgres + Storage + Auth + RLS) | Managed Postgres with first-class RLS, S3-compatible Storage for card photos, magic-link/password auth out of the box. |
 | **OCR** | Gemini 3.1 Flash Lite Preview (primary), Google Vision (fallback) | Gemini extracts structured JSON in one call (vs Vision's raw text + regex). 93 % accuracy bench-validated. |
 | **Catalog source** | LimitlessTCG (scraper) | Cardmarket API closed to new applicants in 2023; LimitlessTCG's robots.txt allows scraping with delays. |
-| **Pricing source** | Cardmarket S3 dumps + SQL-derived index | Public dumps refreshed daily; a deterministic SQL formula derives the `(set, number) → idProduct` index directly from the dump (Playwright scraper kept as fallback for wheel-type promos). |
+| **Pricing source** | Cardmarket S3 dumps + BrightData-scraped index | Public dumps refreshed daily; `cardmarket_card_index` populated via BrightData scraper (`scrapers/cardmarket/`) parsing gallery pages for exact `(set, number) → idProduct` mappings. |
 | **Hosting** | Vercel (app + cron) + Supabase (DB + storage) | Both have generous free tiers; Vercel's preview deployments and edge cron are first-class. |
 | **Testing** | Vitest + happy-dom | Fast pure-function tests for the helpers; React Testing Library for components. |
 
@@ -121,8 +121,8 @@ A few architectural choices worth calling out:
 - **Server components for pages, client components for interactivity.** Pages do parallel Supabase queries server-side; rows and modals are client components that hit API routes for mutations.
 - **Per-user RLS, shared inventory.** `cards` / `lots` are readable by both users; `card_listings` / `lot_listings` are writable only by their owner. The "who listed it" identity is computed at render time.
 - **Helpers are pure.** All logic that doesn't need React or Supabase lives in [`lib/utils/`](lib/utils/) — ~24 modules, all unit-tested. Components consume helpers; no business logic in JSX.
-- **Catalog-first enrichment.** Local Postgres lookup beats live API every time; TCGdex is the network fallback only when the local catalog has no hit.
-- **Cardmarket pricing without the API.** Public S3 dumps + a SQL formula (`id_product` order + `card_prefix` grouping) build the `(set, number) → idProduct` index in seconds. Exact matches, no name fuzzing, no Cloudflare battle. Full discovery and validation in [docs/CARDMARKET_MAPPING.md](docs/CARDMARKET_MAPPING.md).
+- **Cardmarket-first enrichment.** Strategy 0 checks the local `cardmarket_card_index` first (<50ms); when that misses, local `tcg_catalog` (52K cards); TCGdex is the network fallback only when both local sources miss.
+- **Cardmarket pricing without the API.** Public S3 dumps + BrightData scraper populate the `(set, number) → idProduct` index. Exact matches, no name fuzzing. The historical SQL formula approach is documented in [docs/CARDMARKET_MAPPING.md](docs/CARDMARKET_MAPPING.md) but was found unreliable in practice.
 
 Full code map in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
@@ -136,6 +136,7 @@ nvm use 22 && npm install
 cp .env.example .env.local                          # fill in keys — see docs/SETUP.md
 npx supabase link --project-ref <ref> && npx supabase db push
 npx tsx scripts/scrape-limitlesstcg.ts              # ~12 min, populates the offline catalog
+npx tsx scripts/scrape-cardmarket-expansion-names.ts  # 1-shot name_en/name_ja for expansions
 npm run dev                                         # → http://localhost:3000
 ```
 

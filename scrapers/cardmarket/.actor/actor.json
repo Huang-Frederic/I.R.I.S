@@ -1,0 +1,17 @@
+{
+  "actorSpecification": 1,
+  "name": "iris-cardmarket-scraper",
+  "title": "I.R.I.S — Cardmarket card index scraper",
+  "description": "Scrapes Pokémon expansion gallery pages from Cardmarket.com and upserts (idProduct, set_number, url_variant) into the Supabase cardmarket_card_index table.",
+  "version": "0.1",
+  "buildTag": "latest",
+  "input": "./INPUT_SCHEMA.json",
+  "dockerfile": "./Dockerfile",
+  "categories": ["ECOMMERCE"],
+  "environmentVariables": {
+    "SUPABASE_URL": "@SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY": "@SUPABASE_SERVICE_ROLE_KEY",
+    "BRIGHTDATA_TOKEN": "@BRIGHTDATA_TOKEN",
+    "BRIGHTDATA_ZONE": "@BRIGHTDATA_ZONE"
+  }
+}

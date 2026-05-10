@@ -40,6 +40,9 @@ export interface Card {
    *  copy card_name into pokemon_name as a NOT NULL workaround; this is now
    *  blanked at enrich time. */
   pokemon_name: string | null;
+  pokemon_name_ocr?: string | null;
+  card_name_ocr?: string | null;
+  set_name_ja?: string | null;
   /** National dex number 1..1025, OR null for non-Pokémon cards
    *  (Trainers, Energies, Stadium, Tools). Cards with null pokemon_number
    *  cannot be placed in the Pokédex slot. */

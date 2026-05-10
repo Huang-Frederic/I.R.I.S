@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, Package, Tag } from 'lucide-react';
 import { VARIANT_LABEL } from '@/lib/utils/labels';
+import { displayCardName } from '@/lib/utils/format-name';
 
 export interface ExchangeConflictCard {
   id: string;
@@ -74,7 +75,7 @@ export default function ExchangeOnConflictModal({ newCard, conflictCard, onClose
           <div>
             <h2 className="text-lg font-semibold">Échanger avec la carte en vente ?</h2>
             <p className="text-text-muted mt-1 text-sm">
-              <strong>{conflictCard.card_name}</strong> est déjà en vente. Tu peux l&apos;échanger.
+              <strong>{displayCardName(conflictCard)}</strong> est déjà en vente. Tu peux l&apos;échanger.
             </p>
           </div>
           <button

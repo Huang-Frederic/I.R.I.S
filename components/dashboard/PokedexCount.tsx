@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 import { RARITY_COLOR } from '@/lib/utils/labels';
-import { getPokemonName } from '@/lib/data/pokemon-names';
 import type { Card } from '@/lib/types';
+import { displayPokemonName, displayCardName } from '@/lib/utils/format-name';
 
 interface PokedexAddCard {
   id: string;
@@ -64,7 +64,7 @@ export default function PokedexCount({ collected, total = 1025, adds = [] }: Pro
           </h4>
           <ul className="divide-border divide-y">
             {adds.map((c) => {
-              const displayName = c.pokemon_number ? getPokemonName(c.pokemon_number, 'fr') : c.card_name;
+              const displayName = c.pokemon_number ? displayPokemonName(c) : displayCardName(c);
               const numLabel = c.pokemon_number ? `#${String(c.pokemon_number).padStart(4, '0')}` : '';
               return (
                 <li key={c.id}>

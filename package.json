@@ -21,7 +21,10 @@
     "restore-cardmarket-index": "tsx scripts/restore-cardmarket-index.ts",
     "upload-cardmarket-dumps": "tsx scripts/upload-cardmarket-dumps.ts",
     "probe-cardmarket": "tsx scripts/probe-cardmarket-expansion.ts",
-    "scrape-cardmarket": "tsx scripts/scrape-cardmarket-cards.ts"
+    "scrape-cardmarket": "tsx scripts/scrape-cardmarket-cards.ts",
+    "build-cardmarket-input": "tsx scripts/build-cardmarket-input.ts",
+    "scrape-cm-expansion-names": "tsx scripts/scrape-cardmarket-expansion-names.ts",
+    "reenrich-cards": "tsx scripts/reenrich-existing-cards.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
@@ -37,6 +40,7 @@
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
+    "@types/jsdom": "^28.0.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -46,6 +50,7 @@
     "eslint-config-next": "16.2.4",
     "eslint-config-prettier": "^9.1.0",
     "happy-dom": "^20.9.0",
+    "jsdom": "^29.1.1",
     "playwright": "^1.59.1",
     "prettier": "^3.4.1",
     "prettier-plugin-tailwindcss": "^0.6.9",

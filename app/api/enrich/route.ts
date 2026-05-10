@@ -27,6 +27,7 @@ import {
   formatBilingualName,
   deriveCardNameFr,
 } from '@/lib/api/tcg-catalog';
+import { lookupCardmarketStrategy0 } from '@/lib/api/cardmarket-enrich';
 import {
   enrichWithFrenchNames,
   findCardsByTotalAndLocalId,
@@ -183,6 +184,49 @@ function rowsToResult(
 // ---------------------------------------------------------------------------
 // Strategies — each returns EnrichResult on hit, null to fall through.
 // ---------------------------------------------------------------------------
+
+/**
+ * Strategy 0 — local Cardmarket lookup (fast path, no network).
+ *
+ * Resolves cards by (set_name, set_number, language) directly against our
+ * scraped cardmarket_card_index + cardmarket_products tables. When it hits,
+ * we get cardmarket_id, url_path, name, and the canonical EN set_name in one
+ * shot — no TCGdex round-trips needed.
+ *
+ * For fields cardmarket doesn't carry (rarity, pokemon_number, illustrator),
+ * we fall through OCR-provided values from the request body.
+ */
+async function strategyCardmarketIndex(ctx: StrategyContext): Promise<EnrichResult | null> {
+  const setName = ctx.body.setName;
+  const setNumber = ctx.localId;
+  const language = ctx.language;
+  if (!setName || !setNumber) return null;
+
+  const hit = await lookupCardmarketStrategy0(ctx.supabase, {
+    setName,
+    setNumber: String(setNumber),
+    language: language.toLowerCase(),
+  });
+  if (!hit) return null;
+
+  const card: EnrichedCard = {
+    card_id_tcg: '',
+    card_name: hit.card_name,
+    pokemon_name: ctx.body.pokemonName ?? '',
+    pokemon_number: ctx.body.pokemonNumber ?? null,
+    set_name: hit.set_name,
+    set_code: ctx.setCode ?? '',
+    set_number: String(setNumber),
+    rarity: mapGeminiRarity(ctx.body.rarity),
+    tcg_image_url: hit.tcg_image_url,
+    cardmarket_id: hit.cardmarket_id,
+    cm_price_low: null,
+    cm_price_trend: null,
+    cm_price_avg: null,
+  };
+
+  return { bestMatch: card, candidates: [card] };
+}
 
 async function strategyCatalogByCode(ctx: StrategyContext): Promise<EnrichResult | null> {
   const { setCode, localId, language, supabase, body } = ctx;
@@ -399,6 +443,12 @@ export async function POST(request: Request) {
     language: language ?? 'EN',
     supabase,
   };
+
+  // Strategy 0: local Cardmarket index lookup (fast path).
+  // Runs unconditionally because cardmarket_card_index is independent
+  // of the tcg_catalog table that strategies 1-2.5 query.
+  const r0 = await strategyCardmarketIndex(ctx);
+  if (r0) return NextResponse.json(r0 satisfies EnrichResult);
 
   // TG/GG subseries prefixes go straight to TCGdex — the catalog strategies
   // would produce wildly wrong matches (different sets sharing the same total).

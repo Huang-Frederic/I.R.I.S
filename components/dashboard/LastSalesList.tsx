@@ -1,5 +1,6 @@
 import { RARITY_COLOR } from '@/lib/utils/labels';
 import type { Card } from '@/lib/types';
+import { displayCardName } from '@/lib/utils/format-name';
 
 interface SoldCard {
   id: string;
@@ -59,7 +60,7 @@ export default function LastSalesList({
               className="h-12 w-9 rounded object-cover"
             />
             <div className="min-w-0 flex-1">
-              <div className="text-text truncate font-medium">{s.card_name}</div>
+              <div className="text-text truncate font-medium">{displayCardName(s)}</div>
               <div className="text-text-muted text-xs">
                 <span className={RARITY_COLOR[s.rarity] ?? ''}>
                   {s.rarity}

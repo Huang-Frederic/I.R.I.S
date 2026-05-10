@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, BookmarkCheck, Package, Tag } from 'lucide-react';
 import { VARIANT_LABEL } from '@/lib/utils/labels';
+import { displayCardName, displaySetName } from '@/lib/utils/format-name';
 
 interface ExistingPokedexCard {
   id: string;
@@ -139,10 +140,10 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
               </div>
             )}
             <div className="flex flex-col gap-1 text-sm">
-              <p className="font-medium">{conflict.card_name}</p>
-              {conflict.set_name && (
+              <p className="font-medium">{displayCardName(conflict)}</p>
+              {displaySetName(conflict) && (
                 <p className="text-text-muted text-xs">
-                  {conflict.set_name}{conflict.set_code ? ` (${conflict.set_code})` : ''}
+                  {displaySetName(conflict)}{conflict.set_code ? ` (${conflict.set_code})` : ''}
                 </p>
               )}
               <p className="text-text-muted text-xs">
@@ -222,7 +223,7 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
               Pas d&apos;image
             </div>
           )}
-          <p className="text-sm font-medium">{card.card_name}</p>
+          <p className="text-sm font-medium">{displayCardName(card)}</p>
         </div>
 
         {error && <p className="text-red mb-3 text-xs">{error}</p>}
