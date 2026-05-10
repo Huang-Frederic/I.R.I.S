@@ -15,7 +15,7 @@ function mockSupabase(opts: {
     name_ja: string | null;
   }> | null;
   indexRow?: { id_product: number; url_path: string | null } | null;
-  product?: { id_product: number; name: string } | null;
+  product?: { id_product: number; name: string; card_prefix?: string } | null;
 }) {
   return {
     from: vi.fn((table: string) => {
@@ -86,7 +86,7 @@ describe('lookupCardmarketStrategy0', () => {
         id_product: 608425,
         url_path: '/fr/Pokemon/Products/Singles/Brilliant-Stars/Exeggcute-BRS001',
       },
-      product: { id_product: 608425, name: 'Exeggcute' },
+      product: { id_product: 608425, name: 'Exeggcute', card_prefix: 'BRS' },
     });
 
     const result = await lookupCardmarketStrategy0(supabase as never, {

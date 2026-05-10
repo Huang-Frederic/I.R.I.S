@@ -28,6 +28,7 @@ import {
   deriveCardNameFr,
 } from '@/lib/api/tcg-catalog';
 import { lookupCardmarketStrategy0 } from '@/lib/api/cardmarket-enrich';
+import { verifyByIllustrator } from '@/lib/api/enrich-cross-validate';
 import {
   enrichWithFrenchNames,
   findCardsByTotalAndLocalId,
@@ -444,31 +445,51 @@ export async function POST(request: Request) {
     supabase,
   };
 
-  // Strategy 0: local Cardmarket index lookup (fast path).
-  // Runs unconditionally because cardmarket_card_index is independent
-  // of the tcg_catalog table that strategies 1-2.5 query.
-  const r0 = await strategyCardmarketIndex(ctx);
-  if (r0) return NextResponse.json(r0 satisfies EnrichResult);
-
-  // TG/GG subseries prefixes go straight to TCGdex — the catalog strategies
-  // would produce wildly wrong matches (different sets sharing the same total).
+  // TG/GG subseries (Trainer Gallery, Galarian Gallery) have their own
+  // Cardmarket subseries (e.g. "Astral Radiance: Trainer Gallery") with
+  // independent numbering. The OCR returns the parent set_name + a "TG"/"GG"
+  // set_code, so a naive lookup by (parent_set_name, set_number) would match
+  // the wrong card from the main set. Skip Strategy 0 + catalog and let
+  // TCGdex (which has proper subseries handling) take over.
   const skipCatalog = setCode ? /^(TG|GG)$/i.test(setCode) : false;
 
+  // Cross-validate every strategy hit against the OCR illustrator. When OCR
+  // says a set the catalog disagrees with (e.g. Gemini misreading LOR as BRS
+  // for a Trainer Gallery Charizard with illustrator GIDORA), search across
+  // all sets for a card matching (illustrator + set_number + pokemon_name).
+  // Auto-correct on a unique alternative; expose multiple via candidates[].
+  async function verify(r: EnrichResult): Promise<EnrichResult> {
+    return verifyByIllustrator(
+      {
+        supabase,
+        ocrIllustrator: body.illustrator,
+        ocrPokemonName: body.pokemonName ?? body.pokemonNameFr,
+        ocrSetNumber: localId,
+        ocrLanguage: ctx.language,
+      },
+      r,
+    );
+  }
+
   if (!skipCatalog) {
+    // Strategy 0: local Cardmarket index lookup (fast path).
+    const r0 = await strategyCardmarketIndex(ctx);
+    if (r0) return NextResponse.json(await verify(r0) satisfies EnrichResult);
+
     const r1 = await strategyCatalogByCode(ctx);
-    if (r1) return NextResponse.json(r1 satisfies EnrichResult);
+    if (r1) return NextResponse.json(await verify(r1) satisfies EnrichResult);
     const r2 = await strategyCatalogByTotal(ctx);
-    if (r2) return NextResponse.json(r2 satisfies EnrichResult);
+    if (r2) return NextResponse.json(await verify(r2) satisfies EnrichResult);
     const r25 = await strategyCatalogByNameAndLocalId(ctx);
-    if (r25) return NextResponse.json(r25 satisfies EnrichResult);
+    if (r25) return NextResponse.json(await verify(r25) satisfies EnrichResult);
   }
 
   try {
     const r3 = await strategyTCGdex(ctx);
-    if (r3) return NextResponse.json(r3 satisfies EnrichResult);
+    if (r3) return NextResponse.json(await verify(r3) satisfies EnrichResult);
 
     const r5 = strategyGeminiOnlyFallback(ctx);
-    if (r5) return NextResponse.json(r5 satisfies EnrichResult);
+    if (r5) return NextResponse.json(await verify(r5) satisfies EnrichResult);
 
     // Strategy 6: nothing usable — caller falls back to bare OCR fields.
     return NextResponse.json({ bestMatch: null, candidates: [] } satisfies EnrichResult);

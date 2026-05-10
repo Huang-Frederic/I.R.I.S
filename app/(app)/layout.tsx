@@ -37,7 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="min-h-screen overflow-x-hidden">
         <Sidebar />
         <main className="min-h-screen md:pl-[220px]">
-          <div className="mx-auto max-w-[1200px] px-4 pb-20 pt-6 md:px-8 md:pb-8">{children}</div>
+          <div className="mx-auto max-w-[1200px] px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-[calc(1.5rem+env(safe-area-inset-top))] md:px-8 md:pb-8 md:pt-6">{children}</div>
         </main>
         <BottomNav />
         <InstallPrompt />

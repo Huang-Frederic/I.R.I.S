@@ -77,18 +77,25 @@ export async function lookupCardmarketStrategy0(
   const idProduct: number = indexRow.id_product;
   const urlPath: string = indexRow.url_path ?? '';
 
-  // Step 3: fetch the product name.
+  // Step 3: fetch the product name + card_prefix (needed for image URL).
   const { data: product } = await supabase
     .from('cardmarket_products')
-    .select('id_product, name')
+    .select('id_product, name, card_prefix')
     .eq('id_product', idProduct)
     .single();
 
   const cardName: string = product?.name ?? '';
+  const cardPrefix: string = product?.card_prefix ?? '';
 
   // Step 4: build the canonical S3 image URL.
-  // Pattern: https://product-images.s3.cardmarket.com/51/{idProduct}/{idProduct}.jpg
-  const imageUrl = `${CM_IMG_BASE}/${idProduct}/${idProduct}.jpg`;
+  // Pattern: https://product-images.s3.cardmarket.com/51/{set_prefix}/{idProduct}/{idProduct}.jpg
+  // The set_prefix (e.g. "BRS", "PHF") is REQUIRED — flat path without prefix
+  // returns 403. If we somehow lack the prefix, fall back to flat path which
+  // at least resolves correctly for the small minority of products without
+  // a card_prefix entry in cardmarket_products.
+  const imageUrl = cardPrefix
+    ? `${CM_IMG_BASE}/${cardPrefix}/${idProduct}/${idProduct}.jpg`
+    : `${CM_IMG_BASE}/${idProduct}/${idProduct}.jpg`;
 
   return {
     cardmarket_id: String(idProduct),

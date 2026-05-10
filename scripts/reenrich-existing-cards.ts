@@ -131,18 +131,25 @@ async function lookupCardmarket(
   if (!indexRow) return null;
   const idProduct: number = indexRow.id_product;
 
-  // Step 3: fetch product name.
+  // Step 3: fetch product name + card_prefix (required for image URL).
   const { data: product } = await supabase
     .from('cardmarket_products')
-    .select('id_product, name')
+    .select('id_product, name, card_prefix')
     .eq('id_product', idProduct)
     .single();
+
+  const cardPrefix: string = product?.card_prefix ?? '';
+  // Pattern: https://product-images.s3.cardmarket.com/51/{set_prefix}/{idProduct}/{idProduct}.jpg
+  // The set_prefix is required — flat path returns 403.
+  const imageUrl = cardPrefix
+    ? `${CM_IMG_BASE}/${cardPrefix}/${idProduct}/${idProduct}.jpg`
+    : `${CM_IMG_BASE}/${idProduct}/${idProduct}.jpg`;
 
   return {
     cardmarket_id: String(idProduct),
     card_name: product?.name ?? '',
     set_name: setNameEn ?? '',
-    tcg_image_url: `${CM_IMG_BASE}/${idProduct}/${idProduct}.jpg`,
+    tcg_image_url: imageUrl,
   };
 }
 

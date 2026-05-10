@@ -97,10 +97,12 @@ CODES DE SET PAR LANGUE — extrais ce qui est imprimé, JAMAIS l'équivalent d'
 
 ⚠️ ANTI-PIÈGE : si la carte est en alphabet latin (Pikachu, Dracaufeu, …), le set_code est OBLIGATOIREMENT en format EN/FR (3 lettres UPPERCASE comme BKP, OBF, MEW). N'INVENTE PAS de code JP (XY9, sv11W, BW5) sur une carte FR/EN — ce serait une hallucination.
 
+⚠️ SET_CODE PEUT ÊTRE NULL : si tu ne distingues pas le code clairement (texte trop petit, vieux set sans code visible comme Origines Perdues / Lost Origin où parfois le code est très discret), retourne null pour set_code plutôt qu'inventer. Le pipeline a un fallback qui matche par (set_name + set_number) — préserver l'intégrité du set_code est plus important que de remplir le champ.
+
 {
   "card_name": "<nom haut, ex 'チャオブー' (JP), 'Pikachu ex' (EN), 'Dracaufeu ex' (FR)>",
   "pokemon_name": "<sans suffixe ex/V/VMAX, ex 'Pikachu' / 'Dracaufeu'>",
-  "set_code": "<code exact tel qu'imprimé, casse sensible>",
+  "set_code": "<code exact tel qu'imprimé, casse sensible, OU null si pas visible>",
   "set_number": "<XXX sans zéros initiaux: '12' pas '012'>",
   "set_total": <YYY ou null>,
   "language": "<JP|EN|FR|KO|CN (utilise CN pour chinois, pas ZH)>",
