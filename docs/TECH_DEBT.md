@@ -64,7 +64,7 @@ Vitest 4.x requires `node:util.styleText` which is Node 22+. The `package.json` 
 
 ### UI components not tested
 
-Helpers in `lib/utils/` are unit-tested (39 test files, 344 passing). UI components are only validated through manual usage.
+Helpers in `lib/utils/` are unit-tested (45 test files, 442 passing). UI components are only validated through manual usage.
 
 **Why:** purposeful. Components are intentionally thin wrappers around helpers (see [ARCHITECTURE.md](ARCHITECTURE.md) "Pure helpers, thin components"). Adding component tests would lock down implementation details (which DOM elements render, which class names) without adding behavioral coverage the helpers don't already provide.
 

@@ -335,18 +335,24 @@ The repo includes [`vercel.json`](../vercel.json) which schedules the daily pric
 
 Vercel reads this on deploy. The endpoint authenticates via the `CRON_SECRET` Bearer token. No additional setup needed — first deploy enables the schedule.
 
-### 11.4 GitHub Actions (database backup)
+### 11.4 GitHub Actions secrets
 
-The repo includes [`.github/workflows/backup.yml`](../.github/workflows/backup.yml) which runs `pg_dump` daily at 03:00 UTC and publishes a gzipped release tagged `backup-daily-YYYY-MM-DD`.
+The repo ships two workflows that need their own secrets (independent of the Vercel env vars from §11.2). Add all three at GitHub → **Settings → Secrets and variables → Actions → New repository secret**:
 
-To enable:
-1. GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**:
-   - `SUPABASE_DB_URL` → connection string from Supabase dashboard (Settings → Database → Connection string → URI mode)
-2. Manually trigger once via the **Actions** tab to verify.
+| Secret | Source | Used by |
+|---|---|---|
+| `SUPABASE_DB_URL` | Supabase dashboard → Settings → Database → Connection string (**URI** mode) | [backup.yml](../.github/workflows/backup.yml) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Same value as the Vercel env var (§11.2) | [cardmarket-prices.yml](../.github/workflows/cardmarket-prices.yml) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Same value as the Vercel env var (§11.2) | [cardmarket-prices.yml](../.github/workflows/cardmarket-prices.yml) |
 
-### 11.5 Cardmarket dumps cron
+(`GITHUB_TOKEN` is auto-injected by Actions for `gh release` calls — no setup needed.)
 
-[`.github/workflows/cardmarket-prices.yml`](../.github/workflows/cardmarket-prices.yml) runs daily at 01:07 UTC. Same setup as backup: it requires `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` as repo secrets.
+### 11.5 Workflow schedules
+
+- [`backup.yml`](../.github/workflows/backup.yml) — `pg_dump --data-only` of 8 user-data tables daily at **03:00 UTC**, publishes a gzipped release tagged `backup-daily-YYYY-MM-DD`. Rotation: 30 daily / 12 weekly / 12 monthly via [`scripts/backup/rotate.sh`](../scripts/backup/rotate.sh). Manual trigger: Actions tab → **Daily backup** → **Run workflow**.
+- [`cardmarket-prices.yml`](../.github/workflows/cardmarket-prices.yml) — refreshes `cardmarket_expansions` / `_products` / `_pricing` from the public S3 dumps daily at **01:07 UTC** (off-the-hour to dodge fleet pile-ups). Manual trigger: Actions tab → **Refresh Cardmarket prices** → **Run workflow**.
+
+> **Note:** Card and lot photos in Storage are **not** backed up by these workflows — they're stored in `card-photos` / `lot-photos` buckets and would need a manual export from the Supabase dashboard for full disaster recovery. See [TECH_DEBT.md → Card photos inlined](TECH_DEBT.md#card-photos-inlined-in-cardsimage_url).
 
 ---
 

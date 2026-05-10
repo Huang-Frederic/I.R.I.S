@@ -13,7 +13,7 @@ A two-collector PWA that scans, prices, and sells a shared Pokémon TCG collecti
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20RLS-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com)
-[![Tests](https://img.shields.io/badge/tests-344%20passing-success)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-442%20passing-success)](#-testing)
 [![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8)](#)
 
 [The scan](#-it-starts-with-a-scan) · [The views](#-now-where-does-it-go) · [The sell](#-time-to-sell) · [The two of us](#-but-youre-not-alone) · [The control room](#-the-control-room) · [Under the hood](#-under-the-hood) · [Quick start](#-try-it-yourself) · [Docs](#-going-deeper)
@@ -34,9 +34,9 @@ That's why I built **I.R.I.S** — *Intelligent Recognition Inventory System*. S
 
 You point your phone at a card. Three seconds later, I.R.I.S knows the name in two languages, the set, the rarity, the illustrator, and what it's worth on Cardmarket today.
 
-The OCR runs on **Gemini 3.1 Flash Lite Preview** (~93 % accuracy, structured JSON in a single call) with **Google Vision** as automatic fallback. ~€0.0004 per scan, with photos downscaled to 1400 px max edge before upload to keep the token budget tight. Five languages supported — Japanese, English, French, Korean, Chinese — with bilingual name extraction for FR cards (`"Gruikui (チャオブー)"`). The prompt asks Gemini to read the printed `set_prefix` (3–4 letter code like BRS, LOR, BKR) directly off the card — short and unambiguous, so we don't need to ship a constraint list and the prompt stays under 300 tokens.
+The OCR runs on **Gemini 3.1 Flash Lite Preview** (~93 % accuracy, structured JSON in a single call) with **Google Vision** as automatic fallback. ~€0.0004 per scan, with photos downscaled to 1400 px max edge before upload to keep the token budget tight. Optimized for the five languages I collect — Japanese, English, French, Korean, Chinese — with bilingual name extraction for FR cards (`"Gruikui (チャオブー)"`). The OCR + database also accept DE / IT / ES / PT for the occasional foreign card. The prompt asks Gemini to read the printed `set_prefix` (3–4 letter code like BRS, LOR, BKR) directly off the card — short and unambiguous, so I don't need to ship a constraint list and the prompt stays under 300 tokens.
 
-Once the card is identified, a **4-strategy enrichment pipeline** ([`app/api/enrich/route.ts`](app/api/enrich/route.ts)) fills in the rest. **Strategy 0** is a direct cardmarket lookup by `(set_prefix + set_number)` against the local `cardmarket_card_index` (~33K rows scraped via BrightData) — most cards land here in <50 ms with `cardmarket_id` attached. **Strategy 1** is a name-based picker: when the printed number is hard to OCR (TG/GG subseries, blurry digits) Gemini returns `set_number=null` and we surface every card in the expansion matching the Pokémon name (translated to English via the static dex map at [`lib/data/pokemon-names.json`](lib/data/pokemon-names.json)). **Strategy 2** is **TCGdex live** for cards not in the cardmarket dump. **Strategy 3** is the **Gemini-only fallback** — saves the bare OCR fields with no `cardmarket_id` so user can still record the card.
+Once the card is identified, a **4-strategy enrichment pipeline** ([`app/api/enrich/route.ts`](app/api/enrich/route.ts)) fills in the rest. **Strategy 0** is a direct cardmarket lookup by `(set_prefix + set_number)` against the local `cardmarket_card_index` (~33K rows scraped via BrightData) — most cards land here in <50 ms with `cardmarket_id` attached. **Strategy 1** is a name-based picker: when the printed number is hard to OCR (TG/GG subseries, blurry digits) Gemini returns `set_number=null` and the pipeline surfaces every card in the expansion matching the Pokémon name (translated to English via the static dex map at [`lib/data/pokemon-names.json`](lib/data/pokemon-names.json)). **Strategy 2** is **TCGdex live** for cards not in the cardmarket dump. **Strategy 3** is the **Gemini-only fallback** — saves the bare OCR fields with no `cardmarket_id` so user can still record the card.
 
 ![Scanner](docs/screenshots/scanner.png)
 
@@ -168,7 +168,7 @@ npm run lint          # ESLint
 npm run format        # Prettier --write
 ```
 
-UI components are thin wrappers around ~24 pure helper modules in [`lib/utils/`](lib/utils/) — that's where the logic and the tests live. **344 tests, zero lint warnings, zero type errors.**
+UI components are thin wrappers around ~34 pure helper modules in [`lib/utils/`](lib/utils/) — that's where the logic and the tests live. **442 tests, zero lint warnings, zero type errors.**
 
 ---
 

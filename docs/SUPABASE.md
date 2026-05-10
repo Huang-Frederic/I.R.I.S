@@ -85,6 +85,7 @@ Migrations are applied chronologically and named by phase. All migration files l
 | `20260507200000_cardmarket_dumps.sql` | `cardmarket_expansions`, `cardmarket_products`, `cardmarket_pricing`. |
 | `20260508000000_cardmarket_card_index.sql` | `cardmarket_card_index` for fast-path lookup. |
 | `20260509000000_cardmarket_url_path.sql` | Adds `url_path` to card_index + `cardmarket_url` to cards. |
+| `20260510000000_cron_pricing_index.sql` | Partial index `cards (cm_updated_at asc nulls first) where status = 'for_sale'` — backs the cron's bulk query that picks the 200 oldest for-sale cards. |
 | `20260510100000_multilang_names.sql` | Multilingual name columns: `cards.{pokemon_name_ocr,card_name_ocr,set_name_ja}` + `cardmarket_expansions.{name_en,name_ja}` for bilingual display. |
 | `20260510200000_cardmarket_set_prefix.sql` | Adds `cardmarket_expansions.set_prefix` (S3 image-URL prefix like BRS/LOR/sv2a, used by enrich Strategy 0 + image builder). Initial backfill from `url_path` slug patterns. |
 | `20260510210000_cardmarket_set_prefix_fix.sql` | Re-derive `set_prefix` with case-insensitive regex (handles JP codes like sv1a/sv2a) + majority-vote per expansion. Replaces buggy distinct-on-without-order-by from previous migration. |

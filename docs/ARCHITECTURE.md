@@ -99,7 +99,7 @@ The codebase is organized around Next.js App Router conventions.
 │   └── *.ts                     Catalog scrape, dumps, scrape-cardmarket, benchmarks, diagnostics
 │
 ├── supabase/
-│   └── migrations/              17 .sql files, chronological prefix
+│   └── migrations/              21 .sql files, chronological prefix
 │
 ├── docs/                        See README for the doc map
 ├── public/                      Static assets (logo, icons)
@@ -181,7 +181,7 @@ POST /api/enrich
   │   → reverse-lookup FR/JP→EN via static dex map for manual form input
   │   → returns up to 10 candidates, surfaces picker UI
   │ Strategy 2: TCGdex live by (set_prefix + set_number)
-  │   → for cards not in our cardmarket dump (very old sets, exotic locales)
+  │   → for cards not in the local cardmarket dump (very old sets, exotic locales)
   │ Strategy 3: Gemini-only fallback
   │   → no cardmarket_id, but populates set_name from set_prefix lookup
   │   → user can still record the card with bare OCR fields

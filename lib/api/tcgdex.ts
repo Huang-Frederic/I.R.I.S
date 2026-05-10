@@ -3,6 +3,14 @@ import type { CardLanguage, CardRarity, EnrichedCard } from '@/lib/types';
 
 const BASE = 'https://api.tcgdex.net/v2';
 
+/** Default per-request timeout. TCGdex is best-effort; the enrich + pricing
+ *  flows that call into it can't afford to block the user on a slow upstream. */
+const DEFAULT_TIMEOUT_MS = 5_000;
+
+function fetchWithTimeout(url: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<Response> {
+  return fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+}
+
 /** TCGdex's two-letter language codes — superset of what we expose in the UI. */
 export type TCGdexLang = 'ja' | 'en' | 'fr' | 'de' | 'it' | 'es' | 'ko' | 'pt' | 'zh-tw';
 
@@ -169,7 +177,7 @@ const FR_NAME_CACHE = new Map<number, string | null>();
 async function lookupFrenchPokemonName(dexId: number): Promise<string | null> {
   if (FR_NAME_CACHE.has(dexId)) return FR_NAME_CACHE.get(dexId)!;
   try {
-    const res = await fetch(`${BASE}/fr/cards?dexId=${dexId}`);
+    const res = await fetchWithTimeout(`${BASE}/fr/cards?dexId=${dexId}`);
     if (!res.ok) { FR_NAME_CACHE.set(dexId, null); return null; }
     const cards = (await res.json()) as { name: string }[];
     const cleaned = [...new Set(cards.map((c) => extractPokemonName(c.name)))];
@@ -213,7 +221,7 @@ export async function lookupById(
   lang: TCGdexLang = 'en',
 ): Promise<TCGdexCard | null> {
   const url = `${BASE}/${lang}/cards/${encodeURIComponent(setCode)}-${encodeURIComponent(localId)}`;
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url);
   if (response.status === 404) return null;
   if (!response.ok) {
     throw new Error(`TCGdex ${response.status}: ${await response.text()}`);
@@ -387,7 +395,7 @@ export async function listSets(lang: TCGdexLang): Promise<TCGdexSetSummary[]> {
     return cached.sets;
   }
   const url = `${BASE}/${lang}/sets`;
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url);
   if (!response.ok) {
     throw new Error(`TCGdex sets ${response.status}: ${await response.text()}`);
   }
