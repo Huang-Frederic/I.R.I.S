@@ -297,7 +297,7 @@ async function snapshotStockValue(service: ServiceClient): Promise<void> {
     const { data, error } = await service
       .from('cards')
       .select('status, cm_price_avg, cm_price_trend, cm_price_low')
-      .in('status', ['for_sale', 'collection']);
+      .in('status', ['for_sale', 'collection', 'pokedex']);
     if (error) throw error;
     const snapshot = computeStockValue(data ?? []);
     const today = new Date().toISOString().slice(0, 10);

@@ -10,6 +10,7 @@ import {
   buildDayDetails,
 } from '@/lib/utils/dashboard-queries';
 import { computeStockValue } from '@/lib/utils/stock-value';
+import { formatEur } from '@/lib/utils/format-currency';
 import PageTitle from '@/components/layout/PageTitle';
 import DashboardPeriodTabs from '@/components/dashboard/DashboardPeriodTabs';
 import RefreshButton from '@/components/dashboard/RefreshButton';
@@ -44,10 +45,6 @@ function periodLabel(days: number): string {
   if (days === 90) return '90 jours';
   if (days === 365) return '1 an';
   return `${days} jours`;
-}
-
-function formatEur(n: number): string {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(n);
 }
 
 export default async function DashboardPage({
@@ -149,10 +146,11 @@ export default async function DashboardPage({
 
       <DashboardKpiStrip
         valueStock={{
+          // Stock = for_sale + collection. Pokédex value is shown separately
+          // on the Pokédex KPI card so a personal collection doesn't inflate
+          // the "what I could sell" figure.
           label: 'Valeur stock',
-          value: formatEur(
-            stockValue.value_for_sale + stockValue.value_collection + stockValue.value_pokedex,
-          ),
+          value: formatEur(stockValue.value_for_sale + stockValue.value_collection),
         }}
         cost={{ label: `Coût OCR ${periodLabel(days)}`, value: formatEur(costPeriodTotal) }}
         scans={{ label: `Scans ${periodLabel(days)}`, value: String(scansPeriodCount) }}
@@ -160,7 +158,7 @@ export default async function DashboardPage({
       />
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <PokedexCount collected={pokedexCollected} adds={lastPokedexAdds ?? []} />
+        <PokedexCount collected={pokedexCollected} value={stockValue.value_pokedex} adds={lastPokedexAdds ?? []} />
         <RarityDonut counts={rarityCounts} values={rarityValues} />
       </div>
 

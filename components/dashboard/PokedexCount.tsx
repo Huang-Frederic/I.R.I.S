@@ -3,6 +3,7 @@ import { BookOpen } from 'lucide-react';
 import { RARITY_COLOR } from '@/lib/utils/labels';
 import type { Card } from '@/lib/types';
 import { displayPokemonName, displayCardName } from '@/lib/utils/format-name';
+import { formatEur } from '@/lib/utils/format-currency';
 
 interface PokedexAddCard {
   id: string;
@@ -20,6 +21,9 @@ interface Props {
   collected: number;
   /** Total of the National Dex covered by the app (1025 for gen 1-9). */
   total?: number;
+  /** Cardmarket-derived total value of the cards in the Pokédex (avg/trend/low fallback).
+   *  Surfaced next to the count so the user sees what their personal collection is worth. */
+  value?: number;
   /** Recent Pokédex additions to show below the headline. */
   adds?: readonly PokedexAddCard[];
 }
@@ -29,7 +33,7 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
-export default function PokedexCount({ collected, total = 1025, adds = [] }: Props) {
+export default function PokedexCount({ collected, total = 1025, value, adds = [] }: Props) {
   const pct = total > 0 ? (collected / total) * 100 : 0;
   return (
     <div className="bg-surface border-border flex flex-col rounded-lg border p-4">
@@ -46,6 +50,11 @@ export default function PokedexCount({ collected, total = 1025, adds = [] }: Pro
         <div className="mt-3 flex items-baseline gap-2">
           <span className="text-text text-3xl font-semibold">{collected}</span>
           <span className="text-text-muted text-sm">/ {total}</span>
+          {value != null && (
+            <span className="text-text ml-3 font-mono text-sm font-semibold">
+              {formatEur(value)}
+            </span>
+          )}
           <span className="text-text-faint ml-auto text-xs">{pct.toFixed(1)}%</span>
         </div>
         <div className="bg-surface-2 mt-3 h-2 overflow-hidden rounded-full">
