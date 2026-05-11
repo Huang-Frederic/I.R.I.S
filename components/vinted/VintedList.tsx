@@ -603,7 +603,13 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           card={annonceTarget}
           config={vintedConfig}
           onClose={() => setAnnonceTarget(null)}
-          onPriceSaved={updateCardPrice}
+          onPriceSaved={(cardId, newPrice) => {
+            updateCardPrice(cardId, newPrice);
+            // Also re-seed the modal's source state so its display reads the
+            // new value without requiring a close/reopen. Without this, the
+            // list refreshes but the modal still shows the stale prop.
+            setAnnonceTarget((prev) => (prev && prev.id === cardId ? { ...prev, suggested_price: newPrice } : prev));
+          }}
           onCardRefreshed={(updated) => {
             setCards((prev) => prev.map((c): CardWithListings => (c.id === updated.id ? { ...updated, listings: c.listings } : c)));
             setAnnonceTarget(updated);
@@ -615,7 +621,12 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           lot={lotAnnonceTarget}
           storagePublicUrl={storagePublicUrl}
           onClose={() => setLotAnnonceTarget(null)}
-          onPriceSaved={updateLotPrice}
+          onPriceSaved={(lotId, newPrice) => {
+            updateLotPrice(lotId, newPrice);
+            // Same as the card modal: keep the modal's source state in sync
+            // with the list update so the new price is visible immediately.
+            setLotAnnonceTarget((prev) => (prev && prev.id === lotId ? { ...prev, price: newPrice } : prev));
+          }}
         />
       )}
       {zoomCard && (

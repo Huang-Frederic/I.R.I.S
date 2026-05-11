@@ -124,6 +124,25 @@ function resolveLanguage(ocr: { language?: CardLanguage; text: string }): CardLa
   return ocr.language ?? detectLanguage(ocr.text);
 }
 
+/**
+ * Format a card or Pokémon name for display when the printed language differs
+ * from French. Catalog gives the French name (e.g. "Carapuce"); raw OCR gives
+ * the on-card original (e.g. "ゼニガメ" / "Squirtle"). For non-FR cards we
+ * surface both so the user can cross-check the photo at a glance.
+ */
+function formatLocalizedName(
+  frenchName: string | null | undefined,
+  rawOriginal: string | null | undefined,
+  language: CardLanguage,
+): string {
+  const fr = (frenchName ?? '').trim();
+  const raw = (rawOriginal ?? '').trim();
+  if (!fr) return raw;
+  if (language === 'FR' || !raw) return fr;
+  if (raw.toLowerCase() === fr.toLowerCase()) return fr;
+  return `${fr} (${raw})`;
+}
+
 export interface CardScanFormProps {
   /** When set, the pokemon_number input is locked to this value, pokemon_name pre-filled via dataset. */
   lockedPokemonNumber?: number;
@@ -192,8 +211,14 @@ export default function CardScanForm({
   const [ocrIllustrator, setOcrIllustrator] = useState<string | null>(null);
   const [ocrGemini, setOcrGemini] = useState<{
     pokemonNumber?: number | null;
+    /** Raw on-card Pokémon name in the printed language (kana for JP, EN word for EN, etc.).
+     *  Used to render `Carapuce (ゼニガメ)` style suffixes for non-FR cards. */
+    pokemonName?: string | null;
     pokemonNameFr?: string | null;
     pokemonNameEn?: string | null;
+    /** Raw on-card title in the printed language. Same role as `pokemonName`
+     *  but for the card title (handles ex/V/Trainer titles). */
+    cardName?: string | null;
     cardNameFr?: string | null;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -275,8 +300,10 @@ export default function CardScanForm({
     setExtractedSetNumber(initialOcr.setNumberCandidate?.raw ?? null);
     setOcrGemini({
       pokemonNumber: initialOcr.pokemonNumber,
+      pokemonName: initialOcr.pokemonName,
       pokemonNameFr: initialOcr.pokemonNameFr,
       pokemonNameEn: initialOcr.pokemonNameEn,
+      cardName: initialOcr.cardName,
       cardNameFr: initialOcr.cardNameFr,
     });
     setOcrUsage(initialOcr._usage ?? null);
@@ -320,9 +347,9 @@ export default function CardScanForm({
     const prefill: FormFields = {
       ...EMPTY,
       language,
-      pokemon_name: match?.pokemon_name ?? '',
+      pokemon_name: formatLocalizedName(match?.pokemon_name, initialOcr.pokemonName, language),
       pokemon_number: match?.pokemon_number?.toString() ?? (initialOcr.pokemonNumber ? String(initialOcr.pokemonNumber) : ''),
-      card_name: match?.card_name ?? '',
+      card_name: formatLocalizedName(match?.card_name, initialOcr.cardName, language),
       card_id_tcg: match?.card_id_tcg ?? '',
       set_name: match?.set_name ?? '',
       set_code: match?.set_code ?? setCode,
@@ -503,7 +530,7 @@ export default function CardScanForm({
       pokemon_name:
         lockedPokemonNumber != null
           ? getPokemonName(lockedPokemonNumber, 'fr')
-          : match.pokemon_name,
+          : formatLocalizedName(match.pokemon_name, ocrGemini?.pokemonName, prev.language),
       // When the slot is locked we keep the locked number visible (input is
       // disabled). The real detected number lives in `detectedPokemonNumber`
       // so the mismatch warning can fire.
@@ -511,7 +538,7 @@ export default function CardScanForm({
         lockedPokemonNumber != null
           ? String(lockedPokemonNumber)
           : (match.pokemon_number?.toString() ?? ''),
-      card_name: match.card_name,
+      card_name: formatLocalizedName(match.card_name, ocrGemini?.cardName, prev.language),
       card_id_tcg: match.card_id_tcg,
       set_name: match.set_name,
       set_code: match.set_code,
@@ -567,7 +594,10 @@ export default function CardScanForm({
       setExtractedSetNumber(ocr.setNumberCandidate?.raw ?? null);
       setOcrGemini({
         pokemonNumber: ocr.pokemonNumber,
+        pokemonName: ocr.pokemonName,
         pokemonNameFr: ocr.pokemonNameFr,
+        pokemonNameEn: ocr.pokemonNameEn,
+        cardName: ocr.cardName,
         cardNameFr: ocr.cardNameFr,
       });
       setOcrUsage(ocr._usage ?? null);
@@ -638,9 +668,9 @@ export default function CardScanForm({
       const prefill: FormFields = {
         ...EMPTY,
         language,
-        pokemon_name: match?.pokemon_name ?? '',
+        pokemon_name: formatLocalizedName(match?.pokemon_name, ocr.pokemonName, language),
         pokemon_number: match?.pokemon_number?.toString() ?? (ocr.pokemonNumber ? String(ocr.pokemonNumber) : ''),
-        card_name: match?.card_name ?? '',
+        card_name: formatLocalizedName(match?.card_name, ocr.cardName, language),
         card_id_tcg: match?.card_id_tcg ?? '',
         set_name: match?.set_name ?? '',
         set_code: match?.set_code ?? setCode,

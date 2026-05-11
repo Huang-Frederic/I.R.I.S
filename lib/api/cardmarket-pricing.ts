@@ -46,10 +46,11 @@ export type LookupOutcome =
       details?: string;
     };
 
-/** Variants that have no Cardmarket equivalent — JP-exclusive promo prints
- *  (Poké Ball, Master Ball, dot/stamp variants) or generic "Promo" placeholder.
- *  These keep their manual prices. */
-const UNSUPPORTED_VARIANTS = new Set(['pokeball', 'masterball', 'stamp', 'promo']);
+/** Variants that have no Cardmarket equivalent — JP-exclusive prints
+ *  (Poké Ball, Master Ball, dot/stamp). These keep their manual prices.
+ *  "promo" is NOT here: Cardmarket lists promo cards under their own tag and
+ *  the standard set/number lookup picks them up. */
+const UNSUPPORTED_VARIANTS = new Set(['pokeball', 'masterball', 'stamp']);
 
 /** Decode the HTML entities that occasionally leak into stored set/card
  *  names from upstream sources ("Scarlet &amp; Violet Promos" → "Scarlet
@@ -389,6 +390,25 @@ async function lookupCardmarketPricingInner(
   if (card.variant && UNSUPPORTED_VARIANTS.has(card.variant)) {
     return { ok: false, reason: 'unsupported_variant' };
   }
+
+  // FAST-FAST PATH: card.cardmarket_id is the canonical Cardmarket product id.
+  // When present (set by enrich at scan time, or by manual user correction
+  // after a bad initial pick), trust it over name+number matching. The standard
+  // lookup matches by (id_expansion, set_number) and breaks for promo prints
+  // where multiple products share the same set_number — pickAmbiguousIndex
+  // would arbitrarily pick the cheapest, swapping v1 for v2 on every refresh.
+  // Falling through on missing pricing keeps stale ids self-healing.
+  if (card.cardmarket_id) {
+    const idProduct = Number(card.cardmarket_id);
+    if (Number.isFinite(idProduct) && idProduct > 0) {
+      const direct = await pickFromProductIds(service, [idProduct], card, null);
+      if (direct) {
+        const idx = await loadExpansions(service);
+        return await maybeSynthesizeUrl(service, direct, idx);
+      }
+    }
+  }
+
   if (!card.set_name) return { ok: false, reason: 'missing_set_name' };
 
   const candidateSetNames = await buildCandidateSetNames(service, card);

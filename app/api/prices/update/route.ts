@@ -128,7 +128,7 @@ async function processCardForPricing(
     return {
       kind: 'invalid_for_pricing',
       code: 'card_not_eligible',
-      message: card.variant
+      message: (card.variant && card.variant !== 'promo')
         ? 'Variants (Pokéball, Master Ball, etc.) gardent leur prix manuel.'
         : 'Identifiants de set manquants — édite le prix à la main.',
     };

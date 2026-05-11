@@ -9,7 +9,10 @@ export type PricingCategory = 'tcgdex' | 'backfill' | 'skip';
  *              TCGdex live as fallback
  *   backfill — card_id_tcg unknown but set_code/number/language are usable;
  *              the catalog backfill happens before lookup, then same as above
- *   skip     — variant != null (preserve manual prices) or no identifiers
+ *   skip     — variant is a JP-exclusive print (pokeball/masterball/stamp/
+ *              reverse_holo) preserved at its manual price, or no identifiers.
+ *              Promo cards ARE priced — Cardmarket lists them under their own
+ *              "Promo" tag and the standard set/number lookup picks them up.
  *
  * NOTE: language is NOT filtered here. JP sets ARE on Cardmarket (listed
  * under the EN translation of the JP set name, e.g. Cyber Judge / Crimson
@@ -18,7 +21,7 @@ export type PricingCategory = 'tcgdex' | 'backfill' | 'skip';
  * downstream rather than refusing pre-emptively.
  */
 export function categorizePricingCard(card: Card): PricingCategory {
-  if (card.variant !== null) return 'skip';
+  if (card.variant !== null && card.variant !== 'promo') return 'skip';
   if (card.card_id_tcg !== null) return 'tcgdex';
   if (card.set_code && card.set_number) return 'backfill';
   return 'skip';
