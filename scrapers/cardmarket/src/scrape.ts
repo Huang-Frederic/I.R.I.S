@@ -34,30 +34,42 @@ export function extractCardsFromDocument(doc: Document): ScrapedCard[] {
     const variantMatch = last.match(/-V(\d+)-/i);
     const urlVariant = variantMatch ? `V${variantMatch[1]}` : null;
 
-    // Extract trailing setcode+number from the slug.
-    //   Latin sets (letter-only codes): "-BRS001", "-LORTG03", "-PRESVP088"
-    //   JP sets (alphanumeric codes ending in letter): "-sv1a074", "-s12a015", "-sm8b042"
-    // The code's last char is ALWAYS a letter — that's how we find the
-    // boundary with the number. Pattern: -<letter><alphanum*?><letter><digits>$
-    // (lazy quantifier in the middle so the trailing letter+digits anchor wins).
-    const setCodeMatch = last.match(/-([A-Za-z][A-Za-z0-9]*?[A-Za-z])(\d+)$/);
-    let setNumber: string | null = null;
-    if (setCodeMatch) {
-      const numRaw = setCodeMatch[2];
-      setNumber = String(parseInt(numRaw, 10));
-    }
-
-    // idProduct + setPrefix from
+    // idProduct + setPrefix from the S3 image URL — this is the canonical
+    //   source of the prefix (it's literally how Cardmarket builds image
+    //   paths). Extract this FIRST so we can use it to anchor the slug
+    //   parse below.
     //   <img src="https://product-images.s3.cardmarket.com/51/{set_prefix}/{id_product}/{id_product}.jpg">
-    // The set_prefix is constant per expansion (BRS, LOR, BKR, EVO, …) and is
-    // what we need to build any other product's image URL — without it, the
-    // enrich pipeline can't display card images.
     const img = a.querySelector('img');
     const dataEcho =
       img?.getAttribute('data-echo') ?? img?.getAttribute('src') ?? '';
     const imgMatch = dataEcho.match(/\/51\/([^/]+)\/(\d+)\/\d+\.(jpg|webp|png)/i);
     const setPrefix = imgMatch ? imgMatch[1] : null;
     const idProduct = imgMatch ? Number(imgMatch[2]) : null;
+
+    // Extract setNumber from the slug. We anchor on the S3 setPrefix when
+    // we have it: the slug ends with `-{setPrefix}{number}` (case-insensitive).
+    // This handles digit-ending prefixes (s9, sv6, BW2, CP1, sm12) that the
+    // legacy letter-anchored regex either skipped entirely or split wrong —
+    // it would eat the prefix's trailing digit and prepend it to the number
+    // (s9 + 100 → s + 9100).
+    let setNumber: string | null = null;
+    if (setPrefix) {
+      const escaped = setPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const m = last.match(new RegExp(`-${escaped}(\\d+)$`, 'i'));
+      if (m) {
+        setNumber = String(parseInt(m[1], 10));
+      }
+    }
+    // Fallback for cards where the S3 prefix wasn't extractable (very old
+    // promos without product images, or malformed gallery rows). Same
+    // letter-anchored pattern as the original — works for Latin sets but
+    // misses digit-ending JP/legacy sets.
+    if (setNumber === null) {
+      const setCodeMatch = last.match(/-([A-Za-z][A-Za-z0-9]*?[A-Za-z])(\d+)$/);
+      if (setCodeMatch) {
+        setNumber = String(parseInt(setCodeMatch[2], 10));
+      }
+    }
 
     // Display name from <h2> or img alt.
     const h2 = a.querySelector('h2');

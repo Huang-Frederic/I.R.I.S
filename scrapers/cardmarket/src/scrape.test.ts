@@ -73,6 +73,52 @@ describe('extractCardsFromHtml', () => {
     expect(cards[1].setPrefix).toBe('sv2a');
   });
 
+  it('parses digit-ending prefixes (s9, sv6, BW2, CP1, sm12) — regression for "scraper eats prefix-trailing digit" bug', () => {
+    // The old letter-anchored regex `-[A-Za-z][A-Za-z0-9]*?[A-Za-z]\d+$`
+    // required the prefix to end in a letter — failed catastrophically on
+    // sets whose Cardmarket prefix ends in a digit. Either the row was
+    // skipped entirely (no setNumber, hence dropped), OR the regex grabbed
+    // a prefix-suffix digit and prepended it to the number (s9 + 100 →
+    // setNumber "9100" stored, and prefix derived as "s"). The S3 image URL
+    // `/51/{prefix}/...` is the authoritative source — anchoring on it
+    // resolves the ambiguity.
+    const fixture = `
+      <a href="/fr/Pokemon/Products/Singles/Star-Birth/Carapuce-s9100" class="galleryBox">
+        <img src="https://product-images.s3.cardmarket.com/51/s9/700100/700100.jpg" alt="Carapuce">
+        <h2>Carapuce</h2>
+      </a>
+      <a href="/fr/Pokemon/Products/Singles/Mask-of-Change/Pikachu-sv6059" class="galleryBox">
+        <img src="https://product-images.s3.cardmarket.com/51/sv6/700200/700200.jpg" alt="Pikachu">
+        <h2>Pikachu</h2>
+      </a>
+      <a href="/fr/Pokemon/Products/Singles/Red-Collection/Larvesta-BW2011" class="galleryBox">
+        <img src="https://product-images.s3.cardmarket.com/51/BW2/600000/600000.jpg" alt="Larvesta">
+        <h2>Larvesta</h2>
+      </a>
+      <a href="/fr/Pokemon/Products/Singles/Magma-Gang-VS-Aqua/Camerupt-CP1002" class="galleryBox">
+        <img src="https://product-images.s3.cardmarket.com/51/CP1/500000/500000.jpg" alt="Camerupt">
+        <h2>Camerupt</h2>
+      </a>
+      <a href="/fr/Pokemon/Products/Singles/Alter-Genesis/Cosmog-sm12070" class="galleryBox">
+        <img src="https://product-images.s3.cardmarket.com/51/sm12/400000/400000.jpg" alt="Cosmog">
+        <h2>Cosmog</h2>
+      </a>
+    `;
+    const cards = extractCardsFromHtml(fixture);
+    expect(cards).toHaveLength(5);
+
+    expect(cards[0].setPrefix).toBe('s9');
+    expect(cards[0].setNumber).toBe('100');
+    expect(cards[1].setPrefix).toBe('sv6');
+    expect(cards[1].setNumber).toBe('59');
+    expect(cards[2].setPrefix).toBe('BW2');
+    expect(cards[2].setNumber).toBe('11');
+    expect(cards[3].setPrefix).toBe('CP1');
+    expect(cards[3].setNumber).toBe('2');
+    expect(cards[4].setPrefix).toBe('sm12');
+    expect(cards[4].setNumber).toBe('70');
+  });
+
   it('returns empty array when html has no galleryBox elements', () => {
     expect(extractCardsFromHtml('<div>nothing</div>')).toEqual([]);
   });
