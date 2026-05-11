@@ -15,7 +15,7 @@ export default function CardMatchPreview({ imageUrl, className }: Props) {
         src={imageUrl}
         alt=""
         aria-hidden
-        className="aspect-[5/7] w-16 rounded object-contain"
+        className="aspect-[5/7] w-24 rounded object-contain"
       />
     </div>
   );

@@ -37,7 +37,7 @@ export default function PokemonSpriteBadge({ pokemonNumber, className }: Props) 
     setErrored(false);
   }, [pokemonNumber]);
 
-  const wrapperClass = `flex h-20 w-20 items-center justify-center rounded-full bg-black/70 [[data-theme='light']_&]:bg-white/85 shadow-md backdrop-blur-sm ${className ?? ''}`.trim();
+  const wrapperClass = `flex h-24 w-24 items-center justify-center rounded-full bg-black/70 [[data-theme='light']_&]:bg-white/85 shadow-md backdrop-blur-sm ${className ?? ''}`.trim();
 
   const isNull = pokemonNumber === null;
   const isInvalid =
@@ -52,7 +52,7 @@ export default function PokemonSpriteBadge({ pokemonNumber, className }: Props) 
         className={wrapperClass}
         aria-label="Pas de numéro Pokédex (Trainer ou Énergie)"
       >
-        <PokeballIcon className="text-text-muted h-12 w-12" />
+        <PokeballIcon className="text-text-muted h-14 w-14" />
       </div>
     );
   }
@@ -63,7 +63,7 @@ export default function PokemonSpriteBadge({ pokemonNumber, className }: Props) 
         className={wrapperClass}
         aria-label={`Numéro Pokédex invalide: ${pokemonNumber}`}
       >
-        <HelpCircle className="h-12 w-12 text-red-500" aria-hidden />
+        <HelpCircle className="h-14 w-14 text-red-500" aria-hidden />
       </div>
     );
   }
@@ -75,7 +75,7 @@ export default function PokemonSpriteBadge({ pokemonNumber, className }: Props) 
         src={`${POKEAPI_SPRITE_BASE}/${pokemonNumber}.png`}
         alt={`Sprite Pokémon n°${pokemonNumber}`}
         onError={() => setErrored(true)}
-        className="h-16 w-16"
+        className="h-20 w-20"
         style={{ imageRendering: 'pixelated' }}
       />
     </div>

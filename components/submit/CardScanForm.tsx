@@ -1091,7 +1091,7 @@ export default function CardScanForm({
                     />
                     <CardMatchPreview
                       imageUrl={form.tcg_image_url}
-                      className="absolute bottom-2 right-2 z-10"
+                      className="absolute top-2 left-2 z-10"
                     />
                     {phase === 'scanning' && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
