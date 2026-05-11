@@ -69,12 +69,18 @@ function authedBulk(): Request {
 }
 
 function setupServiceRead(rows: ReturnType<typeof row>[]) {
-  // Bulk read chain: select(...).eq().order().limit() — the cron's per-batch fetch.
+  // Bulk read chain: select(...).in('status', [...]).order().limit() — the cron's per-batch fetch.
   const limit = vi.fn().mockResolvedValue({ data: rows, error: null });
   const order = vi.fn(() => ({ limit }));
-  const eq = vi.fn(() => ({ order }));
-  // snapshotStockValue chain: select(...).in('status', [...]) — runs after the bulk.
-  const inFn = vi.fn().mockResolvedValue({ data: [], error: null });
+  // snapshotStockValue chain: select(...).in('status', [...]) — runs after the bulk,
+  // terminating directly on the .in() call (no order/limit).
+  // Both call sites hit the SAME .in() mock, so we return a thenable that's
+  // both awaitable (snapshot path) AND chains to .order() (bulk path) — mirrors
+  // PostgrestFilterBuilder's dual nature.
+  const inFn = vi.fn(() => {
+    const promise = Promise.resolve({ data: [], error: null });
+    return Object.assign(promise, { order });
+  });
   // Update chain: update(...).eq(...).select('*').single() — the cron writes back the priced row.
   const updateChain = () => ({
     eq: vi.fn(() => ({
@@ -86,7 +92,7 @@ function setupServiceRead(rows: ReturnType<typeof row>[]) {
   serviceMock.from.mockImplementation((table: string) => {
     if (table === 'cards') {
       return {
-        select: vi.fn(() => ({ eq, in: inFn })),
+        select: vi.fn(() => ({ in: inFn })),
         update: vi.fn(updateChain),
       };
     }

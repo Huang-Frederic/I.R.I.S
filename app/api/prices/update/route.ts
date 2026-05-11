@@ -210,10 +210,14 @@ async function handleBulk(): Promise<NextResponse> {
     source_cardmarket: 0, source_tcgdex: 0, ambiguous: 0, errors: [],
   };
 
+  // Bulk scope: for_sale + pokedex + collection. Sold cards have a final
+  // sold_price (no need to refresh), and a Pokédex/collection card's CM price
+  // is just as relevant to net-worth tracking as a for_sale one — the cron
+  // shouldn't leave them stale.
   const { data: rows, error } = await service
     .from('cards')
     .select('*')
-    .eq('status', 'for_sale')
+    .in('status', ['for_sale', 'pokedex', 'collection'])
     .order('cm_updated_at', { ascending: true, nullsFirst: true })
     .limit(BATCH_SIZE);
 

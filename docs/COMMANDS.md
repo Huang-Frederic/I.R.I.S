@@ -355,7 +355,7 @@ Not CLI scripts — HTTP endpoints. But you'll trigger them manually for debuggi
 
 ### `POST /api/prices/update` (cron)
 
-The daily price refresh. Authenticated via `Authorization: Bearer $CRON_SECRET`. Pulls 200 oldest cards `for_sale`, looks up each via `cardmarket-pricing.ts`, updates `cm_price_*` columns.
+The daily price refresh. Authenticated via `Authorization: Bearer $CRON_SECRET`. Pulls 200 oldest cards across `for_sale` + `pokedex` + `collection` (sold cards are excluded — they have a final `sold_price`), ordered by `cm_updated_at` ASC nulls-first, and looks up each via `cardmarket-pricing.ts` to update `cm_price_*` columns.
 
 ```bash
 # Manual trigger (production)
