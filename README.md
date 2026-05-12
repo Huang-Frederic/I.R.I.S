@@ -30,6 +30,17 @@ That's why I built **I.R.I.S** — *Intelligent Recognition Inventory System*. S
 
 ---
 
+## 🎬 See it in action
+
+A short tour of the daily flow — scan → enrich → Pokédex / Stock / Vinted → annonce — in under a minute.
+
+<p align="center">
+  <img src="docs/screenshots/quick-overview.gif" alt="I.R.I.S quick overview" width="960" />
+  <br /><sub><em>End-to-end : scan → enrich → Pokédex / Stock / Vinted → annonce</em></sub>
+</p>
+
+---
+
 ## 📷 It starts with a scan
 
 You point your phone at a card. Three seconds later, I.R.I.S knows the name in two languages, the set, the rarity, the illustrator, and what it's worth on Cardmarket today.
@@ -38,7 +49,10 @@ The OCR runs on **Gemini 3.1 Flash Lite Preview** (~93 % accuracy, structured JS
 
 Once the card is identified, a **4-strategy enrichment pipeline** ([`app/api/enrich/route.ts`](app/api/enrich/route.ts)) fills in the rest. **Strategy 0** is a direct cardmarket lookup by `(set_prefix + set_number)` against the local `cardmarket_card_index` (~33K rows scraped via BrightData) — most cards land here in <50 ms with `cardmarket_id` attached. **Strategy 1** is a name-based picker: when the printed number is hard to OCR (TG/GG subseries, blurry digits) Gemini returns `set_number=null` and the pipeline surfaces every card in the expansion matching the Pokémon name (translated to English via the static dex map at [`lib/data/pokemon-names.json`](lib/data/pokemon-names.json)). **Strategy 2** is **TCGdex live** for cards not in the cardmarket dump. **Strategy 3** is the **Gemini-only fallback** — saves the bare OCR fields with no `cardmarket_id` so user can still record the card.
 
-![Scanner](docs/screenshots/scanner.gif)
+<p align="center">
+  <img src="docs/screenshots/scanner.gif" alt="Scanner" width="960" />
+  <br /><sub><em>Photo → Gemini OCR → catalog match → form prefill in ~3 s</em></sub>
+</p>
 
 ---
 
@@ -52,13 +66,27 @@ Every card lands in one of three places.
 
 **Vinted** — the for-sale pile. State chips (offline / online / stale / sold), bulk-sold flow with per-card price split, restock proposals, partner cleanup notices.
 
-| Pokédex | Stock | Vinted |
-|---|---|---|
-| ![Pokédex](docs/screenshots/pokedex-grid.png) | ![Stock](docs/screenshots/stock-list.png) | ![Vinted](docs/screenshots/vinted-list.png) |
+<p align="center">
+  <img src="docs/screenshots/pokedex-grid.png" alt="Pokédex" width="960" />
+  <br /><sub><em>Pokédex — large grid mode (1 of 3 display modes)</em></sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/stock-list.png" alt="Stock" width="960" />
+  <br /><sub><em>Stock — count chips for duplicates, instant clone on second copy</em></sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/vinted-list.png" alt="Vinted" width="960" />
+  <br /><sub><em>Vinted — state chips per card (offline / online / stale / sold), per-user identity colors</em></sub>
+</p>
 
 And when a single Vinted listing should bundle several cards, **Lots** ship a custom photo set + template description as one annonce.
 
-![Lot](docs/screenshots/lot-form.png)
+<p align="center">
+  <img src="docs/screenshots/lot-form.png" alt="Lot" width="960" />
+  <br /><sub><em>Lot builder — multi-card photo set + templated bilingual annonce</em></sub>
+</p>
 
 ---
 
@@ -70,9 +98,14 @@ Cardmarket's official API closed to new applicants in 2023, so the pricing pipel
 
 The annonce generator turns a saved card into a ready-to-paste Vinted post: bilingual title (smart-truncated to 80 chars), templated description with shipping block, copy-to-clipboard button, downloadable card image (PNG, anti-bot watermark stripped). When a customer buys several cards at once, the bulk-sold flow splits the total across them automatically.
 
-| Annonce | Bulk vendu | Flow live |
-|---|---|---|
-| ![Annonce](docs/screenshots/annonce-modal.png) | ![Bulk vendu](docs/screenshots/bulk-vendu.png) | ![Bulk sell flow](docs/screenshots/bulk-sell.gif) |
+| Annonce | Bulk vendu |
+|---|---|
+| ![Annonce](docs/screenshots/annonce-modal.png) | ![Bulk vendu](docs/screenshots/bulk-vendu.png) |
+
+<p align="center">
+  <img src="docs/screenshots/bulk-sell.gif" alt="Bulk sell flow" width="960" />
+  <br /><sub><em>Bulk sell — pick cards, split total price, propagate sold state across both accounts</em></sub>
+</p>
 
 ---
 
@@ -96,7 +129,10 @@ Behind the scenes, a **daily Vercel cron** refreshes Cardmarket pricing nightly.
 
 And the whole thing installs as a PWA — manifest plus maskable icons, auto-show install banner on Chrome/Edge/Android, illustrated 3-step modal for iOS Safari.
 
-![Dashboard](docs/screenshots/dashboard.png)
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="Dashboard" width="960" />
+  <br /><sub><em>Dashboard — KPIs, Pokédex progress, rarity drill-down, scan heatmap, top rares, last sales</em></sub>
+</p>
 
 ---
 
@@ -125,16 +161,6 @@ A few architectural choices worth calling out:
 - **Cardmarket pricing without the API.** Public S3 dumps + BrightData scraper populate the `(set, number) → idProduct` index. Exact matches, no name fuzzing. The historical SQL formula approach is documented in [docs/CARDMARKET_MAPPING.md](docs/CARDMARKET_MAPPING.md) but was found unreliable in practice.
 
 Full code map in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
-
----
-
-## 🎬 See it in action
-
-A short tour of the daily flow — scan → enrich → Pokédex/Stock/Vinted → annonce — in under a minute.
-
-<div align="center">
-  <img src="docs/screenshots/quick-overview.gif" alt="I.R.I.S quick overview" width="480" />
-</div>
 
 ---
 

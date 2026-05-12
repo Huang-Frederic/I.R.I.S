@@ -1258,63 +1258,53 @@ export default function CardScanForm({
             <Input value={form.pokemon_name} onChange={(v) => update('pokemon_name', v)} />
           </Field>
 
-          <div className="grid grid-cols-12 gap-3">
-            <div className="col-span-4">
-              <Field label="Set">
-                <Input value={form.set_code} onChange={(v) => update('set_code', v)} placeholder="SV11W" />
-              </Field>
-            </div>
-            <div className="col-span-4">
-              <Field label="N°">
-                <Input
-                  value={form.set_number}
-                  onChange={(v) => update('set_number', v)}
-                  placeholder="111/086"
-                />
-              </Field>
-            </div>
-            <div className="col-span-4">
-              <Field label="Langue">
-                <Select
-                  value={form.language}
-                  onChange={(v) => update('language', v as CardLanguage)}
-                  options={LANGUAGES.map((l) => ({ value: l, label: l }))}
-                />
-              </Field>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-12 gap-3">
-            <div className="col-span-4">
-              <Field label="N° Nat. (vide = Trainer)">
-                <Input
-                  type="number"
-                  min={1}
-                  max={1025}
-                  value={form.pokemon_number}
-                  onChange={(v) => update('pokemon_number', v)}
-                  disabled={lockedPokemonNumber != null}
-                />
-              </Field>
-            </div>
-            <div className="col-span-4">
-              <Field label="Rareté">
-                <Select
-                  value={form.rarity}
-                  onChange={(v) => update('rarity', v as CardRarity)}
-                  options={RARITIES}
-                />
-              </Field>
-            </div>
-            <div className="col-span-4">
-              <Field label="État">
-                <Select
-                  value={form.condition}
-                  onChange={(v) => update('condition', v as CardCondition)}
-                  options={CONDITIONS.map((c) => ({ value: c, label: c }))}
-                />
-              </Field>
-            </div>
+          {/* Mobile (default): 2-col grid in 3 rows = Set+N°, N° Nat+Langue,
+              Rareté+État. Desktop (md:): single 12-col grid in 2 rows of 3 each
+              = Set+N°+Langue, N° Nat+Rareté+État (unchanged from before).
+              Langue and N° Nat swap visual position on mobile via `order`
+              utilities so the same DOM works for both layouts. */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-12">
+            <Field label="Set" className="order-1 md:col-span-4 md:order-1">
+              <Input value={form.set_code} onChange={(v) => update('set_code', v)} placeholder="SV11W" />
+            </Field>
+            <Field label="N°" className="order-2 md:col-span-4 md:order-2">
+              <Input
+                value={form.set_number}
+                onChange={(v) => update('set_number', v)}
+                placeholder="111/086"
+              />
+            </Field>
+            <Field label="Langue" className="order-4 md:col-span-4 md:order-3">
+              <Select
+                value={form.language}
+                onChange={(v) => update('language', v as CardLanguage)}
+                options={LANGUAGES.map((l) => ({ value: l, label: l }))}
+              />
+            </Field>
+            <Field label="N° Nat. (vide = Trainer)" className="order-3 md:col-span-4 md:order-4">
+              <Input
+                type="number"
+                min={1}
+                max={1025}
+                value={form.pokemon_number}
+                onChange={(v) => update('pokemon_number', v)}
+                disabled={lockedPokemonNumber != null}
+              />
+            </Field>
+            <Field label="Rareté" className="order-5 md:col-span-4 md:order-5">
+              <Select
+                value={form.rarity}
+                onChange={(v) => update('rarity', v as CardRarity)}
+                options={RARITIES}
+              />
+            </Field>
+            <Field label="État" className="order-6 md:col-span-4 md:order-6">
+              <Select
+                value={form.condition}
+                onChange={(v) => update('condition', v as CardCondition)}
+                options={CONDITIONS.map((c) => ({ value: c, label: c }))}
+              />
+            </Field>
           </div>
 
           <div className="grid grid-cols-[1fr_auto] gap-3">
