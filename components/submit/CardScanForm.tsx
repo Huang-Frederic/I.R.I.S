@@ -469,17 +469,26 @@ export default function CardScanForm({
       return;
     }
 
+    // Use the FORM values (what the user has typed/corrected) as the source of
+    // truth, not the original OCR. Re-enrich is the user explicitly saying
+    // "the OCR was wrong — try again with what I corrected." Falling back to
+    // ocrGemini.pokemonNumber when the form is empty is fine, but the OCR-
+    // sourced FR/EN translations are dropped: they tend to conflict with
+    // manual corrections. The server derives FR/EN from POKEMON_NAMES via the
+    // pokemonNumber when needed.
+    const formPokemonNumber = form.pokemon_number.trim()
+      ? Number(form.pokemon_number)
+      : null;
     const body = {
       setPrefix: setPrefix || undefined,
       setNumber: localId || undefined,
       setTotal: totalStr ? Number(totalStr) : undefined,
       language: form.language,
       pokemonName: form.pokemon_name || undefined,
-      pokemonNumber: ocrGemini?.pokemonNumber ?? undefined,
-      pokemonNameFr: ocrGemini?.pokemonNameFr ?? undefined,
-      pokemonNameEn: ocrGemini?.pokemonNameEn ?? undefined,
+      pokemonNumber: Number.isFinite(formPokemonNumber)
+        ? formPokemonNumber
+        : (ocrGemini?.pokemonNumber ?? undefined),
       cardName: form.card_name || undefined,
-      cardNameFr: ocrGemini?.cardNameFr ?? undefined,
       illustrator: ocrIllustrator ?? undefined,
     };
 
@@ -539,10 +548,17 @@ export default function CardScanForm({
           ? String(lockedPokemonNumber)
           : (match.pokemon_number?.toString() ?? ''),
       card_name: formatLocalizedName(match.card_name, ocrGemini?.cardName, prev.language),
-      card_id_tcg: match.card_id_tcg,
-      set_name: match.set_name,
-      set_code: match.set_code,
-      set_number: match.set_number,
+      // For id/code/number/set_name: fall back to the existing form value when
+      // the candidate's field is empty. Strategy 1 (cardmarket picker fallback
+      // for cards missing from the scrape index) returns matches with empty
+      // set_number/card_id_tcg — without this fallback the form would erase
+      // whatever the user had typed (the OCR-derived setNumber, or a manual
+      // correction) and leave the input blank. Same logic for set_code/name
+      // when picking among multiple candidates.
+      card_id_tcg: match.card_id_tcg || prev.card_id_tcg,
+      set_name: match.set_name || prev.set_name,
+      set_code: match.set_code || prev.set_code,
+      set_number: match.set_number || prev.set_number,
       tcg_image_url: match.tcg_image_url,
       rarity: match.rarity,
       cardmarket_id: match.cardmarket_id ?? '',

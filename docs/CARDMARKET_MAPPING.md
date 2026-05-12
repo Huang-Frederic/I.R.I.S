@@ -39,18 +39,23 @@ The scraper at [`scrapers/cardmarket/`](../scrapers/cardmarket/) hits each expan
 
 **Cost:** ~$4.50 per full backfill (741 expansions × ~4 pages each at $1.50 / CPM). The BrightData free tier ($5 credit) covers one full pass.
 
-**JP-prefix regex bug, fixed 2026-05-10.** The original parser regex `[A-Z]+\d+$` rejected JP set codes with embedded digits (`sv1a074`, `sv2a169`, `s12a015`) and silently extracted zero cards across the whole SV-JP catalogue. The new regex `[A-Za-z][A-Za-z0-9]*?[A-Za-z]\d+$` handles them ([scrape.ts](../scrapers/cardmarket/src/scrape.ts) + a regression test in [scrape.test.ts](../scrapers/cardmarket/src/scrape.test.ts)).
+**Two bug-fix iterations on the slug parser.**
+
+1. *2026-05-10 — JP-prefix regex.* The original parser regex `[A-Z]+\d+$` rejected JP set codes with embedded digits (`sv1a074`, `sv2a169`, `s12a015`) and silently extracted zero cards across the whole SV-JP catalogue. Replaced with `[A-Za-z][A-Za-z0-9]*?[A-Za-z]\d+$` which handles letter-ending JP codes.
+2. *2026-05-11 — digit-ending prefixes.* The 2026-05-10 regex still required the prefix to **end in a letter**, so it broke on `s9-100` / `sv6-059` / `BW2-011` / `CP1-002` / `sm12-070`-style sets — either skipping the card entirely (no setNumber → dropped) or eating the prefix's trailing digit and prepending it to the number (`s9 + 100` → `s + 9100` stored). Replaced with the S3-anchored extraction described below; the legacy regex stays as fallback for cards without S3 images.
+
+Both fixes have regression tests in [scrape.test.ts](../scrapers/cardmarket/src/scrape.test.ts).
 
 ---
 
 ## 🖼 Capturing `set_prefix`
 
-The other thing the scraper extracts — which the dump doesn't carry — is each expansion's S3 image-URL prefix (`BRS`, `LOR`, `sv2a`, `BKR`, `BKP`…). The scraper reads the prefix off the first card image's `<img src>` and majority-votes per expansion (handles a few mis-tagged images per set), then writes it onto `cardmarket_expansions.set_prefix`. That column is load-bearing in two places:
+The other thing the scraper extracts — which the dump doesn't carry — is each expansion's S3 image-URL prefix (`BRS`, `LOR`, `sv2a`, `BKR`, `s9`, `BW2`, `CP1`…). For each card, the scraper reads the prefix off the `<img src>` (`/51/{prefix}/{id}/{id}.jpg`) and uses it both as the **slug-parse anchor** (so `-{prefix}{number}$` cleanly splits prefix from card number, even when the prefix ends in a digit) and as the value to persist. [`supabase.ts`](../scrapers/cardmarket/src/supabase.ts) writes the first non-null `setPrefix` it sees in the batch onto `cardmarket_expansions.set_prefix` — the prefix is constant within an expansion so first-seen is sufficient. That column is load-bearing in two places:
 
 - **Enrich Strategy 0** at [`/api/enrich/route.ts`](../app/api/enrich/route.ts) pivots on it: `set_prefix` (from Gemini OCR) → `id_expansion` (lookup) → `set_number` (from OCR) → `id_product` (cardmarket_card_index).
-- **Image proxy** at [`/api/cm-img/[id]?prefix={set_prefix}`](../app/api/cm-img/%5Bid%5D/route.ts) builds the canonical S3 URL `https://product-images.s3.cardmarket.com/{prefix}/{id}/{id}.jpg` and proxies it past CloudFront's hotlink protection.
+- **Image proxy** at [`/api/cm-img/[id]?prefix={set_prefix}`](../app/api/cm-img/%5Bid%5D/route.ts) builds the canonical S3 URL `https://product-images.s3.cardmarket.com/51/{prefix}/{id}/{id}.jpg` and proxies it past CloudFront's hotlink protection.
 
-For the 212 expansions where the BrightData scraper hasn't run, [`scripts/fix-cardmarket-set-prefix.ts`](../scripts/fix-cardmarket-set-prefix.ts) is an HTTP-only fallback that fetches one product page per NULL expansion with browser headers and parses the prefix off the S3 URL in the HTML.
+For expansions where the BrightData scraper hasn't run yet, [`scripts/fix-cardmarket-set-prefix.ts`](../scripts/fix-cardmarket-set-prefix.ts) is an HTTP-only fallback that fetches one product page per NULL expansion with browser headers and parses the prefix off the S3 URL in the HTML.
 
 ---
 

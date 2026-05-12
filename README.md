@@ -76,13 +76,13 @@ The annonce generator turns a saved card into a ready-to-paste Vinted post: bili
 
 ---
 
-## 👥 But you're not alone
+## 👥 But I'm not alone
 
-Your partner has her own Vinted account. The collection is shared. The listings are not.
+My partner has her own Vinted account. The collection is shared. The listings are not.
 
 Under the hood, `cards` and `lots` are shared rows that both users read. `card_listings` and `lot_listings` are per-user rows protected by **Postgres Row-Level Security scoped to `auth.uid()`** — only the owner can write their own listing state. Each user gets a distinct identity color across the UI (badges, action labels), so it's always obvious who's selling what.
 
-When you mark a partner's listing as sold, I.R.I.S runs a cleanup pass: the listing is taken down, an optional restock proposal chains correctly across both accounts, and a partner-cleanup notice fires if the same card was also up on the other side.
+When I mark my partner's listing as sold, I.R.I.S runs a cleanup pass: the listing is taken down, an optional restock proposal chains correctly across both accounts, and a partner-cleanup notice fires if the same card was also up on the other side.
 
 ---
 
@@ -168,7 +168,7 @@ npm run lint          # ESLint
 npm run format        # Prettier --write
 ```
 
-UI components are thin wrappers around ~34 pure helper modules in [`lib/utils/`](lib/utils/) — that's where the logic and the tests live. **442 tests, zero lint warnings, zero type errors.**
+UI components are thin wrappers around ~34 pure helper modules in [`lib/utils/`](lib/utils/) — that's where the logic and the tests live. **449 tests, zero lint warnings, zero type errors.**
 
 ---
 
@@ -176,8 +176,6 @@ UI components are thin wrappers around ~34 pure helper modules in [`lib/utils/`]
 
 - Backup of card photos to a separate Storage bucket (currently inline in the cards table).
 - UI for restoring from a manual backup snapshot.
-- Standardize the API error response shape across all routes.
-- Per-card metadata scrape from Cardmarket detail pages (rarity ground-truth, currently inferred heuristically).
 
 ---
 
