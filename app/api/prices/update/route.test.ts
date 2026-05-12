@@ -20,6 +20,11 @@ const ORIGINAL_SECRET = process.env.CRON_SECRET;
 
 beforeEach(() => {
   process.env.CRON_SECRET = 'test-secret';
+  // Default to no Supabase session — bulk-mode auth tests assert that a
+  // missing/wrong CRON_SECRET combined with no session yields 401. Tests that
+  // exercise the single-card or session-bulk paths override this default with
+  // an explicit `mockResolvedValue({ data: { user: { id: 'u' } } })`.
+  supabaseMock.auth.getUser.mockResolvedValue({ data: { user: null } });
 });
 
 afterEach(() => {

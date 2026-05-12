@@ -17,7 +17,7 @@ describe('formatStaleness', () => {
   it('returns "fresh" when updated less than 24h ago', () => {
     expect(formatStaleness(isoDaysAgo(0), NOW)).toEqual({
       tone: 'fresh',
-      label: 'Frais',
+      label: '<1j',
       daysSince: 0,
     });
   });

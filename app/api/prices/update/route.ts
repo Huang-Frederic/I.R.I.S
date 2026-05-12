@@ -98,11 +98,25 @@ async function handleRequest(request: Request): Promise<NextResponse> {
   const cardId = url.searchParams.get('card_id');
   if (cardId) return handleSingleCard(cardId);
 
+  // Two ways to invoke bulk: (a) Vercel cron with CRON_SECRET, or (b) a
+  // logged-in user via Supabase session (the "Refresh all prices" button on
+  // the Options page loops the endpoint client-side until done). Cron path
+  // wins when the secret matches; otherwise we fall back to session auth.
   const auth = request.headers.get('authorization');
   const secret = process.env.CRON_SECRET;
-  if (!auth || !secret || auth !== `Bearer ${secret}`) return unauthorizedResponse();
+  const hasCronSecret = !!(auth && secret && auth === `Bearer ${secret}`);
+  if (!hasCronSecret) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return unauthorizedResponse();
+  }
 
-  return handleBulk();
+  // ?since=ISO — the "force refresh all" client passes its session start so
+  // the endpoint only picks cards stale relative to that timestamp. Once
+  // total drops to 0, the client knows the loop is done. Without ?since the
+  // endpoint runs in classic cron mode (just the 200 oldest, repeat-friendly).
+  const since = url.searchParams.get('since');
+  return handleBulk(since);
 }
 
 // Vercel cron daemon issues GET (User-Agent: vercel-cron/1.0).
@@ -125,6 +139,13 @@ async function processCardForPricing(
 ): Promise<CardProcessResult> {
   const cat = categorizePricingCard(card);
   if (cat === 'skip') {
+    // Touch cm_updated_at so the card cycles out of the cron's nullsFirst
+    // queue. Without this, perma-skip cards (variant kept-manual, missing
+    // identifiers) stay at cm_updated_at=NULL forever and block the queue —
+    // every cron run picks the same 200 NULL cards and the priceable backlog
+    // never advances. Same applies to the "Refresh all" loop client-side: a
+    // perma-skip card matched by `?since` filter would loop indefinitely.
+    await touchCmUpdatedAt(service, card.id);
     return {
       kind: 'invalid_for_pricing',
       code: 'card_not_eligible',
@@ -139,16 +160,19 @@ async function processCardForPricing(
 
   if (cat === 'backfill') {
     if (!card.set_code || !card.set_number) {
+      await touchCmUpdatedAt(service, card.id);
       return { kind: 'invalid_for_pricing', code: 'no_catalog_match' };
     }
     try {
       const row = await lookupByCode(service, card.set_code, card.set_number, card.language);
       if (!row) {
+        await touchCmUpdatedAt(service, card.id);
         return { kind: 'invalid_for_pricing', code: 'no_catalog_match' };
       }
       cardIdTcg = `${row.set_code}-${row.set_number}`;
       backfilled = true;
     } catch (err) {
+      // Transient DB error — don't touch, let the next cron retry.
       return { kind: 'unexpected', message: `backfill: ${(err as Error).message}` };
     }
   }
@@ -158,6 +182,11 @@ async function processCardForPricing(
   // TCGdex if the dumps miss.
   const resolved = await resolvePricing(service, card, cardIdTcg);
   if (!resolved.ok) {
+    // Touch even on terminal failures (no_expansion, no_product, missing_set_name,
+    // tcgdex 404) so the card stops blocking the queue. The non-terminal
+    // "no pricing yet" gets touched too — TCGdex returning empty pricing is
+    // common for fresh card prints; we'll re-attempt on the next daily cron.
+    await touchCmUpdatedAt(service, card.id);
     if (resolved.terminal) return { kind: 'pricing_failed', reason: resolved.reason };
     return { kind: 'skipped', reason: 'no_pricing_yet', details: resolved.reason };
   }
@@ -179,6 +208,28 @@ async function processCardForPricing(
     pricing: resolved.pricing,
     backfilled,
   };
+}
+
+/**
+ * Mark `cm_updated_at = now()` without touching any price field. Called from
+ * skip/terminal-fail branches of `processCardForPricing` so the card moves to
+ * the back of the cron's nullsFirst+oldest-first queue. Without this, perma-
+ * skip cards (variant kept-manual, missing identifiers, expansion not on CM)
+ * stay at NULL forever and clog the 200-card batch every run.
+ *
+ * Errors are swallowed on purpose: the original kind/result was already
+ * computed and returning it is more useful than failing the whole card on a
+ * transient timestamp-write error.
+ */
+async function touchCmUpdatedAt(service: ServiceClient, cardId: string): Promise<void> {
+  try {
+    await service
+      .from('cards')
+      .update({ cm_updated_at: new Date().toISOString() })
+      .eq('id', cardId);
+  } catch (err) {
+    console.warn(`[prices] touchCmUpdatedAt(${cardId}) failed (non-fatal):`, err);
+  }
 }
 
 /** Build the SQL UPDATE payload from a resolved pricing — used by both paths. */
@@ -203,7 +254,7 @@ function buildUpdatePayload(
 // Bulk path (cron)
 // ---------------------------------------------------------------------------
 
-async function handleBulk(): Promise<NextResponse> {
+async function handleBulk(since: string | null): Promise<NextResponse> {
   const service = createServiceClient();
   const summary: UpdateSummary = {
     ok: true, total: 0, updated: 0, backfilled: 0, skipped: 0,
@@ -214,10 +265,19 @@ async function handleBulk(): Promise<NextResponse> {
   // sold_price (no need to refresh), and a Pokédex/collection card's CM price
   // is just as relevant to net-worth tracking as a for_sale one — the cron
   // shouldn't leave them stale.
-  const { data: rows, error } = await service
+  let query = service
     .from('cards')
     .select('*')
-    .in('status', ['for_sale', 'pokedex', 'collection'])
+    .in('status', ['for_sale', 'pokedex', 'collection']);
+
+  // Force-refresh mode: only consider cards stale relative to the user's
+  // session start (or never priced). Each loop iteration shrinks the eligible
+  // set until total drops to 0 — that's how the client knows it's done.
+  if (since) {
+    query = query.or(`cm_updated_at.is.null,cm_updated_at.lt.${since}`);
+  }
+
+  const { data: rows, error } = await query
     .order('cm_updated_at', { ascending: true, nullsFirst: true })
     .limit(BATCH_SIZE);
 

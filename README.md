@@ -32,11 +32,11 @@ That's why I built **I.R.I.S** — *Intelligent Recognition Inventory System*. S
 
 ## 🎬 See it in action
 
-A short tour of the daily flow — scan → enrich → Pokédex / Stock / Vinted → annonce — in under a minute.
+A short tour of the daily flow — scan → enrich → Pokédex / Stock / Vinted → listing — in under a minute.
 
 <p align="center">
   <img src="docs/screenshots/quick-overview.gif" alt="I.R.I.S quick overview" width="960" />
-  <br /><sub><em>End-to-end : scan → enrich → Pokédex / Stock / Vinted → annonce</em></sub>
+  <br /><sub><em>End-to-end: scan → enrich → Pokédex / Stock / Vinted → listing</em></sub>
 </p>
 
 ---
@@ -81,11 +81,11 @@ Every card lands in one of three places.
   <br /><sub><em>Vinted — state chips per card (offline / online / stale / sold), per-user identity colors</em></sub>
 </p>
 
-And when a single Vinted listing should bundle several cards, **Lots** ship a custom photo set + template description as one annonce.
+And when a single Vinted listing should bundle several cards, **Lots** ship a custom photo set + template description as one post.
 
 <p align="center">
   <img src="docs/screenshots/lot-form.png" alt="Lot" width="960" />
-  <br /><sub><em>Lot builder — multi-card photo set + templated bilingual annonce</em></sub>
+  <br /><sub><em>Lot builder — multi-card photo set + templated bilingual listing</em></sub>
 </p>
 
 ---
@@ -96,11 +96,22 @@ You don't price your cards. I.R.I.S does.
 
 Cardmarket's official API closed to new applicants in 2023, so the pricing pipeline is bespoke. A daily mirror of their public S3 dumps (**~67K products + ~67K pricing rows**) lands in Postgres. The exact `(expansion, set_number) → idProduct` index is populated via **BrightData scraper** (`scrapers/cardmarket/`) that parses Cardmarket gallery pages for all 741 expansions (~$3 cost, 99.3% success rate). The historical SQL formula approach (documented in [docs/CARDMARKET_MAPPING.md](docs/CARDMARKET_MAPPING.md)) was found unreliable in practice and is kept only as a rapid-prototyping fallback. No fuzzy name guessing — every priced card carries a "View on Cardmarket ↗" deep link so the match is verifiable.
 
-The annonce generator turns a saved card into a ready-to-paste Vinted post: bilingual title (smart-truncated to 80 chars), templated description with shipping block, copy-to-clipboard button, downloadable card image (PNG, anti-bot watermark stripped). When a customer buys several cards at once, the bulk-sold flow splits the total across them automatically.
+The listing generator turns a saved card into a ready-to-paste Vinted post: bilingual title (smart-truncated to 80 chars), templated description with shipping block, copy-to-clipboard button, downloadable card image (PNG, anti-bot watermark stripped). When a customer buys several cards at once, the bulk-sold flow splits the total across them automatically.
 
-| Annonce | Bulk vendu |
-|---|---|
-| ![Annonce](docs/screenshots/annonce-modal.png) | ![Bulk vendu](docs/screenshots/bulk-vendu.png) |
+<table width="100%">
+  <thead>
+    <tr>
+      <th width="50%">Listing</th>
+      <th width="50%">Bulk sold</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img src="docs/screenshots/annonce-modal.png" alt="Listing" width="100%" /></td>
+      <td><img src="docs/screenshots/bulk-vendu.png" alt="Bulk sold" width="100%" /></td>
+    </tr>
+  </tbody>
+</table>
 
 <p align="center">
   <img src="docs/screenshots/bulk-sell.gif" alt="Bulk sell flow" width="960" />

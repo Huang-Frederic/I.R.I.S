@@ -4,6 +4,7 @@ import ThemeToggle from '@/components/layout/ThemeToggle';
 import SignOutButton from '@/components/layout/SignOutButton';
 import ManualBackupSection from '@/components/options/ManualBackupSection';
 import PWAInstallSection from '@/components/options/PWAInstallSection';
+import RefreshAllPricesSection from '@/components/options/RefreshAllPricesSection';
 import PageTitle from '@/components/layout/PageTitle';
 
 export const metadata = {
@@ -42,6 +43,8 @@ export default async function OptionsPage() {
         </div>
 
         <PWAInstallSection />
+
+        <RefreshAllPricesSection />
       </div>
 
       <div className="mt-4">

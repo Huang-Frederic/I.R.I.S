@@ -115,6 +115,8 @@ Duplicate copies are grouped (same `card_id_tcg + language + condition + variant
 
 A Pokédex tag shows whether each card already fills its Pokédex slot. Click "Pas Pokédex" and you get a confirm flow — if the Pokédex slot is occupied, a sub-flow handles the swap. The move-to-Pokédex modal is the same component used in Vinted.
 
+A compact Cardmarket price chip on every row shows `cm_price_avg` plus a freshness badge (`<1j` / `Maj il y a Xj` / `Jamais maj`). Click the chip to open the matched Cardmarket product page in a new tab — handy to verify the print before listing.
+
 Cards are sorted by date added ASC (oldest first).
 
 ---
@@ -178,13 +180,17 @@ Four steps, in order:
 
 ### Display
 
-Four prices per card — Low, Trend, Avg30, "Annonce" (your suggested selling price, never auto-updated). A freshness badge uses 4-tier color coding (fresh < 7 days, stale 7–30, old > 30, never). The refresh button triggers a manual per-card refresh (single-card endpoint, auth via Supabase session).
+Four prices per card — Low, Trend, Avg30, "Annonce" (your suggested selling price, never auto-updated). A freshness badge uses 4-tier color coding: `<1j` (fresh, < 24h), `Maj il y a Xj` (stale 1–7 days, then old > 7), `Jamais maj` (never refreshed). Stock rows display a compact one-chip variant — just `cm_price_avg + badge`, clickable through to Cardmarket. The refresh button triggers a manual per-card refresh (single-card endpoint, auth via Supabase session).
 
 Every priced card carries a "View on Cardmarket ↗" deep link below the price block on the Pokédex drawer and Annonce modal. The match is verifiable.
 
-### Cron
+### Cron + manual refresh-all
 
-A **daily Vercel cron** at `0 2 * * *` UTC pulls the 200 oldest `for_sale` cards (`cm_updated_at ASC NULLS FIRST`), refreshes them via the lookup pipeline, parallelism 10. Auth via `CRON_SECRET`.
+A **daily Vercel cron** at `0 2 * * *` UTC pulls the 200 oldest cards across `for_sale + pokedex + collection` (`cm_updated_at ASC NULLS FIRST`), refreshes them via the lookup pipeline, parallelism 10. Auth via `CRON_SECRET`. Sold cards are excluded — they have a final `sold_price`.
+
+A **manual "Refresh all prices" button** on the Options page lets a logged-in user force-refresh every eligible card without waiting for the cron. The endpoint accepts both `CRON_SECRET` and Supabase session auth and supports a `?since=ISO` query param to filter cards stale relative to the click time. The button loops the endpoint client-side, capped at 50 iterations × 200 cards = 10 000 max, with live progress (`Traité X · Mis à jour Y · Skipped Z`).
+
+Skipped or terminal-failed cards (variant kept-manual, missing identifiers, expansion not on CM, no_pricing_yet, etc.) get their `cm_updated_at` touched too, so they don't perma-block the cron's `nullsFirst+oldest-first` queue and the refresh-all loop terminates cleanly.
 
 A **daily GitHub Action** at `7 1 * * *` (01:07 UTC) refreshes the Cardmarket S3 dumps into Supabase.
 

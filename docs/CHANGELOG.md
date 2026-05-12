@@ -6,6 +6,17 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-05-12 — Pricing UX: Stock chip, manual refresh-all, perma-block fix
+
+- **Stock price chip** on every [StockRow](../components/stock/StockRow.tsx) — compact `cm_price_avg` + freshness badge, clickable through to the Cardmarket product page (uses the `cardmarket_url` resolved during the last lookup so the user can verify the matched print). Hidden for cards without a resolved price (newly scanned pre-cron, or variant kept on manual pricing).
+- **Manual "Refresh all prices" button** in [Options](../app/(app)/options/page.tsx) ([RefreshAllPricesSection](../components/options/RefreshAllPricesSection.tsx)) — loops the bulk endpoint client-side, passing a session-start `?since` ISO timestamp so each iteration only picks cards stale relative to that start. Terminates when total drops to 0. Live progress chip (`Traité X · Mis à jour Y · Skipped Z`), final summary, 50-iter safety cap.
+- **Bulk endpoint** ([`/api/prices/update`](../app/api/prices/update/route.ts)) accepts Supabase **session auth** in addition to `CRON_SECRET` so the new button can call it from a logged-in browser, and a new `?since=ISO` filter (`cm_updated_at IS NULL OR cm_updated_at < since`) drives the loop's termination signal.
+- **Perma-block fix** — `processCardForPricing` now calls `touchCmUpdatedAt()` on every skip/terminal-fail branch (variant kept-manual, missing identifiers, no_catalog_match, no_expansion, no_product, no_pricing_yet). Without this, cards that can't be priced stayed at `cm_updated_at=NULL` forever and clogged the cron's `nullsFirst+oldest-first` queue, wasting ~60 of every 200-card batch on the same dead set every run. Transient errors (DB write fail, unexpected exception) still don't touch — they get a clean retry next cycle.
+- **Staleness label** — `'Frais'` → `'<1j'` in [`format-staleness.ts`](../lib/utils/format-staleness.ts) for compactness inside the new Stock chip.
+- **README**: full English pass (drop residual `annonce` / `Bulk vendu`), HTML table for Listing/Bulk-sold forced to 50/50 width with `width="100%"` images so cells render symmetrically regardless of native aspect ratio.
+
+---
+
 ## 2026-05-10 — Enrich pipeline rewrite + image proxy + static dex map
 
 After the May-09 overhaul ran into too many edge cases (Gemini hallucinating `set_name`/`pokemon_name_fr`, cross-validation chasing wrong sets, broken cardmarket S3 URLs), the whole pipeline was reduced from 7 strategies to 4 with a single source of truth for translations.
