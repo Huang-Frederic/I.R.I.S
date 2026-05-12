@@ -79,3 +79,10 @@ scrapers/cardmarket/.actor/RESCRAPE_INPUT.json
 docs/superpowers/*
 docs/AUDIT*
 myself.md
+
+# README screencast sources — keep the optimized GIFs in git, leave the raw
+# MP4s on disk for future re-encoding with different params (fps, scale).
+docs/screenshots/*.mp4
+
+# Local SQL exports (one-shot debug exports from Supabase SQL editor).
+*.csv

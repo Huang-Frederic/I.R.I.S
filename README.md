@@ -16,7 +16,7 @@ A two-collector PWA that scans, prices, and sells a shared Pokémon TCG collecti
 [![Tests](https://img.shields.io/badge/tests-442%20passing-success)](#-testing)
 [![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8)](#)
 
-[The scan](#-it-starts-with-a-scan) · [The views](#-now-where-does-it-go) · [The sell](#-time-to-sell) · [The two of us](#-but-youre-not-alone) · [The control room](#-the-control-room) · [Under the hood](#-under-the-hood) · [Quick start](#-try-it-yourself) · [Docs](#-going-deeper)
+[The scan](#-it-starts-with-a-scan) · [The views](#-now-where-does-it-go) · [The sell](#-time-to-sell) · [The two of us](#-but-youre-not-alone) · [The control room](#-the-control-room) · [Under the hood](#-under-the-hood) · [Demo](#-see-it-in-action) · [Quick start](#-try-it-yourself) · [Docs](#-going-deeper)
 
 </div>
 
@@ -38,7 +38,7 @@ The OCR runs on **Gemini 3.1 Flash Lite Preview** (~93 % accuracy, structured JS
 
 Once the card is identified, a **4-strategy enrichment pipeline** ([`app/api/enrich/route.ts`](app/api/enrich/route.ts)) fills in the rest. **Strategy 0** is a direct cardmarket lookup by `(set_prefix + set_number)` against the local `cardmarket_card_index` (~33K rows scraped via BrightData) — most cards land here in <50 ms with `cardmarket_id` attached. **Strategy 1** is a name-based picker: when the printed number is hard to OCR (TG/GG subseries, blurry digits) Gemini returns `set_number=null` and the pipeline surfaces every card in the expansion matching the Pokémon name (translated to English via the static dex map at [`lib/data/pokemon-names.json`](lib/data/pokemon-names.json)). **Strategy 2** is **TCGdex live** for cards not in the cardmarket dump. **Strategy 3** is the **Gemini-only fallback** — saves the bare OCR fields with no `cardmarket_id` so user can still record the card.
 
-![Scanner](docs/screenshots/scanner.png)
+![Scanner](docs/screenshots/scanner.gif)
 
 ---
 
@@ -70,9 +70,9 @@ Cardmarket's official API closed to new applicants in 2023, so the pricing pipel
 
 The annonce generator turns a saved card into a ready-to-paste Vinted post: bilingual title (smart-truncated to 80 chars), templated description with shipping block, copy-to-clipboard button, downloadable card image (PNG, anti-bot watermark stripped). When a customer buys several cards at once, the bulk-sold flow splits the total across them automatically.
 
-| Annonce | Bulk vendu |
-|---|---|
-| ![Annonce](docs/screenshots/annonce-modal.png) | ![Bulk vendu](docs/screenshots/bulk-vendu.png) |
+| Annonce | Bulk vendu | Flow live |
+|---|---|---|
+| ![Annonce](docs/screenshots/annonce-modal.png) | ![Bulk vendu](docs/screenshots/bulk-vendu.png) | ![Bulk sell flow](docs/screenshots/bulk-sell.gif) |
 
 ---
 
@@ -125,6 +125,16 @@ A few architectural choices worth calling out:
 - **Cardmarket pricing without the API.** Public S3 dumps + BrightData scraper populate the `(set, number) → idProduct` index. Exact matches, no name fuzzing. The historical SQL formula approach is documented in [docs/CARDMARKET_MAPPING.md](docs/CARDMARKET_MAPPING.md) but was found unreliable in practice.
 
 Full code map in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+
+---
+
+## 🎬 See it in action
+
+A short tour of the daily flow — scan → enrich → Pokédex/Stock/Vinted → annonce — in under a minute.
+
+<div align="center">
+  <img src="docs/screenshots/quick-overview.gif" alt="I.R.I.S quick overview" width="480" />
+</div>
 
 ---
 
