@@ -10,7 +10,11 @@ export default function manifest(): MetadataRoute.Manifest {
     display: 'standalone',
     orientation: 'portrait-primary',
     background_color: '#111110',
-    theme_color: '#e05252',
+    // Manifest is single-theme. Match the dark bg so the install splash and
+    // any fallback tinting blend with --color-bg. The runtime theme color
+    // (which actually drives Android's status bar) is theme-aware via
+    // viewport.themeColor in app/layout.tsx.
+    theme_color: '#111110',
     categories: ['utilities', 'productivity', 'lifestyle'],
     lang: 'fr-FR',
     icons: [

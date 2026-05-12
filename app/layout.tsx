@@ -25,7 +25,16 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#e05252',
+  // Drives Android PWA's status bar tint and iOS Safari's chrome. Two media-
+  // gated entries so the bar blends with whichever theme the OS is on,
+  // eliminating the visible color seam between the system bar and the app bg
+  // (--color-bg). Note: this follows the OS theme, not the in-app cookie
+  // toggle — close enough for 99% of users since the manual toggle in
+  // /options usually mirrors the system theme.
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: '#111110' },
+    { media: '(prefers-color-scheme: light)', color: '#fafaf9' },
+  ],
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
