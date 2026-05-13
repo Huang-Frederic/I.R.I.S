@@ -578,7 +578,7 @@
       "sort": "Sort",
       "filters": "Filters",
       "searchPlaceholder": "Search…",
-      "sortDelta": "Sort: Δ 30d",
+      "sortDelta": "Sort: Δ",
       "sortPrice": "Sort: price",
       "sortName": "Sort: name",
       "sortSet": "Sort: set",
@@ -631,7 +631,13 @@
     "modal": {
       "close": "Close",
       "cardmarketLink": "Cardmarket link",
-      "viewAllMovements": "View all movements"
+      "viewAllMovements": "View all movements",
+      "images": {
+        "myPhoto": "My photo",
+        "tcgImage": "TCG image",
+        "swapAria": "Swap: see {target} large",
+        "swapTitle": "Click to swap"
+      }
     }
   },
   "modals": {

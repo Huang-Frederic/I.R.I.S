@@ -24,6 +24,7 @@ export interface PriceDetailModalProps {
 
 export function PriceDetailModal({ card, open, onClose, onCardUpdated }: PriceDetailModalProps) {
   const t = useTranslations('prices.modal');
+  const tImages = useTranslations('prices.modal.images');
   const router = useRouter();
   const [points, setPoints] = useState<PriceHistoryPoint[]>([]);
   const [todayPoint, setTodayPoint] = useState<PriceHistoryPoint | null>(null);
@@ -108,7 +109,17 @@ export function PriceDetailModal({ card, open, onClose, onCardUpdated }: PriceDe
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
-          <CardImagesPair myPhoto={currentCard.image_url ?? ''} tcgPhoto={currentCard.tcg_image_url ?? null} />
+          <CardImagesPair
+            myPhoto={currentCard.image_url ?? ''}
+            tcgPhoto={currentCard.tcg_image_url ?? null}
+            myLabel={tImages('myPhoto')}
+            tcgLabel={tImages('tcgImage')}
+            // Pass the template with `{target}` preserved so CardImagesPair
+            // can substitute it with the correct label depending on the
+            // current PiP state. Same pattern as AnnonceModal.
+            swapAriaTemplate={tImages('swapAria', { target: '{target}' })}
+            swapTitle={tImages('swapTitle')}
+          />
 
           <PriceTrioBlock
             cardId={currentCard.id}

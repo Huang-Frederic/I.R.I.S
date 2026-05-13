@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { RefreshCw } from 'lucide-react';
 import { PriceWithTrend } from '@/components/ui/PriceWithTrend';
 import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
+import { formatEur } from '@/lib/utils/format-currency';
 
 export interface PriceTrioBlockProps {
   cardId: string;
@@ -15,11 +16,6 @@ export interface PriceTrioBlockProps {
   /** From today's price_history row, when available. */
   sourceFreshnessDays: number | null;
   onRefresh: () => Promise<void>;
-}
-
-function formatEur(value: number | null): string {
-  if (value == null) return '—';
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value);
 }
 
 export function PriceTrioBlock({

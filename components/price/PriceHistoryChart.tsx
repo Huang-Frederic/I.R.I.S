@@ -81,7 +81,7 @@ export function PriceHistoryChart({ points }: PriceHistoryChartProps) {
               labelStyle={{ color: 'var(--color-text-muted)' }}
               itemStyle={{ color: 'var(--color-text)' }}
             />
-            <Line type="monotone" dataKey="avg" stroke="#dc2626" strokeWidth={2} dot={false} name={t('lineLabel')} />
+            <Line type="monotone" dataKey="avg" stroke="var(--color-red)" strokeWidth={2} dot={false} name={t('lineLabel')} />
           </LineChart>
         </ResponsiveContainer>
       </div>

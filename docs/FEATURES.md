@@ -11,6 +11,7 @@ Here's everything I.R.I.S does, organized by module. The code map lives in [ARCH
 - [🛒 Vinted](#-vinted)
 - [🧺 Lots (bundles)](#-lots-bundles)
 - [💰 Pricing](#-pricing)
+- [📈 Price history & `/prices` page](#-price-history--prices-page)
 - [📊 Dashboard](#-dashboard)
 - [👥 Multi-user collaboration](#-multi-user-collaboration)
 - [🔄 Backups](#-backups)
@@ -187,17 +188,62 @@ Every priced card carries a "View on Cardmarket ↗" deep link below the price b
 
 ### Cron + manual refresh-all
 
-A **daily Vercel cron** at `0 2 * * *` UTC pulls the 200 oldest cards across `for_sale + pokedex + collection` (`cm_updated_at ASC NULLS FIRST`), refreshes them via the lookup pipeline, parallelism 10. Auth via `CRON_SECRET`. Sold cards are excluded — they have a final `sold_price`.
+The **Vercel pricing-refresh cron** runs **3×/day** at `0 8,14,20 * * *` UTC, pulling cards across `for_sale + pokedex + collection` (`cm_updated_at ASC NULLS FIRST`) and refreshing via the lookup pipeline, parallelism 10. Auth via `CRON_SECRET`. Sold cards are excluded — they have a final `sold_price`. The endpoint accepts a `?limit=` query param (default 200) so cron runs and the front-end loop together guarantee a full catalogue pass within a single day.
 
 A **manual "Refresh all prices" button** on the Options page lets a logged-in user force-refresh every eligible card without waiting for the cron. The endpoint accepts both `CRON_SECRET` and Supabase session auth and supports a `?since=ISO` query param to filter cards stale relative to the click time. The button loops the endpoint client-side, capped at 50 iterations × 200 cards = 10 000 max, with live progress (`Traité X · Mis à jour Y · Skipped Z`).
 
 Skipped or terminal-failed cards (variant kept-manual, missing identifiers, expansion not on CM, no_pricing_yet, etc.) get their `cm_updated_at` touched too, so they don't perma-block the cron's `nullsFirst+oldest-first` queue and the refresh-all loop terminates cleanly.
+
+A **nightly Vercel snapshot cron** at `55 23 * * *` UTC calls `POST /api/prices/snapshot` (CRON_SECRET) which runs the SQL RPC `insert_daily_price_snapshot` — one row per priced card into `price_history`. See the [Price history](#-price-history--prices-page) section below.
 
 A **daily GitHub Action** at `7 1 * * *` (01:07 UTC) refreshes the Cardmarket S3 dumps into Supabase.
 
 ### Cost (current model)
 
 ~€0.0004 per OCR scan (Gemini 3.1 Flash Lite). Zero per pricing refresh (local lookup). Zero per backup (within Supabase + GitHub free tier).
+
+---
+
+## 📈 Price history & `/prices` page
+
+A single price snapshot tells you what a card is worth today. It doesn't tell you whether it's been climbing for a month or just bounced back from a dip. So I.R.I.S keeps a rolling history.
+
+### Storage model
+
+The `price_history` table holds one row per `(card_id, snapshot_date)` with `cm_price_low / cm_price_trend / cm_price_avg` — same triplet the live `cards` row carries. Migration: `20260513100000_price_history.sql`.
+
+To keep the table bounded as the catalogue grows, **`downsample_price_history`** (SQL function) collapses anything older than 90 days into weekly buckets and anything older than a year into monthly buckets. Triggered weekly by `pg_cron` (Sunday 04:00 UTC).
+
+### Daily snapshot
+
+A Vercel cron at `55 23 * * *` UTC calls `POST /api/prices/snapshot` (CRON_SECRET). The handler invokes the SQL RPC **`insert_daily_price_snapshot`** which inserts one row per priced card (skipping cards with no `cm_updated_at`, and skipping cards already snapshotted same day). Idempotent — re-running is safe.
+
+### Trend arrows on every chip — `<PriceWithTrend>`
+
+The shared component **`<PriceWithTrend>`** is a drop-in replacement for the raw `cm_price_avg` cell. It renders the price plus a **cascade trend arrow**: it compares today's avg against J-1 first, then J-7, J-30, J-90 in turn, and surfaces the **first non-flat delta** (whichever horizon is the freshest meaningful signal). Color-coded `up` (green) / `down` (red) / `flat` (muted).
+
+Used wherever a price is displayed: `<StockRow>`, `<VintedRow>`, `<PokedexCard>`, the Dashboard top-rares table, `<LotRow>`, and the `/prices` page list.
+
+### `<PriceDetailModal>` and inline `<PriceHistoryChart>`
+
+Click any price chip in Stock / Dashboard / Prices and the **`<PriceDetailModal>`** opens with:
+
+- A Recharts line chart of `cm_price_avg` over the selected period (rendered by **`<PriceHistoryChart>`**).
+- Stat block: low / trend / avg, latest snapshot date.
+- **Delta matrix**: J-1, J-7, J-30, J-90 absolute and percent deltas.
+
+Inside the **Pokédex drawer** and the **Vinted Annonce modal**, the same `<PriceHistoryChart>` is rendered **inline** (no nested modal) — better z-index hygiene, fewer taps to see the curve.
+
+### `/prices` page
+
+A new top-level nav entry between Vinted and Dashboard, dedicated to portfolio-wide price movement. Server-rendered shell with three blocks:
+
+1. **Period selector** — 7 d / 30 d / 90 d / 1 y, drives every block on the page.
+2. **Portfolio value chart** — single line tracking the sum of `cm_price_avg` across `for_sale + collection + pokedex` over the period.
+3. **Top movers** — gainers and losers, switchable J-1 / J-7 / J-30 horizons. Backed by SQL RPC `price_history_top_movers`.
+4. **Virtualized list** — every priced card with name, set, current avg, sparkline (mini `<PriceHistoryChart>`). Searchable by card name / set name / Pokémon name. Virtualized with `react-window` so 10K+ rows render smoothly.
+
+Global stats (count of priced cards, period min/max/avg, etc.) come from the SQL RPC `price_history_global_stats`.
 
 ---
 

@@ -3,15 +3,11 @@
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { summarizePrices } from '@/lib/utils/price-trend';
+import { formatEur } from '@/lib/utils/format-currency';
 import type { PriceHistoryPoint } from '@/lib/types/price-history';
 
 export interface PriceStatsGridProps {
   points: PriceHistoryPoint[];
-}
-
-function formatEur(v: number | null): string {
-  if (v == null) return '—';
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(v);
 }
 
 export function PriceStatsGrid({ points }: PriceStatsGridProps) {

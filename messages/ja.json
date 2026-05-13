@@ -578,7 +578,7 @@
       "sort": "並び替え",
       "filters": "フィルター",
       "searchPlaceholder": "検索…",
-      "sortDelta": "並び替え: Δ 30日",
+      "sortDelta": "並び替え: Δ",
       "sortPrice": "並び替え: 価格",
       "sortName": "並び替え: 名前",
       "sortSet": "並び替え: セット",
@@ -631,7 +631,13 @@
     "modal": {
       "close": "閉じる",
       "cardmarketLink": "Cardmarket リンク",
-      "viewAllMovements": "すべての変動を見る"
+      "viewAllMovements": "すべての変動を見る",
+      "images": {
+        "myPhoto": "自分の写真",
+        "tcgImage": "TCG画像",
+        "swapAria": "切り替え：{target}を大きく表示",
+        "swapTitle": "クリックで切り替え"
+      }
     }
   },
   "modals": {

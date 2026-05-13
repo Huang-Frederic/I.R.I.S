@@ -63,8 +63,10 @@ export function computeMultiPeriodDeltas(
 /** Return the cm_price_avg of the point closest to the nominal tier date,
  *  within ±TIER_TOLERANCE_DAYS. Returns null if none qualifies. Used by the
  *  multi-period matrix where each tier is independent (no exclusive
- *  assignment between tiers). */
-function findPointForTier(
+ *  assignment between tiers). Also reused by AllCardsList for an honest J-30
+ *  delta (otherwise a card added 5 days ago would be labeled "Δ 30j" while
+ *  actually showing a J-5 delta). */
+export function findPointForTier(
   points: PriceHistoryPoint[],
   todayIso: string,
   tierDays: number,

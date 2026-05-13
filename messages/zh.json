@@ -578,7 +578,7 @@
       "sort": "排序",
       "filters": "筛选",
       "searchPlaceholder": "搜索…",
-      "sortDelta": "排序: Δ 30天",
+      "sortDelta": "排序: Δ",
       "sortPrice": "排序: 价格",
       "sortName": "排序: 名称",
       "sortSet": "排序: 系列",
@@ -631,7 +631,13 @@
     "modal": {
       "close": "关闭",
       "cardmarketLink": "Cardmarket 链接",
-      "viewAllMovements": "查看所有变动"
+      "viewAllMovements": "查看所有变动",
+      "images": {
+        "myPhoto": "我的照片",
+        "tcgImage": "TCG图片",
+        "swapAria": "切换：放大查看{target}",
+        "swapTitle": "点击切换"
+      }
     }
   },
   "modals": {

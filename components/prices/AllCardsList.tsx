@@ -5,12 +5,14 @@ import { useTranslations } from 'next-intl';
 import { FixedSizeList } from 'react-window';
 import { createClient } from '@/lib/supabase/client';
 import { Sparkline } from '@/components/price/Sparkline';
+import { findPointForTier } from '@/lib/utils/price-trend';
 import type { PriceHistoryPoint } from '@/lib/types/price-history';
 
 interface CardRow {
   id: string;
   card_name: string;
   set_name: string;
+  set_code: string | null;
   set_number: string;
   cm_price_avg: number | null;
   status: string;
@@ -47,7 +49,7 @@ export function AllCardsList({ initialSetFilter, onCardClick }: Props) {
       const supabase = createClient();
       const { data: cards } = await supabase
         .from('cards')
-        .select('id, card_name, set_name, set_number, cm_price_avg, status')
+        .select('id, card_name, set_name, set_code, set_number, cm_price_avg, status')
         .in('status', ['for_sale', 'collection', 'pokedex'])
         .not('cm_price_avg', 'is', null);
       if (cancelled || !cards) { setLoading(false); return; }
@@ -68,10 +70,15 @@ export function AllCardsList({ initialSetFilter, onCardClick }: Props) {
         if (arr) arr.push(p); else byCard.set(p.card_id, [p]);
       }
 
+      const todayIso = new Date().toISOString().slice(0, 10);
       const enriched: RowWithHistory[] = cards.map((c) => {
         const points = byCard.get(c.id) ?? [];
         const values = points.map((p) => p.cm_price_avg).filter((v): v is number => v != null);
-        const base = values[0];
+        // Honest "Δ 30j" — only compare against a point near J-30 (±2j),
+        // matching the matrix tolerance in price-trend.ts. If the card was
+        // added < 28 days ago, no qualifying point exists and we render '—'
+        // rather than a misleading shorter-period delta.
+        const base = findPointForTier(points, todayIso, 30);
         const last = c.cm_price_avg ?? values[values.length - 1] ?? null;
         const deltaPct = base != null && last != null && base > 0
           ? ((last - base) / base) * 100
@@ -90,7 +97,7 @@ export function AllCardsList({ initialSetFilter, onCardClick }: Props) {
   const filtered = useMemo(() => {
     let out = rows;
     if (statusFilter !== 'all') out = out.filter((r) => r.status === statusFilter);
-    if (setFilter) out = out.filter((r) => r.set_name === setFilter || r.id.startsWith(setFilter));
+    if (setFilter) out = out.filter((r) => r.set_code === setFilter);
     if (search) {
       const q = search.toLowerCase();
       out = out.filter(

@@ -16,7 +16,7 @@ A two-collector PWA that scans, prices, and sells a shared Pokémon TCG collecti
 [![Tests](https://img.shields.io/badge/tests-449%20passing-success)](#-testing)
 [![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8)](#)
 
-[The scan](#-it-starts-with-a-scan) · [The views](#-now-where-does-it-go) · [The sell](#-time-to-sell) · [The two of us](#-but-youre-not-alone) · [The control room](#-the-control-room) · [Under the hood](#-under-the-hood) · [Demo](#-see-it-in-action) · [Quick start](#-try-it-yourself) · [Docs](#-going-deeper)
+[The scan](#-it-starts-with-a-scan) · [The views](#-now-where-does-it-go) · [The sell](#-time-to-sell) · [The prices](#-watching-the-prices-move) · [The two of us](#-but-youre-not-alone) · [The control room](#-the-control-room) · [Under the hood](#-under-the-hood) · [Demo](#-see-it-in-action) · [Quick start](#-try-it-yourself) · [Docs](#-going-deeper)
 
 </div>
 
@@ -116,6 +116,23 @@ The listing generator turns a saved card into a ready-to-paste Vinted post: bili
 <p align="center">
   <img src="docs/screenshots/bulk-sell.gif" alt="Bulk sell flow" width="960" />
   <br /><sub><em>Bulk sell — pick cards, split total price, propagate sold state across both accounts</em></sub>
+</p>
+
+---
+
+## 📈 Watching the prices move
+
+A single Cardmarket snapshot tells you what a card is worth today. It doesn't tell you whether it's been climbing for a month or just bounced back from a dip. So I.R.I.S keeps a rolling history.
+
+Every night at **23:55 UTC**, a Vercel cron writes one row per priced card into `price_history` (`cm_price_low`, `cm_price_trend`, `cm_price_avg`). A weekly `pg_cron` downsamples anything older than 90 days to weekly buckets, anything older than a year to monthly — table size stays bounded forever. The pricing-refresh cron itself was bumped to **3×/day** (08:00 / 14:00 / 20:00 UTC) with a `?limit=` param so a full pass over the catalog is guaranteed inside a single day.
+
+Every price chip in the app — Stock, Vinted, Pokédex, Dashboard, Lots — now carries a **cascade trend arrow** comparing today's avg against J-1, J-7, J-30, and J-90 in turn (whichever is the freshest non-flat delta wins). Click any chip and a `<PriceDetailModal>` opens with a Recharts line chart, low/trend/avg stats, and a delta matrix. Inside the Pokédex drawer and the Vinted listing modal, the chart is rendered inline (no nested modal).
+
+There's also a dedicated **`/prices` page** in the top-level nav: portfolio value chart over the selected period, top movers (gainers and losers, J-1 / J-7 / J-30), and a virtualized searchable list with per-card sparklines.
+
+<p align="center">
+  <img src="docs/screenshots/prices.png" alt="Prices page — portfolio chart, top movers, virtualized list with sparklines" width="960" />
+  <br /><sub><em>Prices page — portfolio value chart, top movers, virtualized card list with sparklines</em></sub>
 </p>
 
 ---

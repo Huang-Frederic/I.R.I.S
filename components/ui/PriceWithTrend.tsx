@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { computeCascadeTrend } from '@/lib/utils/price-trend';
+import { formatEur } from '@/lib/utils/format-currency';
 import { usePriceTrendsContext } from './PriceTrendsProvider';
 
 export type PriceWithTrendProps = {
@@ -19,10 +20,6 @@ const VARIANT_CLASSES: Record<PriceWithTrendProps['variant'], string> = {
   inline: 'inline-flex items-center gap-1 text-sm',
   compact: 'inline-flex items-center gap-0.5 text-xs',
 };
-
-function formatEur(value: number): string {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value);
-}
 
 export function PriceWithTrend({
   cardId,

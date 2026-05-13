@@ -578,7 +578,7 @@
       "sort": "Tri",
       "filters": "Filtres",
       "searchPlaceholder": "Rechercher…",
-      "sortDelta": "Tri: Δ 30j",
+      "sortDelta": "Tri: Δ",
       "sortPrice": "Tri: prix",
       "sortName": "Tri: nom",
       "sortSet": "Tri: set",
@@ -631,7 +631,13 @@
     "modal": {
       "close": "Fermer",
       "cardmarketLink": "Lien Cardmarket",
-      "viewAllMovements": "Voir tous les mouvements"
+      "viewAllMovements": "Voir tous les mouvements",
+      "images": {
+        "myPhoto": "Ma photo",
+        "tcgImage": "Image TCG",
+        "swapAria": "Inverser : voir {target} en grand",
+        "swapTitle": "Cliquer pour inverser"
+      }
     }
   },
   "modals": {

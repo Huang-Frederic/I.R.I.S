@@ -6,6 +6,22 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-05-13 — Price history: daily snapshots, trend arrows everywhere, dedicated `/prices` page
+
+A single Cardmarket reading was never enough — you want to know if a card has been climbing for a month or just bounced back from a dip. This phase introduces a rolling price history, surfaces it on every chip in the app, and dedicates a top-level page to portfolio-wide movement.
+
+- **`price_history` table** — one row per `(card_id, snapshot_date)` with `cm_price_low / trend / avg` (`20260513100000_price_history.sql`). Daily snapshots inserted by the new SQL RPC `insert_daily_price_snapshot` (skips cards with no `cm_updated_at` and rows already snapshotted same day). Older rows downsampled by `downsample_price_history`: > 90 days → weekly buckets, > 1 year → monthly. Table size stays bounded.
+- **Snapshot cron at 23:55 UTC** — Vercel cron `55 23 * * *` calls `POST /api/prices/snapshot` (CRON_SECRET) and inserts one history row per priced card. Weekly `pg_cron` triggers `downsample_price_history` Sunday 04:00 UTC.
+- **Refresh cron 3×/day** — `0 8,14,20 * * *` UTC instead of `0 2 * * *`. The bulk endpoint now accepts `?limit=` (default 200) so the front-end loop and cron can together guarantee a full catalogue pass within a single day even as cards pile up.
+- **`<PriceWithTrend>` shared component** — drop-in replacement for the raw `cm_price_avg` cell. Renders the price + a cascade trend arrow comparing today vs J-1, J-7, J-30, J-90 (first non-flat delta wins), color-coded `up` / `down` / `flat`. Used in StockRow, VintedRow, PokedexCard, Dashboard top-rares table, Lots, Prices page list.
+- **`<PriceDetailModal>`** — click any price chip in Stock / Dashboard / Prices and a modal opens with a Recharts line chart (`<PriceHistoryChart>`), low/trend/avg stats, and a delta matrix vs J-1 / J-7 / J-30 / J-90. Inside the Pokédex drawer and the Vinted Annonce modal, `<PriceHistoryChart>` is rendered **inline** (no nested modal — better z-index hygiene, fewer taps).
+- **`/prices` page** — new top-level nav entry (between Vinted and Dashboard). Server-rendered shell with: period selector (7 d / 30 d / 90 d / 1 y), **portfolio value chart** (line over the period), **top movers** (`gainers` and `losers`, switchable J-1 / J-7 / J-30), and a **virtualized searchable list** with per-card sparklines. Backed by SQL RPCs `price_history_global_stats` and `price_history_top_movers`.
+- **Modal audit** — all 14 overlay modals across the app now close on backdrop click + ESC (was inconsistent — some only had the X button). Hardened in [`fix(modals): close on backdrop click + ESC`](../components/) commit f7876d2.
+- **Pokédex pin clickable when filled** — clicking a pin slot that's already occupied now opens the compare modal (with contextual "Stock" / "Vinted" label depending on where the rival card lives). Empty slots still launch the inline scanner. Implementation in commit e30fbc5.
+- **Scanner UX polish** — nav reorder (Pokédex before Stock), brand-red destination chip when target is Pokédex, amber-600 when Stock, blue when Vinted; dropped the redundant Trainer/Energy hints (the scanner itself already shows "Carte non-Pokémon" when applicable).
+
+---
+
 ## 2026-05-13 — Internationalization (next-intl, 4 languages)
 
 The UI is no longer monolingual French — it ships translated in English (default), French, Japanese, and Simplified Chinese. Setup uses [next-intl](https://next-intl.dev) with cookie-based locale detection (`lang` cookie, 1-year max-age, first-visit best-match from `Accept-Language`). URLs stay locale-agnostic; the language toggle lives in Options next to the theme toggle.
