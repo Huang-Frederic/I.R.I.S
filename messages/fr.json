@@ -146,7 +146,7 @@
     "fieldSet": "Set",
     "fieldSetNumber": "N°",
     "fieldLanguage": "Langue",
-    "fieldNationalNumber": "N° Nat. (vide = Trainer)",
+    "fieldNationalNumber": "N° Nat.",
     "fieldRarity": "Rareté",
     "fieldCondition": "État",
     "fieldSetName": "Nom du set (optionnel)",

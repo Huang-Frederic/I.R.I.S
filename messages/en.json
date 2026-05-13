@@ -146,7 +146,7 @@
     "fieldSet": "Set",
     "fieldSetNumber": "No.",
     "fieldLanguage": "Language",
-    "fieldNationalNumber": "National Pokédex no. (empty = Trainer)",
+    "fieldNationalNumber": "National Pokédex no.",
     "fieldRarity": "Rarity",
     "fieldCondition": "Condition",
     "fieldSetName": "Set name (optional)",

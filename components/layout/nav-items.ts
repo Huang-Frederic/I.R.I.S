@@ -9,10 +9,10 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', labelKey: 'dashboard', icon: BarChart3 },
-  { href: '/submit', labelKey: 'scanner', icon: ScanLine },
-  { href: '/pokedex', labelKey: 'pokedex', icon: BookOpen },
-  { href: '/stock', labelKey: 'stock', icon: Package },
-  { href: '/vinted', labelKey: 'vinted', icon: Tag },
   { href: '/prices', labelKey: 'prices', icon: TrendingUp },
+  { href: '/pokedex', labelKey: 'pokedex', icon: BookOpen },
+  { href: '/submit', labelKey: 'scanner', icon: ScanLine },
+  { href: '/vinted', labelKey: 'vinted', icon: Tag },
+  { href: '/stock', labelKey: 'stock', icon: Package },
   { href: '/options', labelKey: 'options', icon: Settings },
 ];

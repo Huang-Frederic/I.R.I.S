@@ -146,7 +146,7 @@
     "fieldSet": "套装",
     "fieldSetNumber": "编号",
     "fieldLanguage": "语言",
-    "fieldNationalNumber": "全国图鉴编号(空 = 训练家)",
+    "fieldNationalNumber": "全国图鉴编号",
     "fieldRarity": "稀有度",
     "fieldCondition": "品相",
     "fieldSetName": "套装名称(可选)",

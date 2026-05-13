@@ -56,6 +56,22 @@ const VARIANT_VALUES = [
   { value: 'promo', key: 'promo' },
 ] as const;
 
+/**
+ * Status-driven accent palette for the destination select + save button.
+ * Mirrors the semantic mapping used elsewhere: blue = Vinted/for_sale,
+ * amber = Stock/collection, red = Pokédex. Picked up by both the status
+ * <select>'s border and the save <button>'s bg/hover so the user gets
+ * instant visual feedback on which bucket the card will land in.
+ */
+const STATUS_COLOR_CLASSES: Record<CardStatus, { border: string; button: string }> = {
+  for_sale: { border: 'border-blue-500', button: 'bg-blue-600 hover:bg-blue-700' },
+  collection: { border: 'border-amber-500', button: 'bg-amber-600 hover:bg-amber-700' },
+  pokedex: { border: 'border-red-500', button: 'bg-red-600 hover:bg-red-700' },
+  // 'sold' isn't user-selectable in the scanner, but CardStatus includes it —
+  // fall back to the for_sale palette to keep the type total.
+  sold: { border: 'border-blue-500', button: 'bg-blue-600 hover:bg-blue-700' },
+};
+
 type Phase = 'idle' | 'scanning' | 'reviewing' | 'saving' | 'success' | 'error';
 
 interface FormFields {
@@ -289,6 +305,12 @@ export default function CardScanForm({
   } | null>(null);
 
   const numberMismatch = detectNumberMismatch({ lockedPokemonNumber, detectedPokemonNumber });
+
+  // Effective status drives the destination accent (border + button bg).
+  // lockedStatus wins for batch mode (pokédex slot, etc.); otherwise we follow
+  // whatever the user picked in the destination select.
+  const effectiveStatusForColor: CardStatus = lockedStatus ?? form.status;
+  const statusColors = STATUS_COLOR_CLASSES[effectiveStatusForColor];
 
   useEffect(() => {
     if (phase === 'success' && onSaved) {
@@ -1364,7 +1386,7 @@ export default function CardScanForm({
                   <select
                     value={form.status}
                     onChange={(e) => update('status', e.target.value as CardStatus)}
-                    className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none"
+                    className={`bg-surface-2 mt-1 w-full rounded border-2 px-3 py-2 text-sm outline-none transition-colors ${statusColors.border}`}
                   >
                     {STATUSES.filter(({ value }) => {
                       // Hide "Pokédex" for Trainers/Energies (no pokemon_number).
@@ -1446,7 +1468,7 @@ export default function CardScanForm({
             <button
               type="submit"
               disabled={phase === 'saving' || phase === 'success' || !form.card_name || numberMismatch}
-              className="bg-red flex-1 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50"
+              className={`flex-1 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50 ${statusColors.button}`}
             >
               {phase === 'saving' ? t('savingButton') : t('saveButton')}
             </button>

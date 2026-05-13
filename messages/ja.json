@@ -146,7 +146,7 @@
     "fieldSet": "セット",
     "fieldSetNumber": "番号",
     "fieldLanguage": "言語",
-    "fieldNationalNumber": "全国図鑑番号(空欄 = トレーナー)",
+    "fieldNationalNumber": "全国図鑑番号",
     "fieldRarity": "レアリティ",
     "fieldCondition": "状態",
     "fieldSetName": "セット名(任意)",
