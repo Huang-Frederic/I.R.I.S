@@ -120,7 +120,13 @@ async function handleRequest(request: Request): Promise<NextResponse> {
   // total drops to 0, the client knows the loop is done. Without ?since the
   // endpoint runs in classic cron mode (just the 200 oldest, repeat-friendly).
   const since = url.searchParams.get('since');
-  return handleBulk(since);
+  // ?limit=N — cron schedules pass a higher limit (e.g. 700) so 3 runs/day
+  // can cover the whole priceable catalog. Clamped to [1, 2000] to prevent
+  // abuse and overflow. Default stays at BATCH_SIZE (200) so the existing
+  // session-auth "Refresh all" loop keeps its previous batch size.
+  const limitParam = url.searchParams.get('limit');
+  const limit = limitParam ? Math.max(1, Math.min(2000, Number(limitParam))) : BATCH_SIZE;
+  return handleBulk(since, limit);
 }
 
 // Vercel cron daemon issues GET (User-Agent: vercel-cron/1.0).
@@ -259,7 +265,7 @@ function buildUpdatePayload(
 // Bulk path (cron)
 // ---------------------------------------------------------------------------
 
-async function handleBulk(since: string | null): Promise<NextResponse> {
+async function handleBulk(since: string | null, limit: number): Promise<NextResponse> {
   const service = createServiceClient();
   const summary: UpdateSummary = {
     ok: true, total: 0, updated: 0, backfilled: 0, skipped: 0,
@@ -284,7 +290,7 @@ async function handleBulk(since: string | null): Promise<NextResponse> {
 
   const { data: rows, error } = await query
     .order('cm_updated_at', { ascending: true, nullsFirst: true })
-    .limit(BATCH_SIZE);
+    .limit(limit);
 
   if (error) {
     return apiError('read_failed', { status: 500, message: error.message });
