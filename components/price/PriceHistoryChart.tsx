@@ -64,8 +64,19 @@ export function PriceHistoryChart({ points }: PriceHistoryChartProps) {
           <LineChart data={chartData}>
             <XAxis dataKey="date" tick={{ fontSize: 10 }} />
             <YAxis tickFormatter={(v) => `${Number(v).toFixed(2)}€`} tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
-            <Tooltip formatter={(v) => `${Number(v).toFixed(2)}€`} />
-            <Line type="monotone" dataKey="avg" stroke="currentColor" strokeWidth={2} dot={false} />
+            <Tooltip
+              formatter={(v) => `${Number(v).toFixed(2)}€`}
+              contentStyle={{
+                background: 'var(--color-surface-2)',
+                color: 'var(--color-text)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 4,
+                fontSize: 12,
+              }}
+              labelStyle={{ color: 'var(--color-text-muted)' }}
+              itemStyle={{ color: 'var(--color-text)' }}
+            />
+            <Line type="monotone" dataKey="avg" stroke="#dc2626" strokeWidth={2} dot={false} name="Avg" />
           </LineChart>
         </ResponsiveContainer>
       </div>

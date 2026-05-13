@@ -32,7 +32,8 @@ describe('<PriceWithTrend>', () => {
   it('renders an up arrow with green class when delta > 0', () => {
     render(<PriceWithTrend cardId="with-history" cmPriceAvg={4.34} variant="inline" />);
     const arrow = screen.getByLabelText(/hausse/i);
-    expect(arrow.className).toMatch(/green/);
+    // Green class lives on the wrapper span (arrow + percentage badge).
+    expect(arrow.parentElement?.className).toMatch(/green/);
   });
 
   it('renders nothing meaningful when cmPriceAvg is null', () => {

@@ -49,17 +49,20 @@ export function PriceWithTrend({
     : undefined;
 
   const arrow = trend ? (
-    trend.delta_pct > 0 ? (
-      <ArrowUp
-        className="h-3.5 w-3.5 text-green-600 dark:text-green-400"
-        aria-label="hausse"
-      />
-    ) : (
-      <ArrowDown
-        className="h-3.5 w-3.5 text-red-600 dark:text-red-400"
-        aria-label="baisse"
-      />
-    )
+    <span
+      className={`inline-flex items-center gap-0.5 ${
+        trend.delta_pct > 0
+          ? 'text-green-600 dark:text-green-400'
+          : 'text-red-600 dark:text-red-400'
+      }`}
+    >
+      {trend.delta_pct > 0 ? (
+        <ArrowUp className="h-3.5 w-3.5" aria-label="hausse" />
+      ) : (
+        <ArrowDown className="h-3.5 w-3.5" aria-label="baisse" />
+      )}
+      <span className="text-xs font-medium">{Math.abs(trend.delta_pct).toFixed(0)}%</span>
+    </span>
   ) : null;
 
   return (
