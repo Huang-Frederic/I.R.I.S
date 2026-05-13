@@ -6,11 +6,11 @@ import { Copy, Download, X, Check } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import { buildTitle, buildDescription, MAX_TITLE_LENGTH, type VintedConfig } from '@/lib/utils/vinted-template';
 import { processImageForVinted, downloadBlob } from '@/lib/utils/image-postprocess';
-import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
 import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
 import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
 import CardmarketLink from '@/components/ui/CardmarketLink';
 import { PriceWithTrend } from '@/components/ui/PriceWithTrend';
+import CardImagesPair from '@/components/price/CardImagesPair';
 
 interface Props {
   card: Card;
@@ -59,9 +59,6 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
   );
   const [editingSuggested, setEditingSuggested] = useState(false);
   const [savingSuggested, setSavingSuggested] = useState(false);
-
-  // Mobile picture-in-picture: which image is the "main" big one
-  const [pipMain, setPipMain] = useState<'mine' | 'tcg'>('mine');
 
   useEffect(() => {
     if (!copiedField) return;
@@ -130,12 +127,6 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
   const myPhoto = card.image_url ?? sprite;
   const tcgPhoto = card.tcg_image_url ?? sprite;
 
-  // PiP layout: main = the one chosen, thumb = the other
-  const pipMainSrc = pipMain === 'mine' ? myPhoto : tcgPhoto;
-  const pipMainAlt = pipMain === 'mine' ? t('myPhoto') : t('tcgImage');
-  const pipThumbSrc = pipMain === 'mine' ? tcgPhoto : myPhoto;
-  const pipThumbAlt = pipMain === 'mine' ? t('tcgImage') : t('myPhoto');
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4"
@@ -161,38 +152,17 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
           {/* TOP — Cards */}
           {/* Mobile: PiP. Desktop: 2-up side-by-side */}
           <div className="flex flex-col gap-3">
-            {/* Mobile PiP */}
-            <div className="md:hidden">
-              <div className="relative mx-auto w-full max-w-sm">
-                <MagnifierLoupe
-                  src={pipMainSrc}
-                  alt={pipMainAlt}
-                  className="border-border border"
-                />
-                <button
-                  type="button"
-                  onClick={() => setPipMain((prev) => (prev === 'mine' ? 'tcg' : 'mine'))}
-                  className="bg-surface border-border absolute bottom-2 right-2 h-[112px] w-[80px] overflow-hidden rounded border-2 shadow-lg transition-transform hover:scale-105"
-                  aria-label={t('pipSwapAria', { target: pipMain === 'mine' ? t('tcgImage') : t('myPhoto') })}
-                  title={t('pipSwapTitle')}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={pipThumbSrc} alt={pipThumbAlt} className="h-full w-full object-cover" />
-                </button>
-              </div>
-            </div>
-
-            {/* Desktop: 2 side by side */}
-            <div className="hidden gap-4 md:grid md:grid-cols-2">
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-text-muted text-xs uppercase tracking-wide">{t('myPhoto')}</span>
-                <MagnifierLoupe src={myPhoto} alt={t('myPhoto')} className="border-border max-w-[280px] border" />
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-text-muted text-xs uppercase tracking-wide">{t('tcgImage')}</span>
-                <MagnifierLoupe src={tcgPhoto} alt={t('tcgImage')} className="border-border max-w-[280px] border" />
-              </div>
-            </div>
+            <CardImagesPair
+              myPhoto={myPhoto}
+              tcgPhoto={tcgPhoto}
+              myLabel={t('myPhoto')}
+              tcgLabel={t('tcgImage')}
+              // Pass the template with `{target}` preserved so CardImagesPair
+              // can substitute it with the correct label depending on the
+              // current PiP state (which lives inside the component now).
+              swapAriaTemplate={t('pipSwapAria', { target: '{target}' })}
+              swapTitle={t('pipSwapTitle')}
+            />
 
             {/* Download img */}
             <div className="flex flex-col items-center gap-1">
