@@ -10,6 +10,7 @@ import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
 import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
 import CardmarketLink from '@/components/ui/CardmarketLink';
 import { PriceWithTrend } from '@/components/ui/PriceWithTrend';
+import { PriceDetailModal } from '@/components/price/PriceDetailModal';
 import CardImagesPair from '@/components/price/CardImagesPair';
 
 interface Props {
@@ -59,6 +60,7 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
   );
   const [editingSuggested, setEditingSuggested] = useState(false);
   const [savingSuggested, setSavingSuggested] = useState(false);
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
 
   useEffect(() => {
     if (!copiedField) return;
@@ -233,7 +235,7 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
                   cardId={card.id}
                   cmPriceAvg={card.cm_price_avg}
                   variant="inline"
-                  onPriceClick={() => {/* TODO Phase 3 */}}
+                  onPriceClick={() => setPriceModalOpen(true)}
                 />
               </div>
               <div>
@@ -278,6 +280,19 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
           </div>
         </div>
       </div>
+
+      {priceModalOpen && (
+        <PriceDetailModal
+          card={card}
+          open={priceModalOpen}
+          onClose={() => setPriceModalOpen(false)}
+          onCardUpdated={(updated) => {
+            // Bubble the refreshed row to the parent (Vinted page) so the
+            // chip + freshness badge stay in sync after a manual refresh.
+            onCardRefreshed?.(updated);
+          }}
+        />
+      )}
     </div>
   );
 }

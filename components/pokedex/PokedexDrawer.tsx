@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import type { Card } from '@/lib/types';
@@ -8,6 +8,7 @@ import { getPokemonName } from '@/lib/data/pokemon-names';
 import { displayPokemonName } from '@/lib/utils/format-name';
 import CardDetails from './drawer/CardDetails';
 import EmptyState from './drawer/EmptyState';
+import { PriceDetailModal } from '@/components/price/PriceDetailModal';
 
 interface PokedexDrawerProps {
   open: boolean;
@@ -38,6 +39,7 @@ export default function PokedexDrawer({
   availableCards,
 }: PokedexDrawerProps) {
   const t = useTranslations('pokedex');
+  const [priceModalCard, setPriceModalCard] = useState<Card | null>(null);
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -88,12 +90,25 @@ export default function PokedexDrawer({
 
         <div className="p-5">
           {pokedexCard ? (
-            <CardDetails card={pokedexCard} availableCards={availableCards} />
+            <CardDetails
+              card={pokedexCard}
+              availableCards={availableCards}
+              onOpenPriceModal={() => setPriceModalCard(pokedexCard)}
+            />
           ) : (
             <EmptyState pokemonNumber={pokemonNumber} />
           )}
         </div>
       </aside>
+
+      {priceModalCard && (
+        <PriceDetailModal
+          card={priceModalCard}
+          open={true}
+          onClose={() => setPriceModalCard(null)}
+          onCardUpdated={(updated) => setPriceModalCard(updated)}
+        />
+      )}
     </>
   );
 }

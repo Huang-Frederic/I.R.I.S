@@ -11,6 +11,7 @@ import StockRow from './StockRow';
 import ExchangeOnConflictModal, { type ExchangeConflictCard } from '@/components/vinted/ExchangeOnConflictModal';
 import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
 import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
+import { PriceDetailModal } from '@/components/price/PriceDetailModal';
 import { normalizeForSearch } from '@/lib/utils/text-normalize';
 import { translateErrorCode } from '@/lib/utils/translate-error';
 
@@ -67,6 +68,7 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
     conflictCard: ExchangeConflictCard;
   } | null>(null);
   const [moveToPokedexCard, setMoveToPokedexCard] = useState<Card | null>(null);
+  const [priceModalCard, setPriceModalCard] = useState<Card | null>(null);
 
   const groups = useMemo(() => {
     const filtered = cards.filter((c) => {
@@ -184,6 +186,7 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
                 hasForSaleSibling={forSaleKeys.has(stockMatchKey(g.head))}
                 onListForSaleClick={handleListForSale}
                 onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}
+                onOpenPriceModal={() => setPriceModalCard(g.head)}
                 onSetCount={handleSetCount}
                 busy={busyKey === g.key}
               />
@@ -219,6 +222,15 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
               setMoveToPokedexCard(null);
               router.refresh();
             }}
+          />
+        )}
+
+        {priceModalCard && (
+          <PriceDetailModal
+            card={priceModalCard}
+            open={true}
+            onClose={() => setPriceModalCard(null)}
+            onCardUpdated={(updated) => setPriceModalCard(updated)}
           />
         )}
       </div>

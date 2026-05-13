@@ -20,9 +20,11 @@ import ReplaceFlow from './ReplaceFlow';
 export default function CardDetails({
   card,
   availableCards,
+  onOpenPriceModal,
 }: {
   card: Card;
   availableCards: Card[];
+  onOpenPriceModal?: () => void;
 }) {
   const t = useTranslations('pokedex');
   const [showReplace, setShowReplace] = useState(false);
@@ -82,7 +84,7 @@ export default function CardDetails({
                   cardId={card.id}
                   cmPriceAvg={card.cm_price_avg}
                   variant="inline"
-                  onPriceClick={() => {/* TODO Phase 3 */}}
+                  onPriceClick={onOpenPriceModal}
                 />
               </div>
               <Price label={t('priceListing')} value={card.suggested_price} highlight />

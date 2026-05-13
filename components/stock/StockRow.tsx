@@ -24,6 +24,7 @@ interface Props {
   hasForSaleSibling: boolean;
   onListForSaleClick: (card: Card) => void;
   onMoveToPokedexClick?: (card: Card) => void;
+  onOpenPriceModal?: () => void;
   /** Apply a target count for this group. Caller diffs against group.count and clones / deletes accordingly. */
   onSetCount: (group: CardGroup, target: number) => void;
   busy?: boolean;
@@ -35,6 +36,7 @@ export default function StockRow({
   hasForSaleSibling,
   onListForSaleClick,
   onMoveToPokedexClick,
+  onOpenPriceModal,
   onSetCount,
   busy = false,
 }: Props) {
@@ -170,7 +172,7 @@ export default function StockRow({
               cmPriceAvg={card.cm_price_avg}
               cardmarketUrl={card.cardmarket_url}
               variant="chip"
-              onPriceClick={() => {/* TODO Phase 3: open <PriceDetailModal> */}}
+              onPriceClick={onOpenPriceModal}
             />
             <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
             {card.cardmarket_url && (
