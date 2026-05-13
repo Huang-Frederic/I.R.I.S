@@ -1,10 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { RefreshCcw, Trash2 } from 'lucide-react';
 import type { Card } from '@/lib/types';
+import type { PriceHistoryPoint } from '@/lib/types/price-history';
+import { createClient } from '@/lib/supabase/client';
+import { fetchHistoryForCard } from '@/lib/api/price-history';
 import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
 import { displayCardName, displaySetName } from '@/lib/utils/format-name';
 import PokedexCardActionsModal from '../PokedexCardActionsModal';
@@ -12,24 +15,41 @@ import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
 import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
 import CardmarketLink from '@/components/ui/CardmarketLink';
 import { PriceWithTrend } from '@/components/ui/PriceWithTrend';
+import { PriceHistoryChart } from '@/components/price/PriceHistoryChart';
 import { Figure, Row, Price } from './DrawerUI';
 import ReplaceFlow from './ReplaceFlow';
 
 /** Pokédex drawer body when a card occupies the slot: photos, metadata,
- *  pricing, replace + remove actions. */
+ *  pricing, replace + remove actions. The price-history chart renders
+ *  inline below the price block (no nested modal — the drawer itself is
+ *  already a modal-like surface). */
 export default function CardDetails({
   card,
   availableCards,
-  onOpenPriceModal,
 }: {
   card: Card;
   availableCards: Card[];
-  onOpenPriceModal?: () => void;
 }) {
   const t = useTranslations('pokedex');
   const [showReplace, setShowReplace] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [points, setPoints] = useState<PriceHistoryPoint[]>([]);
   const router = useRouter();
+
+  // Fetch full price history once when the drawer body mounts. Same pattern
+  // as PriceDetailModal — pass `null` for an unlimited window so the chart's
+  // internal period selector (7d/30d/90d/1y/all) works without a refetch.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const all = await fetchHistoryForCard(supabase, card.id, null);
+      if (!cancelled) setPoints(all);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [card.id]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -84,7 +104,6 @@ export default function CardDetails({
                   cardId={card.id}
                   cmPriceAvg={card.cm_price_avg}
                   variant="inline"
-                  onPriceClick={onOpenPriceModal}
                 />
               </div>
               <Price label={t('priceListing')} value={card.suggested_price} highlight />
@@ -112,6 +131,8 @@ export default function CardDetails({
           <RefreshPriceButton cardId={card.id} onRefreshed={() => router.refresh()} />
         </div>
       )}
+
+      <PriceHistoryChart points={points} />
 
       {availableCards.length > 0 && (
         <div className="border-border border-t pt-4">

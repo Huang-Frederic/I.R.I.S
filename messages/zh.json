@@ -142,7 +142,7 @@
     "extractNone": "无",
     "cardInfoHeading": "卡片信息",
     "fieldCardName": "卡片名称",
-    "fieldPokemonName": "宝可梦名称(空 = 训练家/能量)",
+    "fieldPokemonName": "宝可梦名称",
     "fieldSet": "套装",
     "fieldSetNumber": "编号",
     "fieldLanguage": "语言",

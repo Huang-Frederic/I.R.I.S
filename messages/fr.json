@@ -142,7 +142,7 @@
     "extractNone": "aucun",
     "cardInfoHeading": "Informations de la carte",
     "fieldCardName": "Nom de la carte",
-    "fieldPokemonName": "Nom du Pokémon (vide = Trainer/Énergie)",
+    "fieldPokemonName": "Nom du Pokémon",
     "fieldSet": "Set",
     "fieldSetNumber": "N°",
     "fieldLanguage": "Langue",

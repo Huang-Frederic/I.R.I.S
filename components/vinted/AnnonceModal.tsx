@@ -4,13 +4,16 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Copy, Download, X, Check } from 'lucide-react';
 import type { Card } from '@/lib/types';
+import type { PriceHistoryPoint } from '@/lib/types/price-history';
+import { createClient } from '@/lib/supabase/client';
+import { fetchHistoryForCard } from '@/lib/api/price-history';
 import { buildTitle, buildDescription, MAX_TITLE_LENGTH, type VintedConfig } from '@/lib/utils/vinted-template';
 import { processImageForVinted, downloadBlob } from '@/lib/utils/image-postprocess';
 import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
 import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
 import CardmarketLink from '@/components/ui/CardmarketLink';
 import { PriceWithTrend } from '@/components/ui/PriceWithTrend';
-import { PriceDetailModal } from '@/components/price/PriceDetailModal';
+import { PriceHistoryChart } from '@/components/price/PriceHistoryChart';
 import CardImagesPair from '@/components/price/CardImagesPair';
 
 interface Props {
@@ -60,13 +63,28 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
   );
   const [editingSuggested, setEditingSuggested] = useState(false);
   const [savingSuggested, setSavingSuggested] = useState(false);
-  const [priceModalOpen, setPriceModalOpen] = useState(false);
+  const [points, setPoints] = useState<PriceHistoryPoint[]>([]);
 
   useEffect(() => {
     if (!copiedField) return;
     const t = setTimeout(() => setCopiedField(null), 1500);
     return () => clearTimeout(t);
   }, [copiedField]);
+
+  // Fetch full price history for the inline chart (replaces the nested
+  // PriceDetailModal that used to open from the Avg cell). `null` window =
+  // unlimited so the chart's internal period selector works without refetch.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const all = await fetchHistoryForCard(supabase, card.id, null);
+      if (!cancelled) setPoints(all);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [card.id]);
 
   const copy = async (text: string, field: 'title' | 'desc') => {
     try {
@@ -133,9 +151,9 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4"
       // Backdrop click closes — but only when the click target is the
-      // backdrop itself. Without the `target === currentTarget` guard, a
-      // click on the nested PriceDetailModal's backdrop would bubble up
-      // through the React tree and also close this AnnonceModal.
+      // backdrop itself. The `target === currentTarget` guard keeps clicks
+      // inside the modal body (or any future nested popover) from bubbling
+      // up to the backdrop and accidentally closing the modal.
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -241,7 +259,6 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
                   cardId={card.id}
                   cmPriceAvg={card.cm_price_avg}
                   variant="inline"
-                  onPriceClick={() => setPriceModalOpen(true)}
                 />
               </div>
               <div>
@@ -283,22 +300,15 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
                 </div>
               )}
             </div>
+
+            {/* Inline price-history chart — replaces the nested
+                PriceDetailModal that used to open from the Avg cell. The
+                chart belongs right under the price grid since both surfaces
+                describe the same data (current snapshot vs. trajectory). */}
+            <PriceHistoryChart points={points} />
           </div>
         </div>
       </div>
-
-      {priceModalOpen && (
-        <PriceDetailModal
-          card={card}
-          open={priceModalOpen}
-          onClose={() => setPriceModalOpen(false)}
-          onCardUpdated={(updated) => {
-            // Bubble the refreshed row to the parent (Vinted page) so the
-            // chip + freshness badge stay in sync after a manual refresh.
-            onCardRefreshed?.(updated);
-          }}
-        />
-      )}
     </div>
   );
 }

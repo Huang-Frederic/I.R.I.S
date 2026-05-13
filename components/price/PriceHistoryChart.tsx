@@ -41,7 +41,7 @@ export function PriceHistoryChart({ points }: PriceHistoryChartProps) {
 
   if (chartData.length < 2) {
     return (
-      <div className="border-border rounded border p-4 text-center text-sm text-text-faint">
+      <div className="border-border text-text-muted rounded border p-4 text-center text-sm">
         {t('noHistory')}
       </div>
     );

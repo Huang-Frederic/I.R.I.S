@@ -88,7 +88,7 @@ export function PriceDetailModal({ card, open, onClose, onCardUpdated }: PriceDe
     <div
       role="dialog"
       aria-modal="true"
-      className="bg-black/60 fixed inset-0 z-50 flex items-start justify-center overflow-hidden p-4 sm:items-center"
+      className="bg-black/60 fixed inset-0 z-[60] flex items-start justify-center overflow-hidden p-4 sm:items-center"
       onClick={onClose}
     >
       <div

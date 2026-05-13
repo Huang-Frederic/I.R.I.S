@@ -142,7 +142,7 @@
     "extractNone": "なし",
     "cardInfoHeading": "カード情報",
     "fieldCardName": "カード名",
-    "fieldPokemonName": "ポケモン名(空欄 = トレーナー/エネルギー)",
+    "fieldPokemonName": "ポケモン名",
     "fieldSet": "セット",
     "fieldSetNumber": "番号",
     "fieldLanguage": "言語",

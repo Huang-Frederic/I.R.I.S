@@ -142,7 +142,7 @@
     "extractNone": "none",
     "cardInfoHeading": "Card information",
     "fieldCardName": "Card name",
-    "fieldPokemonName": "Pokémon name (empty = Trainer/Energy)",
+    "fieldPokemonName": "Pokémon name",
     "fieldSet": "Set",
     "fieldSetNumber": "No.",
     "fieldLanguage": "Language",
