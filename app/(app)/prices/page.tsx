@@ -1,10 +1,14 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
 import { StatsHeader } from '@/components/prices/StatsHeader';
 import { PortfolioValueChart } from '@/components/prices/PortfolioValueChart';
+import { TopMoversPanel } from '@/components/prices/TopMoversPanel';
+import { PriceDetailModal } from '@/components/price/PriceDetailModal';
+import { createClient } from '@/lib/supabase/client';
+import type { Card } from '@/lib/types';
 
 export default function PricesPage() {
   return (
@@ -18,12 +22,28 @@ export default function PricesPage() {
 
 function PricesPageContent() {
   const t = useTranslations('prices');
+  const [modalCard, setModalCard] = useState<Card | null>(null);
+
+  const openCard = async (cardId: string) => {
+    const supabase = createClient();
+    const { data } = await supabase.from('cards').select('*').eq('id', cardId).single();
+    if (data) setModalCard(data as Card);
+  };
+
   return (
     <div className="space-y-4 p-4">
       <h1 className="text-xl font-semibold">{t('title')}</h1>
       <StatsHeader />
       <PortfolioValueChart />
-      {/* TopMoversPanel / AllCardsList added in T24-T26 */}
+      <TopMoversPanel onCardClick={openCard} />
+      {modalCard && (
+        <PriceDetailModal
+          card={modalCard}
+          open={true}
+          onClose={() => setModalCard(null)}
+          onCardUpdated={(updated) => setModalCard(updated)}
+        />
+      )}
     </div>
   );
 }
