@@ -23,6 +23,8 @@ import type { VintedConfig } from '@/lib/utils/vinted-template';
 import { passesStateChips, shouldHideForSalePile, passesMultiUserChip } from '@/lib/utils/vinted-filter';
 import { getMyListing } from '@/lib/utils/listings';
 import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
+import PokedexCompareModal, { type PokedexCompareModalCard } from '@/components/cards/PokedexCompareModal';
+import { createClient } from '@/lib/supabase/client';
 import LotRow from '@/components/lots/LotRow';
 import LotSoldRow from '@/components/lots/LotSoldRow';
 import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
@@ -91,6 +93,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
   const t = useTranslations('vinted');
   const tSold = useTranslations('vintedSold');
   const tErrors = useTranslations('errors');
+  const tNav = useTranslations('nav');
   const { myUserId, partnerUserId, partnerName } = useUserContext();
 
   // Data state — see useDataSync for the prop→state re-sync rationale.
@@ -153,6 +156,36 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
   const [lotAnnonceTarget, setLotAnnonceTarget] = useState<Lot | null>(null);
   const [zoomCard, setZoomCard] = useState<Card | null>(null);
   const [moveToPokedexCard, setMoveToPokedexCard] = useState<Card | null>(null);
+  const [comparePair, setComparePair] = useState<{ current: PokedexCompareModalCard; pokedex: PokedexCompareModalCard } | null>(null);
+
+  /**
+   * Lazy-fetch the card currently filling the Pokédex slot for `card`'s
+   * pokemon_number, then open the side-by-side compare modal. Same pattern
+   * as StockList — we don't pre-load slot data into the SSR query because
+   * most rows never get clicked. */
+  const handleCompareClick = async (card: Card) => {
+    if (card.pokemon_number == null) return;
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('cards')
+      .select('card_name, image_url, tcg_image_url, pokemon_number')
+      .eq('status', 'pokedex')
+      .eq('pokemon_number', card.pokemon_number)
+      .maybeSingle();
+    if (error || !data) {
+      console.warn('[vinted] pokedex slot lookup failed', error);
+      return;
+    }
+    setComparePair({
+      current: {
+        card_name: card.card_name,
+        image_url: card.image_url,
+        tcg_image_url: card.tcg_image_url,
+        pokemon_number: card.pokemon_number,
+      },
+      pokedex: data as PokedexCompareModalCard,
+    });
+  };
 
   const vintedConfig: VintedConfig = {
     vinted_shipping_note: config.vinted_shipping_note ?? '',
@@ -470,6 +503,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
               onListingsChanged={onListingsChanged}
               onImageClick={() => setZoomCard(g.head)}
               onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}
+              onComparePokedexClick={() => void handleCompareClick(g.head)}
               selectionMode={selectionMode}
               selected={selectedIds.has(g.head.id)}
               onToggleSelect={() => toggleSelect(g.head.id)}
@@ -643,6 +677,14 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           src={cardImageUrl(zoomCard)}
           alt={zoomCard.card_name}
           onClose={() => setZoomCard(null)}
+        />
+      )}
+      {comparePair && (
+        <PokedexCompareModal
+          currentCard={comparePair.current}
+          pokedexCard={comparePair.pokedex}
+          currentLabel={tNav('vinted')}
+          onClose={() => setComparePair(null)}
         />
       )}
       {moveToPokedexCard && (

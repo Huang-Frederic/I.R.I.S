@@ -775,5 +775,11 @@
     "refreshPriceTitle": "Refresh Cardmarket price",
     "refreshPriceAria": "Refresh price",
     "matchedCardAria": "Card matched by the API"
+  },
+  "pokedexCompare": {
+    "title": "Compare with Pokédex",
+    "thisCard": "This card",
+    "pokedexCard": "Pokédex",
+    "caption": "Left: the selected card. Right: the one already in your Pokédex."
   }
 }

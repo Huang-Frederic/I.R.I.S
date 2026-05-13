@@ -23,6 +23,10 @@ interface Props {
   hasForSaleSibling: boolean;
   onListForSaleClick: (card: Card) => void;
   onMoveToPokedexClick?: (card: Card) => void;
+  /** Open the side-by-side compare modal when the pokémon's Pokédex slot is
+   *  already filled. Optional — when absent the badge falls back to a passive
+   *  indicator. */
+  onComparePokedexClick?: (card: Card) => void;
   onOpenPriceModal?: () => void;
   /** Apply a target count for this group. Caller diffs against group.count and clones / deletes accordingly. */
   onSetCount: (group: CardGroup, target: number) => void;
@@ -35,6 +39,7 @@ export default function StockRow({
   hasForSaleSibling,
   onListForSaleClick,
   onMoveToPokedexClick,
+  onComparePokedexClick,
   onOpenPriceModal,
   onSetCount,
   busy = false,
@@ -116,13 +121,16 @@ export default function StockRow({
                 the badge entirely. */}
             {card.pokemon_number != null && (
               isRegistered ? (
-                <span
-                  className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
+                <button
+                  type="button"
+                  onClick={() => onComparePokedexClick?.(card)}
+                  disabled={!onComparePokedexClick}
                   title={t('badgePokedexTitle')}
+                  className="bg-rarity-r/20 text-rarity-r hover:bg-rarity-r/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors disabled:cursor-default"
                 >
                   <BookmarkCheck className="h-3 w-3" />
                   {t('badgePokedex')}
-                </span>
+                </button>
               ) : (
                 <button
                   type="button"

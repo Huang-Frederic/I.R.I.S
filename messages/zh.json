@@ -775,5 +775,11 @@
     "refreshPriceTitle": "刷新 Cardmarket 价格",
     "refreshPriceAria": "刷新价格",
     "matchedCardAria": "API 匹配的卡片"
+  },
+  "pokedexCompare": {
+    "title": "与图鉴对比",
+    "thisCard": "此卡片",
+    "pokedexCard": "图鉴",
+    "caption": "左：选中的卡片。右：已在图鉴中的卡片。"
   }
 }

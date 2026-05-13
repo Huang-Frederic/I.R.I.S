@@ -10,8 +10,10 @@ import StockFilters, { INITIAL_STOCK_FILTERS, type StockFilterState } from './St
 import StockRow from './StockRow';
 import ExchangeOnConflictModal, { type ExchangeConflictCard } from '@/components/vinted/ExchangeOnConflictModal';
 import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
+import PokedexCompareModal, { type PokedexCompareModalCard } from '@/components/cards/PokedexCompareModal';
 import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
 import { PriceDetailModal } from '@/components/price/PriceDetailModal';
+import { createClient } from '@/lib/supabase/client';
 import { normalizeForSearch } from '@/lib/utils/text-normalize';
 import { translateErrorCode } from '@/lib/utils/translate-error';
 
@@ -53,6 +55,7 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
   const t = useTranslations('stock');
   const tCommon = useTranslations('common');
   const tErrors = useTranslations('errors');
+  const tNav = useTranslations('nav');
   const router = useRouter();
   const [cards, setCards] = useState<Card[]>(initial);
   // Re-sync local state when SSR re-fetches push new props (after a tab nav
@@ -68,7 +71,39 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
     conflictCard: ExchangeConflictCard;
   } | null>(null);
   const [moveToPokedexCard, setMoveToPokedexCard] = useState<Card | null>(null);
+  const [comparePair, setComparePair] = useState<{ current: PokedexCompareModalCard; pokedex: PokedexCompareModalCard } | null>(null);
   const [priceModalCard, setPriceModalCard] = useState<Card | null>(null);
+
+  /**
+   * Lazy-fetch the card currently filling the Pokédex slot for `card`'s
+   * pokemon_number, then open the side-by-side compare modal. We don't
+   * pre-load the slot data into the page query — most rows never get
+   * clicked, so on-demand keeps the SSR payload lean. */
+  const handleCompareClick = async (card: Card) => {
+    if (card.pokemon_number == null) return;
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('cards')
+      .select('card_name, image_url, tcg_image_url, pokemon_number')
+      .eq('status', 'pokedex')
+      .eq('pokemon_number', card.pokemon_number)
+      .maybeSingle();
+    if (error || !data) {
+      // Slot is supposedly filled (registered.has the number) but the row
+      // disappeared between SSR and click — silently no-op.
+      console.warn('[stock] pokedex slot lookup failed', error);
+      return;
+    }
+    setComparePair({
+      current: {
+        card_name: card.card_name,
+        image_url: card.image_url,
+        tcg_image_url: card.tcg_image_url,
+        pokemon_number: card.pokemon_number,
+      },
+      pokedex: data as PokedexCompareModalCard,
+    });
+  };
 
   const groups = useMemo(() => {
     const filtered = cards.filter((c) => {
@@ -186,6 +221,7 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
                 hasForSaleSibling={forSaleKeys.has(stockMatchKey(g.head))}
                 onListForSaleClick={handleListForSale}
                 onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}
+                onComparePokedexClick={() => void handleCompareClick(g.head)}
                 onOpenPriceModal={() => setPriceModalCard(g.head)}
                 onSetCount={handleSetCount}
                 busy={busyKey === g.key}
@@ -231,6 +267,15 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
             open={true}
             onClose={() => setPriceModalCard(null)}
             onCardUpdated={(updated) => setPriceModalCard(updated)}
+          />
+        )}
+
+        {comparePair && (
+          <PokedexCompareModal
+            currentCard={comparePair.current}
+            pokedexCard={comparePair.pokedex}
+            currentLabel={tNav('stock')}
+            onClose={() => setComparePair(null)}
           />
         )}
       </div>

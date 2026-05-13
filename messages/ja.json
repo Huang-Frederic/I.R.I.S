@@ -775,5 +775,11 @@
     "refreshPriceTitle": "Cardmarket 価格を更新",
     "refreshPriceAria": "価格を更新",
     "matchedCardAria": "API による一致カード"
+  },
+  "pokedexCompare": {
+    "title": "ポケモン図鑑と比較",
+    "thisCard": "このカード",
+    "pokedexCard": "ポケモン図鑑",
+    "caption": "左：選択したカード。右：すでに図鑑に登録されているカード。"
   }
 }

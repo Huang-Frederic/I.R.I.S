@@ -29,10 +29,14 @@ interface Props {
   onImageClick?: (card: Card) => void;
   /**
    * Called when the user clicks the "Pas Pokédex" badge — invitation to
-   * promote this card to the Pokédex slot. The badge is non-interactive when
-   * the card is already registered.
+   * promote this card to the Pokédex slot. The badge fires this only when
+   * the slot is empty.
    */
   onMoveToPokedexClick?: (card: Card) => void;
+  /**
+   * Called when the user clicks the "Pokédex" badge of a card whose slot is
+   * already filled — opens a side-by-side compare modal. */
+  onComparePokedexClick?: (card: Card) => void;
   /** When true, show a checkbox on the left and disable Annonce/Vendu buttons. */
   selectionMode?: boolean;
   selected?: boolean;
@@ -48,7 +52,7 @@ interface Props {
 }
 
 export default function VintedRow({
-  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onImageClick, onMoveToPokedexClick, selectionMode, selected, onToggleSelect, stockCount, onSetStockCount, stockBusy,
+  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onImageClick, onMoveToPokedexClick, onComparePokedexClick, selectionMode, selected, onToggleSelect, stockCount, onSetStockCount, stockBusy,
 }: Props) {
   const t = useTranslations('vinted');
   const card = group.head;
@@ -106,13 +110,16 @@ export default function VintedRow({
                 the badge entirely. */}
             {card.pokemon_number != null && (
               isRegistered ? (
-                <span
-                  className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
+                <button
+                  type="button"
+                  onClick={() => onComparePokedexClick?.(card)}
+                  disabled={!onComparePokedexClick}
                   title={t('badgePokedexTitle')}
+                  className="bg-rarity-r/20 text-rarity-r hover:bg-rarity-r/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors disabled:cursor-default"
                 >
                   <BookmarkCheck className="h-3 w-3" />
                   {t('badgePokedex')}
-                </span>
+                </button>
               ) : (
                 <button
                   type="button"

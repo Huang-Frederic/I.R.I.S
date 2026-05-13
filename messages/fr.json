@@ -775,5 +775,11 @@
     "refreshPriceTitle": "Rafraîchir le prix Cardmarket",
     "refreshPriceAria": "Rafraîchir le prix",
     "matchedCardAria": "Carte matchée par l'API"
+  },
+  "pokedexCompare": {
+    "title": "Comparer avec le Pokédex",
+    "thisCard": "Cette carte",
+    "pokedexCard": "Pokédex",
+    "caption": "À gauche : la carte sélectionnée. À droite : celle déjà enregistrée dans ton Pokédex."
   }
 }
