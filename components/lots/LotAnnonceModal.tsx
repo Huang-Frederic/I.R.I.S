@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, Copy, Check, Download, X } from 'lucide-react';
 import type { Lot } from '@/lib/types';
 import { buildLotAnnonce } from '@/lib/utils/lot-template';
@@ -14,6 +15,8 @@ interface Props {
 }
 
 export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPriceSaved }: Props) {
+  const t = useTranslations('lots');
+  const tCommon = useTranslations('common');
   const initial = buildLotAnnonce({
     name: lot.name,
     language: lot.language,
@@ -108,8 +111,8 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
         onClick={(e) => e.stopPropagation()}
       >
         <header className="border-border flex items-center justify-between border-b px-5 py-3">
-          <h2 className="text-base font-semibold">Annonce Vinted (Lot)</h2>
-          <button type="button" onClick={onClose} aria-label="Fermer" className="text-text-muted hover:text-text">
+          <h2 className="text-base font-semibold">{t('annonceModalTitle')}</h2>
+          <button type="button" onClick={onClose} aria-label={tCommon('close')} className="text-text-muted hover:text-text">
             <X className="h-5 w-5" />
           </button>
         </header>
@@ -122,7 +125,7 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={currentImage} alt="" className="max-h-full max-w-full object-contain" />
               ) : (
-                <p className="text-text-faint text-xs">Aucune photo</p>
+                <p className="text-text-faint text-xs">{t('noPhoto')}</p>
               )}
               {lot.photo_urls.length > 1 && (
                 <>
@@ -130,7 +133,7 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
                     type="button"
                     onClick={() => setPhotoIndex((i) => Math.max(0, i - 1))}
                     disabled={photoIndex === 0}
-                    aria-label="Photo précédente"
+                    aria-label={t('photoPrev')}
                     className="bg-surface/80 hover:bg-surface absolute left-2 rounded-full p-1.5 disabled:opacity-30"
                   >
                     <ChevronLeft className="h-5 w-5" />
@@ -139,7 +142,7 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
                     type="button"
                     onClick={() => setPhotoIndex((i) => Math.min(lot.photo_urls.length - 1, i + 1))}
                     disabled={photoIndex === lot.photo_urls.length - 1}
-                    aria-label="Photo suivante"
+                    aria-label={t('photoNext')}
                     className="bg-surface/80 hover:bg-surface absolute right-2 rounded-full p-1.5 disabled:opacity-30"
                   >
                     <ChevronRight className="h-5 w-5" />
@@ -155,7 +158,7 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
                     key={i}
                     type="button"
                     onClick={() => setPhotoIndex(i)}
-                    aria-label={`Aller à la photo ${i + 1}`}
+                    aria-label={t('photoDot', { index: i + 1 })}
                     className={`h-1.5 w-6 rounded-full ${i === photoIndex ? 'bg-text' : 'bg-text-faint'}`}
                   />
                 ))}
@@ -169,7 +172,7 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
               className="bg-surface-2 hover:bg-surface-off border-border w-full rounded border px-3 py-1.5 text-xs disabled:opacity-50"
             >
               <Download className="mr-1 inline h-3.5 w-3.5" />
-              {downloading ? 'Préparation…' : 'Download img (anti-bot)'}
+              {downloading ? t('downloadPreparing') : t('downloadAntiBot')}
             </button>
             {downloadError && <p className="text-red text-xs">{downloadError}</p>}
           </div>
@@ -177,7 +180,7 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
           {/* Title + description + price */}
           <div className="space-y-3">
             <div>
-              <p className="text-text-faint text-xs">Titre ({title.length}/80)</p>
+              <p className="text-text-faint text-xs">{t('titleLabel', { length: title.length })}</p>
               <input
                 type="text"
                 value={title}
@@ -192,12 +195,12 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
                 className="bg-surface-2 hover:bg-surface-off border-border mt-1 inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs"
               >
                 {copiedField === 'title' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copiedField === 'title' ? 'Copié' : 'Copier le titre'}
+                {copiedField === 'title' ? t('copyTitleDone') : t('copyTitle')}
               </button>
             </div>
 
             <div>
-              <p className="text-text-faint text-xs">Description</p>
+              <p className="text-text-faint text-xs">{t('descriptionLabel')}</p>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -210,12 +213,12 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
                 className="bg-surface-2 hover:bg-surface-off border-border mt-1 inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs"
               >
                 {copiedField === 'desc' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copiedField === 'desc' ? 'Copié' : 'Copier la description'}
+                {copiedField === 'desc' ? t('copyTitleDone') : t('copyDescription')}
               </button>
             </div>
 
             <div className="border-border rounded border p-3">
-              <p className="text-text-faint text-xs">Prix de vente</p>
+              <p className="text-text-faint text-xs">{t('salePrice')}</p>
               {editingPrice ? (
                 <input
                   autoFocus
@@ -239,7 +242,7 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
                   type="button"
                   onClick={() => setEditingPrice(true)}
                   className="text-rarity-sr hover:text-rarity-sr/80 mt-1 font-mono font-bold"
-                  title="Cliquer pour modifier"
+                  title={t('editPriceTitle')}
                 >
                   {lot.price !== null ? `${lot.price.toFixed(2)} €` : '—'}
                 </button>

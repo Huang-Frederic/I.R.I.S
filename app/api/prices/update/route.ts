@@ -73,7 +73,11 @@ type CardProcessResult =
        *  + single-card UI surface why we skipped, not just that we did. */
       details?: string;
     }
-  | { kind: 'invalid_for_pricing'; code: 'card_not_eligible' | 'no_catalog_match'; message?: string }
+  | {
+      kind: 'invalid_for_pricing';
+      code: 'variant_kept_manual' | 'missing_identifiers' | 'no_catalog_match';
+      message?: string;
+    }
   | { kind: 'pricing_failed'; reason: string }
   | { kind: 'update_failed'; message: string }
   | { kind: 'unexpected'; message: string };
@@ -146,12 +150,13 @@ async function processCardForPricing(
     // never advances. Same applies to the "Refresh all" loop client-side: a
     // perma-skip card matched by `?since` filter would loop indefinitely.
     await touchCmUpdatedAt(service, card.id);
+    const isVariant = !!(card.variant && card.variant !== 'promo');
     return {
       kind: 'invalid_for_pricing',
-      code: 'card_not_eligible',
-      message: (card.variant && card.variant !== 'promo')
-        ? 'Variants (Pokéball, Master Ball, etc.) gardent leur prix manuel.'
-        : 'Identifiants de set manquants — édite le prix à la main.',
+      code: isVariant ? 'variant_kept_manual' : 'missing_identifiers',
+      message: isVariant
+        ? 'Variants (Poké Ball, Master Ball, etc.) keep their manual price.'
+        : 'Set identifiers are missing — edit the price manually.',
     };
   }
 
@@ -331,10 +336,11 @@ function applyResultToSummary(card: Card, result: CardProcessResult, summary: Up
       summary.skipped += 1;
       return;
     case 'invalid_for_pricing':
-      // The cron only sees `card_not_eligible` (categorize=skip) for variant
-      // / missing-id cards — those are silently skipped, not surfaced as errors.
-      // `no_catalog_match` from backfill is also silent (the row is just not
-      // matchable, the user can manually price it).
+      // The cron only sees `variant_kept_manual` / `missing_identifiers`
+      // (categorize=skip) for variant / missing-id cards — those are silently
+      // skipped, not surfaced as errors. `no_catalog_match` from backfill is
+      // also silent (the row is just not matchable, the user can manually
+      // price it).
       summary.skipped += 1;
       return;
     case 'pricing_failed':

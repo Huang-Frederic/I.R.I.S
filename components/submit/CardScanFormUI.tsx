@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import type { EnrichedCard } from '@/lib/types';
@@ -80,18 +81,20 @@ export function CandidatePicker(props: {
   onSelect: (card: EnrichedCard) => void;
   onDismiss: () => void;
 }) {
+  const t = useTranslations('scanner');
+  const tCommon = useTranslations('common');
   return (
     <Modal
       open={true}
       onClose={props.onDismiss}
-      ariaLabel="Choisir une carte"
+      ariaLabel={t('candidateModalAria')}
       layout="bottom-sheet"
       backdropClass="bg-background/80 backdrop-blur-sm"
       className="bg-surface border-border flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-2xl border sm:rounded-2xl"
     >
       <div className="border-border flex items-center justify-between border-b px-4 py-3">
         <h2 className="text-sm font-semibold">
-          Plusieurs cartes correspondent ({props.candidates.length})
+          {t('candidateModalTitle', { count: props.candidates.length })}
         </h2>
         <button
           type="button"
@@ -122,7 +125,7 @@ export function CandidatePicker(props: {
               </div>
             ) : (
               <div className="bg-surface-2 flex h-40 w-28 items-center justify-center rounded text-xs">
-                Pas d&apos;image
+                {tCommon('noImage')}
               </div>
             )}
             <span className="text-text line-clamp-1 text-xs font-medium">{c.card_name}</span>
@@ -138,7 +141,7 @@ export function CandidatePicker(props: {
           onClick={props.onDismiss}
           className="border-border text-text-muted hover:bg-surface-2 w-full rounded border py-2 text-sm font-medium"
         >
-          Aucune — remplir à la main
+          {t('candidateNoneFallback')}
         </button>
       </div>
     </Modal>

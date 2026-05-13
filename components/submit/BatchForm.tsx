@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Upload, X, Loader2, Camera } from 'lucide-react';
 import { resizeImage } from '@/lib/utils/resize-image';
 import CardScanForm from './CardScanForm';
@@ -26,6 +27,7 @@ interface SaveResult {
 }
 
 export default function BatchForm() {
+  const t = useTranslations('batchScanner');
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>('pick');
   const [photos, setPhotos] = useState<File[]>([]);
@@ -131,16 +133,16 @@ export default function BatchForm() {
     const failed = results.filter((r) => r.status === 'failed').length;
     return (
       <div className="space-y-3">
-        <h3 className="text-base font-semibold">Récap du batch</h3>
+        <h3 className="text-base font-semibold">{t('recapTitle')}</h3>
         <p className="text-sm">
-          {success} carte(s) enregistrée(s) · {skipped} ignorée(s) · {failed} échec(s)
+          {t('recapSummary', { success, skipped, failed })}
         </p>
         <button
           type="button"
           onClick={() => router.push('/vinted')}
           className="bg-red text-bg rounded px-4 py-2 text-sm font-medium"
         >
-          Voir le résultat
+          {t('viewResult')}
         </button>
         <button
           type="button"
@@ -153,7 +155,7 @@ export default function BatchForm() {
           }}
           className="bg-surface-2 ml-2 rounded px-4 py-2 text-sm"
         >
-          Nouveau batch
+          {t('newBatch')}
         </button>
       </div>
     );
@@ -165,7 +167,7 @@ export default function BatchForm() {
     return (
       <div className="space-y-4">
         <p className="text-text-muted text-xs">
-          Carte {currentIndex + 1} / {total} ({item.file.name})
+          {t('currentItem', { index: currentIndex + 1, total, filename: item.file.name })}
         </p>
         <CardScanForm
           key={currentIndex}
@@ -184,7 +186,7 @@ export default function BatchForm() {
     return (
       <div className="text-text-muted flex items-center gap-2">
         <Loader2 className="h-5 w-5 animate-spin" />
-        Analyse en cours… {progress}/{photos.length}
+        {t('analyzing', { progress, total: photos.length })}
       </div>
     );
   }
@@ -199,7 +201,7 @@ export default function BatchForm() {
         disabled={photos.length === 0}
         className="bg-red text-bg w-full rounded px-4 py-2 text-sm font-medium disabled:opacity-50"
       >
-        Analyser {photos.length} photo(s)
+        {t('analyzeButton', { count: photos.length })}
       </button>
     </div>
   );
@@ -208,12 +210,13 @@ export default function BatchForm() {
 function PhotoDropzone({
   photos, onAdd, onRemove,
 }: { photos: File[]; onAdd: (files: FileList | File[]) => void; onRemove: (index: number) => void }) {
+  const t = useTranslations('batchScanner');
   const [dragging, setDragging] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const remaining = MAX_PHOTOS - photos.length;
   return (
     <div>
-      <span className="text-text-muted text-xs">Photos ({photos.length}/{MAX_PHOTOS})</span>
+      <span className="text-text-muted text-xs">{t('photosLabel', { count: photos.length, max: MAX_PHOTOS })}</span>
       <button
         type="button"
         onClick={() => setShowCamera(true)}
@@ -221,7 +224,7 @@ function PhotoDropzone({
         className="bg-red text-bg mt-1 flex w-full items-center justify-center gap-2 rounded px-4 py-2 text-sm font-medium disabled:opacity-50"
       >
         <Camera className="h-4 w-4" aria-hidden />
-        Capturer en chaîne
+        {t('captureChain')}
       </button>
       <label
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -236,7 +239,7 @@ function PhotoDropzone({
         <input type="file" accept="image/*" multiple onChange={(e) => e.target.files && onAdd(e.target.files)} className="hidden" />
         <span className="text-text-muted flex items-center gap-2">
           <Upload className="h-4 w-4" />
-          Drop ou clic pour ajouter (max {MAX_PHOTOS})
+          {t('dropOrClickAdd', { max: MAX_PHOTOS })}
         </span>
       </label>
       {photos.length > 0 && (

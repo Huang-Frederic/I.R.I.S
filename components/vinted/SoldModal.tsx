@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import type { Card, Lot } from '@/lib/types';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 import { displayCardName } from '@/lib/utils/format-name';
+import { translateErrorCode } from '@/lib/utils/translate-error';
 
 export type SoldEntity =
   | { kind: 'card'; card: Card }
@@ -27,6 +29,9 @@ function todayIso(): string {
 }
 
 export default function SoldModal({ entity, onClose, onSold }: Props) {
+  const t = useTranslations('vintedSold');
+  const tCommon = useTranslations('common');
+  const tErrors = useTranslations('errors');
   const [price, setPrice] = useState<string>('');
   const [date, setDate] = useState<string>(todayIso());
   const [submitting, setSubmitting] = useState(false);
@@ -43,7 +48,7 @@ export default function SoldModal({ entity, onClose, onSold }: Props) {
     try {
       const parsedPrice = price.trim() === '' ? null : Number(price.replace(',', '.'));
       if (parsedPrice !== null && (!Number.isFinite(parsedPrice) || parsedPrice < 0)) {
-        throw new Error('Prix invalide');
+        throw new Error(t('errorInvalidPrice'));
       }
       const res = await fetch(endpoint, {
         method: 'PATCH',
@@ -55,7 +60,10 @@ export default function SoldModal({ entity, onClose, onSold }: Props) {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'Erreur serveur');
+      if (!res.ok) {
+        const localized = translateErrorCode(tErrors, json.error);
+        throw new Error(localized ?? json.message ?? t('errorServer'));
+      }
       onSold({
         soldId: targetId,
         kind: entity.kind,
@@ -73,14 +81,14 @@ export default function SoldModal({ entity, onClose, onSold }: Props) {
       <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Marquer comme vendue</h2>
+            <h2 className="text-lg font-semibold">{t('modalTitle')}</h2>
             <p className="text-text-muted mt-1 text-sm">{displayName}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="text-text-muted hover:text-text"
-            aria-label="Fermer"
+            aria-label={tCommon('close')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -88,7 +96,7 @@ export default function SoldModal({ entity, onClose, onSold }: Props) {
 
         <form onSubmit={submit} className="space-y-3">
           <label className="block">
-            <span className="text-text-muted text-xs">Prix de vente (€) — optionnel</span>
+            <span className="text-text-muted text-xs">{t('salePriceLabel')}</span>
             <input
               type="text"
               inputMode="decimal"
@@ -100,7 +108,7 @@ export default function SoldModal({ entity, onClose, onSold }: Props) {
           </label>
 
           <label className="block">
-            <span className="text-text-muted text-xs">Date de vente</span>
+            <span className="text-text-muted text-xs">{t('saleDateLabel')}</span>
             <input
               type="date"
               value={date}
@@ -117,14 +125,14 @@ export default function SoldModal({ entity, onClose, onSold }: Props) {
               onClick={onClose}
               className="bg-surface-2 hover:bg-surface-off border-border rounded border px-4 py-1.5 text-sm"
             >
-              Annuler
+              {tCommon('cancel')}
             </button>
             <button
               type="submit"
               disabled={submitting}
               className="bg-red text-bg rounded px-4 py-1.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
             >
-              {submitting ? 'Enregistrement…' : 'Confirmer la vente'}
+              {submitting ? t('submitting') : t('submit')}
             </button>
           </div>
         </form>

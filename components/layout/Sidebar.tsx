@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { NAV_ITEMS } from './nav-items';
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const t = useTranslations('nav');
 
   return (
     <aside className="bg-surface border-border fixed inset-y-0 left-0 z-30 hidden w-[220px] flex-col border-r md:flex">
@@ -23,8 +25,8 @@ export default function Sidebar() {
         <p className="text-text-faint mt-1 text-xs uppercase tracking-wider">Pokémon TCG</p>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 px-3 pb-4">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+      <nav className="flex flex-1 flex-col gap-1 px-3 pb-4" aria-label={t('ariaLabel')}>
+        {NAV_ITEMS.map(({ href, labelKey, icon: Icon }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
           return (
             <Link
@@ -39,7 +41,7 @@ export default function Sidebar() {
               }`}
             >
               <Icon className="h-4 w-4" aria-hidden />
-              <span>{label}</span>
+              <span>{t(labelKey)}</span>
             </Link>
           );
         })}

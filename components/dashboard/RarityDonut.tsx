@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { RARITY_COLOR_HEX } from '@/lib/utils/labels';
 import type { CardRarity } from '@/lib/types';
 
@@ -37,6 +38,7 @@ type Mode = 'count' | 'value';
 
 export default function RarityDonut({ counts, values }: Props) {
   const router = useRouter();
+  const t = useTranslations('dashboard');
   const [mode, setMode] = useState<Mode>('count');
   const [mounted, setMounted] = useState(false);
   // Recharts SSR/hydration mismatch workaround — see CostBarChart for rationale.
@@ -47,9 +49,9 @@ export default function RarityDonut({ counts, values }: Props) {
     return (
       <div className="bg-surface border-border rounded-lg border p-4">
         <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-          Répartition rareté
+          {t('rarityDonutTitle')}
         </h3>
-        <p className="text-text-faint text-sm">Pas encore de cartes.</p>
+        <p className="text-text-faint text-sm">{t('rarityDonutEmpty')}</p>
       </div>
     );
   }
@@ -62,7 +64,7 @@ export default function RarityDonut({ counts, values }: Props) {
     <div className="bg-surface border-border rounded-lg border p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-text-muted text-xs font-semibold uppercase tracking-wide">
-          Répartition rareté
+          {t('rarityDonutTitle')}
         </h3>
         <div className="bg-surface-2 inline-flex rounded-md p-0.5">
           {(['count', 'value'] as Mode[]).map((m) => (
@@ -74,7 +76,7 @@ export default function RarityDonut({ counts, values }: Props) {
                 mode === m ? 'bg-surface text-text shadow-sm' : 'text-text-muted hover:text-text'
               }`}
             >
-              {m === 'count' ? 'Compte' : 'Valeur'}
+              {m === 'count' ? t('rarityModeCount') : t('rarityModeValue')}
             </button>
           ))}
         </div>
@@ -99,7 +101,7 @@ export default function RarityDonut({ counts, values }: Props) {
               <Tooltip
                 formatter={(v: number, name: string) =>
                   mode === 'count'
-                    ? [`${v} cartes`, name]
+                    ? [t('rarityTooltipCards', { count: v }), name]
                     : [`€${v.toFixed(2)}`, name]
                 }
                 contentStyle={TOOLTIP_CONTENT_STYLE}

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { BookmarkCheck, Bookmark, Tag } from 'lucide-react';
 import type { Card, BaseListing } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
@@ -49,6 +50,7 @@ interface Props {
 export default function VintedRow({
   group, isRegistered, priceCell, onAnnonceClick, onSoldClick, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onImageClick, onMoveToPokedexClick, selectionMode, selected, onToggleSelect, stockCount, onSetStockCount, stockBusy,
 }: Props) {
+  const t = useTranslations('vinted');
   const card = group.head;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
 
@@ -61,7 +63,7 @@ export default function VintedRow({
             checked={!!selected}
             onChange={onToggleSelect}
             onClick={(e) => e.stopPropagation()}
-            aria-label={selected ? 'Désélectionner' : 'Sélectionner'}
+            aria-label={selected ? t('deselectAria') : t('selectAria')}
             className="accent-red h-5 w-5 shrink-0 cursor-pointer"
           />
         )}
@@ -69,7 +71,7 @@ export default function VintedRow({
           type="button"
           onClick={() => onImageClick?.(card)}
           className="hover:ring-red shrink-0 rounded transition-shadow hover:ring-2"
-          aria-label={`Voir ${displayCardName(card)} en grand`}
+          aria-label={t('rowZoomAria', { name: displayCardName(card) })}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -106,21 +108,21 @@ export default function VintedRow({
               isRegistered ? (
                 <span
                   className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
-                  title="Cette carte est dans ton Pokédex"
+                  title={t('badgePokedexTitle')}
                 >
                   <BookmarkCheck className="h-3 w-3" />
-                  Pokédex
+                  {t('badgePokedex')}
                 </span>
               ) : (
                 <button
                   type="button"
                   onClick={() => onMoveToPokedexClick?.(card)}
                   disabled={!onMoveToPokedexClick}
-                  title="Ajouter cette carte au Pokédex"
+                  title={t('badgeNotPokedexTitle')}
                   className="bg-rarity-ar/20 text-rarity-ar hover:bg-rarity-ar/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors disabled:cursor-default"
                 >
                   <Bookmark className="h-3 w-3" />
-                  Pas Pokédex
+                  {t('badgeNotPokedex')}
                 </button>
               )
             )}
@@ -160,7 +162,7 @@ export default function VintedRow({
           className="bg-surface-2 hover:bg-surface-off border-border shrink-0 rounded border px-3 py-1.5 text-xs disabled:opacity-40"
         >
           <Tag className="mr-1 inline h-3.5 w-3.5" />
-          Annonce
+          {t('rowAnnonceButton')}
         </button>
 
         {/* Hide the Vendu button when the card is already sold — only the
@@ -173,7 +175,7 @@ export default function VintedRow({
             disabled={selectionMode}
             className="bg-red text-bg shrink-0 rounded px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-40"
           >
-            Vendu
+            {t('rowSoldButton')}
           </button>
         )}
       </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import type { Card } from '@/lib/types';
 import { useUserContext } from '@/lib/hooks/useUserContext';
 import { badgeClassesForColor, colorForUserName } from '@/lib/utils/user-colors';
@@ -25,11 +26,12 @@ interface Props {
 }
 
 export default function SoldRow({ card, onAnnonceClick }: Props) {
+  const t = useTranslations('vinted');
   const { myUserId, partnerName } = useUserContext();
   const soldBySelf = card.sold_by_user_id === myUserId;
   // From my POV the seller label is always 'Moi' or the partner's name.
   // Color: default for self, identity color for the partner.
-  const sellerLabel = soldBySelf ? 'Moi' : (card.sold_by_user_id ? partnerName : null);
+  const sellerLabel = soldBySelf ? t('sellerSelf') : (card.sold_by_user_id ? partnerName : null);
   const sellerColor = soldBySelf ? 'neutral' : colorForUserName(partnerName);
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
   return (
@@ -38,7 +40,7 @@ export default function SoldRow({ card, onAnnonceClick }: Props) {
         type="button"
         onClick={() => onAnnonceClick(card)}
         className="hover:ring-red shrink-0 rounded transition-shadow hover:ring-2"
-        aria-label={`Voir l'annonce ${displayCardName(card)}`}
+        aria-label={t('soldRowAnnonceAria', { name: displayCardName(card) })}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -70,13 +72,13 @@ export default function SoldRow({ card, onAnnonceClick }: Props) {
           <span>·</span>
           <span>{card.condition}</span>
           <span>·</span>
-          <span className="text-text-faint" suppressHydrationWarning>vendu {formatDate(card.date_sold)}</span>
+          <span className="text-text-faint" suppressHydrationWarning>{t('soldRowDate', { date: formatDate(card.date_sold) })}</span>
         </div>
       </div>
 
       <div className="flex shrink-0 flex-col items-end gap-1">
         {sellerLabel && (
-          <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClassesForColor(sellerColor)}`} title={`Vendu par ${sellerLabel}`}>
+          <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClassesForColor(sellerColor)}`} title={t('soldRowSoldByTitle', { name: sellerLabel })}>
             {sellerLabel}
           </span>
         )}

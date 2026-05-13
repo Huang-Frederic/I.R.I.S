@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useSyncExternalStore, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import type { Card, CardRarity } from '@/lib/types';
 import { GENERATIONS } from '@/lib/utils/pokemon-generations';
@@ -54,6 +55,7 @@ function subscribeViewMode(callback: () => void): () => void {
 }
 
 export default function PokedexGrid({ cards }: PokedexGridProps) {
+  const t = useTranslations('pokedex');
   const searchParams = useSearchParams();
 
   // Parse URL parameters once on mount
@@ -148,7 +150,7 @@ export default function PokedexGrid({ cards }: PokedexGridProps) {
 
       {visibleNumbers.length === 0 ? (
         <p className="text-text-muted bg-surface border-border rounded-lg border p-6 text-center text-sm">
-          Aucun Pokémon ne correspond aux filtres.
+          {t('emptyFiltered')}
         </p>
       ) : (
         <div className={`${gridClasses} transition-all duration-200`}>

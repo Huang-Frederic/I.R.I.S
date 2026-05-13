@@ -14,6 +14,7 @@ Here's everything I.R.I.S does, organized by module. The code map lives in [ARCH
 - [📊 Dashboard](#-dashboard)
 - [👥 Multi-user collaboration](#-multi-user-collaboration)
 - [🔄 Backups](#-backups)
+- [🌍 Internationalization](#-internationalization)
 - [📱 PWA installation](#-pwa-installation)
 - [⚙️ Options](#%EF%B8%8F-options)
 
@@ -247,6 +248,16 @@ Options page, **Sauvegarde manuelle** button. Endpoint `POST /api/backup/manual`
 ### Catalog snapshots
 
 `npm run snapshot-catalog` writes the `tcg_catalog` table to `backups/`. `npm run restore-catalog` restores from a snapshot. Used before re-scraping.
+
+---
+
+## 🌍 Internationalization
+
+The UI ships in 4 languages: English (default), French, Japanese, Simplified Chinese. Translations live in `messages/{en,fr,ja,zh}.json` (628 keys nested by feature) and are loaded server-side via [next-intl](https://next-intl.dev). The active locale is stored in a `lang` cookie (1-year max-age) — first visit picks the best match from `Accept-Language`, the language toggle in Options overrides on click. URLs stay locale-agnostic (no `/en/...` prefix).
+
+API error responses follow a code-based contract: `{ error: 'snake_case_code', message: 'EN fallback' }`. The client looks up `t(\`errors.\${code}\`)` with the server message as fallback — codes are stable across versions, translations evolve per-locale.
+
+Cardmarket / TCGdex set names and Pokémon card OCR strings stay in their printed language by design (this is data, not UI). Date and number formatters keep `fr-FR` numeric formatting (`12/05/26`, `12,50 €`) since those are unambiguous enough across locales for a personal app — i18n covers UI labels, action buttons, modal text, and error messages.
 
 ---
 

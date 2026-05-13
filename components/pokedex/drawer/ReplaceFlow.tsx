@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { X, Sparkles, Package, Tag } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import { RARITY_COLOR } from '@/lib/utils/labels';
 import { displayCardName } from '@/lib/utils/format-name';
+import { translateErrorCode } from '@/lib/utils/translate-error';
 import Modal from '@/components/ui/Modal';
 
 /** Candidate picker + 2-step swap confirmation flow. The replace RPC is
@@ -21,6 +23,9 @@ export default function ReplaceFlow({
   candidates: Card[];
   onCancel: () => void;
 }) {
+  const t = useTranslations('pokedex');
+  const tCommon = useTranslations('common');
+  const tErrors = useTranslations('errors');
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,13 +50,14 @@ export default function ReplaceFlow({
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-        throw new Error(body.message ?? body.error ?? `Échec (${res.status})`);
+        const localized = translateErrorCode(tErrors, body.error);
+        throw new Error(localized ?? body.message ?? t('replaceFailed', { status: res.status }));
       }
       router.refresh();
       setConfirmCandidate(null);
       onCancel();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue');
+      setError(err instanceof Error ? err.message : tCommon('errorUnknown'));
     } finally {
       setPending(null);
     }
@@ -60,13 +66,13 @@ export default function ReplaceFlow({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <p className="text-text-muted text-xs">Choisir la carte à promouvoir :</p>
+        <p className="text-text-muted text-xs">{t('replaceChoosePrompt')}</p>
         <button
           type="button"
           onClick={onCancel}
           className="text-text-muted hover:text-text text-xs underline"
         >
-          Annuler
+          {tCommon('cancel')}
         </button>
       </div>
       {candidates.map((c) => (
@@ -84,7 +90,7 @@ export default function ReplaceFlow({
             </p>
             <p className="text-text-faint truncate font-mono text-xs">
               {c.set_code ?? '—'} {c.set_number ?? ''} ·{' '}
-              {c.status === 'for_sale' ? 'Vinted' : 'Stock'}
+              {c.status === 'for_sale' ? t('candidateLocationVinted') : t('candidateLocationStock')}
             </p>
           </div>
           {pending === c.id && (
@@ -126,20 +132,27 @@ function ReplaceConfirm({
   onConfirm: (displaceTo: 'collection' | 'for_sale') => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations('pokedex');
+  const tCommon = useTranslations('common');
   return (
     <Modal
       open={true}
       onClose={onCancel}
-      ariaLabel="Échanger les exemplaires"
+      ariaLabel={t('replaceConfirmAria')}
       closeOnBackdrop={!submitting}
       closeOnEscape={!submitting}
       className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl"
     >
       <div className="mb-3 flex items-start justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Échanger les exemplaires&nbsp;?</h2>
+          <h2 className="text-lg font-semibold">{t('replaceConfirmTitle')}</h2>
           <p className="text-text-muted mt-1 text-sm">
-            <strong>{displayCardName(candidate)}</strong> ({candidate.rarity} · {candidate.condition}) prendra la place du Pokédex.
+            {t.rich('replaceConfirmBody', {
+              name: displayCardName(candidate),
+              rarity: candidate.rarity,
+              condition: candidate.condition,
+              strong: (chunks) => <strong>{chunks}</strong>,
+            })}
           </p>
         </div>
         <button
@@ -147,14 +160,14 @@ function ReplaceConfirm({
           onClick={onCancel}
           disabled={submitting}
           className="text-text-muted hover:text-text disabled:opacity-50"
-          aria-label="Fermer"
+          aria-label={t('drawerCloseInnerAria')}
         >
           <X className="h-5 w-5" />
         </button>
       </div>
 
       <p className="text-text-muted mb-3 text-xs">
-        Où mettre <strong>l&apos;ancienne carte du Pokédex</strong> ({currentCard.rarity} · {currentCard.condition}) ?
+        {t('replaceConfirmDestPrompt', { rarity: currentCard.rarity, condition: currentCard.condition })}
       </p>
 
       {error && <p className="text-red mb-3 text-xs">{error}</p>}
@@ -166,7 +179,7 @@ function ReplaceConfirm({
           disabled={submitting}
           className="bg-surface-2 hover:bg-surface-off border-border rounded border px-4 py-2 text-sm disabled:opacity-50"
         >
-          Annuler
+          {tCommon('cancel')}
         </button>
         <button
           type="button"
@@ -175,7 +188,7 @@ function ReplaceConfirm({
           className="bg-surface-2 hover:bg-surface-off border-border inline-flex items-center justify-center gap-1.5 rounded border px-4 py-2 text-sm disabled:opacity-50"
         >
           <Package className="h-3.5 w-3.5" />
-          Vers Stock
+          {t('replaceConfirmDestStock')}
         </button>
         <button
           type="button"
@@ -184,7 +197,7 @@ function ReplaceConfirm({
           className="bg-red text-bg inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
         >
           <Tag className="h-3.5 w-3.5" />
-          Vers Vinted
+          {t('replaceConfirmDestVinted')}
         </button>
       </div>
     </Modal>

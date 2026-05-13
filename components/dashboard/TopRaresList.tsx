@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import { RARITY_COLOR } from '@/lib/utils/labels';
 import type { Card } from '@/lib/types';
 import { displayCardName } from '@/lib/utils/format-name';
@@ -15,14 +16,15 @@ function priceOf(c: Props['cards'][number]): number {
   return c.cm_price_avg ?? c.cm_price_trend ?? c.cm_price_low ?? 0;
 }
 
-export default function TopRaresList({ cards }: Props) {
+export default async function TopRaresList({ cards }: Props) {
+  const t = await getTranslations('dashboard');
   if (cards.length === 0) {
     return (
       <div className="bg-surface border-border overflow-hidden rounded-lg border p-4">
         <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-          Top 10 cartes rares
+          {t('topRaresTitle')}
         </h3>
-        <p className="text-text-faint text-sm">Pas encore de cartes avec un prix.</p>
+        <p className="text-text-faint text-sm">{t('topRaresEmpty')}</p>
       </div>
     );
   }
@@ -30,7 +32,7 @@ export default function TopRaresList({ cards }: Props) {
   return (
     <div className="bg-surface border-border overflow-hidden rounded-lg border p-4">
       <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-        Top 10 cartes rares
+        {t('topRaresTitle')}
       </h3>
       <ul className="divide-border divide-y">
         {cards.map((c) => {

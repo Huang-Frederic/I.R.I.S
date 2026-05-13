@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import { getPokemonName } from '@/lib/data/pokemon-names';
@@ -36,6 +37,7 @@ export default function PokedexDrawer({
   pokedexCard,
   availableCards,
 }: PokedexDrawerProps) {
+  const t = useTranslations('pokedex');
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -56,7 +58,7 @@ export default function PokedexDrawer({
     <>
       <button
         type="button"
-        aria-label="Fermer le panneau"
+        aria-label={t('drawerCloseAria')}
         onClick={onClose}
         className="fixed inset-0 z-40 bg-black/50"
       />
@@ -77,7 +79,7 @@ export default function PokedexDrawer({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t('drawerCloseInnerAria')}
             className="hover:bg-surface-2 -mr-1 rounded p-1.5"
           >
             <X className="h-4 w-4" />

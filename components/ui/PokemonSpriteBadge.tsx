@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { HelpCircle } from 'lucide-react';
 
 const POKEAPI_SPRITE_BASE =
@@ -30,6 +31,7 @@ function PokeballIcon({ className }: { className?: string }) {
 }
 
 export default function PokemonSpriteBadge({ pokemonNumber, className }: Props) {
+  const t = useTranslations('ui');
   const [errored, setErrored] = useState(false);
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function PokemonSpriteBadge({ pokemonNumber, className }: Props) 
     return (
       <div
         className={wrapperClass}
-        aria-label="Pas de numéro Pokédex (Trainer ou Énergie)"
+        aria-label={t('spriteNoNumberAria')}
       >
         <PokeballIcon className="text-text-muted h-14 w-14" />
       </div>
@@ -61,7 +63,7 @@ export default function PokemonSpriteBadge({ pokemonNumber, className }: Props) 
     return (
       <div
         className={wrapperClass}
-        aria-label={`Numéro Pokédex invalide: ${pokemonNumber}`}
+        aria-label={t('spriteInvalidAria', { number: pokemonNumber })}
       >
         <HelpCircle className="h-14 w-14 text-red-500" aria-hidden />
       </div>
@@ -73,7 +75,7 @@ export default function PokemonSpriteBadge({ pokemonNumber, className }: Props) 
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={`${POKEAPI_SPRITE_BASE}/${pokemonNumber}.png`}
-        alt={`Sprite Pokémon n°${pokemonNumber}`}
+        alt={t('spritePokemonAria', { number: pokemonNumber })}
         onError={() => setErrored(true)}
         className="h-20 w-20"
         style={{ imageRendering: 'pixelated' }}

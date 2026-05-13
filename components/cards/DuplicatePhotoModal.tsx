@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import { displayCardName, displaySetName } from '@/lib/utils/format-name';
 
@@ -37,6 +38,8 @@ export default function DuplicatePhotoModal({
   onConfirm,
   onCancel,
 }: Props) {
+  const t = useTranslations('modals');
+  const tCommon = useTranslations('common');
   const previewUrl = useMemo(() => URL.createObjectURL(newPhoto), [newPhoto]);
   useEffect(() => () => URL.revokeObjectURL(previewUrl), [previewUrl]);
 
@@ -61,20 +64,20 @@ export default function DuplicatePhotoModal({
       <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-lg border border-border bg-surface p-5">
         <div className="flex items-start justify-between">
           <h3 className="text-lg font-semibold text-text">
-            Cette carte possède déjà une illustration
+            {t('duplicatePhotoTitle')}
           </h3>
           <button
             type="button"
             onClick={onCancel}
             disabled={busy}
-            aria-label="Fermer"
+            aria-label={tCommon('close')}
             className="text-text-muted hover:text-text disabled:opacity-60"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
         <p className="mt-2 text-sm text-text-muted">
-          Quelle photo veux-tu garder pour cette carte ?
+          {t('duplicatePhotoQuestion')}
         </p>
 
         {/* Card identity reminder */}
@@ -98,9 +101,9 @@ export default function DuplicatePhotoModal({
             }`}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previewUrl} alt="Nouvelle scan" className="h-40 w-auto rounded object-contain" />
+            <img src={previewUrl} alt={t('duplicatePhotoNew')} className="h-40 w-auto rounded object-contain" />
             <span className={`text-xs font-medium ${selected === 'new' ? 'text-red' : 'text-text-muted'}`}>
-              Nouvelle scan
+              {t('duplicatePhotoNew')}
             </span>
           </button>
           <button
@@ -113,9 +116,9 @@ export default function DuplicatePhotoModal({
             }`}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={existingImageSrc} alt="Photo actuelle" className="h-40 w-auto rounded object-contain" />
+            <img src={existingImageSrc} alt={t('duplicatePhotoExisting')} className="h-40 w-auto rounded object-contain" />
             <span className={`text-xs font-medium ${selected === 'existing' ? 'text-red' : 'text-text-muted'}`}>
-              Photo actuelle
+              {t('duplicatePhotoExisting')}
             </span>
           </button>
         </div>
@@ -127,7 +130,7 @@ export default function DuplicatePhotoModal({
             disabled={busy}
             className="rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-surface-2 disabled:opacity-60"
           >
-            Annuler
+            {tCommon('cancel')}
           </button>
           <button
             type="button"
@@ -135,7 +138,7 @@ export default function DuplicatePhotoModal({
             disabled={busy}
             className="rounded-md bg-red px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
           >
-            {busy ? '…' : 'Confirmer'}
+            {busy ? '…' : tCommon('confirm')}
           </button>
         </div>
       </div>

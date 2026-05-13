@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import type { Card, Lot } from '@/lib/types';
 import { splitPrice } from '@/lib/utils/split-bulk-price';
@@ -36,14 +37,17 @@ function displayName(item: BulkSoldItem): string {
   return item.kind === 'card' ? displayCardName(item.card) : item.lot.name;
 }
 
-function displaySubText(item: BulkSoldItem): string {
+function displaySubText(item: BulkSoldItem, lotLabel: string): string {
   if (item.kind === 'card') {
     return `${item.card.language} · ${item.card.condition}`;
   }
-  return `Lot${item.lot.language ? ' · ' + item.lot.language : ''}${item.lot.condition ? ' · ' + item.lot.condition : ''}`;
+  return `${lotLabel}${item.lot.language ? ' · ' + item.lot.language : ''}${item.lot.condition ? ' · ' + item.lot.condition : ''}`;
 }
 
 export default function BulkSoldModal({ items, onClose, onConfirm }: Props) {
+  const t = useTranslations('vintedSold');
+  const tCommon = useTranslations('common');
+  const tLots = useTranslations('lots');
   const [priceStr, setPriceStr] = useState('');
   const [date, setDate] = useState(todayIso());
   const [submitting, setSubmitting] = useState(false);
@@ -79,14 +83,14 @@ export default function BulkSoldModal({ items, onClose, onConfirm }: Props) {
       <div className="bg-surface border-border w-full max-w-lg rounded-lg border p-6 shadow-xl">
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Vente groupée</h2>
-            <p className="text-text-muted mt-1 text-sm">{items.length} items à marquer comme vendus</p>
+            <h2 className="text-lg font-semibold">{t('bulkTitle')}</h2>
+            <p className="text-text-muted mt-1 text-sm">{t('bulkSubtitle', { count: items.length })}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="text-text-muted hover:text-text"
-            aria-label="Fermer"
+            aria-label={tCommon('close')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -105,10 +109,10 @@ export default function BulkSoldModal({ items, onClose, onConfirm }: Props) {
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">
-                    {item.kind === 'lot' && <span className="bg-rarity-chr/20 text-rarity-chr mr-1.5 rounded px-1 py-0.5 text-[10px]">Lot</span>}
+                    {item.kind === 'lot' && <span className="bg-rarity-chr/20 text-rarity-chr mr-1.5 rounded px-1 py-0.5 text-[10px]">{tLots('lotBadge')}</span>}
                     {displayName(item)}
                   </p>
-                  <p className="text-text-muted text-xs">{displaySubText(item)}</p>
+                  <p className="text-text-muted text-xs">{displaySubText(item, tLots('lotBadge'))}</p>
                 </div>
                 {perItem && (
                   <p className="text-rarity-sr shrink-0 font-mono text-xs">
@@ -122,7 +126,7 @@ export default function BulkSoldModal({ items, onClose, onConfirm }: Props) {
 
         <form onSubmit={submit} className="space-y-3">
           <label className="block">
-            <span className="text-text-muted text-xs">Prix total reçu (€)</span>
+            <span className="text-text-muted text-xs">{t('bulkPriceLabel')}</span>
             <input
               type="text"
               inputMode="decimal"
@@ -135,7 +139,7 @@ export default function BulkSoldModal({ items, onClose, onConfirm }: Props) {
           </label>
 
           <label className="block">
-            <span className="text-text-muted text-xs">Date de vente</span>
+            <span className="text-text-muted text-xs">{t('saleDateLabel')}</span>
             <input
               type="date"
               value={date}
@@ -146,9 +150,13 @@ export default function BulkSoldModal({ items, onClose, onConfirm }: Props) {
 
           {perItem && totalPrice > 0 && (
             <p className="text-text-muted text-xs">
-              Réparti : {perItem.length === 1
-                ? `${perItem[0].toFixed(2)} €`
-                : `${perItem[0].toFixed(2)} € × ${perItem.length - 1} + ${perItem[perItem.length - 1].toFixed(2)} € (dernier)`}
+              {perItem.length === 1
+                ? t('bulkSplitSingle', { value: perItem[0].toFixed(2) })
+                : t('bulkSplitMulti', {
+                    firstValue: perItem[0].toFixed(2),
+                    firstCount: perItem.length - 1,
+                    lastValue: perItem[perItem.length - 1].toFixed(2),
+                  })}
             </p>
           )}
 
@@ -160,14 +168,14 @@ export default function BulkSoldModal({ items, onClose, onConfirm }: Props) {
               onClick={onClose}
               className="bg-surface-2 hover:bg-surface-off border-border rounded border px-4 py-1.5 text-sm"
             >
-              Annuler
+              {tCommon('cancel')}
             </button>
             <button
               type="submit"
               disabled={!valid || submitting}
               className="bg-red text-bg rounded px-4 py-1.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
             >
-              {submitting ? 'Enregistrement…' : 'Confirmer la vente'}
+              {submitting ? t('submitting') : t('submit')}
             </button>
           </div>
         </form>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 
@@ -17,6 +18,7 @@ interface Props {
 export default function ConfirmDialog({
   title, body, confirmLabel, confirmTone = 'default', onConfirm, onCancel, busy = false,
 }: Props) {
+  const tCommon = useTranslations('common');
   const confirmClass = confirmTone === 'danger'
     ? 'bg-red text-bg hover:opacity-90'
     : 'bg-rarity-r/30 text-rarity-r border-rarity-r/50 border hover:bg-rarity-r/40';
@@ -37,7 +39,7 @@ export default function ConfirmDialog({
           onClick={onCancel}
           disabled={busy}
           className="text-text-muted hover:text-text disabled:opacity-50"
-          aria-label="Fermer"
+          aria-label={tCommon('close')}
         >
           <X className="h-4 w-4" />
         </button>
@@ -50,7 +52,7 @@ export default function ConfirmDialog({
           disabled={busy}
           className="bg-surface-2 hover:bg-surface-off border-border rounded border px-3 py-1.5 text-xs disabled:opacity-50"
         >
-          Annuler
+          {tCommon('cancel')}
         </button>
         <button
           type="button"
@@ -58,7 +60,7 @@ export default function ConfirmDialog({
           disabled={busy}
           className={`rounded px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${confirmClass}`}
         >
-          {busy ? 'Patientez…' : confirmLabel}
+          {busy ? tCommon('loading') : confirmLabel}
         </button>
       </div>
     </Modal>

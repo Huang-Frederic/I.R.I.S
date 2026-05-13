@@ -234,16 +234,16 @@ export async function POST(request: Request) {
 
       return apiError('for_sale_conflict', {
         status: 409,
-        message: 'Cette carte est déjà en vente sur Vinted.',
+        message: 'This card is already for sale on Vinted.',
         extra: { existingCard },
       });
     }
 
     if (isUniqueViolation) {
       // Conflict on a constraint we can't auto-resolve (e.g., user requested status='collection' and somehow conflicted).
-      return apiError('for_sale_conflict', {
+      return apiError('unique_constraint_conflict', {
         status: 409,
-        message: 'Conflit de contrainte unique non résolvable.',
+        message: 'Unresolvable unique-constraint conflict.',
       });
     }
     console.error('Card insert failed:', error);

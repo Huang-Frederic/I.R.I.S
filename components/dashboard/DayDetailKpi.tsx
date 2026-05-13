@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { DayDetail } from '@/lib/utils/dashboard-queries';
 
 interface Props {
@@ -27,6 +28,7 @@ function formatDate(iso: string): string {
 }
 
 export default function DayDetailKpi({ details, today, maxDaysBack = 168 }: Props) {
+  const t = useTranslations('dashboard');
   const [date, setDate] = useState(today);
   const detail = details[date];
   const minDate = shiftDate(today, -maxDaysBack);
@@ -48,7 +50,7 @@ export default function DayDetailKpi({ details, today, maxDaysBack = 168 }: Prop
           type="button"
           onClick={goBack}
           disabled={!canGoBack}
-          aria-label="Jour précédent"
+          aria-label={t('dayDetailPrev')}
           className="text-text-muted hover:bg-surface-2 hover:text-text rounded-md p-1.5 transition-colors disabled:opacity-30"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -58,17 +60,17 @@ export default function DayDetailKpi({ details, today, maxDaysBack = 168 }: Prop
           type="button"
           onClick={goForward}
           disabled={!canGoForward}
-          aria-label="Jour suivant"
+          aria-label={t('dayDetailNext')}
           className="text-text-muted hover:bg-surface-2 hover:text-text rounded-md p-1.5 transition-colors disabled:opacity-30"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="OCR" value={String(detail?.ocrCount ?? 0)} sub={detail ? `${detail.geminiCount}G · ${detail.visionCount}V` : '—'} />
-        <Stat label="Cartes ajoutées" value={String(detail?.cardsAdded ?? 0)} />
-        <Stat label="Coût" value={detail ? `€${detail.costEur.toFixed(2)}` : '€0.00'} />
-        <Stat label="Tokens" value={detail ? `${(detail.tokensTotal / 1000).toFixed(1)}K` : '0K'} />
+        <Stat label={t('dayDetailOcr')} value={String(detail?.ocrCount ?? 0)} sub={detail ? `${detail.geminiCount}G · ${detail.visionCount}V` : '—'} />
+        <Stat label={t('dayDetailCardsAdded')} value={String(detail?.cardsAdded ?? 0)} />
+        <Stat label={t('dayDetailCost')} value={detail ? `€${detail.costEur.toFixed(2)}` : '€0.00'} />
+        <Stat label={t('dayDetailTokens')} value={detail ? `${(detail.tokensTotal / 1000).toFixed(1)}K` : '0K'} />
       </div>
     </div>
   );

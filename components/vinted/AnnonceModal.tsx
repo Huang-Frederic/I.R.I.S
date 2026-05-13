@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Copy, Download, X, Check } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import { buildTitle, buildDescription, MAX_TITLE_LENGTH, type VintedConfig } from '@/lib/utils/vinted-template';
@@ -28,6 +29,8 @@ function pokeApiSprite(n: number | null): string | null {
 }
 
 export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefreshed }: Props) {
+  const t = useTranslations('vintedAnnonce');
+  const tCommon = useTranslations('common');
   // Dismiss on Escape, lock body scroll while the modal is open. Same pattern
   // as the other modals (CardZoomModal, LotAnnonceModal).
   useEffect(() => {
@@ -103,7 +106,7 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
   const handleDownload = async () => {
     const src = card.image_url ?? card.tcg_image_url;
     if (!src) {
-      setDownloadError('Pas d\'image disponible');
+      setDownloadError(t('downloadNoImage'));
       return;
     }
     setDownloading(true);
@@ -112,7 +115,7 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
       const { blob, filename } = await processImageForVinted(src);
       downloadBlob(blob, filename);
     } catch (err) {
-      setDownloadError(err instanceof Error ? err.message : 'Erreur de téléchargement');
+      setDownloadError(err instanceof Error ? err.message : t('downloadGenericError'));
     } finally {
       setDownloading(false);
     }
@@ -128,9 +131,9 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
 
   // PiP layout: main = the one chosen, thumb = the other
   const pipMainSrc = pipMain === 'mine' ? myPhoto : tcgPhoto;
-  const pipMainAlt = pipMain === 'mine' ? 'Ma photo' : 'Image TCG';
+  const pipMainAlt = pipMain === 'mine' ? t('myPhoto') : t('tcgImage');
   const pipThumbSrc = pipMain === 'mine' ? tcgPhoto : myPhoto;
-  const pipThumbAlt = pipMain === 'mine' ? 'Image TCG' : 'Ma photo';
+  const pipThumbAlt = pipMain === 'mine' ? t('tcgImage') : t('myPhoto');
 
   return (
     <div
@@ -142,12 +145,12 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
         onClick={(e) => e.stopPropagation()}
       >
         <div className="border-border flex items-center justify-between border-b px-5 py-3">
-          <h2 className="text-base font-semibold">Annonce Vinted</h2>
+          <h2 className="text-base font-semibold">{t('modalTitle')}</h2>
           <button
             type="button"
             onClick={onClose}
             className="text-text-muted hover:text-text"
-            aria-label="Fermer"
+            aria-label={tCommon('close')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -169,8 +172,8 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
                   type="button"
                   onClick={() => setPipMain((prev) => (prev === 'mine' ? 'tcg' : 'mine'))}
                   className="bg-surface border-border absolute bottom-2 right-2 h-[112px] w-[80px] overflow-hidden rounded border-2 shadow-lg transition-transform hover:scale-105"
-                  aria-label={`Inverser : voir ${pipMain === 'mine' ? 'image TCG' : 'ma photo'} en grand`}
-                  title="Cliquer pour inverser"
+                  aria-label={t('pipSwapAria', { target: pipMain === 'mine' ? t('tcgImage') : t('myPhoto') })}
+                  title={t('pipSwapTitle')}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={pipThumbSrc} alt={pipThumbAlt} className="h-full w-full object-cover" />
@@ -181,12 +184,12 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
             {/* Desktop: 2 side by side */}
             <div className="hidden gap-4 md:grid md:grid-cols-2">
               <div className="flex flex-col items-center gap-1">
-                <span className="text-text-muted text-xs uppercase tracking-wide">Ma photo</span>
-                <MagnifierLoupe src={myPhoto} alt="Ma photo" className="border-border max-w-[280px] border" />
+                <span className="text-text-muted text-xs uppercase tracking-wide">{t('myPhoto')}</span>
+                <MagnifierLoupe src={myPhoto} alt={t('myPhoto')} className="border-border max-w-[280px] border" />
               </div>
               <div className="flex flex-col items-center gap-1">
-                <span className="text-text-muted text-xs uppercase tracking-wide">Image TCG</span>
-                <MagnifierLoupe src={tcgPhoto} alt="Image TCG" className="border-border max-w-[280px] border" />
+                <span className="text-text-muted text-xs uppercase tracking-wide">{t('tcgImage')}</span>
+                <MagnifierLoupe src={tcgPhoto} alt={t('tcgImage')} className="border-border max-w-[280px] border" />
               </div>
             </div>
 
@@ -199,7 +202,7 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
                 className="bg-surface-2 hover:bg-surface-off border-border inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs disabled:opacity-50"
               >
                 <Download className="h-3.5 w-3.5" />
-                {downloading ? 'Préparation…' : 'Download img'}
+                {downloading ? t('downloadPreparing') : t('downloadButton')}
               </button>
               {downloadError && <p className="text-red text-xs">{downloadError}</p>}
             </div>
@@ -209,7 +212,7 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
           <div className="space-y-4">
             <div>
               <label className="text-text-muted flex items-center justify-between text-xs">
-                <span>Titre</span>
+                <span>{t('titleLabel')}</span>
                 <span className={`font-mono ${titleOver ? 'text-red' : ''}`}>
                   {title.length}/{MAX_TITLE_LENGTH}
                 </span>
@@ -226,12 +229,12 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
                 className="bg-surface-2 hover:bg-surface-off border-border mt-1 inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs"
               >
                 {copiedField === 'title' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copiedField === 'title' ? 'Copié' : 'Copier le titre'}
+                {copiedField === 'title' ? t('copyDone') : t('copyTitle')}
               </button>
             </div>
 
             <div>
-              <label className="text-text-muted text-xs">Description</label>
+              <label className="text-text-muted text-xs">{t('descriptionLabel')}</label>
               <textarea
                 rows={11}
                 value={description}
@@ -244,18 +247,18 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
                 className="bg-surface-2 hover:bg-surface-off border-border mt-1 inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs"
               >
                 {copiedField === 'desc' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copiedField === 'desc' ? 'Copié' : 'Copier la description'}
+                {copiedField === 'desc' ? t('copyDone') : t('copyDescription')}
               </button>
             </div>
 
             {/* Price grid: Annonce (suggested_price) is editable inline.
                 5th cell (when refresh wired) = freshness badge on top + refresh button below. */}
             <div className={`border-border grid ${onCardRefreshed ? 'grid-cols-5' : 'grid-cols-4'} gap-2 rounded border p-3 text-center text-xs`}>
-              <PriceCell label="Low" value={card.cm_price_low} />
-              <PriceCell label="Trend" value={card.cm_price_trend} />
-              <PriceCell label="Avg" value={card.cm_price_avg} />
+              <PriceCell label={t('priceLow')} value={card.cm_price_low} />
+              <PriceCell label={t('priceTrend')} value={card.cm_price_trend} />
+              <PriceCell label={t('priceAvg')} value={card.cm_price_avg} />
               <div>
-                <p className="text-text-faint">Annonce</p>
+                <p className="text-text-faint">{t('priceListing')}</p>
                 {editingSuggested ? (
                   <input
                     autoFocus
@@ -279,7 +282,7 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
                     type="button"
                     onClick={() => setEditingSuggested(true)}
                     className="text-rarity-sr hover:text-rarity-sr/80 font-mono font-bold"
-                    title="Cliquer pour modifier"
+                    title={t('editPriceTitle')}
                   >
                     {card.suggested_price !== null ? `${card.suggested_price.toFixed(2)}` : '—'}
                   </button>

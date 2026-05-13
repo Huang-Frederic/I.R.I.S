@@ -2,15 +2,16 @@ import { ScanLine, BookOpen, Package, Tag, Settings, BarChart3, type LucideIcon 
 
 export interface NavItem {
   href: string;
-  label: string;
+  /** Translation key under the `nav` namespace (e.g. 'dashboard'). */
+  labelKey: 'dashboard' | 'scanner' | 'pokedex' | 'stock' | 'vinted' | 'options';
   icon: LucideIcon;
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
-  { href: '/submit', label: 'Scanner', icon: ScanLine },
-  { href: '/pokedex', label: 'Pokédex', icon: BookOpen },
-  { href: '/stock', label: 'Stock', icon: Package },
-  { href: '/vinted', label: 'Vinted', icon: Tag },
-  { href: '/options', label: 'Options', icon: Settings },
+  { href: '/dashboard', labelKey: 'dashboard', icon: BarChart3 },
+  { href: '/submit', labelKey: 'scanner', icon: ScanLine },
+  { href: '/pokedex', labelKey: 'pokedex', icon: BookOpen },
+  { href: '/stock', labelKey: 'stock', icon: Package },
+  { href: '/vinted', labelKey: 'vinted', icon: Tag },
+  { href: '/options', labelKey: 'options', icon: Settings },
 ];

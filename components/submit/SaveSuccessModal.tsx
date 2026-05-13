@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { CheckCircle2 } from 'lucide-react';
 
 interface Props {
@@ -24,10 +25,13 @@ interface Props {
  * presentational.
  */
 export default function SaveSuccessModal({ counts, imageUrl, onClose }: Props) {
-  const lines: string[] = [];
-  if (counts.for_sale > 0) lines.push(`${counts.for_sale} sur Vinted`);
-  if (counts.pokedex > 0) lines.push(`${counts.pokedex} dans le Pokédex`);
-  if (counts.collection > 0) lines.push(`${counts.collection} en Stock`);
+  const t = useTranslations('modals');
+  const tCommon = useTranslations('common');
+
+  const lines: { key: string; text: string }[] = [];
+  if (counts.for_sale > 0) lines.push({ key: 'for_sale', text: t('saveSuccessLineForSale', { count: counts.for_sale }) });
+  if (counts.pokedex > 0) lines.push({ key: 'pokedex', text: t('saveSuccessLinePokedex', { count: counts.pokedex }) });
+  if (counts.collection > 0) lines.push({ key: 'collection', text: t('saveSuccessLineCollection', { count: counts.collection }) });
 
   const total = counts.for_sale + counts.pokedex + counts.collection;
 
@@ -40,17 +44,17 @@ export default function SaveSuccessModal({ counts, imageUrl, onClose }: Props) {
           </div>
           <div>
             <h2 className="text-lg font-semibold">
-              {total > 1 ? `${total} exemplaires enregistrés` : 'Carte enregistrée'}
+              {total > 1 ? t('saveSuccessMulti', { count: total }) : t('saveSuccessSingle')}
             </h2>
-            <p className="text-text-muted mt-1 text-sm">Voici la répartition.</p>
+            <p className="text-text-muted mt-1 text-sm">{t('saveSuccessSubtitle')}</p>
           </div>
         </div>
 
         <ul className="mb-4 space-y-1.5">
           {lines.map((line) => (
-            <li key={line} className="bg-surface-2 rounded px-3 py-2 text-sm">
+            <li key={line.key} className="bg-surface-2 rounded px-3 py-2 text-sm">
               <CheckCircle2 className="text-rarity-r mr-2 inline h-3.5 w-3.5" />
-              {line}
+              {line.text}
             </li>
           ))}
         </ul>
@@ -60,7 +64,7 @@ export default function SaveSuccessModal({ counts, imageUrl, onClose }: Props) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={imageUrl}
-              alt="Carte enregistrée"
+              alt={t('saveSuccessAlt')}
               className="bg-surface-off h-[180px] w-[130px] rounded object-cover shadow"
             />
           </div>
@@ -72,7 +76,7 @@ export default function SaveSuccessModal({ counts, imageUrl, onClose }: Props) {
             onClick={onClose}
             className="bg-red text-bg rounded px-4 py-1.5 text-sm font-medium hover:opacity-90"
           >
-            OK
+            {tCommon('ok')}
           </button>
         </div>
       </div>

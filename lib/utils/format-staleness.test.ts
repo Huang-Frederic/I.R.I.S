@@ -9,7 +9,7 @@ describe('formatStaleness', () => {
   it('returns "never" when cm_updated_at is null', () => {
     expect(formatStaleness(null, NOW)).toEqual({
       tone: 'never',
-      label: 'Jamais maj',
+      key: 'never',
       daysSince: null,
     });
   });
@@ -17,7 +17,7 @@ describe('formatStaleness', () => {
   it('returns "fresh" when updated less than 24h ago', () => {
     expect(formatStaleness(isoDaysAgo(0), NOW)).toEqual({
       tone: 'fresh',
-      label: '<1j',
+      key: 'fresh',
       daysSince: 0,
     });
   });
@@ -25,7 +25,7 @@ describe('formatStaleness', () => {
   it('returns "stale" at exactly 1 day ago (boundary)', () => {
     expect(formatStaleness(isoDaysAgo(1), NOW)).toEqual({
       tone: 'stale',
-      label: 'Maj il y a 1j',
+      key: 'stale',
       daysSince: 1,
     });
   });
@@ -33,12 +33,12 @@ describe('formatStaleness', () => {
   it('returns "stale" between 1 and 7 days', () => {
     expect(formatStaleness(isoDaysAgo(3), NOW)).toEqual({
       tone: 'stale',
-      label: 'Maj il y a 3j',
+      key: 'stale',
       daysSince: 3,
     });
     expect(formatStaleness(isoDaysAgo(7), NOW)).toEqual({
       tone: 'stale',
-      label: 'Maj il y a 7j',
+      key: 'stale',
       daysSince: 7,
     });
   });
@@ -46,12 +46,12 @@ describe('formatStaleness', () => {
   it('returns "old" when more than 7 days', () => {
     expect(formatStaleness(isoDaysAgo(8), NOW)).toEqual({
       tone: 'old',
-      label: 'Maj il y a 8j',
+      key: 'old',
       daysSince: 8,
     });
     expect(formatStaleness(isoDaysAgo(45), NOW)).toEqual({
       tone: 'old',
-      label: 'Maj il y a 45j',
+      key: 'old',
       daysSince: 45,
     });
   });

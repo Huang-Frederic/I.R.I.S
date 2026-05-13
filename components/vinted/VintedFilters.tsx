@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Search, Globe, GlobeLock, Tag, RefreshCw, CheckSquare, Square, User } from 'lucide-react';
 import { UI_LANGUAGES, type CardLanguage, type CardRarity } from '@/lib/types';
 import { type MultiUserChip } from '@/lib/utils/vinted-filter';
@@ -55,26 +56,28 @@ interface Props {
   hasPartner: boolean;
 }
 
+type ChipKey = 'showOnline' | 'showOffline' | 'showSold' | 'showStale';
 interface Chip {
-  key: 'showOnline' | 'showOffline' | 'showSold' | 'showStale';
-  label: string;
+  key: ChipKey;
+  labelKey: 'chipOnline' | 'chipOffline' | 'chipSold' | 'chipStale';
   icon: React.ComponentType<{ className?: string }>;
 }
 
 const CHIPS: Chip[] = [
-  { key: 'showOnline', label: 'En ligne', icon: Globe },
-  { key: 'showOffline', label: 'Pas en ligne', icon: GlobeLock },
-  { key: 'showSold', label: 'Vendus', icon: Tag },
-  { key: 'showStale', label: 'À rafraîchir', icon: RefreshCw },
+  { key: 'showOnline', labelKey: 'chipOnline', icon: Globe },
+  { key: 'showOffline', labelKey: 'chipOffline', icon: GlobeLock },
+  { key: 'showSold', labelKey: 'chipSold', icon: Tag },
+  { key: 'showStale', labelKey: 'chipStale', icon: RefreshCw },
 ];
 
 export default function VintedFilters({ value, onChange, visibleCards, totalCards, selectionMode, onToggleSelectionMode, hasPartner }: Props) {
+  const t = useTranslations('vinted');
   // Per design: my own chip is the default tint ('Moi'); only the partner
   // chip is colored by their identity. From my POV I'm always 'Moi', never
   // my own display name.
   const { partnerName } = useUserContext();
   const partnerColor = colorForUserName(partnerName);
-  const toggleChip = (key: Chip['key']) => onChange({ ...value, [key]: !value[key] });
+  const toggleChip = (key: ChipKey) => onChange({ ...value, [key]: !value[key] });
 
   return (
     <div className="bg-bg sticky top-0 z-10 -mx-4 mb-4 flex flex-col gap-3 px-4 py-3 md:mx-0 md:px-0">
@@ -83,7 +86,7 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
           <Search className="text-text-faint pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2" />
           <input
             type="search"
-            placeholder="Recherche : nom, set, n°…"
+            placeholder={t('filtersSearchPlaceholder')}
             value={value.search}
             onChange={(e) => onChange({ ...value, search: e.target.value })}
             className="bg-surface-2 border-border focus:border-red w-full rounded border py-1.5 pl-8 pr-3 text-sm outline-none"
@@ -94,9 +97,9 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
           value={value.language}
           onChange={(e) => onChange({ ...value, language: e.target.value as VintedFilterState['language'] })}
           className="bg-surface-2 border-border rounded border px-3 py-1.5 text-sm"
-          aria-label="Langue"
+          aria-label={t('filterLanguageAria')}
         >
-          <option value="all">Toutes langues</option>
+          <option value="all">{t('filterAllLanguages')}</option>
           {LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
         </select>
 
@@ -104,9 +107,9 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
           value={value.rarity}
           onChange={(e) => onChange({ ...value, rarity: e.target.value as VintedFilterState['rarity'] })}
           className="bg-surface-2 border-border rounded border px-3 py-1.5 text-sm"
-          aria-label="Rareté"
+          aria-label={t('filterRarityAria')}
         >
-          <option value="all">Toutes raretés</option>
+          <option value="all">{t('filterAllRarities')}</option>
           {RARITIES.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
 
@@ -114,15 +117,15 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
           value={value.variant}
           onChange={(e) => onChange({ ...value, variant: e.target.value as VintedFilterState['variant'] })}
           className="bg-surface-2 border-border rounded border px-3 py-1.5 text-sm"
-          aria-label="Variant"
+          aria-label={t('filterVariantAria')}
         >
-          <option value="all">Tous variants</option>
+          <option value="all">{t('filterAllVariants')}</option>
           {VARIANTS.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
         </select>
       </div>
 
       <div className="flex items-center gap-1">
-        <span className="text-text-faint mr-1 text-xs">Type :</span>
+        <span className="text-text-faint mr-1 text-xs">{t('typeLabel')}</span>
         {(['all', 'cards', 'lots'] as const).map((k) => (
           <button
             key={k}
@@ -134,7 +137,7 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
                 : 'bg-surface-2 text-text-muted hover:text-text'
             }`}
           >
-            {k === 'all' ? 'Tout' : k === 'cards' ? 'Cartes' : 'Lots'}
+            {k === 'all' ? t('typeAll') : k === 'cards' ? t('typeCards') : t('typeLots')}
           </button>
         ))}
         <button
@@ -145,15 +148,15 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
               ? 'bg-red text-bg'
               : 'bg-surface-2 text-text-muted hover:text-text'
           }`}
-          title={selectionMode ? 'Annuler la sélection' : 'Activer la sélection multiple'}
+          title={selectionMode ? t('selectionCancelTitle') : t('selectionEnableTitle')}
         >
           {selectionMode ? <CheckSquare className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
-          {selectionMode ? 'Annuler la sélection' : 'Sélection multiple'}
+          {selectionMode ? t('selectionCancel') : t('selectionEnable')}
         </button>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {CHIPS.map(({ key, label, icon: Icon }) => {
+        {CHIPS.map(({ key, labelKey, icon: Icon }) => {
           const active = value[key];
           return (
             <button
@@ -167,14 +170,14 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
               }`}
             >
               <Icon className="h-3.5 w-3.5" />
-              {label}
+              {t(labelKey)}
             </button>
           );
         })}
       </div>
 
       <p className="text-text-muted text-xs">
-        {visibleCards} sur {totalCards}
+        {t('chipsCount', { visible: visibleCards, total: totalCards })}
       </p>
 
       <div className="border-border my-1 border-t" />
@@ -189,7 +192,7 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
               : 'bg-surface-2 border-border text-text-muted hover:text-text'
           }`}
         >
-          Tous
+          {t('userAll')}
         </button>
         <button
           type="button"
@@ -197,7 +200,7 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
           className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${chipClassesForColor('neutral', value.multiUserChip === 'mine')}`}
         >
           <User className="h-3.5 w-3.5" />
-          Par moi
+          {t('userMine')}
         </button>
         {hasPartner && partnerName && (
           <button
@@ -206,7 +209,7 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
             className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors ${chipClassesForColor(partnerColor, value.multiUserChip === 'partner')}`}
           >
             <User className="h-3.5 w-3.5" />
-            Par {partnerName}
+            {t('userPartner', { name: partnerName })}
           </button>
         )}
         {hasPartner && (
@@ -219,7 +222,7 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
                 : 'bg-surface-2 border-border text-text-muted hover:text-text'
             }`}
           >
-            Cross-listées
+            {t('userCross')}
           </button>
         )}
         <button
@@ -231,7 +234,7 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
               : 'bg-surface-2 border-border text-text-muted hover:text-text'
           }`}
         >
-          Non listées
+          {t('userNone')}
         </button>
         {hasPartner && (
           <button
@@ -243,7 +246,7 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
                 : 'bg-surface-2 border-border text-text-muted hover:text-text'
             }`}
           >
-            À retirer
+            {t('userToDelete')}
           </button>
         )}
       </div>

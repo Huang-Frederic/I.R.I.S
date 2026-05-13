@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Archive, Trash2, X, AlertTriangle } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 
@@ -25,18 +26,20 @@ export default function RetireListingModal({
   onDelete,
   onCancel,
 }: Props) {
+  const t = useTranslations('retireListing');
+  const tCommon = useTranslations('common');
   return (
     <Modal
       open={true}
       onClose={onCancel}
-      ariaLabel="Retirer ton annonce"
+      ariaLabel={t('modalTitle')}
       closeOnBackdrop={!busy}
       closeOnEscape={!busy}
       className="bg-surface border-border w-full max-w-md rounded-lg border p-5 shadow-xl"
     >
       <div className="mb-3 flex items-start justify-between">
         <div>
-          <h2 className="text-base font-semibold">Retirer ton annonce ?</h2>
+          <h2 className="text-base font-semibold">{t('title')}</h2>
           {cardName && <p className="text-text-muted mt-1 text-xs">{cardName}</p>}
         </div>
         <button
@@ -44,7 +47,7 @@ export default function RetireListingModal({
           onClick={onCancel}
           disabled={busy}
           className="text-text-muted hover:text-text disabled:opacity-50"
-          aria-label="Fermer"
+          aria-label={tCommon('close')}
         >
           <X className="h-4 w-4" />
         </button>
@@ -54,8 +57,11 @@ export default function RetireListingModal({
         <div className="border-rarity-ar/40 bg-rarity-ar/10 text-rarity-ar mb-4 flex items-start gap-2 rounded border px-3 py-2 text-xs">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <div>
-            <strong>{partnerName}</strong> a aussi cette carte en ligne. {'Stock'} → son annonce passera en
-            <em> &quot;À retirer&quot;</em>. <strong>Supprimer</strong> → la carte disparaîtra aussi de son /vinted.
+            {t.rich('partnerWarning', {
+              name: partnerName,
+              strong: (chunks) => <strong>{chunks}</strong>,
+              em: (chunks) => <em>{chunks}</em>,
+            })}
           </div>
         </div>
       )}
@@ -69,8 +75,8 @@ export default function RetireListingModal({
         >
           <Archive className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
-            <div className="text-sm font-semibold">Re-ranger en stock</div>
-            <div className="text-text-muted text-xs">Tu gardes la carte, elle sort de Vinted</div>
+            <div className="text-sm font-semibold">{t('stockTitle')}</div>
+            <div className="text-text-muted text-xs">{t('stockBody')}</div>
           </div>
         </button>
 
@@ -82,8 +88,8 @@ export default function RetireListingModal({
         >
           <Trash2 className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
-            <div className="text-sm font-semibold">Supprimer la carte</div>
-            <div className="text-text-muted text-xs">Tu n&apos;as plus cette carte (perdue / vendue ailleurs)</div>
+            <div className="text-sm font-semibold">{t('deleteTitle')}</div>
+            <div className="text-text-muted text-xs">{t('deleteBody')}</div>
           </div>
         </button>
       </div>
@@ -95,7 +101,7 @@ export default function RetireListingModal({
           disabled={busy}
           className="bg-surface-2 hover:bg-surface-off border-border rounded border px-3 py-1.5 text-xs disabled:opacity-50"
         >
-          Annuler
+          {tCommon('cancel')}
         </button>
       </div>
     </Modal>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface BatchSummary {
   ok: boolean;
@@ -26,6 +27,7 @@ type State =
  * start — the loop terminates when total drops to 0.
  */
 export default function RefreshAllPricesSection() {
+  const t = useTranslations('options');
   const [state, setState] = useState<State>({ kind: 'idle' });
 
   async function refreshAll() {
@@ -68,13 +70,10 @@ export default function RefreshAllPricesSection() {
   return (
     <div className="bg-surface border-border rounded-lg border p-5">
       <h2 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-        Prix Cardmarket
+        {t('refreshAllHeading')}
       </h2>
 
-      <p className="text-text-muted mb-3 text-sm">
-        Force le rafraîchissement de toutes les cartes (for_sale + Pokédex + collection)
-        d&apos;un coup, sans attendre le cron quotidien.
-      </p>
+      <p className="text-text-muted mb-3 text-sm">{t('refreshAllDescription')}</p>
 
       <button
         type="button"
@@ -86,12 +85,16 @@ export default function RefreshAllPricesSection() {
           className={`h-4 w-4 ${state.kind === 'running' ? 'animate-spin' : ''}`}
           aria-hidden
         />
-        {state.kind === 'running' ? 'En cours…' : 'Rafraîchir tous les prix'}
+        {state.kind === 'running' ? t('refreshAllRunning') : t('refreshAllButton')}
       </button>
 
       {state.kind === 'running' && (
         <p className="text-text-muted mt-3 font-mono text-xs">
-          Traité {state.processed} · Mis à jour {state.updated} · Skipped {state.skipped}
+          {t('refreshAllProgress', {
+            processed: state.processed,
+            updated: state.updated,
+            skipped: state.skipped,
+          })}
         </p>
       )}
 
@@ -99,13 +102,12 @@ export default function RefreshAllPricesSection() {
         <div className="text-staleness-fresh mt-3 flex items-start gap-2 text-sm">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           <span>
-            Terminé — <strong>{state.processed}</strong> cartes traitées
-            {' ('}
-            <span className="text-text">{state.updated} mises à jour</span>
-            {', '}
-            <span className="text-text-muted">{state.skipped} skipped</span>
-            {state.errors > 0 ? `, ${state.errors} erreurs` : ''}
-            {')'}.
+            {t('refreshAllDone', { processed: state.processed })}{' '}
+            {t('refreshAllDoneCounts', {
+              updated: state.updated,
+              skipped: state.skipped,
+              errors: state.errors,
+            })}
           </span>
         </div>
       )}
@@ -113,7 +115,7 @@ export default function RefreshAllPricesSection() {
       {state.kind === 'error' && (
         <div className="text-red mt-3 flex items-start gap-2 text-sm">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <span>Erreur : {state.message}</span>
+          <span>{t('refreshAllError', { message: state.message })}</span>
         </div>
       )}
     </div>

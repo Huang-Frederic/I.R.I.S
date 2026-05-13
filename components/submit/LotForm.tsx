@@ -2,32 +2,18 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Upload, X } from 'lucide-react';
 import { buildLotAnnonce } from '@/lib/utils/lot-template';
 import { resizeImage } from '@/lib/utils/resize-image';
 import type { CardLanguage, CardCondition } from '@/lib/types';
-
-// Visible languages in the lot form. The CardLanguage enum still supports DE/IT/ES/PT
-// for legacy cards, but lots only need the 5 markets the user actively sells in.
-const LANGUAGES: { value: CardLanguage; label: string }[] = [
-  { value: 'JP', label: 'Japonaise 🇯🇵' },
-  { value: 'EN', label: 'Anglaise 🇬🇧' },
-  { value: 'FR', label: 'Française 🇫🇷' },
-  { value: 'KO', label: 'Coréenne 🇰🇷' },
-  { value: 'CN', label: 'Chinoise 🇨🇳' },
-];
-
-const CONDITIONS: { value: CardCondition; label: string }[] = [
-  { value: 'NM', label: 'Très bon état (Near Mint)' },
-  { value: 'EX', label: 'Excellent (EX)' },
-  { value: 'GD', label: 'Bon état (Good)' },
-  { value: 'PL', label: 'Joué (Played)' },
-  { value: 'PO', label: 'Mauvais état (Poor)' },
-];
+import { translateErrorCode } from '@/lib/utils/translate-error';
 
 const TITLE_MAX = 80;
 
 export default function LotForm() {
+  const t = useTranslations('lots');
+  const tErrors = useTranslations('errors');
   const router = useRouter();
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -38,14 +24,33 @@ export default function LotForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Visible languages in the lot form. The CardLanguage enum still supports DE/IT/ES/PT
+  // for legacy cards, but lots only need the 5 markets the user actively sells in.
+  const LANGUAGES: { value: CardLanguage; label: string }[] = [
+    { value: 'JP', label: t('languageJa') },
+    { value: 'EN', label: t('languageEn') },
+    { value: 'FR', label: t('languageFr') },
+    { value: 'KO', label: t('languageKo') },
+    { value: 'CN', label: t('languageCn') },
+  ];
+
+  const CONDITIONS: { value: CardCondition; label: string }[] = [
+    { value: 'NM', label: t('conditionNm') },
+    { value: 'EX', label: t('conditionEx') },
+    { value: 'GD', label: t('conditionGd') },
+    { value: 'PL', label: t('conditionPl') },
+    { value: 'PO', label: t('conditionPo') },
+  ];
+
   const previewUrls = useMemo(
     () => photos.map((p) => URL.createObjectURL(p)),
     [photos],
   );
 
+  const placeholderName = t('lotFormPlaceholderName');
   const annonce = useMemo(
-    () => buildLotAnnonce({ name: name || '(nom du lot)', language, condition, extra_description: extraDescription || null }),
-    [name, language, condition, extraDescription],
+    () => buildLotAnnonce({ name: name || placeholderName, language, condition, extra_description: extraDescription || null }),
+    [name, language, condition, extraDescription, placeholderName],
   );
 
   // Counter reflects the FULL composed title length (prefix + name + [code]).
@@ -77,9 +82,9 @@ export default function LotForm() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (name.trim() === '') return setError('Nom requis');
-    if (!price || !Number.isFinite(Number(price.replace(',', '.')))) return setError('Prix requis (nombre)');
-    if (photos.length === 0) return setError('Au moins 1 photo requise');
+    if (name.trim() === '') return setError(t('lotFormErrorName'));
+    if (!price || !Number.isFinite(Number(price.replace(',', '.')))) return setError(t('lotFormErrorPrice'));
+    if (photos.length === 0) return setError(t('lotFormErrorPhotos'));
 
     setSubmitting(true);
     try {
@@ -93,7 +98,10 @@ export default function LotForm() {
 
       const res = await fetch('/api/lots', { method: 'POST', body: fd });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'Erreur serveur');
+      if (!res.ok) {
+        const localized = translateErrorCode(tErrors, json.error);
+        throw new Error(localized ?? json.message ?? t('lotFormErrorServer'));
+      }
       router.push('/vinted');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -109,37 +117,39 @@ export default function LotForm() {
 
         <label className="block">
           <span className="text-text-muted text-xs">
-            Titre — partie centrale uniquement ({titleLength}/{TITLE_MAX} avec préfixe + [{language}])
+            {t('lotFormTitleLabel', { titleLength, titleMax: TITLE_MAX, language })}
           </span>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Art Set Complet Shiny Gem Pack Vol 1 - SBB1C"
+            placeholder={t('lotFormTitlePlaceholder')}
             className={`bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none ${
               titleOver ? 'border-red' : ''
             }`}
           />
           <span className="text-text-faint mt-1 block text-[11px]">
-            Final : <span className="text-text-muted font-mono">{annonce.title}</span>
+            {t.rich('lotFormTitleFinal', {
+              value: () => <span className="text-text-muted font-mono">{annonce.title}</span>,
+            })}
           </span>
         </label>
 
         <label className="block">
-          <span className="text-text-muted text-xs">Prix (€)</span>
+          <span className="text-text-muted text-xs">{t('lotFormPriceLabel')}</span>
           <input
             type="text"
             inputMode="decimal"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            placeholder="25.00"
+            placeholder={t('lotFormPricePlaceholder')}
             className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none"
           />
         </label>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="text-text-muted text-xs">Langue</span>
+            <span className="text-text-muted text-xs">{t('lotFormLanguageLabel')}</span>
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value as CardLanguage)}
@@ -151,7 +161,7 @@ export default function LotForm() {
             </select>
           </label>
           <label className="block">
-            <span className="text-text-muted text-xs">Condition</span>
+            <span className="text-text-muted text-xs">{t('lotFormConditionLabel')}</span>
             <select
               value={condition}
               onChange={(e) => setCondition(e.target.value as CardCondition)}
@@ -165,12 +175,12 @@ export default function LotForm() {
         </div>
 
         <label className="block">
-          <span className="text-text-muted text-xs">Description additionnelle (optionnel)</span>
+          <span className="text-text-muted text-xs">{t('lotFormExtraDescLabel')}</span>
           <textarea
             value={extraDescription}
             onChange={(e) => setExtraDescription(e.target.value)}
             rows={3}
-            placeholder="Texte inséré entre la ligne État et le bloc shipping. Laisser vide si non utilisé."
+            placeholder={t('lotFormExtraDescPlaceholder')}
             className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none"
           />
         </label>
@@ -182,19 +192,19 @@ export default function LotForm() {
           disabled={submitting}
           className="bg-red text-bg w-full rounded px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
         >
-          {submitting ? 'Enregistrement…' : 'Enregistrer le lot'}
+          {submitting ? t('lotFormSubmitting') : t('lotFormSubmit')}
         </button>
       </div>
 
       {/* Right: live preview */}
       <div className="bg-surface-2 border-border md:sticky md:top-4 h-fit space-y-3 rounded border p-4">
-        <h3 className="text-text-muted text-xs font-medium">Aperçu Vinted</h3>
+        <h3 className="text-text-muted text-xs font-medium">{t('lotFormPreviewHeading')}</h3>
         <div>
-          <p className="text-text-faint text-xs">Titre</p>
+          <p className="text-text-faint text-xs">{t('lotFormPreviewTitle')}</p>
           <p className="font-medium">{annonce.title}</p>
         </div>
         <div>
-          <p className="text-text-faint text-xs">Description</p>
+          <p className="text-text-faint text-xs">{t('lotFormPreviewDescription')}</p>
           <pre className="text-text mt-1 whitespace-pre-wrap font-sans text-xs">{annonce.description}</pre>
         </div>
       </div>
@@ -213,11 +223,12 @@ function PhotoDropzone({
   onAdd: (files: FileList | File[]) => Promise<void>;
   onRemove: (index: number) => void;
 }) {
+  const t = useTranslations('lots');
   const [dragging, setDragging] = useState(false);
 
   return (
     <div>
-      <span className="text-text-muted text-xs">Photos ({photos.length})</span>
+      <span className="text-text-muted text-xs">{t('lotFormPhotosLabel', { count: photos.length })}</span>
       <label
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
@@ -239,7 +250,7 @@ function PhotoDropzone({
         />
         <span className="text-text-muted flex items-center gap-2">
           <Upload className="h-4 w-4" />
-          Drop ou clic pour ajouter
+          {t('lotFormPhotosDropOrClick')}
         </span>
       </label>
 
@@ -252,7 +263,7 @@ function PhotoDropzone({
               <button
                 type="button"
                 onClick={() => onRemove(i)}
-                aria-label="Retirer cette photo"
+                aria-label={t('lotFormPhotoRemoveAria')}
                 className="bg-surface absolute right-1 top-1 rounded p-0.5 opacity-80 hover:opacity-100"
               >
                 <X className="h-3 w-3" />

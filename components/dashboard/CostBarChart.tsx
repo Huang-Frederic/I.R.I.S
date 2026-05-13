@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useTranslations } from 'next-intl';
 
 export interface DailyAgg {
   day: string;
@@ -27,6 +28,7 @@ const TOOLTIP_ITEM_STYLE = {
 } as const;
 
 export default function CostBarChart({ data, periodLabel }: { data: readonly DailyAgg[]; periodLabel: string }) {
+  const t = useTranslations('dashboard');
   // Recharts generates internal IDs that mismatch between SSR and client hydration
   // (React 19 + Recharts 2.15 issue). Skip server render of the actual chart by
   // gating on a "mounted" flag set after first paint.
@@ -37,7 +39,7 @@ export default function CostBarChart({ data, periodLabel }: { data: readonly Dai
   return (
     <div className="bg-surface border-border overflow-hidden rounded-lg border p-4">
       <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-        Coût OCR ({periodLabel})
+        {t('costChartTitle', { period: periodLabel })}
       </h3>
       <div className="h-64 w-full">
         {mounted && (

@@ -142,7 +142,7 @@ export async function POST(request: Request) {
     if (existingForSale && (existingForSale.variant ?? null) === (variant ?? null)) {
       return apiError('for_sale_conflict', {
         status: 409,
-        message: 'Cette carte est déjà en vente sur Vinted.',
+        message: 'This card is already for sale on Vinted.',
         extra: { existingCard: existingForSale },
       });
     }

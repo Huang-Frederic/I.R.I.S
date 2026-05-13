@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 type Theme = 'dark' | 'light';
 
@@ -13,6 +14,7 @@ const ONE_YEAR = 60 * 60 * 24 * 365;
 
 export default function ThemeToggle({ initialTheme }: ThemeToggleProps) {
   const [theme, setTheme] = useState<Theme>(initialTheme);
+  const t = useTranslations('options');
 
   const setActive = (next: Theme) => {
     if (next === theme) return;
@@ -25,7 +27,7 @@ export default function ThemeToggle({ initialTheme }: ThemeToggleProps) {
   // disabled (and visually highlighted) so the user can see at a glance which
   // mode is on; clicking the other one switches instantly.
   return (
-    <div className="border-border inline-flex overflow-hidden rounded-md border" role="group" aria-label="Mode d'affichage">
+    <div className="border-border inline-flex overflow-hidden rounded-md border" role="group" aria-label={t('displayModeAria')}>
       <button
         type="button"
         onClick={() => setActive('light')}
@@ -38,7 +40,7 @@ export default function ThemeToggle({ initialTheme }: ThemeToggleProps) {
         }`}
       >
         <Sun className="h-4 w-4" aria-hidden />
-        Mode clair
+        {t('lightMode')}
       </button>
       <button
         type="button"
@@ -52,7 +54,7 @@ export default function ThemeToggle({ initialTheme }: ThemeToggleProps) {
         }`}
       >
         <Moon className="h-4 w-4" aria-hidden />
-        Mode sombre
+        {t('darkMode')}
       </button>
     </div>
   );

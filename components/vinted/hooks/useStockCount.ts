@@ -1,8 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { Card } from '@/lib/types';
 import { groupKey } from '@/lib/utils/group-cards';
+import { translateErrorCode } from '@/lib/utils/translate-error';
 
 /**
  * Manage the per-row "× N en stock" chip on Vinted rows: count by group key
@@ -17,6 +19,9 @@ export function useStockCount(
   collectionCards: Card[],
   setCollectionCards: React.Dispatch<React.SetStateAction<Card[]>>,
 ) {
+  const tErrors = useTranslations('errors');
+  const tCommon = useTranslations('common');
+  const tStock = useTranslations('stock');
   /** Set of group keys currently mid-clone/delete — used to disable the chip
    *  during the round-trip and avoid double-clicks. */
   const [stockBusyKeys, setStockBusyKeys] = useState<Set<string>>(new Set());
@@ -49,7 +54,8 @@ export function useStockCount(
             const res = await fetch(`/api/cards/${forSaleHead.id}/clone`, { method: 'POST' });
             if (!res.ok) {
               const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-              throw new Error(body.message ?? body.error ?? `Clone échoué (${res.status})`);
+              const localized = translateErrorCode(tErrors, body.error);
+              throw new Error(localized ?? body.message ?? tStock('cloneFailed', { status: res.status }));
             }
             return ((await res.json()) as { card: Card }).card;
           }),
@@ -64,7 +70,8 @@ export function useStockCount(
             const res = await fetch(`/api/cards/${c.id}`, { method: 'DELETE' });
             if (!res.ok) {
               const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-              throw new Error(body.message ?? body.error ?? `Suppression échouée (${res.status})`);
+              const localized = translateErrorCode(tErrors, body.error);
+              throw new Error(localized ?? body.message ?? tStock('deleteFailed', { status: res.status }));
             }
           }),
         );
@@ -73,7 +80,7 @@ export function useStockCount(
       }
     } catch (err) {
       console.error('handleSetStockCount failed:', err);
-      alert(err instanceof Error ? err.message : 'Erreur inconnue');
+      alert(err instanceof Error ? err.message : tCommon('errorUnknown'));
     } finally {
       setStockBusyKeys((prev) => {
         const next = new Set(prev);

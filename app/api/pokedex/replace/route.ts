@@ -21,10 +21,10 @@ export async function POST(request: Request) {
 
   const { old_card_id, old_new_status, new_card_id } = body;
   if (!old_card_id || !new_card_id) {
-    return validationResponse('old_card_id et new_card_id sont requis');
+    return validationResponse('old_card_id and new_card_id are required');
   }
   if (old_new_status !== 'for_sale' && old_new_status !== 'collection') {
-    return validationResponse("old_new_status doit être 'for_sale' ou 'collection'");
+    return validationResponse("old_new_status must be 'for_sale' or 'collection'");
   }
 
   const supabase = await createClient();
@@ -44,8 +44,8 @@ export async function POST(request: Request) {
       return apiError('for_sale_conflict', {
         status: 409,
         message:
-          "Un autre exemplaire est déjà en vente sur Vinted pour ce groupe. " +
-          'Choisis « Vers Stock » à la place, ou retire d\'abord la carte conflictuelle.',
+          'Another copy is already listed on Vinted for this group. ' +
+          'Choose "To Stock" instead, or first remove the conflicting card.',
       });
     }
     return apiError('rpc_failed', { status: 500, message: error.message });

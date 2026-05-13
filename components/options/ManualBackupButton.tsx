@@ -1,9 +1,14 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { translateErrorCode } from '@/lib/utils/translate-error';
 
 export default function ManualBackupButton() {
   const router = useRouter();
+  const t = useTranslations('options');
+  const tCommon = useTranslations('common');
+  const tErrors = useTranslations('errors');
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +20,8 @@ export default function ManualBackupButton() {
       const res = await fetch('/api/backup/manual', { method: 'POST' });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? `Erreur ${res.status}`);
+        const localized = translateErrorCode(tErrors, json.error);
+        setError(localized ?? json.message ?? json.error ?? `${tCommon('error')} ${res.status}`);
       } else {
         router.refresh();
       }
@@ -35,7 +41,7 @@ export default function ManualBackupButton() {
         disabled={busy}
         className="bg-red text-bg inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-60"
       >
-        {busy ? 'Création en cours…' : 'Créer un backup maintenant'}
+        {busy ? t('backupCreating') : t('backupCreateButton')}
       </button>
 
       {error && <p className="text-red mt-2 text-xs">{error}</p>}
@@ -47,10 +53,8 @@ export default function ManualBackupButton() {
             role="dialog"
             aria-modal="true"
           >
-            <h3 className="text-text text-lg font-semibold">Confirmer le backup manuel</h3>
-            <p className="text-text-muted mt-2 text-sm">
-              Snapshot complet de toutes vos données. Gardé sans rotation. Continuer ?
-            </p>
+            <h3 className="text-text text-lg font-semibold">{t('backupConfirmTitle')}</h3>
+            <p className="text-text-muted mt-2 text-sm">{t('backupConfirmBody')}</p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
@@ -58,7 +62,7 @@ export default function ManualBackupButton() {
                 disabled={busy}
                 className="text-text-muted hover:bg-surface-2 rounded-md px-3 py-1.5 text-sm transition-colors"
               >
-                Annuler
+                {tCommon('cancel')}
               </button>
               <button
                 type="button"
@@ -66,7 +70,7 @@ export default function ManualBackupButton() {
                 disabled={busy}
                 className="bg-red text-bg rounded-md px-3 py-1.5 text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-60"
               >
-                {busy ? '…' : 'Confirmer'}
+                {busy ? '…' : tCommon('confirm')}
               </button>
             </div>
           </div>

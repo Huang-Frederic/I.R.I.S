@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import type { Card } from '@/lib/types';
 import { groupCards, groupKey, type CardGroup } from '@/lib/utils/group-cards';
@@ -10,6 +11,7 @@ import StockRow from './StockRow';
 import ExchangeOnConflictModal, { type ExchangeConflictCard } from '@/components/vinted/ExchangeOnConflictModal';
 import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
 import { normalizeForSearch } from '@/lib/utils/text-normalize';
+import { translateErrorCode } from '@/lib/utils/translate-error';
 
 export interface StockListProps {
   cards: Card[];
@@ -46,6 +48,9 @@ function matchesFilters(card: Card, f: StockFilterState, hasForSale: boolean): b
 }
 
 export default function StockList({ cards: initial, forSaleKeys, registered }: StockListProps) {
+  const t = useTranslations('stock');
+  const tCommon = useTranslations('common');
+  const tErrors = useTranslations('errors');
   const router = useRouter();
   const [cards, setCards] = useState<Card[]>(initial);
   // Re-sync local state when SSR re-fetches push new props (after a tab nav
@@ -91,12 +96,13 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
           });
           return;
         }
-        throw new Error(body.message ?? body.error ?? `Mise en vente échouée (${res.status})`);
+        const localized = translateErrorCode(tErrors, body.error);
+        throw new Error(localized ?? body.message ?? t('listForSaleFailed', { status: res.status }));
       }
       setCards((prev) => prev.filter((c) => c.id !== card.id));
     } catch (err) {
       console.error(err);
-      alert(err instanceof Error ? err.message : 'Erreur inconnue');
+      alert(err instanceof Error ? err.message : tCommon('errorUnknown'));
     } finally {
       setBusyKey(null);
     }
@@ -117,7 +123,8 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
             const res = await fetch(`/api/cards/${sourceId}/clone`, { method: 'POST' });
             if (!res.ok) {
               const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-              throw new Error(body.message ?? body.error ?? `Clone échoué (${res.status})`);
+              const localized = translateErrorCode(tErrors, body.error);
+              throw new Error(localized ?? body.message ?? t('cloneFailed', { status: res.status }));
             }
             return ((await res.json()) as { card: Card }).card;
           }),
@@ -134,7 +141,8 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
             const res = await fetch(`/api/cards/${c.id}`, { method: 'DELETE' });
             if (!res.ok) {
               const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-              throw new Error(body.message ?? body.error ?? `Suppression échouée (${res.status})`);
+              const localized = translateErrorCode(tErrors, body.error);
+              throw new Error(localized ?? body.message ?? t('deleteFailed', { status: res.status }));
             }
           }),
         );
@@ -143,7 +151,7 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
       }
     } catch (err) {
       console.error(err);
-      alert(err instanceof Error ? err.message : 'Erreur inconnue');
+      alert(err instanceof Error ? err.message : tCommon('errorUnknown'));
     } finally {
       setBusyKey(null);
     }
@@ -161,7 +169,7 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
       {groups.length === 0 ? (
         <div className="bg-surface border-border rounded-lg border p-6">
           <p className="text-text-muted text-sm">
-            {cards.length === 0 ? 'Aucune carte en collection.' : 'Aucune carte ne correspond aux filtres.'}
+            {cards.length === 0 ? t('emptyEmpty') : t('emptyFiltered')}
           </p>
         </div>
       ) : (

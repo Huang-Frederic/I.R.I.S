@@ -1,14 +1,18 @@
+'use client';
+import { useTranslations } from 'next-intl';
+
 interface Props {
   imageUrl: string | null | undefined;
   className?: string;
 }
 
 export default function CardMatchPreview({ imageUrl, className }: Props) {
+  const t = useTranslations('ui');
   if (!imageUrl) return null;
   return (
     <div
       className={`bg-white/10 backdrop-blur-sm rounded-lg p-1 shadow-md ${className ?? ''}`.trim()}
-      aria-label="Carte matchée par l'API"
+      aria-label={t('matchedCardAria')}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

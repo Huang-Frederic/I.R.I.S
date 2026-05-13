@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import type { Card } from '@/lib/types';
 import { getPokemonName } from '@/lib/data/pokemon-names';
@@ -15,6 +16,7 @@ const SPRITE_BASE =
   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
 
 export default function PokedexCell({ number, card, onClick }: PokedexCellProps) {
+  const t = useTranslations('pokedex');
   const owned = card !== null;
   const label = card ? displayPokemonName(card) : getPokemonName(number, 'fr');
 
@@ -22,7 +24,7 @@ export default function PokedexCell({ number, card, onClick }: PokedexCellProps)
     <button
       type="button"
       onClick={onClick}
-      aria-label={`${owned ? displayPokemonName(card!) : getPokemonName(number, 'fr')} n°${number}`}
+      aria-label={t('cellAria', { name: label, number })}
       data-pokemon-number={number}
       className="bg-surface border-border hover:border-red focus:border-red flex flex-col items-center gap-1 rounded border p-2 text-center transition-colors focus:outline-none"
     >

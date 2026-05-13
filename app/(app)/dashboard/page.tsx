@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import {
   buildRarityCounts,
@@ -24,7 +25,11 @@ import LastSalesList from '@/components/dashboard/LastSalesList';
 import PokedexCount from '@/components/dashboard/PokedexCount';
 import type { Card } from '@/lib/types';
 
-export const metadata = { title: 'Dashboard — I.R.I.S' };
+export async function generateMetadata() {
+  const t = await getTranslations('dashboard');
+  return { title: t('metaTitle') };
+}
+
 export const revalidate = 60;
 
 // Computed once per server-component request (not per render — server components
@@ -39,12 +44,12 @@ function timeWindow(days: number) {
   };
 }
 
-function periodLabel(days: number): string {
-  if (days === 7) return '7 jours';
-  if (days === 30) return '30 jours';
-  if (days === 90) return '90 jours';
-  if (days === 365) return '1 an';
-  return `${days} jours`;
+function periodLabelKey(days: number): { key: 'periodLabel7' | 'periodLabel30' | 'periodLabel90' | 'periodLabel365' | 'periodLabelOther'; values?: { days: number } } {
+  if (days === 7) return { key: 'periodLabel7' };
+  if (days === 30) return { key: 'periodLabel30' };
+  if (days === 90) return { key: 'periodLabel90' };
+  if (days === 365) return { key: 'periodLabel365' };
+  return { key: 'periodLabelOther', values: { days } };
 }
 
 export default async function DashboardPage({
@@ -58,6 +63,7 @@ export default async function DashboardPage({
   const { sincePeriod, since24w, today } = timeWindow(days);
 
   const supabase = await createClient();
+  const t = await getTranslations('dashboard');
 
   const [
     { data: pricedCards },
@@ -127,11 +133,14 @@ export default async function DashboardPage({
   const scansPeriodCount = (ocrLogPeriod ?? []).length;
   const cardsAddedPeriod = (cardsAdded24w ?? []).filter((c) => c.date_added >= sincePeriod).length;
 
+  const periodKey = periodLabelKey(days);
+  const periodText = periodKey.values ? t(periodKey.key, periodKey.values) : t(periodKey.key);
+
   return (
     <section>
       <PageTitle
-        title="Dashboard"
-        subtitle="État de la collection et de la consommation OCR."
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         controls={
           <>
             <DashboardPeriodTabs current={period} />
@@ -149,12 +158,12 @@ export default async function DashboardPage({
           // Stock = for_sale + collection. Pokédex value is shown separately
           // on the Pokédex KPI card so a personal collection doesn't inflate
           // the "what I could sell" figure.
-          label: 'Valeur stock',
+          label: t('kpiStockValue'),
           value: formatEur(stockValue.value_for_sale + stockValue.value_collection),
         }}
-        cost={{ label: `Coût OCR ${periodLabel(days)}`, value: formatEur(costPeriodTotal) }}
-        scans={{ label: `Scans ${periodLabel(days)}`, value: String(scansPeriodCount) }}
-        cardsAdded={{ label: `Cartes ajoutées ${periodLabel(days)}`, value: String(cardsAddedPeriod) }}
+        cost={{ label: t('kpiOcrCost', { period: periodText }), value: formatEur(costPeriodTotal) }}
+        scans={{ label: t('kpiScans', { period: periodText }), value: String(scansPeriodCount) }}
+        cardsAdded={{ label: t('kpiCardsAdded', { period: periodText }), value: String(cardsAddedPeriod) }}
       />
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -163,7 +172,7 @@ export default async function DashboardPage({
       </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <CostBarChart data={costDaily} periodLabel={periodLabel(days)} />
+        <CostBarChart data={costDaily} periodLabel={periodText} />
         <ScanHeatmap matrix={heatmap} details={Object.fromEntries(dayDetails)} />
       </div>
 

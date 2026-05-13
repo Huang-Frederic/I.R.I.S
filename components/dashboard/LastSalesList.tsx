@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { RARITY_COLOR } from '@/lib/utils/labels';
 import type { Card } from '@/lib/types';
 import { displayCardName } from '@/lib/utils/format-name';
@@ -22,18 +23,19 @@ function formatDate(iso: string | null): string {
   });
 }
 
-export default function LastSalesList({
+export default async function LastSalesList({
   sales,
 }: {
   sales: readonly SoldCard[];
 }) {
+  const t = await getTranslations('dashboard');
   if (sales.length === 0) {
     return (
       <div className="bg-surface border-border overflow-hidden rounded-lg border p-4">
         <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-          Dernières ventes
+          {t('lastSalesTitle')}
         </h3>
-        <p className="text-text-faint text-sm">Aucune vente enregistrée.</p>
+        <p className="text-text-faint text-sm">{t('lastSalesEmpty')}</p>
       </div>
     );
   }
@@ -44,10 +46,10 @@ export default function LastSalesList({
     <div className="bg-surface border-border overflow-hidden rounded-lg border p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-text-muted text-xs font-semibold uppercase tracking-wide">
-          Dernières ventes ({sales.length})
+          {t('lastSalesTitleCount', { count: sales.length })}
         </h3>
         <span className="text-text-muted text-xs font-mono">
-          €{total.toFixed(2)} total
+          {t('lastSalesTotal', { total: total.toFixed(2) })}
         </span>
       </div>
       <ul className="divide-border divide-y">

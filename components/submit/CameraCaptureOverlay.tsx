@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 
 const SHUTTER_QUALITY = 0.92;
@@ -18,6 +19,8 @@ export default function CameraCaptureOverlay({
   onCancel,
   maxPhotos = 30,
 }: Props) {
+  const t = useTranslations('scannerCamera');
+  const tCommon = useTranslations('common');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -29,7 +32,7 @@ export default function CameraCaptureOverlay({
 
     async function init() {
       if (!navigator.mediaDevices?.getUserMedia) {
-        setError('Navigateur non compatible avec la caméra.');
+        setError(t('errorIncompatible'));
         return;
       }
       try {
@@ -42,7 +45,7 @@ export default function CameraCaptureOverlay({
           audio: false,
         });
         if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
+          stream.getTracks().forEach((track) => track.stop());
           return;
         }
         streamRef.current = stream;
@@ -54,11 +57,11 @@ export default function CameraCaptureOverlay({
         if (cancelled) return;
         const name = err instanceof Error ? err.name : '';
         if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-          setError('Accès caméra refusé. Autorise dans les paramètres du navigateur.');
+          setError(t('errorPermission'));
         } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-          setError('Aucune caméra détectée.');
+          setError(t('errorNoDevice'));
         } else {
-          setError("Impossible d'accéder à la caméra.");
+          setError(t('errorGeneric'));
         }
       }
     }
@@ -68,10 +71,11 @@ export default function CameraCaptureOverlay({
     return () => {
       cancelled = true;
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -137,19 +141,19 @@ export default function CameraCaptureOverlay({
           type="button"
           onClick={handleCancel}
           className="p-2"
-          aria-label="Fermer la caméra"
+          aria-label={t('closeAria')}
         >
           <X className="h-6 w-6" />
         </button>
-        <h2 className="text-base font-medium">Capture en chaîne</h2>
+        <h2 className="text-base font-medium">{t('title')}</h2>
         <button
           type="button"
           onClick={handleDone}
           disabled={captured.length === 0}
           className="bg-red text-bg rounded px-4 py-2 text-sm font-medium disabled:opacity-40"
-          aria-label={`Valider ${captured.length} photos`}
+          aria-label={t('doneAria', { count: captured.length })}
         >
-          Done ({captured.length})
+          {t('doneButton', { count: captured.length })}
         </button>
       </div>
 
@@ -162,7 +166,7 @@ export default function CameraCaptureOverlay({
               onClick={handleCancel}
               className="bg-surface-2 rounded px-4 py-2 text-sm"
             >
-              Annuler
+              {tCommon('cancel')}
             </button>
           </div>
         ) : (
@@ -200,7 +204,7 @@ export default function CameraCaptureOverlay({
                   <button
                     type="button"
                     onClick={() => handleRemove(i)}
-                    aria-label={`Supprimer la photo ${i + 1}`}
+                    aria-label={t('removeAria', { index: i + 1 })}
                     className="bg-black/70 absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full text-white"
                   >
                     <X className="h-3 w-3" aria-hidden />
@@ -218,11 +222,11 @@ export default function CameraCaptureOverlay({
               onClick={handleShutter}
               disabled={captured.length >= maxPhotos}
               className="h-20 w-20 rounded-full border-4 border-black bg-white shadow-lg disabled:opacity-40"
-              aria-label="Prendre une photo"
+              aria-label={t('shutterAria')}
             />
           </div>
           {captured.length >= maxPhotos && (
-            <p className="text-center text-xs text-white">Limite atteinte</p>
+            <p className="text-center text-xs text-white">{t('limitReached')}</p>
           )}
         </div>
       )}

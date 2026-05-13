@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { cookies } from 'next/headers';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import './globals.css';
 
 const geistSans = Geist({
@@ -13,16 +15,19 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
-export const metadata: Metadata = {
-  title: 'I.R.I.S',
-  description: 'Gestion de collection Pokémon TCG',
-  applicationName: 'I.R.I.S',
-  appleWebApp: {
-    capable: true,
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('metadata');
+  return {
     title: 'I.R.I.S',
-    statusBarStyle: 'black-translucent',
-  },
-};
+    description: t('description'),
+    applicationName: 'I.R.I.S',
+    appleWebApp: {
+      capable: true,
+      title: 'I.R.I.S',
+      statusBarStyle: 'black-translucent',
+    },
+  };
+}
 
 export const viewport: Viewport = {
   // Drives Android PWA's status bar tint and iOS Safari's chrome. Two media-
@@ -47,14 +52,20 @@ export default async function RootLayout({
 }>) {
   const cookieStore = await cookies();
   const theme = cookieStore.get('theme')?.value === 'light' ? 'light' : 'dark';
+  const locale = await getLocale();
+  const messages = await getMessages();
 
   return (
     <html
-      lang="fr"
+      lang={locale}
       data-theme={theme}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="bg-bg text-text min-h-full">{children}</body>
+      <body className="bg-bg text-text min-h-full">
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
+      </body>
     </html>
   );
 }

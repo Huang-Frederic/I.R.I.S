@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Tag, Package } from 'lucide-react';
 import type { Lot, BaseListing } from '@/lib/types';
 import EditablePriceCell from '@/components/vinted/EditablePriceCell';
@@ -26,6 +27,7 @@ interface Props {
 export default function LotRow({
   lot, storagePublicUrl, onAnnonceClick, onSoldClick, onPriceSaved, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onImageClick, selectionMode, selected, onToggleSelect,
 }: Props) {
+  const t = useTranslations('lots');
   const thumb = lot.photo_urls.length > 0 ? storagePublicUrl(lot.photo_urls[0]) : null;
 
   return (
@@ -37,7 +39,7 @@ export default function LotRow({
             checked={!!selected}
             onChange={onToggleSelect}
             onClick={(e) => e.stopPropagation()}
-            aria-label={selected ? 'Désélectionner' : 'Sélectionner'}
+            aria-label={selected ? t('deselectAria') : t('selectAria')}
             className="accent-red h-5 w-5 shrink-0 cursor-pointer"
           />
         )}
@@ -46,7 +48,7 @@ export default function LotRow({
             type="button"
             onClick={() => onImageClick?.(lot)}
             className="hover:ring-red shrink-0 rounded transition-shadow hover:ring-2"
-            aria-label={`Voir ${lot.name} en grand`}
+            aria-label={t('rowZoomAria', { name: lot.name })}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -66,7 +68,7 @@ export default function LotRow({
           <div className="flex items-center gap-2">
             <p className="truncate font-medium">{lot.name}</p>
             <span className="bg-rarity-chr/20 text-rarity-chr shrink-0 rounded px-1.5 py-0.5 text-xs font-medium">
-              Lot
+              {t('lotBadge')}
             </span>
           </div>
           <div className="text-text-muted mt-1 flex flex-wrap items-center gap-2 text-xs">
@@ -76,7 +78,7 @@ export default function LotRow({
             {lot.photo_urls.length > 1 && (
               <>
                 <span>·</span>
-                <span>{lot.photo_urls.length} photos</span>
+                <span>{t('photosCount', { count: lot.photo_urls.length })}</span>
               </>
             )}
             <ListingBadges
@@ -112,7 +114,7 @@ export default function LotRow({
           className="bg-surface-2 hover:bg-surface-off border-border shrink-0 rounded border px-3 py-1.5 text-xs disabled:opacity-40"
         >
           <Tag className="mr-1 inline h-3.5 w-3.5" />
-          Annonce
+          {t('annonceButton')}
         </button>
 
         {/* Hide the Vendu button when the lot is already sold (status='sold'
@@ -125,7 +127,7 @@ export default function LotRow({
             disabled={selectionMode}
             className="bg-red text-bg shrink-0 rounded px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-40"
           >
-            Vendu
+            {t('soldButton')}
           </button>
         )}
       </div>

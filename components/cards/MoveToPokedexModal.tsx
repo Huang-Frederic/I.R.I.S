@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { X, BookmarkCheck, Package, Tag } from 'lucide-react';
 import { VARIANT_LABEL } from '@/lib/utils/labels';
 import { displayCardName, displaySetName } from '@/lib/utils/format-name';
+import { translateErrorCode } from '@/lib/utils/translate-error';
 
 interface ExistingPokedexCard {
   id: string;
@@ -42,6 +44,9 @@ interface Props {
  * unfolds a second confirm asking where to send the displaced card.
  */
 export default function MoveToPokedexModal({ card, currentLocation, onClose, onPromoted }: Props) {
+  const t = useTranslations('modals');
+  const tCommon = useTranslations('common');
+  const tErrors = useTranslations('errors');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<ExistingPokedexCard | null>(null);
@@ -68,11 +73,12 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
           setSubmitting(false);
           return;
         }
-        throw new Error(body.message ?? body.error ?? `Échec (${res.status})`);
+        const localized = translateErrorCode(tErrors, body.error);
+        throw new Error(localized ?? body.message ?? t('moveToPokedexFailed', { status: res.status }));
       }
       onPromoted();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue');
+      setError(err instanceof Error ? err.message : tCommon('errorUnknown'));
       setSubmitting(false);
     }
   };
@@ -93,11 +99,12 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-        throw new Error(body.message ?? body.error ?? `Échec (${res.status})`);
+        const localized = translateErrorCode(tErrors, body.error);
+        throw new Error(localized ?? body.message ?? t('moveToPokedexFailed', { status: res.status }));
       }
       onPromoted();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue');
+      setError(err instanceof Error ? err.message : tCommon('errorUnknown'));
       setSubmitting(false);
     }
   };
@@ -110,9 +117,9 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
         <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
           <div className="mb-3 flex items-start justify-between">
             <div>
-              <h2 className="text-lg font-semibold">Slot Pokédex déjà occupé</h2>
+              <h2 className="text-lg font-semibold">{t('moveToPokedexConflictTitle')}</h2>
               <p className="text-text-muted mt-1 text-sm">
-                Une autre carte de ce Pokémon est dans ton Pokédex. Où l&apos;envoyer pour faire la place ?
+                {t('moveToPokedexConflictBody')}
               </p>
             </div>
             <button
@@ -120,7 +127,7 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
               onClick={onClose}
               disabled={submitting}
               className="text-text-muted hover:text-text disabled:opacity-50"
-              aria-label="Fermer"
+              aria-label={tCommon('close')}
             >
               <X className="h-5 w-5" />
             </button>
@@ -136,7 +143,7 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
               />
             ) : (
               <div className="bg-surface-off flex h-[140px] w-[100px] shrink-0 items-center justify-center rounded text-xs text-text-faint">
-                Pas d&apos;image
+                {tCommon('noImage')}
               </div>
             )}
             <div className="flex flex-col gap-1 text-sm">
@@ -150,7 +157,7 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
                 {conflict.language} · {conflict.rarity} · {conflict.condition}
                 {variantLabel ? ` · ${variantLabel}` : ''}
               </p>
-              <p className="text-rarity-r mt-1 text-xs">Actuellement dans le Pokédex</p>
+              <p className="text-rarity-r mt-1 text-xs">{t('moveToPokedexConflictCurrent')}</p>
             </div>
           </div>
 
@@ -163,7 +170,7 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
               disabled={submitting}
               className="bg-surface-2 hover:bg-surface-off border-border rounded border px-4 py-2 text-sm disabled:opacity-50"
             >
-              Annuler
+              {tCommon('cancel')}
             </button>
             <button
               type="button"
@@ -172,7 +179,7 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
               className="bg-surface-2 hover:bg-surface-off border-border inline-flex items-center justify-center gap-1.5 rounded border px-4 py-2 text-sm disabled:opacity-50"
             >
               <Package className="h-3.5 w-3.5" />
-              Vers Stock
+              {t('pokedexReplaceToStock')}
             </button>
             <button
               type="button"
@@ -181,7 +188,7 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
               className="bg-red text-bg inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
             >
               <Tag className="h-3.5 w-3.5" />
-              Vers Vinted
+              {t('pokedexReplaceToVinted')}
             </button>
           </div>
         </div>
@@ -194,9 +201,9 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
       <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
         <div className="mb-3 flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Ajouter au Pokédex&nbsp;?</h2>
+            <h2 className="text-lg font-semibold">{t('moveToPokedexTitle')}</h2>
             <p className="text-text-muted mt-1 text-sm">
-              Cette carte sera retirée de <strong>{currentLocation}</strong> et placée dans le Pokédex.
+              {t('moveToPokedexBody', { location: currentLocation })}
             </p>
           </div>
           <button
@@ -204,7 +211,7 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
             onClick={onClose}
             disabled={submitting}
             className="text-text-muted hover:text-text disabled:opacity-50"
-            aria-label="Fermer"
+            aria-label={tCommon('close')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -220,7 +227,7 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
             />
           ) : (
             <div className="bg-surface-off flex h-[140px] w-[100px] shrink-0 items-center justify-center rounded text-xs text-text-faint">
-              Pas d&apos;image
+              {tCommon('noImage')}
             </div>
           )}
           <p className="text-sm font-medium">{displayCardName(card)}</p>
@@ -235,7 +242,7 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
             disabled={submitting}
             className="bg-surface-2 hover:bg-surface-off border-border rounded border px-4 py-2 text-sm disabled:opacity-50"
           >
-            Annuler
+            {tCommon('cancel')}
           </button>
           <button
             type="button"
@@ -244,7 +251,7 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
             className="bg-red text-bg inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
             <BookmarkCheck className="h-3.5 w-3.5" />
-            {submitting ? 'Patientez…' : 'Ajouter au Pokédex'}
+            {submitting ? t('moveToPokedexSubmitting') : t('moveToPokedexAdd')}
           </button>
         </div>
       </div>

@@ -2,12 +2,13 @@
  * Standard shape for API error responses across all `app/api/*` routes.
  *
  * Every error response uses:
- *   { ok: false, error: "snake_case_code", message?: "Human readable FR", details?: ... }
+ *   { ok: false, error: "snake_case_code", message?: "EN fallback string", details?: ... }
  *
  * Clients should:
  *   - Check `!res.ok` (HTTP status) for success/failure
- *   - Switch on `body.error` for known codes (e.g. "pokedex_slot_taken" → modal)
- *   - Display `body.message ?? body.error` to the user as fallback
+ *   - Translate `body.error` via the `errors` next-intl namespace using
+ *     `t.has(body.error) ? t(body.error) : body.message ?? body.error`.
+ *     The `message` is an EN fallback used when the locale lacks a translation.
  *
  * Note: there is no symmetric `ok: true` wrapper for success — successful
  * responses return the resource directly (`{ card: {...} }` or `{ data: [...] }`).
@@ -20,7 +21,9 @@ export interface ApiErrorBody {
   ok: false;
   /** Snake_case error code, stable for client-side switches. */
   error: string;
-  /** Human-readable FR message, shown to the user when present. */
+  /** EN fallback message — clients should translate `error` via the `errors`
+   *  i18n namespace first and fall back to this string when no translation
+   *  exists for the current locale. */
   message?: string;
   /** Optional structured payload (e.g. validation field errors, conflict context). */
   details?: unknown;
@@ -33,7 +36,7 @@ export interface ApiErrorBody {
  * Build a standardized error response.
  *
  * @example
- *   return apiError('card_not_found', { status: 404, message: 'Carte introuvable' });
+ *   return apiError('card_not_found', { status: 404, message: 'Card not found' });
  *   return apiError('validation', { status: 400, details: { field: 'set_code' } });
  *   return apiError('pokedex_slot_taken', { status: 409, extra: { existingCard, hasForSaleConflict } });
  */
@@ -82,7 +85,7 @@ export const serverErrorResponse = (
   const msg = underlying instanceof Error ? underlying.message : underlying;
   return apiError('server_error', {
     status: 500,
-    message: 'Une erreur est survenue côté serveur.',
+    message: 'A server-side error occurred.',
     details: { underlying: msg },
   });
 };

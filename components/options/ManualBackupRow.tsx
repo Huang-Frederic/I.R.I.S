@@ -2,6 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Download, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface Props {
   name: string;
@@ -9,14 +10,15 @@ interface Props {
   sizeBytes: number | null;
 }
 
-function formatSize(b: number | null): string {
-  if (b == null) return '?';
+function formatSize(b: number | null, kilo: string, mega: string, unknown: string): string {
+  if (b == null) return unknown;
   const mb = b / (1024 * 1024);
-  return mb < 1 ? `${(b / 1024).toFixed(0)} Ko` : `${mb.toFixed(1)} Mo`;
+  return mb < 1 ? `${(b / 1024).toFixed(0)} ${kilo}` : `${mb.toFixed(1)} ${mega}`;
 }
 
 export default function ManualBackupRow({ name, createdAt, sizeBytes }: Props) {
   const router = useRouter();
+  const t = useTranslations('options');
   const [busy, setBusy] = useState(false);
 
   async function download() {
@@ -31,7 +33,7 @@ export default function ManualBackupRow({ name, createdAt, sizeBytes }: Props) {
   }
 
   async function remove() {
-    if (!confirm(`Supprimer ${name} ?`)) return;
+    if (!confirm(t('backupRowDeleteConfirm', { name }))) return;
     setBusy(true);
     try {
       await fetch(`/api/backup/manual/${name}`, { method: 'DELETE' });
@@ -41,20 +43,29 @@ export default function ManualBackupRow({ name, createdAt, sizeBytes }: Props) {
     }
   }
 
-  const date = createdAt ? new Date(createdAt).toLocaleString('fr-FR') : '?';
+  // Date formatting still uses 'fr-FR' — switching to a locale-driven format
+  // would require threading the active locale through here; deferred until a
+  // broader date/number-format pass.
+  const date = createdAt ? new Date(createdAt).toLocaleString('fr-FR') : t('backupSizeUnknown');
+  const size = formatSize(
+    sizeBytes,
+    t('backupSizeKilo'),
+    t('backupSizeMega'),
+    t('backupSizeUnknown'),
+  );
 
   return (
     <li className="flex items-center justify-between py-2 text-sm">
       <span className="text-text-muted font-mono text-xs" suppressHydrationWarning>
-        {date} — {formatSize(sizeBytes)}
+        {date} — {size}
       </span>
       <div className="flex gap-1">
         <button
           type="button"
           onClick={download}
           disabled={busy}
-          aria-label={`Télécharger ${name}`}
-          title="Télécharger"
+          aria-label={t('backupRowDownloadAria', { name })}
+          title={t('backupRowDownloadTitle')}
           className="text-text-muted hover:text-rarity-rr hover:bg-surface-2 rounded-md p-1.5 transition-colors disabled:opacity-60"
         >
           <Download className="h-4 w-4" aria-hidden />
@@ -63,8 +74,8 @@ export default function ManualBackupRow({ name, createdAt, sizeBytes }: Props) {
           type="button"
           onClick={remove}
           disabled={busy}
-          aria-label={`Supprimer ${name}`}
-          title="Supprimer"
+          aria-label={t('backupRowDeleteAria', { name })}
+          title={t('backupRowDeleteTitle')}
           className="text-text-muted hover:text-red hover:bg-surface-2 rounded-md p-1.5 transition-colors disabled:opacity-60"
         >
           <Trash2 className="h-4 w-4" aria-hidden />

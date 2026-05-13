@@ -6,6 +6,19 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-05-13 — Internationalization (next-intl, 4 languages)
+
+The UI is no longer monolingual French — it ships translated in English (default), French, Japanese, and Simplified Chinese. Setup uses [next-intl](https://next-intl.dev) with cookie-based locale detection (`lang` cookie, 1-year max-age, first-visit best-match from `Accept-Language`). URLs stay locale-agnostic; the language toggle lives in Options next to the theme toggle.
+
+- **Infrastructure**: `i18n.ts` (locale config + `getRequestConfig`), `middleware.ts` (first-visit Accept-Language detection), `messages/{en,fr,ja,zh}.json` (~628 keys nested by feature in 25 namespaces), `LanguageToggle` component, `NextIntlClientProvider` wrapped at root layout. TypeScript autocompletion via `global.d.ts` augmentation. `lang` attribute on `<html>` and PWA manifest now follow the active locale.
+- **Translation pipeline**: extracted current FR strings as canonical `messages/fr.json`, auto-translated to EN via Claude (then EN → JA, EN → ZH) with idiomatic register and ICU placeholders preserved. Plural rules collapse on JA/ZH where those languages don't grammatically inflect.
+- **API errors**: routes return `{ error: 'snake_case_code', message: 'EN fallback' }`. Clients look up `t(\`errors.\${code}\`)` via a `translateErrorCode()` helper with the server message as fallback. Codes are the stable contract; messages can evolve per-locale.
+- **`formatStaleness` refactor**: returns `{ tone, key, daysSince }` instead of `{ tone, label, daysSince }`. The consumer (`PriceFreshnessBadge`) calls `t(key, { days })` for localization.
+- **Untouched per spec**: Pokémon names dex map (FR/EN/JA — ZH falls back to EN), date / number formatters (`fr-FR` numeric formats are language-neutral enough for v1), Cardmarket / TCGdex set names, OCR'd card text, DB column names + enums.
+- **Migration scope**: ~50 component/page files + 6 API routes + the `formatStaleness` util. Single big-bang migration, 449/449 tests passing across all phases, 0 new lint warnings.
+
+---
+
 ## 2026-05-12 — Pricing UX: Stock chip, manual refresh-all, perma-block fix
 
 - **Stock price chip** on every [StockRow](../components/stock/StockRow.tsx) — compact `cm_price_avg` + freshness badge, clickable through to the Cardmarket product page (uses the `cardmarket_url` resolved during the last lookup so the user can verify the matched print). Hidden for cards without a resolved price (newly scanned pre-cron, or variant kept on manual pricing).

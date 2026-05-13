@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CardScanForm from '@/components/submit/CardScanForm';
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function PokedexScanModal({ pokemonNumber, onClose }: Props) {
+  const t = useTranslations('pokedex');
   const router = useRouter();
 
   return (
@@ -17,7 +19,7 @@ export default function PokedexScanModal({ pokemonNumber, onClose }: Props) {
       <div className="bg-surface border-border my-6 w-full max-w-2xl rounded-lg border shadow-xl">
         <div className="border-border bg-surface sticky top-0 flex items-center justify-between border-b px-5 py-3">
           <h2 className="text-base font-semibold">
-            Scanner une carte pour le Pokédex
+            {t('scanModalTitle')}
             <span className="text-text-faint ml-2 font-mono text-xs">
               #{pokemonNumber.toString().padStart(4, '0')}
             </span>
@@ -25,7 +27,7 @@ export default function PokedexScanModal({ pokemonNumber, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t('drawerCloseInnerAria')}
             className="text-text-muted hover:text-text"
           >
             <X className="h-5 w-5" />

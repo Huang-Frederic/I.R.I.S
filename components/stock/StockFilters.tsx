@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Search, PackageCheck, PackageOpen } from 'lucide-react';
 import { UI_LANGUAGES, type CardLanguage, type CardRarity } from '@/lib/types';
 
@@ -21,14 +22,17 @@ export const INITIAL_STOCK_FILTERS: StockFilterState = {
 
 const LANGUAGES: ReadonlyArray<CardLanguage> = UI_LANGUAGES;
 const RARITIES: ReadonlyArray<CardRarity> = ['SAR', 'AR', 'SR', 'CHR', 'RR', 'R_HOLO', 'R', 'UC', 'C', 'OTHER'];
-const VARIANTS = [
-  { value: 'standard' as const, label: 'Standard' },
-  { value: 'pokeball' as const, label: 'Poké Ball' },
-  { value: 'masterball' as const, label: 'Master Ball' },
-  { value: 'reverse_holo' as const, label: 'Reverse Holo' },
-  { value: 'stamp' as const, label: 'Stamp' },
-  { value: 'promo' as const, label: 'Promo' },
-];
+const VARIANT_VALUES = [
+  'standard', 'pokeball', 'masterball', 'reverse_holo', 'stamp', 'promo',
+] as const;
+
+type VariantKey =
+  | 'variantLabel_standard'
+  | 'variantLabel_pokeball'
+  | 'variantLabel_masterball'
+  | 'variantLabel_reverse_holo'
+  | 'variantLabel_stamp'
+  | 'variantLabel_promo';
 
 interface Props {
   value: StockFilterState;
@@ -38,6 +42,9 @@ interface Props {
 }
 
 export default function StockFilters({ value, onChange, visibleCards, totalCards }: Props) {
+  const t = useTranslations('stock');
+  const tScanner = useTranslations('scanner');
+
   return (
     <div className="bg-bg sticky top-0 z-10 -mx-4 mb-4 flex flex-col gap-3 px-4 py-3 md:mx-0 md:px-0">
       <div className="flex flex-wrap items-center gap-3">
@@ -45,7 +52,7 @@ export default function StockFilters({ value, onChange, visibleCards, totalCards
           <Search className="text-text-faint pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2" />
           <input
             type="search"
-            placeholder="Recherche : nom, set, n°…"
+            placeholder={t('filtersSearchPlaceholder')}
             value={value.search}
             onChange={(e) => onChange({ ...value, search: e.target.value })}
             className="bg-surface-2 border-border focus:border-red w-full rounded border py-1.5 pl-8 pr-3 text-sm outline-none"
@@ -56,9 +63,9 @@ export default function StockFilters({ value, onChange, visibleCards, totalCards
           value={value.language}
           onChange={(e) => onChange({ ...value, language: e.target.value as StockFilterState['language'] })}
           className="bg-surface-2 border-border rounded border px-3 py-1.5 text-sm"
-          aria-label="Langue"
+          aria-label={t('filterLanguageAria')}
         >
-          <option value="all">Toutes langues</option>
+          <option value="all">{t('filterAllLanguages')}</option>
           {LANGUAGES.map((l) => (
             <option key={l} value={l}>{l}</option>
           ))}
@@ -68,9 +75,9 @@ export default function StockFilters({ value, onChange, visibleCards, totalCards
           value={value.rarity}
           onChange={(e) => onChange({ ...value, rarity: e.target.value as StockFilterState['rarity'] })}
           className="bg-surface-2 border-border rounded border px-3 py-1.5 text-sm"
-          aria-label="Rareté"
+          aria-label={t('filterRarityAria')}
         >
-          <option value="all">Toutes raretés</option>
+          <option value="all">{t('filterAllRarities')}</option>
           {RARITIES.map((r) => (
             <option key={r} value={r}>{r}</option>
           ))}
@@ -80,18 +87,19 @@ export default function StockFilters({ value, onChange, visibleCards, totalCards
           value={value.variant}
           onChange={(e) => onChange({ ...value, variant: e.target.value as StockFilterState['variant'] })}
           className="bg-surface-2 border-border rounded border px-3 py-1.5 text-sm"
-          aria-label="Variant"
+          aria-label={t('filterVariantAria')}
         >
-          <option value="all">Tous variants</option>
-          {VARIANTS.map((v) => (
-            <option key={v.value} value={v.value}>{v.label}</option>
-          ))}
+          <option value="all">{t('filterAllVariants')}</option>
+          {VARIANT_VALUES.map((v) => {
+            const key: VariantKey = `variantLabel_${v}` as VariantKey;
+            return <option key={v} value={v}>{tScanner(key)}</option>;
+          })}
         </select>
 
         <div className="border-border flex overflow-hidden rounded border text-sm">
           {(['all', 'has_for_sale', 'no_for_sale'] as const).map((s) => {
             const active = value.forSaleStatus === s;
-            const label = s === 'all' ? 'Tous' : s === 'has_for_sale' ? 'En vente' : 'Pas en vente';
+            const label = s === 'all' ? t('filterAll') : s === 'has_for_sale' ? t('filterForSale') : t('filterNotForSale');
             const Icon = s === 'has_for_sale' ? PackageCheck : s === 'no_for_sale' ? PackageOpen : null;
             return (
               <button
@@ -113,7 +121,7 @@ export default function StockFilters({ value, onChange, visibleCards, totalCards
       </div>
 
       <p className="text-text-muted text-xs">
-        {visibleCards} sur {totalCards}
+        {t('filtersCount', { visible: visibleCards, total: totalCards })}
       </p>
     </div>
   );

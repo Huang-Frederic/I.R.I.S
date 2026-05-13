@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import PokedexGrid from '@/components/pokedex/PokedexGrid';
 import PageTitle from '@/components/layout/PageTitle';
@@ -5,12 +6,14 @@ import { computeStockValue } from '@/lib/utils/stock-value';
 import { formatEur } from '@/lib/utils/format-currency';
 import type { Card } from '@/lib/types';
 
-export const metadata = {
-  title: 'Pokédex — I.R.I.S',
-};
+export async function generateMetadata() {
+  const t = await getTranslations('pokedex');
+  return { title: t('metaTitle') };
+}
 
 export default async function PokedexPage() {
   const supabase = await createClient();
+  const t = await getTranslations('pokedex');
   // Pull every card the user owns that could appear on this page — the grid needs
   // 'pokedex' to know which slots are filled, plus 'for_sale' / 'collection' to feed
   // the drawer's "Replace by..." picker.
@@ -22,8 +25,8 @@ export default async function PokedexPage() {
   if (error) {
     return (
       <section>
-        <PageTitle title="Pokédex" />
-        <p className="text-red mt-4 text-sm">Erreur de chargement : {error.message}</p>
+        <PageTitle title={t('pageTitle')} />
+        <p className="text-red mt-4 text-sm">{t('loadError', { message: error.message })}</p>
       </section>
     );
   }
@@ -35,8 +38,13 @@ export default async function PokedexPage() {
   return (
     <section>
       <PageTitle
-        title="Pokédex"
-        subtitle={`${completed} / 1025 enregistrés (${Math.round((completed / 1025) * 100)}%) · ${formatEur(stockValue.value_pokedex)}`}
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle', {
+          collected: completed,
+          total: 1025,
+          pct: Math.round((completed / 1025) * 100),
+          value: formatEur(stockValue.value_pokedex),
+        })}
       />
       <div className="mt-6">
         <PokedexGrid cards={cards} />

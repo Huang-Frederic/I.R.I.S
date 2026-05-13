@@ -64,7 +64,7 @@ export async function PATCH(
 
   if (body.status !== undefined) {
     if (!ALLOWED_STATUSES.has(body.status)) {
-      return apiError('invalid_status', { status: 400, message: 'status invalide' });
+      return apiError('invalid_status', { status: 400, message: 'Invalid status' });
     }
     update.status = body.status;
     if (body.status === 'sold') {
@@ -85,13 +85,13 @@ export async function PATCH(
     const av = sanitizeNumber(body.cm_price_avg);
     if (av !== undefined) update.cm_price_avg = av;
   } catch {
-    return apiError('invalid_number', { status: 400, message: 'champ numérique invalide' });
+    return apiError('invalid_number', { status: 400, message: 'Invalid numeric field' });
   }
 
   if (body.notes !== undefined) update.notes = body.notes;
 
   if (Object.keys(update).length === 0) {
-    return apiError('no_fields', { status: 400, message: 'aucun champ à mettre à jour' });
+    return apiError('no_fields', { status: 400, message: 'No fields to update' });
   }
 
   // If we're flipping to pokedex, pre-check the per-pokemon unique slot.
@@ -114,7 +114,7 @@ export async function PATCH(
     if (target.pokemon_number == null) {
       return apiError('missing_pokemon_number', {
         status: 400,
-        message: 'pokemon_number requis pour status=pokedex',
+        message: 'pokemon_number is required for status=pokedex',
       });
     }
     if (target.status !== 'pokedex' && target.pokemon_number) {
@@ -131,7 +131,7 @@ export async function PATCH(
         return apiError('pokedex_slot_taken', {
           status: 409,
           message:
-            "Le slot Pokédex pour ce Pokémon est déjà occupé. Utilise « Remplacer » depuis le drawer Pokédex.",
+            'The Pokédex slot for this Pokémon is already taken. Use "Replace" from the Pokédex drawer.',
           extra: { existingCard: existing },
         });
       }
@@ -164,7 +164,7 @@ export async function PATCH(
       if (conflict) {
         return apiError('for_sale_conflict', {
           status: 409,
-          message: 'Un exemplaire de cette carte est déjà en vente sur Vinted.',
+          message: 'A copy of this card is already for sale on Vinted.',
           extra: { conflictCard: conflict },
         });
       }
@@ -191,12 +191,12 @@ export async function PATCH(
       if (/one_pokedex_per_pokemon/i.test(msg) || body.status === 'pokedex') {
         return apiError('pokedex_slot_taken', {
           status: 409,
-          message: 'Le slot Pokédex pour ce Pokémon est déjà occupé.',
+          message: 'The Pokédex slot for this Pokémon is already taken.',
         });
       }
       return apiError('for_sale_conflict', {
         status: 409,
-        message: 'Un exemplaire de cette carte est déjà en vente sur Vinted.',
+        message: 'A copy of this card is already for sale on Vinted.',
       });
     }
     console.error('PATCH cards failed:', error);

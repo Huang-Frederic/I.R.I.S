@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, X, AlertTriangle, Check } from 'lucide-react';
 import type { BulkSoldItem } from './BulkSoldModal';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
@@ -28,6 +29,8 @@ function displayName(item: BulkSoldItem): string {
 }
 
 export default function BulkSoldRecapModal({ items, restocks, onClose }: Props) {
+  const t = useTranslations('vintedSold');
+  const tCommon = useTranslations('common');
   const [index, setIndex] = useState(0);
   const total = items.length;
 
@@ -51,17 +54,17 @@ export default function BulkSoldRecapModal({ items, restocks, onClose }: Props) 
           <div>
             <h2 className="text-lg font-semibold inline-flex items-center gap-2">
               <Check className="text-red h-5 w-5" />
-              {total} {total > 1 ? 'items vendus' : 'item vendu'}
+              {t('recapItemsSold', { count: total })}
             </h2>
             <p className="text-text-muted mt-1 text-sm">
-              {index + 1} / {total} — {current ? displayName(current) : ''}
+              {t('recapPosition', { index: index + 1, total, name: current ? displayName(current) : '' })}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="text-text-muted hover:text-text"
-            aria-label="Fermer"
+            aria-label={tCommon('close')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -73,7 +76,7 @@ export default function BulkSoldRecapModal({ items, restocks, onClose }: Props) 
               type="button"
               onClick={() => setIndex((i) => Math.max(0, i - 1))}
               disabled={index === 0}
-              aria-label="Précédent"
+              aria-label={t('recapPaginationPrev')}
               className="absolute left-0 z-10 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70 disabled:opacity-30"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -89,7 +92,7 @@ export default function BulkSoldRecapModal({ items, restocks, onClose }: Props) 
             />
           ) : (
             <div className="bg-surface-off flex h-[280px] w-[200px] items-center justify-center rounded text-text-faint text-xs">
-              Pas d&apos;image
+              {tCommon('noImage')}
             </div>
           )}
 
@@ -98,7 +101,7 @@ export default function BulkSoldRecapModal({ items, restocks, onClose }: Props) 
               type="button"
               onClick={() => setIndex((i) => Math.min(total - 1, i + 1))}
               disabled={index === total - 1}
-              aria-label="Suivant"
+              aria-label={t('recapPaginationNext')}
               className="absolute right-0 z-10 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70 disabled:opacity-30"
             >
               <ChevronRight className="h-5 w-5" />
@@ -113,7 +116,7 @@ export default function BulkSoldRecapModal({ items, restocks, onClose }: Props) 
                 key={i}
                 type="button"
                 onClick={() => setIndex(i)}
-                aria-label={`Item ${i + 1}`}
+                aria-label={t('recapPaginationDot', { index: i + 1 })}
                 className={`h-1.5 rounded-full transition-all ${
                   i === index ? 'bg-red w-6' : 'bg-surface-off w-1.5 hover:bg-text-muted'
                 }`}
@@ -128,15 +131,15 @@ export default function BulkSoldRecapModal({ items, restocks, onClose }: Props) 
               <AlertTriangle className="text-red mt-0.5 h-4 w-4 shrink-0" />
               <div className="flex-1">
                 <p className="font-medium">
-                  {restocks.length} alerte{restocks.length > 1 ? 's' : ''} restock
+                  {t('recapRestockTitle', { count: restocks.length })}
                 </p>
                 <ul className="text-text-muted mt-1 space-y-0.5 text-xs">
                   {restocks.map((r, i) => (
-                    <li key={i}>{r.pokemon_name} — Pokédex exposé</li>
+                    <li key={i}>{t('recapRestockExposed', { name: r.pokemon_name })}</li>
                   ))}
                 </ul>
                 <Link href="/pokedex" className="text-red mt-1 inline-block text-xs underline">
-                  Vérifier le Pokédex
+                  {t('recapRestockLink')}
                 </Link>
               </div>
             </div>
@@ -149,7 +152,7 @@ export default function BulkSoldRecapModal({ items, restocks, onClose }: Props) 
             onClick={onClose}
             className="bg-red text-bg rounded px-4 py-1.5 text-sm font-medium hover:opacity-90"
           >
-            Continuer
+            {t('recapContinue')}
           </button>
         </div>
       </div>

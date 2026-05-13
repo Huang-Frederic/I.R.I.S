@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Search, Grid2x2, Grid3x3, List } from 'lucide-react';
 import { GENERATIONS } from '@/lib/utils/pokemon-generations';
 import type { CardRarity } from '@/lib/types';
@@ -23,20 +24,6 @@ interface PokedexFiltersProps {
   onViewModeChange: (mode: ViewMode) => void;
 }
 
-const RARITIES_FOR_FILTER: { value: CardRarity | 'all'; label: string }[] = [
-  { value: 'all', label: 'Toutes raretés' },
-  { value: 'SAR', label: 'SAR' },
-  { value: 'AR', label: 'AR' },
-  { value: 'SR', label: 'SR' },
-  { value: 'CHR', label: 'CHR' },
-  { value: 'RR', label: 'RR' },
-  { value: 'R_HOLO', label: 'R Holo' },
-  { value: 'R', label: 'R' },
-  { value: 'UC', label: 'UC' },
-  { value: 'C', label: 'C' },
-  { value: 'OTHER', label: 'Autre' },
-];
-
 export default function PokedexFilters({
   value,
   onChange,
@@ -45,14 +32,30 @@ export default function PokedexFilters({
   viewMode,
   onViewModeChange,
 }: PokedexFiltersProps) {
+  const t = useTranslations('pokedex');
+
+  const rarities: { value: CardRarity | 'all'; label: string }[] = [
+    { value: 'all', label: t('filterAllRarities') },
+    { value: 'SAR', label: 'SAR' },
+    { value: 'AR', label: 'AR' },
+    { value: 'SR', label: 'SR' },
+    { value: 'CHR', label: 'CHR' },
+    { value: 'RR', label: 'RR' },
+    { value: 'R_HOLO', label: 'R Holo' },
+    { value: 'R', label: 'R' },
+    { value: 'UC', label: 'UC' },
+    { value: 'C', label: 'C' },
+    { value: 'OTHER', label: t('rarityOther') },
+  ];
+
   return (
     <div className="bg-bg sticky top-0 z-10 -mx-4 mb-4 flex flex-col gap-3 px-4 py-3 md:mx-0 md:px-0">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="border-border flex overflow-hidden rounded border text-sm" role="group" aria-label="Mode d'affichage">
+        <div className="border-border flex overflow-hidden rounded border text-sm" role="group" aria-label={t('displayModeAria')}>
           {([
-            { mode: 'grid-compact' as ViewMode, icon: Grid3x3, label: 'Grille compacte' },
-            { mode: 'grid-large' as ViewMode, icon: Grid2x2, label: 'Grille large' },
-            { mode: 'list' as ViewMode, icon: List, label: 'Liste' },
+            { mode: 'grid-compact' as ViewMode, icon: Grid3x3, label: t('viewCompact') },
+            { mode: 'grid-large' as ViewMode, icon: Grid2x2, label: t('viewLarge') },
+            { mode: 'list' as ViewMode, icon: List, label: t('viewList') },
           ]).map(({ mode, icon: Icon, label }) => {
             const active = viewMode === mode;
             return (
@@ -78,9 +81,9 @@ export default function PokedexFilters({
           value={value.gen}
           onChange={(e) => onChange({ ...value, gen: e.target.value })}
           className="bg-surface-2 border-border rounded border px-3 py-1.5 text-sm"
-          aria-label="Filtre génération"
+          aria-label={t('filterGeneration')}
         >
-          <option value="all">Toutes générations</option>
+          <option value="all">{t('filterAllGenerations')}</option>
           {GENERATIONS.map((g) => (
             <option key={g.id} value={g.id}>
               {g.label}
@@ -91,7 +94,7 @@ export default function PokedexFilters({
         <div className="border-border flex overflow-hidden rounded border text-sm">
           {(['all', 'completed', 'missing'] as StatusFilter[]).map((s) => {
             const active = value.status === s;
-            const label = s === 'all' ? 'Tous' : s === 'completed' ? 'Complétés' : 'Manquants';
+            const label = s === 'all' ? t('filterAll') : s === 'completed' ? t('filterCompleted') : t('filterMissing');
             return (
               <button
                 key={s}
@@ -113,9 +116,9 @@ export default function PokedexFilters({
           value={value.rarity}
           onChange={(e) => onChange({ ...value, rarity: e.target.value as CardRarity | 'all' })}
           className="bg-surface-2 border-border rounded border px-3 py-1.5 text-sm"
-          aria-label="Filtre rareté"
+          aria-label={t('filterRarity')}
         >
-          {RARITIES_FOR_FILTER.map((r) => (
+          {rarities.map((r) => (
             <option key={r.value} value={r.value}>{r.label}</option>
           ))}
         </select>
@@ -124,7 +127,7 @@ export default function PokedexFilters({
           <Search className="text-text-faint pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2" />
           <input
             type="search"
-            placeholder="N° ou nom"
+            placeholder={t('searchPlaceholder')}
             value={value.search}
             onChange={(e) => onChange({ ...value, search: e.target.value })}
             className="bg-surface-2 border-border focus:border-red w-full rounded border py-1.5 pl-8 pr-3 text-sm outline-none"
@@ -133,7 +136,7 @@ export default function PokedexFilters({
       </div>
 
       <p className="text-text-muted text-xs">
-        {visible} affiché{visible > 1 ? 's' : ''} · {total} dans le filtre
+        {t('filtersCount', { visible, total })}
       </p>
     </div>
   );

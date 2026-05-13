@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ScanLine, Layers, Package } from 'lucide-react';
 import CardScanForm from './CardScanForm';
 import LotForm from './LotForm';
@@ -8,13 +9,14 @@ import BatchForm from './BatchForm';
 
 type Tab = 'mobile' | 'lot' | 'batch';
 
-const TABS: { id: Tab; label: string; icon: typeof ScanLine }[] = [
-  { id: 'mobile', label: 'Mobile', icon: ScanLine },
-  { id: 'lot', label: 'Lot Vinted', icon: Layers },
-  { id: 'batch', label: 'Batch', icon: Package },
+const TAB_DEFS: { id: Tab; labelKey: 'tabMobile' | 'tabLot' | 'tabBatch'; icon: typeof ScanLine }[] = [
+  { id: 'mobile', labelKey: 'tabMobile', icon: ScanLine },
+  { id: 'lot', labelKey: 'tabLot', icon: Layers },
+  { id: 'batch', labelKey: 'tabBatch', icon: Package },
 ];
 
 export default function SubmitTabs() {
+  const t = useTranslations('scanner');
   const [tab, setTab] = useState<Tab>('mobile');
 
   return (
@@ -22,7 +24,7 @@ export default function SubmitTabs() {
     // claim its full height, the strip is shrink-0, the content area scrolls.
     <div className="flex flex-col gap-6 lg:h-full">
       <div className="border-border flex gap-1 border-b lg:shrink-0">
-        {TABS.map(({ id, label, icon: Icon }) => {
+        {TAB_DEFS.map(({ id, labelKey, icon: Icon }) => {
           const active = tab === id;
           return (
             <button
@@ -37,7 +39,7 @@ export default function SubmitTabs() {
               }`}
             >
               <Icon className="h-4 w-4" aria-hidden />
-              {label}
+              {t(labelKey)}
             </button>
           );
         })}

@@ -13,7 +13,7 @@ A two-collector PWA that scans, prices, and sells a shared Pokémon TCG collecti
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20RLS-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com)
-[![Tests](https://img.shields.io/badge/tests-442%20passing-success)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-449%20passing-success)](#-testing)
 [![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8)](#)
 
 [The scan](#-it-starts-with-a-scan) · [The views](#-now-where-does-it-go) · [The sell](#-time-to-sell) · [The two of us](#-but-youre-not-alone) · [The control room](#-the-control-room) · [Under the hood](#-under-the-hood) · [Demo](#-see-it-in-action) · [Quick start](#-try-it-yourself) · [Docs](#-going-deeper)
@@ -155,6 +155,7 @@ Here's what's holding it all together.
 |---|---|---|
 | **Framework** | Next.js 16 (App Router) | Server components for data-loading pages, edge runtime where it matters, file-system routing. |
 | **Language** | TypeScript (strict) | End-to-end type safety, including the database via Supabase generated types. |
+| **i18n** | next-intl with cookie-based locale (en/fr/ja/zh, EN default) | No URL changes, language toggle in Options. |
 | **UI** | React 19 + Tailwind v4 | Tailwind v4 uses `@theme` in CSS (no JS config). Lucide icons. |
 | **Database** | Supabase (Postgres + Storage + Auth + RLS) | Managed Postgres with first-class RLS, S3-compatible Storage for card photos, magic-link/password auth out of the box. |
 | **OCR** | Gemini 3.1 Flash Lite Preview (primary), Google Vision (fallback) | Gemini extracts structured JSON in one call (vs Vision's raw text + regex). 93 % accuracy bench-validated. |

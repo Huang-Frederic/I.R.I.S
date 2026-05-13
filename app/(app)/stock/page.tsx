@@ -1,11 +1,13 @@
+import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import StockList from '@/components/stock/StockList';
 import PageTitle from '@/components/layout/PageTitle';
 import type { Card } from '@/lib/types';
 
-export const metadata = {
-  title: 'Stock — I.R.I.S',
-};
+export async function generateMetadata() {
+  const t = await getTranslations('stock');
+  return { title: t('metaTitle') };
+}
 
 interface ForSaleKeyRow {
   card_id_tcg: string | null;
@@ -20,6 +22,7 @@ function makeKey(row: { card_id_tcg: string | null; language: string; condition:
 
 export default async function StockPage() {
   const supabase = await createClient();
+  const t = await getTranslations('stock');
 
   // The user wants Stock rows ordered "oldest first" so the original entry
   // sits at the top of each group's history (date_added ASC). Grouping
@@ -44,8 +47,8 @@ export default async function StockPage() {
   if (fetchError) {
     return (
       <section>
-        <PageTitle title="Stock" />
-        <p className="text-red mt-4 text-sm">Erreur de chargement : {fetchError.message}</p>
+        <PageTitle title={t('pageTitle')} />
+        <p className="text-red mt-4 text-sm">{t('loadError', { message: fetchError.message })}</p>
       </section>
     );
   }
@@ -63,8 +66,8 @@ export default async function StockPage() {
   return (
     <section>
       <PageTitle
-        title="Stock"
-        subtitle={`${cards.length} carte${cards.length > 1 ? 's' : ''} en collection (pas en vente)`}
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle', { count: cards.length })}
       />
       <div className="mt-6">
         <StockList cards={cards} forSaleKeys={forSaleKeys} registered={registered} />

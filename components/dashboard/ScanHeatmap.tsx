@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { DayDetail } from '@/lib/utils/dashboard-queries';
 
 interface Props {
@@ -38,6 +39,7 @@ interface HoverState {
 }
 
 export default function ScanHeatmap({ matrix, details = {} }: Props) {
+  const t = useTranslations('dashboard');
   const [hover, setHover] = useState<HoverState | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [visibleWeeks, setVisibleWeeks] = useState(Math.min(matrix.length, 8));
@@ -78,7 +80,7 @@ export default function ScanHeatmap({ matrix, details = {} }: Props) {
   return (
     <div className="bg-surface border-border overflow-hidden rounded-lg border p-4">
       <h3 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-        Activité scans ({visibleWeeks} semaines)
+        {t('scanHeatmapTitle', { weeks: visibleWeeks })}
       </h3>
       <div ref={containerRef} className="relative flex justify-center">
         <svg
@@ -86,7 +88,7 @@ export default function ScanHeatmap({ matrix, details = {} }: Props) {
           height={naturalHeight}
           className="block"
           role="img"
-          aria-label="Carte d'activité des scans"
+          aria-label={t('scanHeatmapAria')}
         >
           {DOW_LABELS.map((lbl, dow) => (
             <text
@@ -150,6 +152,7 @@ export default function ScanHeatmap({ matrix, details = {} }: Props) {
 }
 
 function HoverTooltip({ x, y, date, detail }: { x: number; y: number; date: string; detail: DayDetail | null }) {
+  const t = useTranslations('dashboard');
   const formatted = formatShortDate(date);
   return (
     <div
@@ -166,23 +169,23 @@ function HoverTooltip({ x, y, date, detail }: { x: number; y: number; date: stri
       {detail && detail.ocrCount > 0 ? (
         <ul className="text-text-muted mt-1 space-y-0.5">
           <li>
-            <span className="text-text">{detail.ocrCount}</span> OCR
+            <span className="text-text">{detail.ocrCount}</span> {t('heatmapTooltipOcr')}
             <span className="text-text-faint">
               {' '}({detail.geminiCount} G · {detail.visionCount} V)
             </span>
           </li>
           <li>
-            <span className="text-text">{detail.cardsAdded}</span> cartes ajoutées
+            <span className="text-text">{detail.cardsAdded}</span> {t('heatmapTooltipCardsAdded')}
           </li>
           <li>
-            <span className="text-text">€{detail.costEur.toFixed(2)}</span> coût
+            <span className="text-text">€{detail.costEur.toFixed(2)}</span> {t('heatmapTooltipCost')}
           </li>
           <li>
-            <span className="text-text">{(detail.tokensTotal / 1000).toFixed(1)}K</span> tokens
+            <span className="text-text">{(detail.tokensTotal / 1000).toFixed(1)}K</span> {t('heatmapTooltipTokens')}
           </li>
         </ul>
       ) : (
-        <p className="text-text-faint mt-1">Aucune activité</p>
+        <p className="text-text-faint mt-1">{t('heatmapTooltipNoActivity')}</p>
       )}
     </div>
   );

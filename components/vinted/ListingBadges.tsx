@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Globe, GlobeLock, AlertTriangle, X, RefreshCw } from 'lucide-react';
 import type { BaseListing } from '@/lib/types';
 import {
@@ -44,6 +45,7 @@ export default function ListingBadges({
   onListed,
   onUnlisted,
 }: Props) {
+  const t = useTranslations('listingBadges');
   const [now] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -162,7 +164,7 @@ export default function ListingBadges({
         {mine && !stale && (
           <span className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5">
             <Globe className="h-3 w-3" />
-            Listée par Moi · {daysSince(mine.listed_at, now)}j
+            {t('listedByMe', { days: daysSince(mine.listed_at, now) })}
           </span>
         )}
 
@@ -171,18 +173,18 @@ export default function ListingBadges({
             type="button"
             onClick={() => setConfirmRefresh(true)}
             disabled={busy}
-            title="Cliquer pour rafraîchir la date de mise en ligne (listed_at = now)"
+            title={t('staleTitle')}
             className="bg-red text-bg inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:opacity-90 disabled:opacity-50"
           >
             <RefreshCw className="h-3 w-3" />
-            À rafraîchir · {daysSince(mine.listed_at, now)}j
+            {t('stale', { days: daysSince(mine.listed_at, now) })}
           </button>
         )}
 
         {partner && partnerName && (
           <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 ${badgeClassesForColor(partnerColor)}`}>
             <Globe className="h-3 w-3" />
-            Listée par {partnerName}
+            {t('listedByPartner', { name: partnerName })}
           </span>
         )}
 
@@ -194,7 +196,7 @@ export default function ListingBadges({
             className="bg-red text-bg inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:opacity-90 disabled:opacity-50"
           >
             <AlertTriangle className="h-3 w-3" />
-            À retirer
+            {t('toRetire')}
           </button>
         )}
 
@@ -206,7 +208,7 @@ export default function ListingBadges({
             className="bg-rarity-ar/20 text-rarity-ar hover:bg-rarity-ar/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors disabled:opacity-50"
           >
             <GlobeLock className="h-3 w-3" />
-            Mettre en ligne
+            {t('putOnline')}
           </button>
         )}
 
@@ -219,7 +221,7 @@ export default function ListingBadges({
             type="button"
             onClick={() => (itemKind === 'card' ? setRetireOpen(true) : setConfirmDelete(true))}
             disabled={busy}
-            aria-label={mine ? 'Retirer mon annonce' : 'Retirer cette carte de Vinted'}
+            aria-label={mine ? t('retireMyAd') : t('retireFromVinted')}
             className="text-text-muted hover:text-red inline-flex items-center rounded p-0.5 disabled:opacity-50"
           >
             <X className="h-3 w-3" />
@@ -229,13 +231,13 @@ export default function ListingBadges({
 
       {confirmDelete && (
         <ConfirmDialog
-          title="Retirer ton annonce ?"
+          title={t('deleteConfirmTitle')}
           body={
             toDelete
-              ? `${itemKind === 'card' ? 'Cette carte' : 'Ce lot'} n'est plus disponible. Confirmer le retrait de ton annonce Vinted (côté IRIS) ?`
-              : `Confirmer le retrait de ton annonce sur ${itemKind === 'card' ? 'cette carte' : 'ce lot'} ?`
+              ? (itemKind === 'card' ? t('deleteConfirmBodyCard') : t('deleteConfirmBodyLot'))
+              : (itemKind === 'card' ? t('deleteConfirmBodyDefault') : t('deleteConfirmBodyDefaultLot'))
           }
-          confirmLabel="Retirer"
+          confirmLabel={t('deleteConfirmAction')}
           confirmTone="danger"
           busy={busy}
           onConfirm={deleteListing}
@@ -245,9 +247,9 @@ export default function ListingBadges({
 
       {confirmRefresh && mine && (
         <ConfirmDialog
-          title="Rafraîchir cette annonce ?"
-          body={`Tu vas remettre la date de mise en ligne à aujourd'hui (actuellement ${daysSince(mine.listed_at, now)}j). Pense à pousser l'annonce sur Vinted.com en parallèle.`}
-          confirmLabel="Rafraîchir"
+          title={t('refreshConfirmTitle')}
+          body={t('refreshConfirmBody', { days: daysSince(mine.listed_at, now) })}
+          confirmLabel={t('refreshConfirmAction')}
           busy={busy}
           onConfirm={async () => {
             await postListing();

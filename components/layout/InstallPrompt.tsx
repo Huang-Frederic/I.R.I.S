@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Download, X, Share, Plus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import {
   detectInitialPlatform,
   type BeforeInstallPromptEvent,
@@ -36,6 +37,7 @@ export default function InstallPrompt() {
   const [platform, setPlatform] = useState<Platform | null>(null);
   const [hidden, setHidden] = useState(true);
   const [showIosSteps, setShowIosSteps] = useState(false);
+  const t = useTranslations('install');
 
   useEffect(() => {
     // The (app) layout re-mounts this component on every navigation, so we
@@ -90,14 +92,14 @@ export default function InstallPrompt() {
     <>
       <div
         role="dialog"
-        aria-label="Installer I.R.I.S"
+        aria-label={t('bannerAria')}
         className="bg-surface border-border fixed inset-x-3 bottom-20 z-40 flex items-center gap-3 rounded-lg border p-3 shadow-lg md:bottom-3 md:left-auto md:right-3 md:max-w-sm"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.png" alt="" className="h-9 w-9 shrink-0" aria-hidden />
         <div className="min-w-0 flex-1">
-          <p className="text-text text-sm font-medium">Installer I.R.I.S</p>
-          <p className="text-text-muted text-xs">Accès rapide depuis l&apos;écran d&apos;accueil</p>
+          <p className="text-text text-sm font-medium">{t('bannerTitle')}</p>
+          <p className="text-text-muted text-xs">{t('bannerSubtitle')}</p>
         </div>
         {platform === 'beforeinstallprompt' ? (
           <button
@@ -106,7 +108,7 @@ export default function InstallPrompt() {
             className="bg-red text-white inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-90"
           >
             <Download className="h-3.5 w-3.5" aria-hidden />
-            Installer
+            {t('installButton')}
           </button>
         ) : (
           <button
@@ -114,14 +116,14 @@ export default function InstallPrompt() {
             onClick={() => setShowIosSteps(true)}
             className="bg-red text-white inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-90"
           >
-            Comment ?
+            {t('iosHowto')}
           </button>
         )}
         <button
           type="button"
           onClick={dismiss}
-          aria-label="Plus tard"
-          title="Plus tard"
+          aria-label={t('later')}
+          title={t('later')}
           className="text-text-muted hover:bg-surface-2 shrink-0 rounded-md p-1 transition-colors"
         >
           <X className="h-4 w-4" aria-hidden />
@@ -138,6 +140,9 @@ export default function InstallPrompt() {
  * Shown as a modal sheet with illustrated steps.
  */
 export function IosInstructionsModal({ onClose }: { onClose: () => void }) {
+  const t = useTranslations('install');
+  const tCommon = useTranslations('common');
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -150,7 +155,7 @@ export function IosInstructionsModal({ onClose }: { onClose: () => void }) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Installer sur iPhone"
+      aria-label={t('iosModalAria')}
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
       onClick={onClose}
     >
@@ -159,11 +164,11 @@ export function IosInstructionsModal({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-text text-lg font-semibold">Installer sur iPhone</h2>
+          <h2 className="text-text text-lg font-semibold">{t('iosModalTitle')}</h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={tCommon('close')}
             className="text-text-muted hover:bg-surface-2 rounded-md p-1"
           >
             <X className="h-5 w-5" aria-hidden />
@@ -176,7 +181,11 @@ export function IosInstructionsModal({ onClose }: { onClose: () => void }) {
               1
             </span>
             <p className="text-text">
-              Touche le bouton <Share className="mx-1 inline h-4 w-4 align-text-bottom" aria-label="Partager" /> en bas de Safari
+              {t.rich('iosStep1', {
+                share: () => (
+                  <Share className="mx-1 inline h-4 w-4 align-text-bottom" aria-label={t('iosShareAria')} />
+                ),
+              })}
             </p>
           </li>
           <li className="flex items-start gap-3">
@@ -184,23 +193,24 @@ export function IosInstructionsModal({ onClose }: { onClose: () => void }) {
               2
             </span>
             <p className="text-text">
-              Fais défiler puis touche{' '}
-              <span className="bg-surface-2 inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs">
-                <Plus className="h-3 w-3" aria-hidden /> Sur l&apos;écran d&apos;accueil
-              </span>
+              {t.rich('iosStep2', {
+                action: (chunks) => (
+                  <span className="bg-surface-2 inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs">
+                    <Plus className="h-3 w-3" aria-hidden /> {chunks}
+                  </span>
+                ),
+              })}
             </p>
           </li>
           <li className="flex items-start gap-3">
             <span className="bg-surface-2 text-text-muted flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
               3
             </span>
-            <p className="text-text">Touche &quot;Ajouter&quot; en haut à droite. C&apos;est tout.</p>
+            <p className="text-text">{t('iosStep3')}</p>
           </li>
         </ol>
 
-        <p className="text-text-muted mt-4 text-xs">
-          L&apos;app apparaît alors comme une icône à part entière, sans la barre Safari.
-        </p>
+        <p className="text-text-muted mt-4 text-xs">{t('iosFooter')}</p>
       </div>
     </div>
   );

@@ -1,13 +1,16 @@
+import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import VintedList from '@/components/vinted/VintedList';
 import PageTitle from '@/components/layout/PageTitle';
 import type { Card, Lot, CardListing, LotListing } from '@/lib/types';
 
-export const metadata = {
-  title: 'Vinted — I.R.I.S',
-};
+export async function generateMetadata() {
+  const t = await getTranslations('vinted');
+  return { title: t('metaTitle') };
+}
 
 export default async function VintedPage() {
+  const t = await getTranslations('vinted');
   const supabase = await createClient();
 
   const [forSaleResult, collectionResult, pokedexResult, configResult, lotsResult, cardListingsResult, lotListingsResult] = await Promise.all([
@@ -42,8 +45,8 @@ export default async function VintedPage() {
   if (fetchError) {
     return (
       <section>
-        <PageTitle title="Vinted" />
-        <p className="text-red mt-4 text-sm">Erreur de chargement : {fetchError.message}</p>
+        <PageTitle title={t('pageTitle')} />
+        <p className="text-red mt-4 text-sm">{t('loadError', { message: fetchError.message })}</p>
       </section>
     );
   }
@@ -72,8 +75,8 @@ export default async function VintedPage() {
   return (
     <section>
       <PageTitle
-        title="Vinted"
-        subtitle={`${cards.length} carte${cards.length > 1 ? 's' : ''} — tri FIFO`}
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle', { count: cards.length })}
       />
       <div className="mt-6">
         <VintedList cards={cardsWithListings} lots={lotsWithListings} collectionCards={collectionCards} registered={registered} config={config} />

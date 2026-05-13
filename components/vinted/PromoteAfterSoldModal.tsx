@@ -2,10 +2,12 @@
 
 import { X, Tag } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 import { VARIANT_LABEL } from '@/lib/utils/labels';
 import CardZoomModal from '@/components/vinted/CardZoomModal';
 import ExchangeOnConflictModal, { type ExchangeConflictCard } from '@/components/vinted/ExchangeOnConflictModal';
+import { translateErrorCode } from '@/lib/utils/translate-error';
 
 interface Props {
   candidate: PromoteCandidate;
@@ -14,6 +16,10 @@ interface Props {
 }
 
 export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }: Props) {
+  const t = useTranslations('vintedPromote');
+  const tCommon = useTranslations('common');
+  const tModals = useTranslations('modals');
+  const tErrors = useTranslations('errors');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
@@ -48,13 +54,15 @@ export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }
           setSubmitting(false);
           return;
         }
-        // For for_sale conflict, surface a friendly message
-        const friendly = body.message ?? body.error ?? `Promotion échouée (${res.status})`;
+        // Translate the stable error code via the `errors` namespace; fall
+        // back to the EN `message` then to a generic line.
+        const localized = translateErrorCode(tErrors, body.error);
+        const friendly = localized ?? body.message ?? t('promoteFailed', { status: res.status });
         throw new Error(friendly);
       }
       onPromoted();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue');
+      setError(err instanceof Error ? err.message : tCommon('errorUnknown'));
       setSubmitting(false);
     }
   };
@@ -64,15 +72,15 @@ export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }
       <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Mettre l&apos;exemplaire Stock en vente ?</h2>
-            <p className="text-text-muted mt-1 text-sm">Tu as un autre exemplaire de cette carte en Stock.</p>
+            <h2 className="text-lg font-semibold">{t('title')}</h2>
+            <p className="text-text-muted mt-1 text-sm">{t('subtitle')}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
             className="text-text-muted hover:text-text disabled:opacity-50"
-            aria-label="Fermer"
+            aria-label={tCommon('close')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -84,7 +92,7 @@ export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }
               type="button"
               onClick={() => setZoomSrc(thumb)}
               className="hover:ring-red shrink-0 rounded transition-shadow hover:ring-2"
-              aria-label="Voir en grand"
+              aria-label={tModals('pokedexReplaceZoomAria')}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -95,7 +103,7 @@ export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }
             </button>
           ) : (
             <div className="bg-surface-off flex h-[140px] w-[100px] shrink-0 items-center justify-center rounded text-xs text-text-faint">
-              Pas d&apos;image
+              {tCommon('noImage')}
             </div>
           )}
           <div className="flex flex-col gap-1 text-sm">
@@ -122,7 +130,7 @@ export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }
             disabled={submitting}
             className="bg-surface-2 hover:bg-surface-off border-border rounded border px-4 py-2 text-sm disabled:opacity-50"
           >
-            Garder en Stock
+            {t('keep')}
           </button>
           <button
             type="button"
@@ -131,7 +139,7 @@ export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }
             className="bg-red text-bg inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
             <Tag className="h-3.5 w-3.5" />
-            {submitting ? 'Patientez…' : 'Mettre en vente'}
+            {submitting ? t('submitting') : t('promote')}
           </button>
         </div>
 

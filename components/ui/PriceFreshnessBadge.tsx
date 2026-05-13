@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { formatStaleness, type StalenessTone } from '@/lib/utils/format-staleness';
 
 interface Props {
@@ -21,16 +22,19 @@ const TONE_CLASS: Record<StalenessTone, string> = {
  * to avoid hydration noise).
  */
 export default function PriceFreshnessBadge({ cm_updated_at }: Props) {
+  const t = useTranslations('staleness');
+  const tUI = useTranslations('ui');
   const [now, setNow] = useState<Date | null>(null);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setNow(new Date()); }, []);
   if (now === null) return null;
 
-  const { tone, label } = formatStaleness(cm_updated_at, now);
+  const { tone, key, daysSince } = formatStaleness(cm_updated_at, now);
+  const label = t(key, { days: daysSince ?? 0 });
   return (
     <span
       className={`text-xs ${TONE_CLASS[tone]}`}
-      title="Date du dernier rafraîchissement Cardmarket via TCGdex"
+      title={tUI('freshnessTitle')}
     >
       {label}
     </span>

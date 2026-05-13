@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Tag, BookmarkCheck, Bookmark, Globe, GlobeLock, Boxes } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
@@ -37,6 +38,7 @@ export default function StockRow({
   onSetCount,
   busy = false,
 }: Props) {
+  const t = useTranslations('stock');
   const card = group.head;
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
   // Sync the input value with the parent-reported count, but allow free typing
@@ -78,7 +80,7 @@ export default function StockRow({
           type="button"
           onClick={() => setZoomSrc(thumbUrl(card))}
           className="hover:ring-red shrink-0 rounded transition-shadow hover:ring-2"
-          aria-label={`Voir ${displayCardName(card)} en grand`}
+          aria-label={t('rowZoomAria', { name: displayCardName(card) })}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -115,39 +117,39 @@ export default function StockRow({
               isRegistered ? (
                 <span
                   className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
-                  title="Cette carte est dans ton Pokédex"
+                  title={t('badgePokedexTitle')}
                 >
                   <BookmarkCheck className="h-3 w-3" />
-                  Pokédex
+                  {t('badgePokedex')}
                 </span>
               ) : (
                 <button
                   type="button"
                   onClick={() => onMoveToPokedexClick?.(card)}
                   disabled={!onMoveToPokedexClick}
-                  title="Ajouter cette carte au Pokédex"
+                  title={t('badgeNotPokedexTitle')}
                   className="bg-rarity-ar/20 text-rarity-ar hover:bg-rarity-ar/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors disabled:cursor-default"
                 >
                   <Bookmark className="h-3 w-3" />
-                  Pas Pokédex
+                  {t('badgeNotPokedex')}
                 </button>
               )
             )}
             {hasForSaleSibling ? (
               <span
                 className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
-                title="Un exemplaire de cette carte est déjà en vente sur Vinted"
+                title={t('badgeVintedTitle')}
               >
                 <Globe className="h-3 w-3" />
-                Vinted
+                {t('badgeVinted')}
               </span>
             ) : (
               <span
                 className="bg-rarity-ar/20 text-rarity-ar inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
-                title="Cette carte n'est pas en vente — utilise le bouton « Mettre en vente »"
+                title={t('badgeNotVintedTitle')}
               >
                 <GlobeLock className="h-3 w-3" />
-                Pas Vinted
+                {t('badgeNotVinted')}
               </span>
             )}
           </div>
@@ -168,7 +170,7 @@ export default function StockRow({
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
               className="border-border bg-surface-2 hover:border-red inline-flex items-center gap-1.5 rounded border px-2 py-1 text-xs transition-colors"
-              title="Voir sur Cardmarket"
+              title={t('cardmarketLinkTitle')}
             >
               <span className="text-text font-mono">{formatEur(card.cm_price_avg)}</span>
               <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
@@ -176,7 +178,7 @@ export default function StockRow({
           ) : (
             <div
               className="border-border bg-surface-2 inline-flex items-center gap-1.5 rounded border px-2 py-1 text-xs"
-              title="Pas de lien Cardmarket pour cette carte"
+              title={t('cardmarketNoLinkTitle')}
             >
               <span className="text-text font-mono">{formatEur(card.cm_price_avg)}</span>
               <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
@@ -204,7 +206,7 @@ export default function StockRow({
                 e.currentTarget.blur();
               }
             }}
-            aria-label="Nombre d'exemplaires"
+            aria-label={t('countAria')}
             className="bg-transparent text-text w-10 font-mono text-xs outline-none disabled:opacity-40"
           />
         </label>
@@ -213,11 +215,11 @@ export default function StockRow({
           type="button"
           onClick={() => onListForSaleClick(card)}
           disabled={busy || hasForSaleSibling}
-          title={hasForSaleSibling ? "Un exemplaire est déjà en vente — impossible d'en lister deux" : undefined}
+          title={hasForSaleSibling ? t('listForSaleConflictTitle') : undefined}
           className="bg-red text-bg shrink-0 rounded px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Tag className="mr-1 inline h-3.5 w-3.5" />
-          Mettre en vente
+          {t('listForSale')}
         </button>
       </div>
 
@@ -227,14 +229,13 @@ export default function StockRow({
 
       {confirmZero && (
         <ConfirmDialog
-          title="Vider tout le stock de cette carte ?"
-          body={
-            <>
-              Tu vas supprimer les <strong>{group.count}</strong> exemplaire{group.count > 1 ? 's' : ''} de
-              {' '}<strong>{card.pokemon_name}</strong> du Stock. Action irréversible.
-            </>
-          }
-          confirmLabel="Tout supprimer"
+          title={t('wipeConfirmTitle')}
+          body={t.rich('wipeConfirmBody', {
+            count: group.count,
+            name: card.pokemon_name ?? displayCardName(card),
+            strong: (chunks) => <strong>{chunks}</strong>,
+          })}
+          confirmLabel={t('wipeConfirmAction')}
           confirmTone="danger"
           busy={busy}
           onConfirm={() => {

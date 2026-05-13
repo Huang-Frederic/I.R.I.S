@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import type { Card, Lot, CardWithListings, LotWithListings, BaseListing } from '@/lib/types';
 import { groupCards, groupKey, type CardGroup } from '@/lib/utils/group-cards';
 import { sortVintedGroups } from '@/lib/utils/vinted-sort';
@@ -29,6 +30,7 @@ import BulkSelectionBottomBar from './BulkSelectionBottomBar';
 import BulkSoldModal, { type BulkSoldItem } from './BulkSoldModal';
 import BulkSoldRecapModal from './BulkSoldRecapModal';
 import { splitPrice } from '@/lib/utils/split-bulk-price';
+import { translateErrorCode } from '@/lib/utils/translate-error';
 import { useUserContext } from '@/lib/hooks/useUserContext';
 import { useDataSync } from './hooks/useDataSync';
 import { useSelectionMode } from './hooks/useSelectionMode';
@@ -85,6 +87,9 @@ function matchesAttrFilters(card: CardWithListings, f: VintedFilterState): boole
 
 export default function VintedList({ cards: initial, lots: initialLots, collectionCards: initialCollection, registered, config }: VintedListProps) {
   const router = useRouter();
+  const t = useTranslations('vinted');
+  const tSold = useTranslations('vintedSold');
+  const tErrors = useTranslations('errors');
   const { myUserId, partnerUserId, partnerName } = useUserContext();
 
   // Data state — see useDataSync for the prop→state re-sync rationale.
@@ -275,7 +280,9 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
         };
         if (!res.ok) {
           failCount += 1;
-          errors.push(`${item.kind === 'card' ? item.card.card_name : item.lot.name}: ${json.error ?? 'erreur'}`);
+          const localized = translateErrorCode(tErrors, json.error);
+          const errLabel = localized ?? json.error ?? tErrors('unexpected');
+          errors.push(`${item.kind === 'card' ? item.card.card_name : item.lot.name}: ${errLabel}`);
           continue;
         }
         soldItems.push(item);
@@ -325,7 +332,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
       setBulkRecap({ items: soldItems, restocks, promotes });
     } else if (failCount > 0) {
       // No success at all — surface errors directly since the recap modal won't open.
-      alert(`Aucune vente enregistrée. ${failCount} échec(s) :\n\n${errors.join('\n')}`);
+      alert(tSold('bulkAlertNoSuccess', { failCount, errors: errors.join('\n') }));
     }
   }
 
@@ -436,7 +443,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
 
       {isEmpty ? (
         <div className="bg-surface border-border rounded-lg border p-6">
-          <p className="text-text-muted text-sm">Aucune carte ne correspond aux filtres.</p>
+          <p className="text-text-muted text-sm">{t('emptyFiltered')}</p>
         </div>
       ) : (
         <ul className="space-y-2">

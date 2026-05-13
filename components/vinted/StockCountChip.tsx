@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Boxes } from 'lucide-react';
 
 interface Props {
@@ -24,6 +25,7 @@ interface Props {
  * collection copies of this card" on the backend.
  */
 export default function StockCountChip({ count, onSetCount, busy = false }: Props) {
+  const t = useTranslations('vinted');
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(count));
   const [lastSynced, setLastSynced] = useState(count);
@@ -76,7 +78,7 @@ export default function StockCountChip({ count, onSetCount, busy = false }: Prop
       type="button"
       onClick={() => !busy && setEditing(true)}
       disabled={busy}
-      title={count === 0 ? 'Cliquer pour ajouter des copies en stock' : `${count} copie${count > 1 ? 's' : ''} en stock — cliquer pour modifier`}
+      title={count === 0 ? t('stockChipZeroTitle') : t('stockChipTitle', { count })}
       className={`border-rarity-uc/40 bg-rarity-uc/10 text-rarity-uc inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs transition-colors hover:bg-rarity-uc/20 disabled:opacity-50 ${count === 0 ? 'opacity-60' : ''}`}
     >
       <Boxes className="h-3 w-3" />

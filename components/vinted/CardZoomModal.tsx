@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
 import Modal from '@/components/ui/Modal';
@@ -11,18 +12,20 @@ interface Props {
 }
 
 export default function CardZoomModal({ src, alt, onClose }: Props) {
+  const t = useTranslations('modals');
+  const tCommon = useTranslations('common');
   return (
     <Modal
       open={true}
       onClose={onClose}
-      ariaLabel="Aperçu carte"
+      ariaLabel={t('cardZoomAria')}
       backdropClass="bg-black/80"
       className="relative w-full max-w-md max-h-[calc(100vh-6rem)] overflow-hidden"
     >
       <button
         type="button"
         onClick={onClose}
-        aria-label="Fermer"
+        aria-label={tCommon('close')}
         className="bg-surface text-text-muted hover:text-text absolute -top-12 right-0 z-10 rounded-full p-2"
       >
         <X className="h-5 w-5" />

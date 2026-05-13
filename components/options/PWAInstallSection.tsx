@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Download, CheckCircle2, Smartphone } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { IosInstructionsModal } from '@/components/layout/InstallPrompt';
 import {
   detectInitialPlatform,
@@ -17,6 +18,7 @@ const DISMISS_KEY = 'iris.pwa.installDismissedAt';
  * on demand, even after dismissing the banner.
  */
 export default function PWAInstallSection() {
+  const t = useTranslations('options');
   const [event, setEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [platform, setPlatform] = useState<Platform | null>(null);
   const [showIosSteps, setShowIosSteps] = useState(false);
@@ -52,9 +54,9 @@ export default function PWAInstallSection() {
     return (
       <div className="bg-surface border-border rounded-lg border p-5">
         <h2 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-          Installation
+          {t('pwaInstallHeading')}
         </h2>
-        <p className="text-text-faint text-sm">Détection en cours...</p>
+        <p className="text-text-faint text-sm">{t('pwaDetecting')}</p>
       </div>
     );
   }
@@ -62,53 +64,47 @@ export default function PWAInstallSection() {
   return (
     <div className="bg-surface border-border rounded-lg border p-5">
       <h2 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-        Installation
+        {t('pwaInstallHeading')}
       </h2>
 
       {platform === 'installed' && (
         <div className="text-text flex items-center gap-2 text-sm">
           <CheckCircle2 className="text-staleness-fresh h-4 w-4" aria-hidden />
-          <span>I.R.I.S est installée sur cet appareil.</span>
+          <span>{t('pwaInstalled')}</span>
         </div>
       )}
 
       {platform === 'beforeinstallprompt' && (
         <div>
-          <p className="text-text-muted mb-3 text-sm">
-            Ajoute I.R.I.S à ton écran d&apos;accueil pour un accès rapide.
-          </p>
+          <p className="text-text-muted mb-3 text-sm">{t('pwaPromptDescription')}</p>
           <button
             type="button"
             onClick={install}
             className="bg-red text-white inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-opacity hover:opacity-90"
           >
             <Download className="h-4 w-4" aria-hidden />
-            Installer l&apos;application
+            {t('pwaPromptInstall')}
           </button>
         </div>
       )}
 
       {platform === 'ios' && (
         <div>
-          <p className="text-text-muted mb-3 text-sm">
-            Sur iPhone, l&apos;installation se fait depuis Safari via le menu Partager.
-          </p>
+          <p className="text-text-muted mb-3 text-sm">{t('pwaIosDescription')}</p>
           <button
             type="button"
             onClick={() => setShowIosSteps(true)}
             className="bg-red text-white inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-opacity hover:opacity-90"
           >
             <Smartphone className="h-4 w-4" aria-hidden />
-            Voir les étapes
+            {t('pwaIosShowSteps')}
           </button>
         </div>
       )}
 
       {platform === 'unsupported' && (
         <div>
-          <p className="text-text-muted text-sm">
-            Ton navigateur ne propose pas d&apos;installation directe. Utilise Chrome, Edge ou Safari (iOS) pour ajouter I.R.I.S à ton écran d&apos;accueil.
-          </p>
+          <p className="text-text-muted text-sm">{t('pwaUnsupported')}</p>
         </div>
       )}
 

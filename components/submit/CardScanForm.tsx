@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { ScanLine, AlertTriangle, CheckCircle2, XCircle, Camera } from 'lucide-react';
 import {
   UI_LANGUAGES,
@@ -18,6 +19,7 @@ import {
   type SuggestionResult,
 } from '@/lib/utils/pokedex-suggestion';
 import { resizeImage } from '@/lib/utils/resize-image';
+import { translateErrorCode } from '@/lib/utils/translate-error';
 import ScanSuggestion from '@/components/cards/ScanSuggestion';
 import { getPokemonName } from '@/lib/data/pokemon-names';
 import PokedexReplaceModal, { type PokedexReplaceModalCard } from '@/components/cards/PokedexReplaceModal';
@@ -32,31 +34,27 @@ import { Field, Input, Select, CandidatePicker } from './CardScanFormUI';
 
 const LANGUAGES: readonly CardLanguage[] = UI_LANGUAGES;
 const CONDITIONS: CardCondition[] = ['NM', 'EX', 'GD', 'PL', 'PO'];
-const STATUSES: { value: CardStatus; label: string }[] = [
-  { value: 'for_sale', label: 'Vinted' },
-  { value: 'pokedex', label: 'Pokédex' },
-  { value: 'collection', label: 'Stock' },
-];
-const RARITIES: { value: CardRarity; label: string }[] = [
-  { value: 'SAR', label: 'SAR — Special Art' },
-  { value: 'AR', label: 'AR — Art Rare' },
-  { value: 'SR', label: 'SR — Super Rare' },
-  { value: 'CHR', label: 'CHR — Character Rare' },
-  { value: 'RR', label: 'RR — Double Rare' },
-  { value: 'R_HOLO', label: 'R Holo' },
-  { value: 'R', label: 'R — Rare' },
-  { value: 'UC', label: 'UC — Uncommon' },
-  { value: 'C', label: 'C — Common' },
-  { value: 'OTHER', label: 'Autre / inconnue' },
-];
-const VARIANTS: { value: string; label: string }[] = [
-  { value: '', label: 'Standard' },
-  { value: 'pokeball', label: 'Poké Ball' },
-  { value: 'masterball', label: 'Master Ball' },
-  { value: 'reverse_holo', label: 'Reverse Holo' },
-  { value: 'stamp', label: 'Stamp' },
-  { value: 'promo', label: 'Promo' },
-];
+const STATUS_VALUES = ['for_sale', 'pokedex', 'collection'] as const satisfies readonly CardStatus[];
+const RARITY_VALUES = [
+  'SAR',
+  'AR',
+  'SR',
+  'CHR',
+  'RR',
+  'R_HOLO',
+  'R',
+  'UC',
+  'C',
+  'OTHER',
+] as const satisfies readonly CardRarity[];
+const VARIANT_VALUES = [
+  { value: '', key: 'standard' },
+  { value: 'pokeball', key: 'pokeball' },
+  { value: 'masterball', key: 'masterball' },
+  { value: 'reverse_holo', key: 'reverse_holo' },
+  { value: 'stamp', key: 'stamp' },
+  { value: 'promo', key: 'promo' },
+] as const;
 
 type Phase = 'idle' | 'scanning' | 'reviewing' | 'saving' | 'success' | 'error';
 
@@ -181,6 +179,21 @@ export default function CardScanForm({
   initialOcr,
   initialEnrich,
 }: CardScanFormProps) {
+  const t = useTranslations('scanner');
+  const tCommon = useTranslations('common');
+  const tErrors = useTranslations('errors');
+  const STATUSES: { value: CardStatus; label: string }[] = STATUS_VALUES.map((value) => ({
+    value,
+    label: t(`statusLabel_${value}`),
+  }));
+  const RARITIES: { value: CardRarity; label: string }[] = RARITY_VALUES.map((value) => ({
+    value,
+    label: t(`rarityLabel_${value}`),
+  }));
+  const VARIANTS: { value: string; label: string }[] = VARIANT_VALUES.map(({ value, key }) => ({
+    value,
+    label: t(`variantLabel_${key}`),
+  }));
   const [phase, setPhase] = useState<Phase>('idle');
   const [successCounts, setSuccessCounts] = useState<{ for_sale: number; pokedex: number; collection: number }>({ for_sale: 0, pokedex: 0, collection: 0 });
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -385,7 +398,7 @@ export default function CardScanForm({
     } else {
       setSuggestion({
         type: 'no_pokemon_number',
-        message: 'Carte non-Pokémon (Trainer / Énergie / Stadium) — pas de slot Pokédex.',
+        message: t('noPokemonMessage'),
         primaryAction: 'add_to_vinted',
         secondaryActions: ['add_to_collection'],
       });
@@ -465,7 +478,7 @@ export default function CardScanForm({
     const [localId, totalStr] = setNumberRaw.split('/').map((s) => s.trim());
 
     if (!setPrefix && !form.pokemon_name && !form.card_name) {
-      setResearchMsg('Renseigne au moins un set (BRS, LOR…) ou un nom de carte avant de relancer.');
+      setResearchMsg(t('researchMissingFields'));
       return;
     }
 
@@ -501,7 +514,7 @@ export default function CardScanForm({
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        throw new Error(`Recherche TCG échouée (${res.status})`);
+        throw new Error(t('researchHttpFailed', { status: res.status }));
       }
       const enrich = (await res.json()) as EnrichResult;
 
@@ -509,21 +522,21 @@ export default function CardScanForm({
         setEnrichFound(false);
         setResearchMsg(
           setPrefix && localId
-            ? `Aucune carte ${setPrefix}-${localId} trouvée (${form.language}). Continue à la main.`
-            : `Carte introuvable. Renseigne au moins set_prefix (BRS, LOR…) + n° ou nom de carte.`,
+            ? t('researchNoneSpecific', { prefix: setPrefix, number: localId, language: form.language })
+            : t('researchNoneGeneric'),
         );
         return;
       }
 
       if (enrich.candidates.length > 1) {
         setCandidates(enrich.candidates);
-        setResearchMsg(`${enrich.candidates.length} cartes trouvées — choisis la bonne.`);
+        setResearchMsg(t('researchMultiple', { count: enrich.candidates.length }));
         return;
       }
 
       void applyCandidate(enrich.bestMatch);
     } catch (err) {
-      setResearchMsg(err instanceof Error ? err.message : 'Erreur inconnue');
+      setResearchMsg(err instanceof Error ? err.message : tCommon('errorUnknown'));
     } finally {
       setResearching(false);
     }
@@ -601,7 +614,7 @@ export default function CardScanForm({
       ocrForm.append('image', blob, 'card.jpg');
       const ocrRes = await fetch('/api/ocr', { method: 'POST', body: ocrForm });
       if (!ocrRes.ok) {
-        throw new Error(`OCR a échoué (${ocrRes.status})`);
+        throw new Error(t('ocrFailed', { status: ocrRes.status }));
       }
       const ocr = (await ocrRes.json()) as OcrResult;
       setConfidence(ocr.confidence);
@@ -646,7 +659,7 @@ export default function CardScanForm({
         body: JSON.stringify(enrichBody),
       });
       if (!enrichRes.ok) {
-        throw new Error(`Enrichissement a échoué (${enrichRes.status})`);
+        throw new Error(t('enrichFailed', { status: enrichRes.status }));
       }
       const enrich = (await enrichRes.json()) as EnrichResult;
       setEnrichFound(enrich.bestMatch !== null);
@@ -719,7 +732,7 @@ export default function CardScanForm({
       } else {
         nextSuggestion = {
           type: 'no_pokemon_number',
-          message: 'Carte non-Pokémon (Trainer / Énergie / Stadium) — pas de slot Pokédex.',
+          message: t('noPokemonMessage'),
           primaryAction: 'add_to_vinted',
           secondaryActions: ['add_to_collection'],
         };
@@ -729,7 +742,7 @@ export default function CardScanForm({
       setSuggestion(nextSuggestion);
       setPhase('reviewing');
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
+      setErrorMsg(err instanceof Error ? err.message : tCommon('errorUnknown'));
       setPhase('error');
     }
   }
@@ -805,7 +818,8 @@ export default function CardScanForm({
           setPhase('reviewing');
           return;
         }
-        throw new Error(body.message ?? body.error ?? `Enregistrement a échoué (${res.status})`);
+        const localized = translateErrorCode(tErrors, body.error);
+        throw new Error(localized ?? body.message ?? t('saveFailed', { status: res.status }));
       }
 
       const { created } = (await res.json()) as { created: { id: string; status: 'for_sale' | 'pokedex' | 'collection' }[] };
@@ -827,8 +841,9 @@ export default function CardScanForm({
           }),
         });
         if (!swap.ok) {
-          const body = (await swap.json().catch(() => ({}))) as { error?: string };
-          throw new Error(body.error ?? `Remplacement Pokédex a échoué (${swap.status})`);
+          const body = (await swap.json().catch(() => ({}))) as { error?: string; message?: string };
+          const localized = translateErrorCode(tErrors, body.error);
+          throw new Error(localized ?? body.message ?? tErrors('replaceFailed', { status: swap.status }));
         }
         // The swap reclassified the first row from for_sale to pokedex.
         counts.for_sale--;
@@ -839,7 +854,7 @@ export default function CardScanForm({
       setPhase('success');
       pendingFirstCardId.current = firstCardId;
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
+      setErrorMsg(err instanceof Error ? err.message : tCommon('errorUnknown'));
       setPhase('error');
     }
   }
@@ -867,8 +882,9 @@ export default function CardScanForm({
 
       const res = await fetch('/api/cards/batch', { method: 'POST', body: data });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `Enregistrement a échoué (${res.status})`);
+        const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+        const localized = translateErrorCode(tErrors, body.error);
+        throw new Error(localized ?? body.message ?? t('saveFailed', { status: res.status }));
       }
       const { created } = (await res.json()) as { created: { id: string; status: string }[] };
       const firstCardId = created[0]?.id ?? null;
@@ -877,7 +893,7 @@ export default function CardScanForm({
       setPhase('success');
       pendingFirstCardId.current = firstCardId;
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
+      setErrorMsg(err instanceof Error ? err.message : tCommon('errorUnknown'));
       setPhase('error');
     }
   }
@@ -904,8 +920,9 @@ export default function CardScanForm({
         body: JSON.stringify({ status: displaceTo }),
       });
       if (!demoteRes.ok) {
-        const body = (await demoteRes.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? 'Démotion échouée');
+        const body = (await demoteRes.json().catch(() => ({}))) as { error?: string; message?: string };
+        const localized = translateErrorCode(tErrors, body.error);
+        throw new Error(localized ?? body.message ?? tErrors('demotionFailed'));
       }
 
       // Step 2: Insert all N copies — first one takes the now-free pokedex
@@ -929,8 +946,9 @@ export default function CardScanForm({
 
         const res = await fetch('/api/cards', { method: 'POST', body: data });
         if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string };
-          throw new Error(body.error ?? `Enregistrement a échoué (${res.status})`);
+          const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+          const localized = translateErrorCode(tErrors, body.error);
+          throw new Error(localized ?? body.message ?? t('saveFailed', { status: res.status }));
         }
         const inserted = (await res.json()) as { card: { id: string } };
         if (copy === 0) firstCardId = inserted.card.id;
@@ -942,7 +960,7 @@ export default function CardScanForm({
       setPhase('success');
       pendingFirstCardId.current = firstCardId;
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Erreur inconnue');
+      setErrorMsg(err instanceof Error ? err.message : tCommon('errorUnknown'));
       setPhase('error');
       setReplaceModal(null);
     }
@@ -994,7 +1012,8 @@ export default function CardScanForm({
         });
         return;
       }
-      alert(`Erreur enregistrement: ${body.error ?? res.status}`);
+      const localized = translateErrorCode(tErrors, body.error);
+      alert(t('saveErrorAlert', { error: localized ?? body.error ?? res.status }));
       return;
     }
     const { created } = (await res.json()) as { created: { id: string; status: 'for_sale' | 'pokedex' | 'collection' }[] };
@@ -1060,7 +1079,7 @@ export default function CardScanForm({
           <div className="flex flex-col gap-3">
             <h3 className="text-text-muted flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
               <Camera className="h-3.5 w-3.5" aria-hidden />
-              Photo
+              {t('photo')}
             </h3>
             <div className="flex flex-col gap-3">
               {!previewUrl ? (
@@ -1077,14 +1096,14 @@ export default function CardScanForm({
                   {phase === 'scanning' ? (
                     <>
                       <div className="border-red border-t-transparent h-8 w-8 animate-spin rounded-full border-2" />
-                      <p className="text-sm">Analyse OCR…</p>
-                      <p className="text-text-muted text-xs">Gemini extrait les infos de la carte (15-30 s)</p>
+                      <p className="text-sm">{t('ocrAnalyzing')}</p>
+                      <p className="text-text-muted text-xs">{t('ocrAnalyzingSubtitle')}</p>
                     </>
                   ) : (
                     <>
                       <ScanLine className="text-red h-10 w-10" aria-hidden />
-                      <span className="text-sm font-medium">Scanner une carte</span>
-                      <span className="text-text-muted text-xs">Photo ou fichier image</span>
+                      <span className="text-sm font-medium">{t('scanCardCta')}</span>
+                      <span className="text-text-muted text-xs">{t('scanCardSubtitle')}</span>
                     </>
                   )}
                 </button>
@@ -1094,7 +1113,7 @@ export default function CardScanForm({
                   <div className="relative">
                     <MagnifierLoupe
                       src={previewUrl}
-                      alt="Aperçu de la carte"
+                      alt={t('previewAlt')}
                       className={
                         compact
                           ? 'mx-auto w-full max-w-[14rem] border-2 border-border shadow-lg'
@@ -1121,7 +1140,7 @@ export default function CardScanForm({
                     className="border-border text-text-muted hover:border-red hover:text-text mx-auto flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-medium transition-colors"
                   >
                     <Camera className="h-3.5 w-3.5" aria-hidden />
-                    Reprendre
+                    {t('retakePhoto')}
                   </button>
                 </>
               )}
@@ -1156,14 +1175,14 @@ export default function CardScanForm({
                   <p className={`text-sm font-medium ${
                     confidence >= CONFIDENCE_THRESHOLD ? 'text-rarity-r' : 'text-rarity-ar'
                   }`}>
-                    {confidence >= CONFIDENCE_THRESHOLD ? 'OCR fiable' : 'OCR à vérifier'}
+                    {confidence >= CONFIDENCE_THRESHOLD ? t('ocrReliable') : t('ocrUnreliable')}
                     <span className="ml-1.5 font-normal opacity-80">
                       ({Math.round(confidence * 100)}%)
                     </span>
                   </p>
                   {form.tcg_image_url && (
                     <p className="text-text-muted font-mono text-xs">
-                      Match catalogue : <span className="text-text">{form.card_id_tcg}</span>
+                      {t('catalogMatch', { id: form.card_id_tcg })}
                     </p>
                   )}
                   {(ocrUsage || ocrEngine) && (
@@ -1172,17 +1191,17 @@ export default function CardScanForm({
                       <p className="text-text-faint font-mono text-xs">
                         {ocrEngine === 'gemini' && ocrUsage && (
                           <>
-                            <span className="text-rarity-rr">[Gemini]</span> {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image_est} img · €{ocrUsage.cost_eur.toFixed(4)}
+                            <span className="text-rarity-rr">{t('ocrEngineGemini')}</span> {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image_est} img · €{ocrUsage.cost_eur.toFixed(4)}
                           </>
                         )}
                         {ocrEngine === 'vision' && ocrUsage && (
                           <>
-                            <span className="text-rarity-ar">[Gemini→Vision]</span> {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image_est} img · €{ocrUsage.cost_eur.toFixed(4)} <span className="opacity-70">(fallback Vision)</span>
+                            <span className="text-rarity-ar">{t('ocrEngineFallback')}</span> {ocrUsage.tokens_in} in · {ocrUsage.tokens_out} out · ~{ocrUsage.tokens_image_est} img · €{ocrUsage.cost_eur.toFixed(4)} <span className="opacity-70">{t('ocrEngineFallbackNote')}</span>
                           </>
                         )}
                         {ocrEngine === 'vision' && !ocrUsage && (
                           <>
-                            <span className="text-rarity-ar">[Vision]</span> <span className="opacity-70">(Gemini indisponible)</span>
+                            <span className="text-rarity-ar">{t('ocrEngineVision')}</span> <span className="opacity-70">{t('ocrEngineVisionNote')}</span>
                           </>
                         )}
                         {!ocrEngine && ocrUsage && (
@@ -1206,9 +1225,7 @@ export default function CardScanForm({
           {/* Alert if no catalog match */}
           {(phase === 'reviewing' || phase === 'saving' || phase === 'success') && !enrichFound && (
             <div className="border-rarity-ar bg-rarity-ar/10 text-rarity-ar rounded-lg border p-3 text-xs">
-              Aucun match catalogue — soit le numéro de set n&apos;a pas été lu, soit la carte n&apos;est
-              pas indexée (sets JP récents notamment). Le texte OCR ci-dessous t&apos;aidera à
-              compléter manuellement.
+              {t('noCatalogMatch')}
             </div>
           )}
 
@@ -1216,23 +1233,23 @@ export default function CardScanForm({
           {(phase === 'reviewing' || phase === 'saving' || phase === 'success') && ocrText && (
             <details className="bg-surface-2 border-border rounded-lg border text-xs">
               <summary className="text-text-muted cursor-pointer select-none px-3 py-2">
-                Texte OCR détecté ({ocrText.length} caractères)
+                {t('ocrTextSummary', { length: ocrText.length })}
               </summary>
               <div className="border-border border-t px-3 py-2">
                 <p className="text-text-faint mb-2 font-mono text-[11px]">
-                  Extraits :{' '}
+                  {t('extractsLabel')}{' '}
                   <span className={extractedSetCode ? 'text-text' : 'text-text-faint'}>
-                    set_code = {extractedSetCode ?? 'aucun'}
+                    {t('extractSetCode', { value: extractedSetCode ?? t('extractNone') })}
                   </span>{' '}
                   ·{' '}
                   <span className={extractedSetNumber ? 'text-text' : 'text-text-faint'}>
-                    set_number = {extractedSetNumber ?? 'aucun'}
+                    {t('extractSetNumber', { value: extractedSetNumber ?? t('extractNone') })}
                   </span>
                   {ocrIllustrator && (
                     <>
                       {' '}·{' '}
                       <span className="text-text">
-                        illustrator = {ocrIllustrator}
+                        {t('extractIllustrator', { value: ocrIllustrator })}
                       </span>
                     </>
                   )}
@@ -1247,14 +1264,14 @@ export default function CardScanForm({
             {/* Form fields section */}
           <div className={compact ? 'flex flex-col gap-3' : 'flex flex-col gap-4'}>
             <h3 className="text-text-muted text-xs font-semibold uppercase tracking-wide">
-              Informations de la carte
+              {t('cardInfoHeading')}
             </h3>
 
-          <Field label="Nom de la carte">
+          <Field label={t('fieldCardName')}>
             <Input value={form.card_name} onChange={(v) => update('card_name', v)} required />
           </Field>
 
-          <Field label="Nom du Pokémon (vide = Trainer/Énergie)">
+          <Field label={t('fieldPokemonName')}>
             <Input value={form.pokemon_name} onChange={(v) => update('pokemon_name', v)} />
           </Field>
 
@@ -1264,24 +1281,24 @@ export default function CardScanForm({
               Langue and N° Nat swap visual position on mobile via `order`
               utilities so the same DOM works for both layouts. */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-12">
-            <Field label="Set" className="order-1 md:col-span-4 md:order-1">
+            <Field label={t('fieldSet')} className="order-1 md:col-span-4 md:order-1">
               <Input value={form.set_code} onChange={(v) => update('set_code', v)} placeholder="SV11W" />
             </Field>
-            <Field label="N°" className="order-2 md:col-span-4 md:order-2">
+            <Field label={t('fieldSetNumber')} className="order-2 md:col-span-4 md:order-2">
               <Input
                 value={form.set_number}
                 onChange={(v) => update('set_number', v)}
                 placeholder="111/086"
               />
             </Field>
-            <Field label="Langue" className="order-4 md:col-span-4 md:order-3">
+            <Field label={t('fieldLanguage')} className="order-4 md:col-span-4 md:order-3">
               <Select
                 value={form.language}
                 onChange={(v) => update('language', v as CardLanguage)}
                 options={LANGUAGES.map((l) => ({ value: l, label: l }))}
               />
             </Field>
-            <Field label="N° Nat. (vide = Trainer)" className="order-3 md:col-span-4 md:order-4">
+            <Field label={t('fieldNationalNumber')} className="order-3 md:col-span-4 md:order-4">
               <Input
                 type="number"
                 min={1}
@@ -1291,14 +1308,14 @@ export default function CardScanForm({
                 disabled={lockedPokemonNumber != null}
               />
             </Field>
-            <Field label="Rareté" className="order-5 md:col-span-4 md:order-5">
+            <Field label={t('fieldRarity')} className="order-5 md:col-span-4 md:order-5">
               <Select
                 value={form.rarity}
                 onChange={(v) => update('rarity', v as CardRarity)}
                 options={RARITIES}
               />
             </Field>
-            <Field label="État" className="order-6 md:col-span-4 md:order-6">
+            <Field label={t('fieldCondition')} className="order-6 md:col-span-4 md:order-6">
               <Select
                 value={form.condition}
                 onChange={(v) => update('condition', v as CardCondition)}
@@ -1308,10 +1325,10 @@ export default function CardScanForm({
           </div>
 
           <div className="grid grid-cols-[1fr_auto] gap-3">
-            <Field label="Nom du set (optionnel)">
+            <Field label={t('fieldSetName')}>
               <Input value={form.set_name} onChange={(v) => update('set_name', v)} placeholder="Stellar Miracle" />
             </Field>
-            <Field label="Variante">
+            <Field label={t('fieldVariant')}>
               <Select
                 value={form.variant}
                 onChange={(v) => update('variant', v)}
@@ -1327,7 +1344,7 @@ export default function CardScanForm({
               disabled={researching}
               className="border-border text-text-muted hover:bg-surface-2 hover:border-red hover:text-text rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
             >
-              {researching ? 'Recherche en cours…' : 'Re-rechercher dans le catalogue'}
+              {researching ? t('researchRunning') : t('researchButton')}
             </button>
             {researchMsg && (
               <span className="text-text-faint text-[11px]">{researchMsg}</span>
@@ -1339,11 +1356,11 @@ export default function CardScanForm({
           {!lockedStatus && (
             <div className={compact ? 'flex flex-col gap-3' : 'flex flex-col gap-4'}>
               <h3 className="text-text-muted text-xs font-semibold uppercase tracking-wide">
-                Destination
+                {t('destinationHeading')}
               </h3>
               <div className="flex items-end gap-3">
                 <label className="flex-1">
-                  <span className="text-text-muted text-xs">Status</span>
+                  <span className="text-text-muted text-xs">{t('fieldStatus')}</span>
                   <select
                     value={form.status}
                     onChange={(e) => update('status', e.target.value as CardStatus)}
@@ -1360,7 +1377,7 @@ export default function CardScanForm({
                   </select>
                 </label>
                 <label className="w-20">
-                  <span className="text-text-muted text-xs">Quantité</span>
+                  <span className="text-text-muted text-xs">{t('fieldQuantity')}</span>
                   <input
                     type="number"
                     min={1}
@@ -1384,7 +1401,7 @@ export default function CardScanForm({
                       if (form.count < 1) update('count', 1);
                     }}
                     className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none"
-                    title="1er exemplaire dans la cible choisie, le reste passe en Stock"
+                    title={t('quantityHelp')}
                   />
                 </label>
               </div>
@@ -1392,7 +1409,7 @@ export default function CardScanForm({
           )}
 
           {/* Notes */}
-          <Field label="Notes (optionnel)">
+          <Field label={t('fieldNotes')}>
           <textarea
             value={form.notes}
             onChange={(e) => update('notes', e.target.value)}
@@ -1408,7 +1425,11 @@ export default function CardScanForm({
           {/* Pokemon number mismatch hard block */}
           {numberMismatch && (
             <div className="border-red bg-red/10 text-red rounded-lg border p-3 text-xs">
-              ⛔ Cette carte n&apos;est pas <strong>{getPokemonName(lockedPokemonNumber!, 'fr')}</strong> (#{lockedPokemonNumber}). Le numéro détecté est <strong>#{form.pokemon_number}</strong>. Tu ne peux pas l&apos;enregistrer dans ce slot — utilise le scanner principal pour cette carte.
+              {t('numberMismatch', {
+                name: getPokemonName(lockedPokemonNumber!, 'fr'),
+                lockedNumber: lockedPokemonNumber!,
+                detectedNumber: form.pokemon_number,
+              })}
             </div>
           )}
 
@@ -1420,14 +1441,14 @@ export default function CardScanForm({
               disabled={phase === 'saving'}
               className="border-border text-text-muted hover:bg-surface-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50"
             >
-              Annuler
+              {tCommon('cancel')}
             </button>
             <button
               type="submit"
               disabled={phase === 'saving' || phase === 'success' || !form.card_name || numberMismatch}
               className="bg-red flex-1 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50"
             >
-              {phase === 'saving' ? 'Enregistrement…' : 'Enregistrer'}
+              {phase === 'saving' ? t('savingButton') : t('saveButton')}
             </button>
           </div>
         </div>

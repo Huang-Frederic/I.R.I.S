@@ -1,3 +1,7 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
+
 interface Props {
   url: string | null;
 }
@@ -11,6 +15,7 @@ interface Props {
  * displayed prices, so the user can verify the lookup picked the right print.
  */
 export default function CardmarketLink({ url }: Props) {
+  const t = useTranslations('ui');
   if (!url) return null;
   return (
     <a
@@ -18,10 +23,10 @@ export default function CardmarketLink({ url }: Props) {
       target="_blank"
       rel="noopener noreferrer"
       className="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-2 transition-colors"
-      title="Ouvrir la fiche Cardmarket dans un nouvel onglet"
+      title={t('cardmarketLinkTitle')}
       onClick={(e) => e.stopPropagation()}
     >
-      voir sur Cardmarket ↗
+      {t('cardmarketLinkLabel')}
     </a>
   );
 }

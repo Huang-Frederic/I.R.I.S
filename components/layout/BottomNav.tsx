@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { NAV_ITEMS } from './nav-items';
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const t = useTranslations('nav');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -17,10 +19,10 @@ export default function BottomNav() {
 
   const nav = (
     <nav
-      aria-label="Navigation principale"
+      aria-label={t('ariaLabel')}
       className="bg-surface border-border fixed inset-x-0 bottom-0 z-30 flex h-16 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
     >
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+      {NAV_ITEMS.map(({ href, labelKey, icon: Icon }) => {
         const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
         return (
           <Link
@@ -33,7 +35,7 @@ export default function BottomNav() {
             }`}
           >
             <Icon className="h-5 w-5" aria-hidden />
-            <span className="font-medium">{label}</span>
+            <span className="font-medium">{t(labelKey)}</span>
           </Link>
         );
       })}

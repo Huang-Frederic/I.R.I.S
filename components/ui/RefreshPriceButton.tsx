@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { RefreshCw, Check, AlertCircle } from 'lucide-react';
 import type { Card } from '@/lib/types';
+import { translateErrorCode } from '@/lib/utils/translate-error';
 
 interface Props {
   cardId: string;
@@ -18,6 +20,8 @@ type State = 'idle' | 'loading' | 'success' | 'error';
  * Supabase auth — no CRON_SECRET).
  */
 export default function RefreshPriceButton({ cardId, onRefreshed }: Props) {
+  const t = useTranslations('ui');
+  const tErrors = useTranslations('errors');
   const [state, setState] = useState<State>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -41,9 +45,11 @@ export default function RefreshPriceButton({ cardId, onRefreshed }: Props) {
       });
       const json = (await res.json()) as { ok: boolean; card?: Card; error?: string; message?: string };
       if (!res.ok || !json.ok || !json.card) {
-        // Surface the server's `message` (more user-friendly) when present,
-        // fall back to the error code or HTTP status.
-        throw new Error(json.message ?? json.error ?? `HTTP ${res.status}`);
+        // Translate the server's stable `error` code via the `errors`
+        // namespace; fall back to the EN `message` then to a generic HTTP line
+        // when the locale lacks a translation.
+        const localized = translateErrorCode(tErrors, json.error);
+        throw new Error(localized ?? json.message ?? json.error ?? `HTTP ${res.status}`);
       }
       onRefreshed(json.card);
       setState('success');
@@ -70,8 +76,8 @@ export default function RefreshPriceButton({ cardId, onRefreshed }: Props) {
         type="button"
         onClick={refresh}
         disabled={state === 'loading'}
-        title={state === 'error' && errorMsg ? errorMsg : 'Rafraîchir le prix Cardmarket'}
-        aria-label="Rafraîchir le prix"
+        title={state === 'error' && errorMsg ? errorMsg : t('refreshPriceTitle')}
+        aria-label={t('refreshPriceAria')}
         className="text-text-muted hover:text-text inline-flex items-center justify-center rounded p-1 transition-colors disabled:cursor-default"
       >
         {icon}

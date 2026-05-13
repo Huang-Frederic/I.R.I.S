@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import ManualBackupButton from './ManualBackupButton';
@@ -15,21 +16,21 @@ export default async function ManualBackupSection() {
     .from('manual-backups')
     .list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
 
+  const t = await getTranslations('options');
+
   return (
     <div className="bg-surface border-border rounded-lg border p-5">
       <h2 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-        Backup manuel
+        {t('backupManualHeading')}
       </h2>
-      <p className="text-text-muted mb-3 text-sm">
-        Crée un snapshot complet, gardé sans rotation.
-      </p>
+      <p className="text-text-muted mb-3 text-sm">{t('backupManualDescription')}</p>
 
       <ManualBackupButton />
 
       {files && files.length > 0 && (
         <div className="mt-5">
           <h3 className="text-text-muted mb-2 text-xs font-semibold uppercase tracking-wide">
-            Backups existants ({files.length})
+            {t('backupExisting', { count: files.length })}
           </h3>
           <ul className="divide-border divide-y">
             {files.map((f) => (

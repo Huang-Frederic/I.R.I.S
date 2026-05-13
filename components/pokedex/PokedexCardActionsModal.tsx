@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { X, Trash2, Tag, Package } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import { displayCardName } from '@/lib/utils/format-name';
+import { translateErrorCode } from '@/lib/utils/translate-error';
 
 interface Props {
   card: Card;
@@ -14,6 +16,9 @@ interface Props {
 }
 
 export default function PokedexCardActionsModal({ card, hasForSaleConflict, onClose, onDone }: Props) {
+  const t = useTranslations('pokedex');
+  const tCommon = useTranslations('common');
+  const tErrors = useTranslations('errors');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,12 +32,13 @@ export default function PokedexCardActionsModal({ card, hasForSaleConflict, onCl
         body: JSON.stringify({ status }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `Action échouée (${res.status})`);
+        const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+        const localized = translateErrorCode(tErrors, body.error);
+        throw new Error(localized ?? body.message ?? t('actionFailed', { status: res.status }));
       }
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue');
+      setError(err instanceof Error ? err.message : tCommon('errorUnknown'));
       setSubmitting(false);
     }
   };
@@ -43,12 +49,13 @@ export default function PokedexCardActionsModal({ card, hasForSaleConflict, onCl
     try {
       const res = await fetch(`/api/cards/${card.id}`, { method: 'DELETE' });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `Suppression échouée (${res.status})`);
+        const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+        const localized = translateErrorCode(tErrors, body.error);
+        throw new Error(localized ?? body.message ?? t('deleteFailed', { status: res.status }));
       }
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue');
+      setError(err instanceof Error ? err.message : tCommon('errorUnknown'));
       setSubmitting(false);
     }
   };
@@ -58,7 +65,7 @@ export default function PokedexCardActionsModal({ card, hasForSaleConflict, onCl
       <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Retirer cette carte du Pokédex</h2>
+            <h2 className="text-lg font-semibold">{t('actionsTitle')}</h2>
             <p className="text-text-muted mt-1 text-sm">{displayCardName(card)}</p>
           </div>
           <button
@@ -66,7 +73,7 @@ export default function PokedexCardActionsModal({ card, hasForSaleConflict, onCl
             onClick={onClose}
             disabled={submitting}
             className="text-text-muted hover:text-text disabled:opacity-50"
-            aria-label="Fermer"
+            aria-label={t('drawerCloseInnerAria')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -76,7 +83,7 @@ export default function PokedexCardActionsModal({ card, hasForSaleConflict, onCl
 
         {hasForSaleConflict && (
           <p className="text-text-muted mb-3 text-xs">
-            💡 Un exemplaire de cette carte est déjà en vente sur Vinted. Tu ne peux pas en déplacer un deuxième vers Vinted — Stock à la place.
+            {t('actionsConflict')}
           </p>
         )}
 
@@ -88,18 +95,18 @@ export default function PokedexCardActionsModal({ card, hasForSaleConflict, onCl
             className="bg-surface-2 hover:bg-surface-off border-border inline-flex items-center justify-center gap-2 rounded border px-4 py-2 text-sm disabled:opacity-50"
           >
             <Package className="h-4 w-4" />
-            Déplacer vers Stock
+            {t('actionsMoveToStock')}
           </button>
 
           <button
             type="button"
             onClick={() => moveTo('for_sale')}
             disabled={submitting || hasForSaleConflict}
-            title={hasForSaleConflict ? 'Un exemplaire est déjà en vente — Stock obligatoire' : undefined}
+            title={hasForSaleConflict ? t('actionsConflictTitle') : undefined}
             className="bg-surface-2 hover:bg-surface-off border-border inline-flex items-center justify-center gap-2 rounded border px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Tag className="h-4 w-4" />
-            Déplacer vers Vinted
+            {t('actionsMoveToVinted')}
           </button>
 
           <button
@@ -109,12 +116,12 @@ export default function PokedexCardActionsModal({ card, hasForSaleConflict, onCl
             className="bg-red text-bg inline-flex items-center justify-center gap-2 rounded px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
             <Trash2 className="h-4 w-4" />
-            Supprimer définitivement
+            {t('actionsDeleteForever')}
           </button>
         </div>
 
         <p className="text-text-faint mt-3 text-xs">
-          Le slot Pokédex sera libéré, tu pourras y mettre une autre carte.
+          {t('actionsFooter')}
         </p>
       </div>
     </div>

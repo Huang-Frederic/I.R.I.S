@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { AlertTriangle, X } from 'lucide-react';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
 import { displayPokemonName } from '@/lib/utils/format-name';
@@ -14,9 +15,11 @@ interface Props {
 const DISMISS_AFTER_MS = 5000;
 
 export default function RestockToast({ alert, onDismiss }: Props) {
+  const t = useTranslations('restockToast');
+  const tCommon = useTranslations('common');
   useEffect(() => {
-    const t = setTimeout(onDismiss, DISMISS_AFTER_MS);
-    return () => clearTimeout(t);
+    const timer = setTimeout(onDismiss, DISMISS_AFTER_MS);
+    return () => clearTimeout(timer);
   }, [onDismiss]);
 
   return (
@@ -26,16 +29,17 @@ export default function RestockToast({ alert, onDismiss }: Props) {
     >
       <AlertTriangle className="text-red mt-0.5 h-5 w-5 shrink-0" />
       <div className="flex-1 text-sm">
-        <p className="font-medium">Plus de stock pour {displayPokemonName(alert)}</p>
+        <p className="font-medium">{t('title', { name: displayPokemonName(alert) })}</p>
         <p className="text-text-muted mt-1 text-xs">
-          Ta carte Pokédex est exposée. <Link href="/pokedex" className="text-red underline">Vérifier le Pokédex</Link>
+          {t('body')}{' '}
+          <Link href="/pokedex" className="text-red underline">{t('checkPokedex')}</Link>
         </p>
       </div>
       <button
         type="button"
         onClick={onDismiss}
         className="text-text-muted hover:text-text"
-        aria-label="Fermer"
+        aria-label={tCommon('close')}
       >
         <X className="h-4 w-4" />
       </button>

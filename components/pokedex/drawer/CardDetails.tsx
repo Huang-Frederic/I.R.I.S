@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { RefreshCcw, Trash2 } from 'lucide-react';
 import type { Card } from '@/lib/types';
@@ -22,6 +23,7 @@ export default function CardDetails({
   card: Card;
   availableCards: Card[];
 }) {
+  const t = useTranslations('pokedex');
   const [showReplace, setShowReplace] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const router = useRouter();
@@ -30,26 +32,26 @@ export default function CardDetails({
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-3">
         {card.image_url && (
-          <Figure src={card.image_url} alt="Photo collection" caption="Ta photo" />
+          <Figure src={card.image_url} alt={t('figureAltCollection')} caption={t('yourPhoto')} />
         )}
         {card.tcg_image_url && (
-          <Figure src={card.tcg_image_url} alt="Image officielle" caption="Image TCG" />
+          <Figure src={card.tcg_image_url} alt={t('figureAltOfficial')} caption={t('tcgImage')} />
         )}
         {!card.image_url && !card.tcg_image_url && (
-          <p className="text-text-faint col-span-2 text-xs">Aucune image disponible.</p>
+          <p className="text-text-faint col-span-2 text-xs">{t('noImage')}</p>
         )}
       </div>
 
       <dl className="text-sm">
-        <Row label="Nom carte">{displayCardName(card)}</Row>
-        <Row label="Set">
+        <Row label={t('rowName')}>{displayCardName(card)}</Row>
+        <Row label={t('rowSet')}>
           {displaySetName(card) ?? '—'}
           {card.set_code && (
             <span className="text-text-faint font-mono text-xs"> ({card.set_code})</span>
           )}
         </Row>
-        <Row label="N° set">{card.set_number ?? '—'}</Row>
-        <Row label="Rareté">
+        <Row label={t('rowSetNumber')}>{card.set_number ?? '—'}</Row>
+        <Row label={t('rowRarity')}>
           <span className={RARITY_COLOR[card.rarity] ?? 'text-text-muted'}>{card.rarity}</span>
           {card.variant && (
             <span className="bg-surface-off text-text-muted ml-2 inline-flex items-center rounded px-1.5 py-0.5 font-mono text-xs">
@@ -57,9 +59,9 @@ export default function CardDetails({
             </span>
           )}
         </Row>
-        <Row label="Langue">{card.language}</Row>
-        <Row label="État">{card.condition}</Row>
-        <Row label="Ajoutée">
+        <Row label={t('rowLanguage')}>{card.language}</Row>
+        <Row label={t('rowCondition')}>{card.condition}</Row>
+        <Row label={t('rowAddedAt')}>
           <span suppressHydrationWarning>
             {new Date(card.date_added).toLocaleDateString('fr-FR')}
           </span>
@@ -71,10 +73,10 @@ export default function CardDetails({
         <div className="bg-surface-2 rounded-lg p-4 text-sm">
           <div className="flex items-stretch gap-3">
             <div className="grid flex-1 grid-cols-2 gap-3 md:grid-cols-4">
-              <Price label="Low" value={card.cm_price_low} />
-              <Price label="Trend" value={card.cm_price_trend} />
-              <Price label="Avg" value={card.cm_price_avg} />
-              <Price label="Annonce" value={card.suggested_price} highlight />
+              <Price label={t('priceLow')} value={card.cm_price_low} />
+              <Price label={t('priceTrend')} value={card.cm_price_trend} />
+              <Price label={t('priceAvg')} value={card.cm_price_avg} />
+              <Price label={t('priceListing')} value={card.suggested_price} highlight />
             </div>
             <div className="flex shrink-0 flex-col items-end justify-end gap-1">
               <RefreshPriceButton
@@ -95,7 +97,7 @@ export default function CardDetails({
         </div>
       ) : (
         <div className="flex items-center gap-2">
-          <p className="text-text-faint text-xs">Pas encore de prix Cardmarket.</p>
+          <p className="text-text-faint text-xs">{t('noPrice')}</p>
           <RefreshPriceButton cardId={card.id} onRefreshed={() => router.refresh()} />
         </div>
       )}
@@ -109,7 +111,7 @@ export default function CardDetails({
               className="border-border text-text-muted hover:bg-surface-2 hover:text-text flex w-full items-center justify-center gap-2 rounded border px-3 py-2 text-sm"
             >
               <RefreshCcw className="h-4 w-4" />
-              Remplacer ({availableCards.length} disponible{availableCards.length > 1 ? 's' : ''})
+              {t('replaceCount', { count: availableCards.length })}
             </button>
           ) : (
             <ReplaceFlow
@@ -127,7 +129,7 @@ export default function CardDetails({
         className="bg-surface-2 hover:bg-surface-off border-red text-red mt-4 inline-flex w-full items-center justify-center gap-2 rounded border px-4 py-2 text-sm"
       >
         <Trash2 className="h-4 w-4" />
-        Retirer cette carte
+        {t('removeFromPokedex')}
       </button>
 
       {actionsOpen && (

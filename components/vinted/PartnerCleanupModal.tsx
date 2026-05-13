@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { AlertTriangle } from 'lucide-react';
 
 interface Props {
@@ -21,6 +22,8 @@ interface Props {
  * (the new for-sale row covers the partner's listing).
  */
 export default function PartnerCleanupModal({ partnerName, itemDisplayName, itemKind, onClose }: Props) {
+  const t = useTranslations('vintedPromote');
+  const tCommon = useTranslations('common');
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
@@ -29,19 +32,17 @@ export default function PartnerCleanupModal({ partnerName, itemDisplayName, item
             <AlertTriangle className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">Action requise pour {partnerName}</h2>
+            <h2 className="text-lg font-semibold">{t('partnerCleanupTitle', { name: partnerName })}</h2>
             <p className="text-text-muted mt-1 text-sm">{itemDisplayName}</p>
           </div>
         </div>
 
         <div className="space-y-3 text-sm">
           <p>
-            {itemKind === 'card' ? 'Cette carte' : 'Ce lot'} est marquée comme vendue et il n&apos;y a pas
-            d&apos;autre exemplaire à remettre en vente.
+            {itemKind === 'card' ? t('partnerCleanupBodyCard') : t('partnerCleanupBodyLot')}
           </p>
           <p className="text-text-muted">
-            {partnerName} devra retirer son annonce Vinted manuellement (IRIS ne peut pas
-            supprimer une annonce sur un compte tiers).
+            {t('partnerCleanupNote', { name: partnerName })}
           </p>
         </div>
 
@@ -51,7 +52,7 @@ export default function PartnerCleanupModal({ partnerName, itemDisplayName, item
             onClick={onClose}
             className="bg-red text-bg rounded px-4 py-1.5 text-sm font-medium hover:opacity-90"
           >
-            Compris
+            {tCommon('understood')}
           </button>
         </div>
       </div>

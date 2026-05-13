@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { X, Package, Tag } from 'lucide-react';
 import { VARIANT_LABEL } from '@/lib/utils/labels';
 import { displayCardName } from '@/lib/utils/format-name';
+import { translateErrorCode } from '@/lib/utils/translate-error';
 
 export interface ExchangeConflictCard {
   id: string;
@@ -29,6 +31,9 @@ interface Props {
 }
 
 export default function ExchangeOnConflictModal({ newCard, conflictCard, onClose, onExchanged }: Props) {
+  const t = useTranslations('exchangeOnConflict');
+  const tCommon = useTranslations('common');
+  const tErrors = useTranslations('errors');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +52,8 @@ export default function ExchangeOnConflictModal({ newCard, conflictCard, onClose
       });
       if (!res1.ok) {
         const body = (await res1.json().catch(() => ({}))) as { message?: string; error?: string };
-        throw new Error(body.message ?? body.error ?? 'Échec démotion');
+        const localized = translateErrorCode(tErrors, body.error);
+        throw new Error(localized ?? body.message ?? t('demotionFailed'));
       }
 
       // Step 2: promote the new card
@@ -58,12 +64,13 @@ export default function ExchangeOnConflictModal({ newCard, conflictCard, onClose
       });
       if (!res2.ok) {
         const body = (await res2.json().catch(() => ({}))) as { message?: string; error?: string };
-        throw new Error(body.message ?? body.error ?? 'Échec promotion');
+        const localized = translateErrorCode(tErrors, body.error);
+        throw new Error(localized ?? body.message ?? t('promotionFailed'));
       }
 
       onExchanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue');
+      setError(err instanceof Error ? err.message : tCommon('errorUnknown'));
       setSubmitting(false);
     }
   };
@@ -73,9 +80,12 @@ export default function ExchangeOnConflictModal({ newCard, conflictCard, onClose
       <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Échanger avec la carte en vente ?</h2>
+            <h2 className="text-lg font-semibold">{t('title')}</h2>
             <p className="text-text-muted mt-1 text-sm">
-              <strong>{displayCardName(conflictCard)}</strong> est déjà en vente. Tu peux l&apos;échanger.
+              {t.rich('subtitle', {
+                name: displayCardName(conflictCard),
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </p>
           </div>
           <button
@@ -83,7 +93,7 @@ export default function ExchangeOnConflictModal({ newCard, conflictCard, onClose
             onClick={onClose}
             disabled={submitting}
             className="text-text-muted hover:text-text disabled:opacity-50"
-            aria-label="Fermer"
+            aria-label={tCommon('close')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -99,7 +109,7 @@ export default function ExchangeOnConflictModal({ newCard, conflictCard, onClose
             />
           ) : (
             <div className="bg-surface-off flex h-[140px] w-[100px] shrink-0 items-center justify-center rounded text-xs text-text-faint">
-              Pas d&apos;image
+              {tCommon('noImage')}
             </div>
           )}
           <div className="flex flex-col gap-1 text-sm">
@@ -113,12 +123,14 @@ export default function ExchangeOnConflictModal({ newCard, conflictCard, onClose
               {conflictCard.language} · {conflictCard.rarity} · {conflictCard.condition}
               {variantLabel ? ` · ${variantLabel}` : ''}
             </p>
-            <p className="text-rarity-r mt-1 text-xs">Actuellement en vente</p>
+            <p className="text-rarity-r mt-1 text-xs">{t('currentlyForSale')}</p>
           </div>
         </div>
 
         <p className="text-text-muted mb-3 text-xs">
-          Où mettre <strong>l&apos;ancienne carte</strong> qui sort de Vinted ?
+          {t.rich('destinationPrompt', {
+            strong: (chunks) => <strong>{chunks}</strong>,
+          })}
         </p>
 
         {error && <p className="text-red mb-2 text-xs">{error}</p>}
@@ -130,7 +142,7 @@ export default function ExchangeOnConflictModal({ newCard, conflictCard, onClose
             disabled={submitting}
             className="bg-surface-2 hover:bg-surface-off border-border rounded border px-4 py-2 text-sm disabled:opacity-50"
           >
-            Annuler
+            {tCommon('cancel')}
           </button>
           <button
             type="button"
@@ -139,7 +151,7 @@ export default function ExchangeOnConflictModal({ newCard, conflictCard, onClose
             className="bg-surface-2 hover:bg-surface-off border-border inline-flex items-center justify-center gap-1.5 rounded border px-4 py-2 text-sm disabled:opacity-50"
           >
             <Package className="h-3.5 w-3.5" />
-            Vers Stock
+            {t('toStock')}
           </button>
           <button
             type="button"
@@ -148,7 +160,7 @@ export default function ExchangeOnConflictModal({ newCard, conflictCard, onClose
             className="bg-red text-bg inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
             <Tag className="h-3.5 w-3.5" />
-            Marquer vendue
+            {t('markSold')}
           </button>
         </div>
       </div>

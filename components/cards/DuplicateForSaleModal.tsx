@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { AlertTriangle, X } from 'lucide-react';
 import { displayCardName, displaySetName } from '@/lib/utils/format-name';
 
@@ -30,6 +31,8 @@ interface Props {
 }
 
 export default function DuplicateForSaleModal({ existingCard, onConfirmCollection, onCancel, count = 1, busy = false }: Props) {
+  const t = useTranslations('modals');
+  const tCommon = useTranslations('common');
   const photoSrc = existingCard?.image_url ?? existingCard?.tcg_image_url ?? null;
 
   return (
@@ -38,13 +41,13 @@ export default function DuplicateForSaleModal({ existingCard, onConfirmCollectio
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-start gap-3">
             <AlertTriangle className="text-rarity-ar mt-0.5 h-6 w-6 shrink-0" aria-hidden />
-            <h2 className="text-lg font-semibold">Carte déjà en vente sur Vinted</h2>
+            <h2 className="text-lg font-semibold">{t('duplicateForSaleTitle')}</h2>
           </div>
           <button
             type="button"
             onClick={onCancel}
             className="text-text-muted hover:text-text"
-            aria-label="Fermer"
+            aria-label={tCommon('close')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -80,20 +83,14 @@ export default function DuplicateForSaleModal({ existingCard, onConfirmCollectio
           </div>
         ) : (
           <p className="text-text-muted mb-5 text-sm">
-            Une carte identique est déjà en vente sur ton Vinted.
+            {t('duplicateForSaleGeneric')}
           </p>
         )}
 
         <p className="text-text-muted mb-5 text-sm">
-          {count > 1 ? (
-            <>
-              Tu peux annuler, ou ajouter ces <strong>{count} exemplaires</strong> à ton <strong>Stock</strong> pour les mettre en vente plus tard.
-            </>
-          ) : (
-            <>
-              Tu peux annuler, ou ajouter cet exemplaire à ton <strong>Stock</strong> pour le mettre en vente plus tard.
-            </>
-          )}
+          {count > 1
+            ? t('duplicateForSaleHintMulti', { count })
+            : t('duplicateForSaleHintSingle')}
         </p>
 
         <div className="flex justify-end gap-2">
@@ -103,7 +100,7 @@ export default function DuplicateForSaleModal({ existingCard, onConfirmCollectio
             disabled={busy}
             className="bg-surface-2 hover:bg-surface-off border-border rounded border px-4 py-1.5 text-sm disabled:opacity-50"
           >
-            Annuler
+            {tCommon('cancel')}
           </button>
           <button
             type="button"
@@ -111,7 +108,11 @@ export default function DuplicateForSaleModal({ existingCard, onConfirmCollectio
             disabled={busy}
             className="bg-red text-bg rounded px-4 py-1.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
-            {busy ? 'Enregistrement…' : count > 1 ? `Ajouter ${count} au Stock` : 'Ajouter à mon Stock'}
+            {busy
+              ? t('duplicateForSaleSaving')
+              : count > 1
+                ? t('duplicateForSaleAddMulti', { count })
+                : t('duplicateForSaleAddOne')}
           </button>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 import { RARITY_COLOR } from '@/lib/utils/labels';
 import type { Card } from '@/lib/types';
 import { displayPokemonName, displayCardName } from '@/lib/utils/format-name';
@@ -33,7 +34,8 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
-export default function PokedexCount({ collected, total = 1025, value, adds = [] }: Props) {
+export default async function PokedexCount({ collected, total = 1025, value, adds = [] }: Props) {
+  const t = await getTranslations('dashboard');
   const pct = total > 0 ? (collected / total) * 100 : 0;
   return (
     <div className="bg-surface border-border flex flex-col rounded-lg border p-4">
@@ -43,7 +45,7 @@ export default function PokedexCount({ collected, total = 1025, value, adds = []
       >
         <div className="flex items-center justify-between">
           <h3 className="text-text-muted text-xs font-semibold uppercase tracking-wide">
-            Pokédex
+            {t('pokedexTileTitle')}
           </h3>
           <BookOpen className="text-text-faint h-4 w-4" />
         </div>
@@ -69,7 +71,7 @@ export default function PokedexCount({ collected, total = 1025, value, adds = []
         <>
           <hr className="border-border my-4" />
           <h4 className="text-text-muted mb-2 text-xs font-semibold uppercase tracking-wide">
-            Derniers ajouts
+            {t('pokedexLastAdds')}
           </h4>
           <ul className="divide-border divide-y">
             {adds.map((c) => {

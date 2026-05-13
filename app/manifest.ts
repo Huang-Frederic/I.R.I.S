@@ -1,10 +1,13 @@
 import type { MetadataRoute } from 'next';
+import { getLocale, getTranslations } from 'next-intl/server';
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const t = await getTranslations('manifest');
+  const locale = await getLocale();
   return {
     name: 'I.R.I.S — Intelligent Recognition Inventory System',
     short_name: 'I.R.I.S',
-    description: 'Gestion de collection Pokémon TCG (Pokédex + stock Vinted)',
+    description: t('description'),
     start_url: '/dashboard',
     scope: '/',
     display: 'standalone',
@@ -16,7 +19,7 @@ export default function manifest(): MetadataRoute.Manifest {
     // viewport.themeColor in app/layout.tsx.
     theme_color: '#111110',
     categories: ['utilities', 'productivity', 'lifestyle'],
-    lang: 'fr-FR',
+    lang: locale,
     icons: [
       {
         src: '/icons/icon-192.png',

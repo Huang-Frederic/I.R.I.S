@@ -1,18 +1,20 @@
 'use client';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import type { DashboardPeriod } from '@/lib/utils/dashboard-queries';
 
 const OPTIONS = [
-  { value: '7d', label: '7j' },
-  { value: '30d', label: '30j' },
-  { value: '90d', label: '90j' },
-  { value: '365d', label: '1 an' },
+  { value: '7d', labelKey: 'period7d' },
+  { value: '30d', labelKey: 'period30d' },
+  { value: '90d', labelKey: 'period90d' },
+  { value: '365d', labelKey: 'period365d' },
 ] as const;
 
 export default function DashboardPeriodTabs({ current }: { current: DashboardPeriod }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const t = useTranslations('dashboard');
 
   function setPeriod(value: DashboardPeriod) {
     const params = new URLSearchParams(searchParams.toString());
@@ -35,7 +37,7 @@ export default function DashboardPeriodTabs({ current }: { current: DashboardPer
               active ? 'bg-surface text-text shadow-sm' : 'text-text-muted hover:text-text'
             }`}
           >
-            {opt.label}
+            {t(opt.labelKey)}
           </button>
         );
       })}

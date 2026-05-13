@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import type { Card } from '@/lib/types';
 import { getPokemonName } from '@/lib/data/pokemon-names';
@@ -28,13 +29,15 @@ const RARITY_CLASS: Record<string, string> = {
 };
 
 export default function PokedexListItem({ number, card, onClick }: PokedexListItemProps) {
+  const t = useTranslations('pokedex');
   const owned = card !== null;
+  const label = card ? displayPokemonName(card) : getPokemonName(number, 'fr');
 
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={`${owned ? displayPokemonName(card!) : getPokemonName(number, 'fr')} n°${number}`}
+      aria-label={t('cellAria', { name: label, number })}
       data-pokemon-number={number}
       className="bg-surface border-border hover:border-red focus:border-red flex items-center gap-3 rounded border p-2 text-left transition-colors focus:outline-none"
     >
@@ -83,7 +86,7 @@ export default function PokedexListItem({ number, card, onClick }: PokedexListIt
         )}
 
         {!owned && (
-          <span className="text-text-faint text-xs">Manquant</span>
+          <span className="text-text-faint text-xs">{t('listMissing')}</span>
         )}
       </div>
 
