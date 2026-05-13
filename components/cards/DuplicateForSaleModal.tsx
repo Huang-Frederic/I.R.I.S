@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, X } from 'lucide-react';
 import { displayCardName, displaySetName } from '@/lib/utils/format-name';
@@ -35,9 +36,25 @@ export default function DuplicateForSaleModal({ existingCard, onConfirmCollectio
   const tCommon = useTranslations('common');
   const photoSrc = existingCard?.image_url ?? existingCard?.tcg_image_url ?? null;
 
+  // Escape closes — suppressed when a save is in flight.
+  useEffect(() => {
+    if (busy) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [busy, onCancel]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={busy ? undefined : onCancel}
+    >
+      <div
+        className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-start gap-3">
             <AlertTriangle className="text-rarity-ar mt-0.5 h-6 w-6 shrink-0" aria-hidden />

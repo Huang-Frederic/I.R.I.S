@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowRight, X } from 'lucide-react';
 import { VARIANT_LABEL } from '@/lib/utils/labels';
@@ -65,13 +65,32 @@ export default function PokedexReplaceModal({
   const tCommon = useTranslations('common');
   const tScanner = useTranslations('scanner');
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
+
+  // Escape closes the modal — but only when no nested zoom is open (the zoom
+  // owns Escape while it's visible). Suppressed during a submit so the user
+  // can't accidentally cancel mid-network call.
+  useEffect(() => {
+    if (submitting || zoomSrc) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [submitting, zoomSrc, onCancel]);
+
   const existingThumb = thumbUrl(existingCard);
   const newThumb = thumbUrl(newCardSummary);
   const standardLabel = tScanner('variantLabel_standard');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-surface border-border w-full max-w-2xl rounded-lg border p-6 shadow-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={submitting ? undefined : onCancel}
+    >
+      <div
+        className="bg-surface border-border w-full max-w-2xl rounded-lg border p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-semibold">{t('pokedexReplaceTitle')}</h2>

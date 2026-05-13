@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import type { Card, Lot } from '@/lib/types';
@@ -53,6 +53,17 @@ export default function BulkSoldModal({ items, onClose, onConfirm }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Escape closes — suppressed mid-submit so the user can't bail on a
+  // half-completed sold-mark. Backdrop click follows the same gating below.
+  useEffect(() => {
+    if (submitting) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [submitting, onClose]);
+
   const totalPrice = useMemo(() => {
     const parsed = priceStr.trim() === '' ? 0 : Number(priceStr.replace(',', '.'));
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
@@ -79,8 +90,14 @@ export default function BulkSoldModal({ items, onClose, onConfirm }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-surface border-border w-full max-w-lg rounded-lg border p-6 shadow-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={submitting ? undefined : onClose}
+    >
+      <div
+        className="bg-surface border-border w-full max-w-lg rounded-lg border p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-semibold">{t('bulkTitle')}</h2>

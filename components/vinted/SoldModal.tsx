@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import type { Card, Lot } from '@/lib/types';
@@ -36,6 +36,16 @@ export default function SoldModal({ entity, onClose, onSold }: Props) {
   const [date, setDate] = useState<string>(todayIso());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Escape closes the modal except while a sold-mark is in flight.
+  useEffect(() => {
+    if (submitting) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [submitting, onClose]);
 
   const displayName = entity.kind === 'card' ? displayCardName(entity.card) : entity.lot.name;
   const targetId = entity.kind === 'card' ? entity.card.id : entity.lot.id;
@@ -77,8 +87,14 @@ export default function SoldModal({ entity, onClose, onSold }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={submitting ? undefined : onClose}
+    >
+      <div
+        className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-semibold">{t('modalTitle')}</h2>

@@ -1,6 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { translateErrorCode } from '@/lib/utils/translate-error';
 
@@ -12,6 +12,16 @@ export default function ManualBackupButton() {
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Escape closes the confirm — but not while the backup is running.
+  useEffect(() => {
+    if (!confirmOpen || busy) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setConfirmOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [confirmOpen, busy]);
 
   async function run() {
     setBusy(true);
@@ -47,11 +57,15 @@ export default function ManualBackupButton() {
       {error && <p className="text-red mt-2 text-xs">{error}</p>}
 
       {confirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={busy ? undefined : () => setConfirmOpen(false)}
+        >
           <div
             className="bg-surface border-border w-full max-w-md rounded-lg border p-5"
             role="dialog"
             aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-text text-lg font-semibold">{t('backupConfirmTitle')}</h3>
             <p className="text-text-muted mt-2 text-sm">{t('backupConfirmBody')}</p>

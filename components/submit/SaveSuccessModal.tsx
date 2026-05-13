@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -35,9 +36,24 @@ export default function SaveSuccessModal({ counts, imageUrl, onClose }: Props) {
 
   const total = counts.for_sale + counts.pokedex + counts.collection;
 
+  // Escape closes — same dismissal contract as the other modals.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-start gap-3">
           <div className="bg-rarity-r/15 text-rarity-r flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
             <CheckCircle2 className="h-6 w-6" />

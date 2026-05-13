@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle } from 'lucide-react';
 
@@ -24,9 +25,25 @@ interface Props {
 export default function PartnerCleanupModal({ partnerName, itemDisplayName, itemKind, onClose }: Props) {
   const t = useTranslations('vintedPromote');
   const tCommon = useTranslations('common');
+
+  // Escape closes — purely informational modal, no in-flight state.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-start gap-3">
           <div className="bg-red/15 text-red flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
             <AlertTriangle className="h-5 w-5" />

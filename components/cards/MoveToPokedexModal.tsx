@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { X, BookmarkCheck, Package, Tag } from 'lucide-react';
 import { VARIANT_LABEL } from '@/lib/utils/labels';
@@ -50,6 +50,16 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<ExistingPokedexCard | null>(null);
+
+  // Escape closes — suppressed during a PATCH so the user can't bail mid-call.
+  useEffect(() => {
+    if (submitting) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [submitting, onClose]);
 
   const thumb = card.image_url ?? card.tcg_image_url;
 
@@ -113,8 +123,14 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
     const variantLabel = conflict.variant ? (VARIANT_LABEL[conflict.variant] ?? conflict.variant) : null;
     const conflictThumb = conflict.image_url ?? conflict.tcg_image_url;
     return (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-        <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
+      <div
+        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+        onClick={submitting ? undefined : onClose}
+      >
+        <div
+          className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="mb-3 flex items-start justify-between">
             <div>
               <h2 className="text-lg font-semibold">{t('moveToPokedexConflictTitle')}</h2>
@@ -197,8 +213,14 @@ export default function MoveToPokedexModal({ card, currentLocation, onClose, onP
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+      onClick={submitting ? undefined : onClose}
+    >
+      <div
+        className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-3 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-semibold">{t('moveToPokedexTitle')}</h2>

@@ -132,7 +132,13 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4"
-      onClick={onClose}
+      // Backdrop click closes — but only when the click target is the
+      // backdrop itself. Without the `target === currentTarget` guard, a
+      // click on the nested PriceDetailModal's backdrop would bubble up
+      // through the React tree and also close this AnnonceModal.
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         className="bg-surface border-border my-6 w-full max-w-3xl rounded-lg border shadow-xl"

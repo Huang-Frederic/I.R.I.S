@@ -1,7 +1,7 @@
 'use client';
 
 import { X, Tag } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 import { VARIANT_LABEL } from '@/lib/utils/labels';
@@ -30,6 +30,17 @@ export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }
 
   const thumb = candidate.imageUrl ?? candidate.tcgImageUrl;
   const variantLabel = candidate.variant ? (VARIANT_LABEL[candidate.variant] ?? candidate.variant) : null;
+
+  // Escape closes — but the nested ExchangeOnConflictModal owns Escape while
+  // it's open, and we don't want to close the parent during a network call.
+  useEffect(() => {
+    if (submitting || exchangeMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [submitting, exchangeMode, onClose]);
 
   const promote = async () => {
     setSubmitting(true);
@@ -67,9 +78,25 @@ export default function PromoteAfterSoldModal({ candidate, onClose, onPromoted }
     }
   };
 
+  // Backdrop click closes — but only when the click target is the backdrop
+  // itself (not a bubbled click from the nested ExchangeOnConflictModal,
+  // which is rendered inside this same outer div). This `target ===
+  // currentTarget` guard sidesteps the React-synthetic-event bubbling that
+  // a nested modal's `onClose` would otherwise trigger here.
+  const handleBackdrop = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (submitting) return;
+    if (e.target === e.currentTarget) onClose();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={handleBackdrop}
+    >
+      <div
+        className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-semibold">{t('title')}</h2>

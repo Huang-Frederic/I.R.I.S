@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { X, Trash2, Tag, Package } from 'lucide-react';
 import type { Card } from '@/lib/types';
@@ -21,6 +21,16 @@ export default function PokedexCardActionsModal({ card, hasForSaleConflict, onCl
   const tErrors = useTranslations('errors');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Escape closes the modal unless a network call is in flight.
+  useEffect(() => {
+    if (submitting) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [submitting, onClose]);
 
   const moveTo = async (status: 'for_sale' | 'collection') => {
     setSubmitting(true);
@@ -61,8 +71,14 @@ export default function PokedexCardActionsModal({ card, hasForSaleConflict, onCl
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl">
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+      onClick={submitting ? undefined : onClose}
+    >
+      <div
+        className="bg-surface border-border w-full max-w-md rounded-lg border p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-semibold">{t('actionsTitle')}</h2>

@@ -49,6 +49,23 @@ export function PriceDetailModal({ card, open, onClose, onCardUpdated }: PriceDe
     };
   }, [open, card.id]);
 
+  // Dismiss on Escape and lock body scroll while open. Same pattern as
+  // AnnonceModal / LotAnnonceModal — the backdrop click is wired below on
+  // the outer fixed div.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open, onClose]);
+
   const handleRefresh = async () => {
     const res = await fetch(`/api/prices/update?card_id=${currentCard.id}`, { method: 'POST' });
     if (!res.ok) return;
@@ -68,8 +85,16 @@ export function PriceDetailModal({ card, open, onClose, onCardUpdated }: PriceDe
   if (!open) return null;
 
   return (
-    <div className="bg-black/60 fixed inset-0 z-50 flex items-start justify-center overflow-hidden p-4 sm:items-center">
-      <div className="bg-bg flex max-h-[90dvh] w-full max-w-3xl flex-col rounded-lg shadow-xl">
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="bg-black/60 fixed inset-0 z-50 flex items-start justify-center overflow-hidden p-4 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="bg-bg flex max-h-[90dvh] w-full max-w-3xl flex-col rounded-lg shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="bg-bg border-border sticky top-0 z-10 flex items-center justify-between rounded-t-lg border-b p-3">
           <span className="text-text-muted text-xs">{currentCard.set_name ?? '—'}</span>
           <button
