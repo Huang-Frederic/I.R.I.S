@@ -2,10 +2,12 @@
 
 import { Suspense, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
 import { StatsHeader } from '@/components/prices/StatsHeader';
 import { PortfolioValueChart } from '@/components/prices/PortfolioValueChart';
 import { TopMoversPanel } from '@/components/prices/TopMoversPanel';
+import { AllCardsList } from '@/components/prices/AllCardsList';
 import { PriceDetailModal } from '@/components/price/PriceDetailModal';
 import { createClient } from '@/lib/supabase/client';
 import type { Card } from '@/lib/types';
@@ -22,6 +24,8 @@ export default function PricesPage() {
 
 function PricesPageContent() {
   const t = useTranslations('prices');
+  const searchParams = useSearchParams();
+  const initialSet = searchParams?.get('set') ?? null;
   const [modalCard, setModalCard] = useState<Card | null>(null);
 
   const openCard = async (cardId: string) => {
@@ -36,6 +40,7 @@ function PricesPageContent() {
       <StatsHeader />
       <PortfolioValueChart />
       <TopMoversPanel onCardClick={openCard} />
+      <AllCardsList initialSetFilter={initialSet} onCardClick={openCard} />
       {modalCard && (
         <PriceDetailModal
           card={modalCard}
