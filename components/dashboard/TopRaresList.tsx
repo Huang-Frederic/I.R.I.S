@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { RARITY_COLOR } from '@/lib/utils/labels';
 import type { Card } from '@/lib/types';
 import { displayCardName } from '@/lib/utils/format-name';
+import { PriceWithTrend } from '@/components/ui/PriceWithTrend';
 
 interface Props {
   cards: readonly (Pick<Card, 'id' | 'card_name' | 'pokemon_name' | 'pokemon_number' | 'image_url' | 'tcg_image_url' | 'rarity'> & {
@@ -51,7 +52,13 @@ export default async function TopRaresList({ cards }: Props) {
                 </div>
               </div>
               <div className="text-text shrink-0 font-mono text-sm">
-                €{priceOf(c).toFixed(2)}
+                {/* onPriceClick omitted: TopRaresList is a server component,
+                    functions cannot cross the RSC boundary. Wired in Phase 3 (T20). */}
+                <PriceWithTrend
+                  cardId={c.id}
+                  cmPriceAvg={priceOf(c)}
+                  variant="compact"
+                />
               </div>
             </>
           );

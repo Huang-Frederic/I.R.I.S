@@ -23,6 +23,7 @@ import ScanHeatmap from '@/components/dashboard/ScanHeatmap';
 import TopRaresList from '@/components/dashboard/TopRaresList';
 import LastSalesList from '@/components/dashboard/LastSalesList';
 import PokedexCount from '@/components/dashboard/PokedexCount';
+import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
 import type { Card } from '@/lib/types';
 
 export async function generateMetadata() {
@@ -176,10 +177,12 @@ export default async function DashboardPage({
         <ScanHeatmap matrix={heatmap} details={Object.fromEntries(dayDetails)} />
       </div>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <LastSalesList sales={lastSales ?? []} />
-        <TopRaresList cards={topRares} />
-      </div>
+      <PriceTrendsProvider>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <LastSalesList sales={lastSales ?? []} />
+          <TopRaresList cards={topRares} />
+        </div>
+      </PriceTrendsProvider>
     </section>
   );
 }
