@@ -66,9 +66,9 @@ export function PriceDetailModal({ card, open, onClose, onCardUpdated }: PriceDe
   if (!open) return null;
 
   return (
-    <div className="bg-black/60 fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-      <div className="bg-bg w-full max-w-3xl rounded-lg shadow-xl">
-        <div className="flex items-center justify-between border-b border-border p-3">
+    <div className="bg-black/60 fixed inset-0 z-50 flex items-start justify-center overflow-hidden p-4 sm:items-center">
+      <div className="bg-bg flex max-h-[90dvh] w-full max-w-3xl flex-col rounded-lg shadow-xl">
+        <div className="bg-bg border-border sticky top-0 z-10 flex items-center justify-between rounded-t-lg border-b p-3">
           <span className="text-text-muted text-xs">{currentCard.set_name ?? '—'}</span>
           <button
             type="button"
@@ -80,7 +80,7 @@ export function PriceDetailModal({ card, open, onClose, onCardUpdated }: PriceDe
           </button>
         </div>
 
-        <div className="space-y-4 p-4">
+        <div className="flex-1 space-y-4 overflow-y-auto p-4">
           <CardImagesPair myPhoto={currentCard.image_url ?? ''} tcgPhoto={currentCard.tcg_image_url ?? null} />
 
           <PriceTrioBlock

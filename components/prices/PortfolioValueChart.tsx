@@ -96,14 +96,32 @@ export function PortfolioValueChart() {
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="currentColor" stopOpacity={0.4} />
-                <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
+                <stop offset="0%" stopColor="#22c55e" stopOpacity={0.4} />
+                <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis dataKey="date" tick={{ fontSize: 10 }} />
             <YAxis tickFormatter={(v) => `${Number(v).toFixed(0)}€`} tick={{ fontSize: 10 }} />
-            <Tooltip formatter={(v) => `${Number(v).toFixed(2)}€`} />
-            <Area type="monotone" dataKey="total" stroke="currentColor" fill="url(#portfolioGradient)" strokeWidth={2} />
+            <Tooltip
+              formatter={(v) => `${Number(v).toFixed(2)}€`}
+              contentStyle={{
+                background: 'var(--color-surface-2)',
+                color: 'var(--color-text)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 4,
+                fontSize: 12,
+              }}
+              labelStyle={{ color: 'var(--color-text-muted)' }}
+              itemStyle={{ color: 'var(--color-text)' }}
+            />
+            <Area
+              name="Valeur"
+              type="monotone"
+              dataKey="total"
+              stroke="#22c55e"
+              fill="url(#portfolioGradient)"
+              strokeWidth={2}
+            />
           </AreaChart>
         </ResponsiveContainer>
       </div>
