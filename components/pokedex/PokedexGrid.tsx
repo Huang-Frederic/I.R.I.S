@@ -7,6 +7,7 @@ import type { Card, CardRarity } from '@/lib/types';
 import { GENERATIONS } from '@/lib/utils/pokemon-generations';
 import { normalizeForSearch } from '@/lib/utils/text-normalize';
 import { POKEMON_NAMES } from '@/lib/data/pokemon-names';
+import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
 import PokedexCell from './PokedexCell';
 import PokedexDrawer from './PokedexDrawer';
 import PokedexFilters, { type FilterState, type ViewMode } from './PokedexFilters';
@@ -138,7 +139,7 @@ export default function PokedexGrid({ cards }: PokedexGridProps) {
   }[viewMode];
 
   return (
-    <>
+    <PriceTrendsProvider>
       <PokedexFilters
         value={filters}
         onChange={setFilters}
@@ -182,7 +183,7 @@ export default function PokedexGrid({ cards }: PokedexGridProps) {
         pokedexCard={selectedCard}
         availableCards={selectedAvailable}
       />
-    </>
+    </PriceTrendsProvider>
   );
 }
 

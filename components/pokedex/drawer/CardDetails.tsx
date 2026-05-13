@@ -11,6 +11,7 @@ import PokedexCardActionsModal from '../PokedexCardActionsModal';
 import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
 import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
 import CardmarketLink from '@/components/ui/CardmarketLink';
+import { PriceWithTrend } from '@/components/ui/PriceWithTrend';
 import { Figure, Row, Price } from './DrawerUI';
 import ReplaceFlow from './ReplaceFlow';
 
@@ -75,7 +76,15 @@ export default function CardDetails({
             <div className="grid flex-1 grid-cols-2 gap-3 md:grid-cols-4">
               <Price label={t('priceLow')} value={card.cm_price_low} />
               <Price label={t('priceTrend')} value={card.cm_price_trend} />
-              <Price label={t('priceAvg')} value={card.cm_price_avg} />
+              <div>
+                <p className="text-text-faint text-xs">{t('priceAvg')}</p>
+                <PriceWithTrend
+                  cardId={card.id}
+                  cmPriceAvg={card.cm_price_avg}
+                  variant="inline"
+                  onPriceClick={() => {/* TODO Phase 3 */}}
+                />
+              </div>
               <Price label={t('priceListing')} value={card.suggested_price} highlight />
             </div>
             <div className="flex shrink-0 flex-col items-end justify-end gap-1">
