@@ -35,6 +35,7 @@
     "dashboard": "ダッシュボード",
     "options": "設定",
     "pokedex": "ポケモン図鑑",
+    "prices": "価格",
     "scanner": "スキャナー",
     "stock": "在庫",
     "vinted": "Vinted"
@@ -538,6 +539,37 @@
     "candidateLocationVinted": "Vinted",
     "replaceConfirmDestStock": "在庫へ",
     "replaceConfirmDestVinted": "Vinted へ"
+  },
+  "prices": {
+    "title": "価格",
+    "stats": {
+      "up": "{count} 上昇",
+      "down": "{count} 下降",
+      "stable": "{count} 安定",
+      "volatility": "平均変動率 {period}: ±{value}%"
+    },
+    "portfolio": {
+      "title": "ポートフォリオ価値",
+      "for_sale": "販売中",
+      "collection": "コレクション",
+      "pokedex": "ポケモン図鑑"
+    },
+    "topMovers": {
+      "title": "トップ動向",
+      "ups": "上昇トップ",
+      "downs": "下降トップ",
+      "viewAll": "すべて表示"
+    },
+    "list": {
+      "title": "全カード",
+      "search": "検索",
+      "sort": "並び替え",
+      "filters": "フィルター"
+    },
+    "empty": {
+      "noCards": "最初のカードをスキャン",
+      "noHistory": "履歴がまだ十分ではありません — 数日後に確認してください"
+    }
   },
   "modals": {
     "duplicateForSaleTitle": "Vinted で既に出品中のカード",

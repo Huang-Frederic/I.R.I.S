@@ -35,6 +35,7 @@
     "dashboard": "仪表盘",
     "options": "设置",
     "pokedex": "宝可梦图鉴",
+    "prices": "价格",
     "scanner": "扫描器",
     "stock": "库存",
     "vinted": "Vinted"
@@ -538,6 +539,37 @@
     "candidateLocationVinted": "Vinted",
     "replaceConfirmDestStock": "移到库存",
     "replaceConfirmDestVinted": "移到 Vinted"
+  },
+  "prices": {
+    "title": "价格",
+    "stats": {
+      "up": "{count} 上涨",
+      "down": "{count} 下跌",
+      "stable": "{count} 稳定",
+      "volatility": "平均波动 {period}: ±{value}%"
+    },
+    "portfolio": {
+      "title": "投资组合价值",
+      "for_sale": "出售中",
+      "collection": "收藏",
+      "pokedex": "宝可梦图鉴"
+    },
+    "topMovers": {
+      "title": "热门变动",
+      "ups": "涨幅榜",
+      "downs": "跌幅榜",
+      "viewAll": "查看全部"
+    },
+    "list": {
+      "title": "所有卡片",
+      "search": "搜索",
+      "sort": "排序",
+      "filters": "筛选"
+    },
+    "empty": {
+      "noCards": "扫描你的第一张卡片",
+      "noHistory": "历史数据还不够 — 几天后再来"
+    }
   },
   "modals": {
     "duplicateForSaleTitle": "卡片已在 Vinted 出售",

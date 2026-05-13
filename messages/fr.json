@@ -35,6 +35,7 @@
     "dashboard": "Dashboard",
     "options": "Options",
     "pokedex": "Pokédex",
+    "prices": "Prix",
     "scanner": "Scanner",
     "stock": "Stock",
     "vinted": "Vinted"
@@ -538,6 +539,37 @@
     "candidateLocationVinted": "Vinted",
     "replaceConfirmDestStock": "Vers Stock",
     "replaceConfirmDestVinted": "Vers Vinted"
+  },
+  "prices": {
+    "title": "Prix",
+    "stats": {
+      "up": "{count} en hausse",
+      "down": "{count} en baisse",
+      "stable": "{count} stables",
+      "volatility": "Volatilité moyenne {period}: ±{value}%"
+    },
+    "portfolio": {
+      "title": "Valeur du portefeuille",
+      "for_sale": "À vendre",
+      "collection": "Collection",
+      "pokedex": "Pokédex"
+    },
+    "topMovers": {
+      "title": "Top mouvements",
+      "ups": "Top hausses",
+      "downs": "Top baisses",
+      "viewAll": "Voir tout"
+    },
+    "list": {
+      "title": "Toutes les cartes",
+      "search": "Rechercher",
+      "sort": "Tri",
+      "filters": "Filtres"
+    },
+    "empty": {
+      "noCards": "Scanne ta première carte",
+      "noHistory": "Pas encore assez d'historique — reviens dans quelques jours"
+    }
   },
   "modals": {
     "duplicateForSaleTitle": "Carte déjà en vente sur Vinted",
