@@ -18,7 +18,7 @@ export interface PriceHistoryPoint {
 export interface PriceTrend {
   delta_pct: number;          // e.g. 3.2 means +3.2%
   delta_eur: number;
-  period_days: 1 | 3 | 7 | 30 | 90;
+  period_days: 1 | 3 | 7 | 30 | 90 | 365;   // 365 added for DeltaMatrix Δ1an cell
   base_price: number;
   current_price: number;
 }

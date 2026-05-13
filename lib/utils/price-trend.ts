@@ -56,7 +56,7 @@ export function computeMultiPeriodDeltas(
     d7: cell(7),
     d30: cell(30),
     d90: cell(90),
-    d365: cell(365 as PriceTrend['period_days']),  // 1 year tier (DeltaMatrix only)
+    d365: cell(365),  // 1 year tier (DeltaMatrix only)
   };
 }
 
