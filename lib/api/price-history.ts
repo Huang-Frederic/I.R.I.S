@@ -36,3 +36,31 @@ export async function fetchHistoryForCardIds(
   }
   return result;
 }
+
+/**
+ * Fetch all history for one card going back `windowDays` days. Used by the
+ * detail modal which needs up to 1 year (DeltaMatrix Δ1an cell) or unlimited
+ * ("tout" toggle). Returns chronologically ascending points across all
+ * granularities (daily, weekly, monthly).
+ *
+ * Pass `windowDays = null` for an unlimited window.
+ */
+export async function fetchHistoryForCard(
+  supabase: SupabaseClient,
+  cardId: string,
+  windowDays: number | null,
+): Promise<PriceHistoryPoint[]> {
+  let query = supabase
+    .from('price_history')
+    .select('card_id, bucket_date, granularity, cm_price_low, cm_price_trend, cm_price_avg, source_freshness_days')
+    .eq('card_id', cardId);
+
+  if (windowDays != null) {
+    const since = new Date(Date.now() - windowDays * 86_400_000).toISOString().slice(0, 10);
+    query = query.gte('bucket_date', since);
+  }
+
+  const { data, error } = await query.order('bucket_date', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PriceHistoryPoint[];
+}

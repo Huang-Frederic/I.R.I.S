@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fetchHistoryForCardIds } from './price-history';
+import { fetchHistoryForCardIds, fetchHistoryForCard } from './price-history';
 
 const fromMock = vi.fn();
 const supabase = { from: fromMock } as any;
@@ -45,5 +45,42 @@ describe('fetchHistoryForCardIds', () => {
       }),
     });
     await expect(fetchHistoryForCardIds(supabase, ['a'], 90)).rejects.toThrow('boom');
+  });
+});
+
+describe('fetchHistoryForCard', () => {
+  it('fetches all granularities ascending', async () => {
+    const fromMock = vi.fn().mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          gte: () => ({
+            order: () =>
+              Promise.resolve({
+                data: [
+                  { card_id: 'c', bucket_date: '2026-01-01', granularity: 'monthly', cm_price_avg: 3.5, cm_price_low: null, cm_price_trend: null, source_freshness_days: 1 },
+                  { card_id: 'c', bucket_date: '2026-05-01', granularity: 'weekly',  cm_price_avg: 4.0, cm_price_low: null, cm_price_trend: null, source_freshness_days: 1 },
+                  { card_id: 'c', bucket_date: '2026-05-13', granularity: 'daily',   cm_price_avg: 4.2, cm_price_low: null, cm_price_trend: null, source_freshness_days: 0 },
+                ],
+                error: null,
+              }),
+          }),
+        }),
+      }),
+    });
+    const supabase = { from: fromMock } as any;
+    const points = await fetchHistoryForCard(supabase, 'c', 90);
+    expect(points).toHaveLength(3);
+    expect(points[0].granularity).toBe('monthly');
+    expect(points[2].granularity).toBe('daily');
+  });
+
+  it('drops the gte filter when windowDays is null', async () => {
+    const orderMock = vi.fn().mockResolvedValue({ data: [], error: null });
+    const fromMock = vi.fn().mockReturnValue({
+      select: () => ({ eq: () => ({ order: orderMock, gte: vi.fn() }) }),
+    });
+    const supabase = { from: fromMock } as any;
+    await fetchHistoryForCard(supabase, 'c', null);
+    expect(orderMock).toHaveBeenCalled();
   });
 });
