@@ -10,6 +10,7 @@ import StockFilters, { INITIAL_STOCK_FILTERS, type StockFilterState } from './St
 import StockRow from './StockRow';
 import ExchangeOnConflictModal, { type ExchangeConflictCard } from '@/components/vinted/ExchangeOnConflictModal';
 import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
+import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
 import { normalizeForSearch } from '@/lib/utils/text-normalize';
 import { translateErrorCode } from '@/lib/utils/translate-error';
 
@@ -158,67 +159,69 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
   };
 
   return (
-    <div>
-      <StockFilters
-        value={filters}
-        onChange={setFilters}
-        visibleCards={groups.length}
-        totalCards={cards.length}
-      />
-
-      {groups.length === 0 ? (
-        <div className="bg-surface border-border rounded-lg border p-6">
-          <p className="text-text-muted text-sm">
-            {cards.length === 0 ? t('emptyEmpty') : t('emptyFiltered')}
-          </p>
-        </div>
-      ) : (
-        <ul className="space-y-2">
-          {groups.map((g) => (
-            <StockRow
-              key={g.key}
-              group={g}
-              isRegistered={g.head.pokemon_number != null && registered.has(g.head.pokemon_number)}
-              hasForSaleSibling={forSaleKeys.has(stockMatchKey(g.head))}
-              onListForSaleClick={handleListForSale}
-              onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}
-              onSetCount={handleSetCount}
-              busy={busyKey === g.key}
-            />
-          ))}
-        </ul>
-      )}
-
-      {exchangeModal && (
-        <ExchangeOnConflictModal
-          newCard={exchangeModal.newCard}
-          conflictCard={exchangeModal.conflictCard}
-          onClose={() => setExchangeModal(null)}
-          onExchanged={() => {
-            setCards((prev) => prev.filter((c) => c.id !== exchangeModal.newCard.id));
-            setExchangeModal(null);
-          }}
+    <PriceTrendsProvider>
+      <div>
+        <StockFilters
+          value={filters}
+          onChange={setFilters}
+          visibleCards={groups.length}
+          totalCards={cards.length}
         />
-      )}
 
-      {moveToPokedexCard && (
-        <MoveToPokedexModal
-          card={{
-            id: moveToPokedexCard.id,
-            card_name: moveToPokedexCard.card_name,
-            image_url: moveToPokedexCard.image_url,
-            tcg_image_url: moveToPokedexCard.tcg_image_url,
-          }}
-          currentLocation="Stock"
-          onClose={() => setMoveToPokedexCard(null)}
-          onPromoted={() => {
-            const promotedId = moveToPokedexCard.id;
-            setCards((prev) => prev.filter((c) => c.id !== promotedId));
-            setMoveToPokedexCard(null);
-            router.refresh();
-          }}
-        />
-      )}
-    </div>
+        {groups.length === 0 ? (
+          <div className="bg-surface border-border rounded-lg border p-6">
+            <p className="text-text-muted text-sm">
+              {cards.length === 0 ? t('emptyEmpty') : t('emptyFiltered')}
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {groups.map((g) => (
+              <StockRow
+                key={g.key}
+                group={g}
+                isRegistered={g.head.pokemon_number != null && registered.has(g.head.pokemon_number)}
+                hasForSaleSibling={forSaleKeys.has(stockMatchKey(g.head))}
+                onListForSaleClick={handleListForSale}
+                onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}
+                onSetCount={handleSetCount}
+                busy={busyKey === g.key}
+              />
+            ))}
+          </ul>
+        )}
+
+        {exchangeModal && (
+          <ExchangeOnConflictModal
+            newCard={exchangeModal.newCard}
+            conflictCard={exchangeModal.conflictCard}
+            onClose={() => setExchangeModal(null)}
+            onExchanged={() => {
+              setCards((prev) => prev.filter((c) => c.id !== exchangeModal.newCard.id));
+              setExchangeModal(null);
+            }}
+          />
+        )}
+
+        {moveToPokedexCard && (
+          <MoveToPokedexModal
+            card={{
+              id: moveToPokedexCard.id,
+              card_name: moveToPokedexCard.card_name,
+              image_url: moveToPokedexCard.image_url,
+              tcg_image_url: moveToPokedexCard.tcg_image_url,
+            }}
+            currentLocation="Stock"
+            onClose={() => setMoveToPokedexCard(null)}
+            onPromoted={() => {
+              const promotedId = moveToPokedexCard.id;
+              setCards((prev) => prev.filter((c) => c.id !== promotedId));
+              setMoveToPokedexCard(null);
+              router.refresh();
+            }}
+          />
+        )}
+      </div>
+    </PriceTrendsProvider>
   );
 }

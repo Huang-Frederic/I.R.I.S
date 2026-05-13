@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Tag, BookmarkCheck, Bookmark, Globe, GlobeLock, Boxes } from 'lucide-react';
+import { Tag, BookmarkCheck, Bookmark, Globe, GlobeLock, Boxes, ExternalLink } from 'lucide-react';
 import type { Card } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
 import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
@@ -10,7 +10,7 @@ import { displayCardName, displaySetName } from '@/lib/utils/format-name';
 import CardZoomModal from '@/components/vinted/CardZoomModal';
 import ConfirmDialog from '@/components/vinted/ConfirmDialog';
 import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
-import { formatEur } from '@/lib/utils/format-currency';
+import { PriceWithTrend } from '@/components/ui/PriceWithTrend';
 
 function thumbUrl(card: Card): string {
   if (card.image_url) return card.image_url;
@@ -157,33 +157,36 @@ export default function StockRow({
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
-        {/* Cardmarket price chip — avg + freshness badge, clickable to the
-            matched product page when we have one (so the user can verify the
-            lookup picked the right print). Hidden entirely when no price has
-            been resolved yet (newly-scanned card pre-cron, or variant kept
-            on manual pricing). */}
+        {/* Cardmarket price chip — avg + trend arrow + freshness badge.
+            Hidden entirely when no price has been resolved yet (newly-scanned
+            card pre-cron, or variant kept on manual pricing). The external
+            Cardmarket link is rendered as a separate icon next to the chip
+            (preserves quick-access to the matched product page so the user can
+            verify the lookup picked the right print). */}
         {card.cm_price_avg != null && (
-          card.cardmarket_url ? (
-            <a
-              href={card.cardmarket_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="border-border bg-surface-2 hover:border-red inline-flex items-center gap-1.5 rounded border px-2 py-1 text-xs transition-colors"
-              title={t('cardmarketLinkTitle')}
-            >
-              <span className="text-text font-mono">{formatEur(card.cm_price_avg)}</span>
-              <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
-            </a>
-          ) : (
-            <div
-              className="border-border bg-surface-2 inline-flex items-center gap-1.5 rounded border px-2 py-1 text-xs"
-              title={t('cardmarketNoLinkTitle')}
-            >
-              <span className="text-text font-mono">{formatEur(card.cm_price_avg)}</span>
-              <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
-            </div>
-          )
+          <div className="inline-flex items-center gap-1.5">
+            <PriceWithTrend
+              cardId={card.id}
+              cmPriceAvg={card.cm_price_avg}
+              cardmarketUrl={card.cardmarket_url}
+              variant="chip"
+              onPriceClick={() => {/* TODO Phase 3: open <PriceDetailModal> */}}
+            />
+            <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
+            {card.cardmarket_url && (
+              <a
+                href={card.cardmarket_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-text-faint hover:text-text"
+                aria-label={t('cardmarketLinkTitle')}
+                title={t('cardmarketLinkTitle')}
+              >
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
         )}
 
         {/* Editable count: type a number and blur (or Enter) to apply.
