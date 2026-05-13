@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { RefreshCw } from 'lucide-react';
 import { PriceWithTrend } from '@/components/ui/PriceWithTrend';
 import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
@@ -30,6 +31,7 @@ export function PriceTrioBlock({
   sourceFreshnessDays,
   onRefresh,
 }: PriceTrioBlockProps) {
+  const t = useTranslations('prices.trio');
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = async () => {
@@ -46,15 +48,15 @@ export function PriceTrioBlock({
     <div className="border-border rounded border p-3">
       <div className="grid grid-cols-4 gap-2 text-center text-xs">
         <div>
-          <p className="text-text-faint">Low</p>
+          <p className="text-text-faint">{t('low')}</p>
           <p>{formatEur(cmPriceLow)}</p>
         </div>
         <div>
-          <p className="text-text-faint">Trend</p>
+          <p className="text-text-faint">{t('trend')}</p>
           <p>{formatEur(cmPriceTrend)}</p>
         </div>
         <div>
-          <p className="text-text-faint">Avg</p>
+          <p className="text-text-faint">{t('avg')}</p>
           <PriceWithTrend cardId={cardId} cmPriceAvg={cmPriceAvg} variant="inline" />
         </div>
         <div className="flex flex-col items-center gap-1">
@@ -64,16 +66,16 @@ export function PriceTrioBlock({
             onClick={handleRefresh}
             disabled={refreshing}
             className="bg-surface-2 hover:bg-surface-off border-border inline-flex items-center gap-1 rounded border px-2 py-1 text-xs disabled:opacity-50"
-            aria-label="Rafraîchir le prix"
+            aria-label={t('refreshAria')}
           >
             <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? 'Maj…' : 'Maj'}
+            {refreshing ? t('refreshing') : t('refresh')}
           </button>
         </div>
       </div>
       {sourceFreshnessDays != null && sourceFreshnessDays >= 2 && (
         <p className="text-text-faint mt-2 text-center text-xs italic">
-          Snapshot basé sur un prix vieux de {sourceFreshnessDays}j
+          {t('lagged', { days: sourceFreshnessDays })}
         </p>
       )}
     </div>

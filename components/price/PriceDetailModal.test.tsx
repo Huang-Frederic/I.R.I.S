@@ -48,20 +48,22 @@ describe('<PriceDetailModal>', () => {
   it('renders set name and Low/Trend/Avg cells when open', async () => {
     render(<PriceDetailModal card={baseCard} open={true} onClose={() => {}} />);
     expect(screen.getByText('Sword & Shield')).toBeInTheDocument();
-    expect(screen.getByText('Low')).toBeInTheDocument();
-    expect(screen.getByText('Trend')).toBeInTheDocument();
-    expect(screen.getByText('Avg')).toBeInTheDocument();
+    // useTranslations is mocked as (k) => k, so the cell labels are the raw keys.
+    expect(screen.getByText('low')).toBeInTheDocument();
+    expect(screen.getByText('trend')).toBeInTheDocument();
+    expect(screen.getByText('avg')).toBeInTheDocument();
   });
 
   it('shows the no-history message when fewer than 2 points exist', async () => {
     render(<PriceDetailModal card={baseCard} open={true} onClose={() => {}} />);
-    expect(await screen.findByText(/Pas encore d'historique/)).toBeInTheDocument();
+    expect(await screen.findByText('noHistory')).toBeInTheDocument();
   });
 
   it('calls onClose when × is clicked', () => {
     const onClose = vi.fn();
     render(<PriceDetailModal card={baseCard} open={true} onClose={onClose} />);
-    fireEvent.click(screen.getByLabelText('Fermer'));
+    // Modal close button uses aria-label={t('close')}; useTranslations mock returns key.
+    fireEvent.click(screen.getByLabelText('close'));
     expect(onClose).toHaveBeenCalledOnce();
   });
 });

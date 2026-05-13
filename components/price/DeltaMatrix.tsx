@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { computeMultiPeriodDeltas } from '@/lib/utils/price-trend';
 import type { PriceHistoryPoint, PriceTrend } from '@/lib/types/price-history';
@@ -34,6 +35,7 @@ function DeltaCell({ label, trend }: { label: string; trend: PriceTrend | null }
 }
 
 export function DeltaMatrix({ points, currentPrice }: DeltaMatrixProps) {
+  const t = useTranslations('prices.delta');
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const deltas = useMemo(
     () => computeMultiPeriodDeltas(points, currentPrice, todayIso),
@@ -42,10 +44,10 @@ export function DeltaMatrix({ points, currentPrice }: DeltaMatrixProps) {
 
   return (
     <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-      <DeltaCell label="Δ 7j" trend={deltas.d7} />
-      <DeltaCell label="Δ 30j" trend={deltas.d30} />
-      <DeltaCell label="Δ 90j" trend={deltas.d90} />
-      <DeltaCell label="Δ 1an" trend={deltas.d365} />
+      <DeltaCell label={t('d7')} trend={deltas.d7} />
+      <DeltaCell label={t('d30')} trend={deltas.d30} />
+      <DeltaCell label={t('d90')} trend={deltas.d90} />
+      <DeltaCell label={t('d365')} trend={deltas.d365} />
     </div>
   );
 }

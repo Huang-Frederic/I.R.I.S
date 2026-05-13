@@ -542,33 +542,96 @@
   },
   "prices": {
     "title": "価格",
+    "loading": "読み込み中…",
+    "overview": "概要",
     "stats": {
       "up": "{count} 上昇",
       "down": "{count} 下降",
       "stable": "{count} 安定",
-      "volatility": "平均変動率 {period}: ±{value}%"
+      "volatility": "平均変動率 {period}: ±{value}%",
+      "labelUp": "上昇",
+      "labelDown": "下降",
+      "labelStable": "安定",
+      "labelVolatility": "変動率 {period}日",
+      "periodDays": "{days}日"
     },
     "portfolio": {
       "title": "ポートフォリオ価値",
-      "for_sale": "販売中",
-      "collection": "コレクション",
-      "pokedex": "ポケモン図鑑"
+      "for_sale": "Vinted",
+      "collection": "ストック",
+      "pokedex": "ポケモン図鑑",
+      "lineLabel": "価値",
+      "periodAll": "全期間",
+      "periodDays": "{days}日"
     },
     "topMovers": {
       "title": "トップ動向",
       "ups": "上昇トップ",
       "downs": "下降トップ",
-      "viewAll": "すべて表示"
+      "viewAll": "すべて表示",
+      "noData": "データがまだありません。",
+      "periodDays": "{days}日"
     },
     "list": {
       "title": "全カード",
       "search": "検索",
       "sort": "並び替え",
-      "filters": "フィルター"
+      "filters": "フィルター",
+      "searchPlaceholder": "検索…",
+      "sortDelta": "並び替え: Δ 30日",
+      "sortPrice": "並び替え: 価格",
+      "sortName": "並び替え: 名前",
+      "sortSet": "並び替え: セット",
+      "statusAll": "すべてのステータス",
+      "statusForSale": "Vinted",
+      "statusCollection": "ストック",
+      "statusPokedex": "ポケモン図鑑",
+      "setFilterClear": "セット: {set} ✕"
     },
     "empty": {
       "noCards": "最初のカードをスキャン",
       "noHistory": "履歴がまだ十分ではありません — 数日後に確認してください"
+    },
+    "trend": {
+      "tooltip": "{period}日で{pct}%（{base} → {current}）",
+      "ariaUp": "上昇",
+      "ariaDown": "下降"
+    },
+    "trio": {
+      "low": "Low",
+      "trend": "Trend",
+      "avg": "Avg",
+      "refresh": "更新",
+      "refreshing": "更新中…",
+      "refreshAria": "価格を更新",
+      "lagged": "{days}日前の価格に基づくスナップショット"
+    },
+    "chart": {
+      "title": "推移",
+      "noHistory": "履歴がまだありません — 明日また確認してください。",
+      "lineLabel": "Avg",
+      "period7d": "7日",
+      "period30d": "30日",
+      "period90d": "90日",
+      "period1y": "1年",
+      "periodAll": "全期間"
+    },
+    "statsGrid": {
+      "min": "最低",
+      "max": "最高",
+      "median": "中央値",
+      "volatility": "変動率"
+    },
+    "delta": {
+      "d7": "Δ 7日",
+      "d30": "Δ 30日",
+      "d90": "Δ 90日",
+      "d365": "Δ 1年"
+    },
+    "modal": {
+      "close": "閉じる",
+      "cardmarketLink": "Cardmarket リンク",
+      "viewAllMovements": "すべての変動を見る"
     }
   },
   "modals": {

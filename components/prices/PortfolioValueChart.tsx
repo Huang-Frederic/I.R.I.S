@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { createClient } from '@/lib/supabase/client';
 
@@ -15,6 +16,7 @@ interface Snapshot {
 }
 
 export function PortfolioValueChart() {
+  const t = useTranslations('prices.portfolio');
   const [period, setPeriod] = useState<Period>(90);
   const [includes, setIncludes] = useState({ for_sale: true, collection: true, pokedex: false });
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
@@ -56,7 +58,7 @@ export function PortfolioValueChart() {
     <div className="border-border rounded border p-3">
       <div className="mb-2 flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-medium">Valeur du portefeuille</h2>
+          <h2 className="text-sm font-medium">{t('title')}</h2>
           <p className="text-lg font-semibold">
             {current.toFixed(2)}€{' '}
             <span className={`text-xs ${deltaPct >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
@@ -72,21 +74,22 @@ export function PortfolioValueChart() {
               onClick={() => setPeriod(p)}
               className={`rounded px-2 py-0.5 text-xs ${period === p ? 'bg-red text-white' : 'bg-surface-2 hover:bg-surface-off'}`}
             >
-              {p === 'all' ? 'tout' : `${p}j`}
+              {p === 'all' ? t('periodAll') : t('periodDays', { days: p })}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="mb-2 flex flex-wrap gap-3 text-xs">
+      <div className="mb-3 flex flex-wrap gap-3 text-xs">
         {(['for_sale', 'collection', 'pokedex'] as const).map((k) => (
-          <label key={k} className="inline-flex items-center gap-1">
+          <label key={k} className="inline-flex cursor-pointer items-center gap-1.5">
             <input
               type="checkbox"
               checked={includes[k]}
               onChange={(e) => setIncludes((prev) => ({ ...prev, [k]: e.target.checked }))}
+              className="accent-[#e05252] h-3.5 w-3.5 cursor-pointer"
             />
-            {k}
+            <span>{t(k)}</span>
           </label>
         ))}
       </div>
@@ -115,7 +118,7 @@ export function PortfolioValueChart() {
               itemStyle={{ color: 'var(--color-text)' }}
             />
             <Area
-              name="Valeur"
+              name={t('lineLabel')}
               type="monotone"
               dataKey="total"
               stroke="#22c55e"

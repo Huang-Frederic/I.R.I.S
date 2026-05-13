@@ -542,33 +542,96 @@
   },
   "prices": {
     "title": "Prices",
+    "loading": "Loading…",
+    "overview": "Overview",
     "stats": {
       "up": "{count} up",
       "down": "{count} down",
       "stable": "{count} stable",
-      "volatility": "Average volatility {period}: ±{value}%"
+      "volatility": "Average volatility {period}: ±{value}%",
+      "labelUp": "up",
+      "labelDown": "down",
+      "labelStable": "stable",
+      "labelVolatility": "Volatility {period}d",
+      "periodDays": "{days}d"
     },
     "portfolio": {
       "title": "Portfolio value",
-      "for_sale": "For sale",
-      "collection": "Collection",
-      "pokedex": "Pokédex"
+      "for_sale": "Vinted",
+      "collection": "Stock",
+      "pokedex": "Pokédex",
+      "lineLabel": "Value",
+      "periodAll": "all",
+      "periodDays": "{days}d"
     },
     "topMovers": {
       "title": "Top movers",
       "ups": "Top gains",
       "downs": "Top drops",
-      "viewAll": "View all"
+      "viewAll": "View all",
+      "noData": "No data yet.",
+      "periodDays": "{days}d"
     },
     "list": {
       "title": "All cards",
       "search": "Search",
       "sort": "Sort",
-      "filters": "Filters"
+      "filters": "Filters",
+      "searchPlaceholder": "Search…",
+      "sortDelta": "Sort: Δ 30d",
+      "sortPrice": "Sort: price",
+      "sortName": "Sort: name",
+      "sortSet": "Sort: set",
+      "statusAll": "All statuses",
+      "statusForSale": "Vinted",
+      "statusCollection": "Stock",
+      "statusPokedex": "Pokédex",
+      "setFilterClear": "Set: {set} ✕"
     },
     "empty": {
       "noCards": "Scan your first card",
       "noHistory": "Not enough history yet — come back in a few days"
+    },
+    "trend": {
+      "tooltip": "{pct}% over {period}d ({base} → {current})",
+      "ariaUp": "up",
+      "ariaDown": "down"
+    },
+    "trio": {
+      "low": "Low",
+      "trend": "Trend",
+      "avg": "Avg",
+      "refresh": "Refresh",
+      "refreshing": "Refresh…",
+      "refreshAria": "Refresh price",
+      "lagged": "Snapshot based on a {days}d-old price"
+    },
+    "chart": {
+      "title": "History",
+      "noHistory": "No history yet — come back tomorrow.",
+      "lineLabel": "Avg",
+      "period7d": "7d",
+      "period30d": "30d",
+      "period90d": "90d",
+      "period1y": "1y",
+      "periodAll": "all"
+    },
+    "statsGrid": {
+      "min": "Min",
+      "max": "Max",
+      "median": "Median",
+      "volatility": "Volatility"
+    },
+    "delta": {
+      "d7": "Δ 7d",
+      "d30": "Δ 30d",
+      "d90": "Δ 90d",
+      "d365": "Δ 1y"
+    },
+    "modal": {
+      "close": "Close",
+      "cardmarketLink": "Cardmarket link",
+      "viewAllMovements": "View all movements"
     }
   },
   "modals": {

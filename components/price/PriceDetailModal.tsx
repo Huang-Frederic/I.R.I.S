@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { X, ExternalLink, ArrowRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchHistoryForCard } from '@/lib/api/price-history';
@@ -22,6 +23,7 @@ export interface PriceDetailModalProps {
 }
 
 export function PriceDetailModal({ card, open, onClose, onCardUpdated }: PriceDetailModalProps) {
+  const t = useTranslations('prices.modal');
   const router = useRouter();
   const [points, setPoints] = useState<PriceHistoryPoint[]>([]);
   const [todayPoint, setTodayPoint] = useState<PriceHistoryPoint | null>(null);
@@ -73,7 +75,7 @@ export function PriceDetailModal({ card, open, onClose, onCardUpdated }: PriceDe
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t('close')}
             className="hover:bg-surface-2 rounded p-1"
           >
             <X className="h-4 w-4" />
@@ -110,7 +112,7 @@ export function PriceDetailModal({ card, open, onClose, onCardUpdated }: PriceDe
                 rel="noopener noreferrer"
                 className="text-text-muted hover:text-text inline-flex items-center gap-1 text-xs"
               >
-                Lien Cardmarket <ExternalLink className="h-3 w-3" />
+                {t('cardmarketLink')} <ExternalLink className="h-3 w-3" />
               </a>
             )}
             <button
@@ -121,7 +123,7 @@ export function PriceDetailModal({ card, open, onClose, onCardUpdated }: PriceDe
               }}
               className="text-text-muted hover:text-text inline-flex items-center gap-1 text-xs"
             >
-              Voir tous les mouvements <ArrowRight className="h-3 w-3" />
+              {t('viewAllMovements')} <ArrowRight className="h-3 w-3" />
             </button>
           </div>
         </div>

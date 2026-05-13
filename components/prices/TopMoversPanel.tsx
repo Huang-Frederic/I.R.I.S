@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -21,6 +22,7 @@ interface Props {
 const PERIOD_OPTIONS = [7, 30, 90] as const;
 
 export function TopMoversPanel({ onCardClick }: Props) {
+  const t = useTranslations('prices.topMovers');
   const [period, setPeriod] = useState<number>(7);
   const [ups, setUps] = useState<MoverRow[]>([]);
   const [downs, setDowns] = useState<MoverRow[]>([]);
@@ -43,7 +45,7 @@ export function TopMoversPanel({ onCardClick }: Props) {
   return (
     <div className="border-border rounded border p-3">
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-medium">Top mouvements</h2>
+        <h2 className="text-sm font-medium">{t('title')}</h2>
         <div className="flex gap-1">
           {PERIOD_OPTIONS.map((p) => (
             <button
@@ -52,14 +54,14 @@ export function TopMoversPanel({ onCardClick }: Props) {
               onClick={() => setPeriod(p)}
               className={`rounded px-2 py-0.5 text-xs ${period === p ? 'bg-red text-white' : 'bg-surface-2 hover:bg-surface-off'}`}
             >
-              {p}j
+              {t('periodDays', { days: p })}
             </button>
           ))}
         </div>
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <Column title="Top hausses" rows={ups} icon={<ArrowUp className="h-3 w-3 text-green-600 dark:text-green-400" />} onClick={onCardClick} />
-        <Column title="Top baisses" rows={downs} icon={<ArrowDown className="h-3 w-3 text-red-600 dark:text-red-400" />} onClick={onCardClick} />
+        <Column title={t('ups')} emptyLabel={t('noData')} rows={ups} icon={<ArrowUp className="h-3 w-3 text-green-600 dark:text-green-400" />} onClick={onCardClick} />
+        <Column title={t('downs')} emptyLabel={t('noData')} rows={downs} icon={<ArrowDown className="h-3 w-3 text-red-600 dark:text-red-400" />} onClick={onCardClick} />
       </div>
     </div>
   );
@@ -67,11 +69,13 @@ export function TopMoversPanel({ onCardClick }: Props) {
 
 function Column({
   title,
+  emptyLabel,
   rows,
   icon,
   onClick,
 }: {
   title: string;
+  emptyLabel: string;
   rows: MoverRow[];
   icon: React.ReactNode;
   onClick: (cardId: string) => void;
@@ -80,7 +84,7 @@ function Column({
     <div>
       <p className="text-text-muted mb-1 text-xs uppercase tracking-wide">{title}</p>
       <ul className="space-y-1 text-xs">
-        {rows.length === 0 && <li className="text-text-faint">Pas encore de données.</li>}
+        {rows.length === 0 && <li className="text-text-faint">{emptyLabel}</li>}
         {rows.map((r) => (
           <li key={r.card_id}>
             <button

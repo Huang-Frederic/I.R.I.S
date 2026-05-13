@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import type { PriceHistoryPoint } from '@/lib/types/price-history';
 
@@ -9,16 +10,20 @@ export interface PriceHistoryChartProps {
 }
 
 type Period = 7 | 30 | 90 | 365 | 'all';
-const PERIOD_LABELS: Record<string, string> = {
-  '7':   '7j',
-  '30':  '30j',
-  '90':  '90j',
-  '365': '1an',
-  'all': 'tout',
-};
 
 export function PriceHistoryChart({ points }: PriceHistoryChartProps) {
+  const t = useTranslations('prices.chart');
   const [period, setPeriod] = useState<Period>(30);
+
+  const periodLabel = (p: Period): string => {
+    switch (p) {
+      case 7: return t('period7d');
+      case 30: return t('period30d');
+      case 90: return t('period90d');
+      case 365: return t('period1y');
+      case 'all': return t('periodAll');
+    }
+  };
 
   const filtered = useMemo(() => {
     if (period === 'all') return points;
@@ -37,7 +42,7 @@ export function PriceHistoryChart({ points }: PriceHistoryChartProps) {
   if (chartData.length < 2) {
     return (
       <div className="border-border rounded border p-4 text-center text-sm text-text-faint">
-        Pas encore d&apos;historique — reviens demain.
+        {t('noHistory')}
       </div>
     );
   }
@@ -45,7 +50,7 @@ export function PriceHistoryChart({ points }: PriceHistoryChartProps) {
   return (
     <div className="border-border rounded border p-3">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-medium">Évolution</h3>
+        <h3 className="text-sm font-medium">{t('title')}</h3>
         <div className="flex gap-1">
           {([7, 30, 90, 365, 'all'] as Period[]).map((p) => (
             <button
@@ -54,7 +59,7 @@ export function PriceHistoryChart({ points }: PriceHistoryChartProps) {
               onClick={() => setPeriod(p)}
               className={`rounded px-2 py-0.5 text-xs ${period === p ? 'bg-red text-white' : 'bg-surface-2 hover:bg-surface-off'}`}
             >
-              {PERIOD_LABELS[String(p)]}
+              {periodLabel(p)}
             </button>
           ))}
         </div>
@@ -76,7 +81,7 @@ export function PriceHistoryChart({ points }: PriceHistoryChartProps) {
               labelStyle={{ color: 'var(--color-text-muted)' }}
               itemStyle={{ color: 'var(--color-text)' }}
             />
-            <Line type="monotone" dataKey="avg" stroke="#dc2626" strokeWidth={2} dot={false} name="Avg" />
+            <Line type="monotone" dataKey="avg" stroke="#dc2626" strokeWidth={2} dot={false} name={t('lineLabel')} />
           </LineChart>
         </ResponsiveContainer>
       </div>

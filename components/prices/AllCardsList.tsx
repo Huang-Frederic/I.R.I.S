@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { FixedSizeList } from 'react-window';
 import { createClient } from '@/lib/supabase/client';
 import { Sparkline } from '@/components/price/Sparkline';
@@ -30,6 +31,8 @@ interface Props {
 type SortKey = 'delta' | 'price' | 'name' | 'set';
 
 export function AllCardsList({ initialSetFilter, onCardClick }: Props) {
+  const t = useTranslations('prices');
+  const tList = useTranslations('prices.list');
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('delta');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -112,17 +115,17 @@ export function AllCardsList({ initialSetFilter, onCardClick }: Props) {
     return out;
   }, [rows, search, sortKey, statusFilter, setFilter]);
 
-  if (loading) return <div className="border-border rounded border p-3 text-sm">Chargement…</div>;
+  if (loading) return <div className="border-border rounded border p-3 text-sm">{t('loading')}</div>;
 
   return (
     <div className="border-border rounded border p-3">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <h2 className="text-sm font-medium">Toutes les cartes</h2>
+        <h2 className="text-sm font-medium">{tList('title')}</h2>
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher…"
+          placeholder={tList('searchPlaceholder')}
           className="bg-surface-2 border-border rounded border px-2 py-1 text-xs"
         />
         <select
@@ -130,20 +133,20 @@ export function AllCardsList({ initialSetFilter, onCardClick }: Props) {
           onChange={(e) => setSortKey(e.target.value as SortKey)}
           className="bg-surface-2 border-border rounded border px-2 py-1 text-xs"
         >
-          <option value="delta">Tri: Δ 30j</option>
-          <option value="price">Tri: prix</option>
-          <option value="name">Tri: nom</option>
-          <option value="set">Tri: set</option>
+          <option value="delta">{tList('sortDelta')}</option>
+          <option value="price">{tList('sortPrice')}</option>
+          <option value="name">{tList('sortName')}</option>
+          <option value="set">{tList('sortSet')}</option>
         </select>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="bg-surface-2 border-border rounded border px-2 py-1 text-xs"
         >
-          <option value="all">Tous statuts</option>
-          <option value="for_sale">À vendre</option>
-          <option value="collection">Collection</option>
-          <option value="pokedex">Pokédex</option>
+          <option value="all">{tList('statusAll')}</option>
+          <option value="for_sale">{tList('statusForSale')}</option>
+          <option value="collection">{tList('statusCollection')}</option>
+          <option value="pokedex">{tList('statusPokedex')}</option>
         </select>
         {setFilter && (
           <button
@@ -151,7 +154,7 @@ export function AllCardsList({ initialSetFilter, onCardClick }: Props) {
             onClick={() => setSetFilter(null)}
             className="bg-surface-2 hover:bg-surface-off border-border rounded border px-2 py-1 text-xs"
           >
-            Set: {setFilter} ✕
+            {tList('setFilterClear', { set: setFilter })}
           </button>
         )}
       </div>

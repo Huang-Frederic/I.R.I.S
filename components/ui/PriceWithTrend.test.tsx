@@ -3,6 +3,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { PriceWithTrend } from './PriceWithTrend';
 import { PriceTrendsProvider } from './PriceTrendsProvider';
 
+// PriceWithTrend now calls useTranslations('prices.trend'); pass through the key
+// (e.g. 'ariaUp', 'ariaDown') so we don't need a NextIntlClientProvider in tests.
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 vi.mock('./PriceTrendsProvider', async () => {
   const actual = await vi.importActual<typeof import('./PriceTrendsProvider')>('./PriceTrendsProvider');
   return {
@@ -26,12 +32,12 @@ describe('<PriceWithTrend>', () => {
 
   it('renders no arrow when no history', () => {
     render(<PriceWithTrend cardId="no-history" cmPriceAvg={4.34} variant="inline" />);
-    expect(screen.queryByLabelText(/hausse|baisse/i)).toBeNull();
+    expect(screen.queryByLabelText(/ariaUp|ariaDown/)).toBeNull();
   });
 
   it('renders an up arrow with green class when delta > 0', () => {
     render(<PriceWithTrend cardId="with-history" cmPriceAvg={4.34} variant="inline" />);
-    const arrow = screen.getByLabelText(/hausse/i);
+    const arrow = screen.getByLabelText('ariaUp');
     // Green class lives on the wrapper span (arrow + percentage badge).
     expect(arrow.parentElement?.className).toMatch(/green/);
   });

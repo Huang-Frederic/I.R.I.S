@@ -542,33 +542,96 @@
   },
   "prices": {
     "title": "Prix",
+    "loading": "Chargement…",
+    "overview": "Aperçu",
     "stats": {
       "up": "{count} en hausse",
       "down": "{count} en baisse",
       "stable": "{count} stables",
-      "volatility": "Volatilité moyenne {period}: ±{value}%"
+      "volatility": "Volatilité moyenne {period}: ±{value}%",
+      "labelUp": "en hausse",
+      "labelDown": "en baisse",
+      "labelStable": "stables",
+      "labelVolatility": "Volatilité {period}j",
+      "periodDays": "{days}j"
     },
     "portfolio": {
       "title": "Valeur du portefeuille",
-      "for_sale": "À vendre",
-      "collection": "Collection",
-      "pokedex": "Pokédex"
+      "for_sale": "Vinted",
+      "collection": "Stock",
+      "pokedex": "Pokédex",
+      "lineLabel": "Valeur",
+      "periodAll": "tout",
+      "periodDays": "{days}j"
     },
     "topMovers": {
       "title": "Top mouvements",
       "ups": "Top hausses",
       "downs": "Top baisses",
-      "viewAll": "Voir tout"
+      "viewAll": "Voir tout",
+      "noData": "Pas encore de données.",
+      "periodDays": "{days}j"
     },
     "list": {
       "title": "Toutes les cartes",
       "search": "Rechercher",
       "sort": "Tri",
-      "filters": "Filtres"
+      "filters": "Filtres",
+      "searchPlaceholder": "Rechercher…",
+      "sortDelta": "Tri: Δ 30j",
+      "sortPrice": "Tri: prix",
+      "sortName": "Tri: nom",
+      "sortSet": "Tri: set",
+      "statusAll": "Tous statuts",
+      "statusForSale": "Vinted",
+      "statusCollection": "Stock",
+      "statusPokedex": "Pokédex",
+      "setFilterClear": "Set: {set} ✕"
     },
     "empty": {
       "noCards": "Scanne ta première carte",
       "noHistory": "Pas encore assez d'historique — reviens dans quelques jours"
+    },
+    "trend": {
+      "tooltip": "{pct}% sur {period}j ({base} → {current})",
+      "ariaUp": "hausse",
+      "ariaDown": "baisse"
+    },
+    "trio": {
+      "low": "Low",
+      "trend": "Trend",
+      "avg": "Avg",
+      "refresh": "Maj",
+      "refreshing": "Maj…",
+      "refreshAria": "Rafraîchir le prix",
+      "lagged": "Snapshot basé sur un prix vieux de {days}j"
+    },
+    "chart": {
+      "title": "Évolution",
+      "noHistory": "Pas encore d'historique — reviens demain.",
+      "lineLabel": "Avg",
+      "period7d": "7j",
+      "period30d": "30j",
+      "period90d": "90j",
+      "period1y": "1an",
+      "periodAll": "tout"
+    },
+    "statsGrid": {
+      "min": "Min",
+      "max": "Max",
+      "median": "Médiane",
+      "volatility": "Volatilité"
+    },
+    "delta": {
+      "d7": "Δ 7j",
+      "d30": "Δ 30j",
+      "d90": "Δ 90j",
+      "d365": "Δ 1an"
+    },
+    "modal": {
+      "close": "Fermer",
+      "cardmarketLink": "Lien Cardmarket",
+      "viewAllMovements": "Voir tous les mouvements"
     }
   },
   "modals": {

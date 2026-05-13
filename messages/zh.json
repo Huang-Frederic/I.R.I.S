@@ -542,33 +542,96 @@
   },
   "prices": {
     "title": "价格",
+    "loading": "加载中…",
+    "overview": "概览",
     "stats": {
       "up": "{count} 上涨",
       "down": "{count} 下跌",
       "stable": "{count} 稳定",
-      "volatility": "平均波动 {period}: ±{value}%"
+      "volatility": "平均波动 {period}: ±{value}%",
+      "labelUp": "上涨",
+      "labelDown": "下跌",
+      "labelStable": "稳定",
+      "labelVolatility": "波动 {period}天",
+      "periodDays": "{days}天"
     },
     "portfolio": {
       "title": "投资组合价值",
-      "for_sale": "出售中",
-      "collection": "收藏",
-      "pokedex": "宝可梦图鉴"
+      "for_sale": "Vinted",
+      "collection": "库存",
+      "pokedex": "宝可梦图鉴",
+      "lineLabel": "价值",
+      "periodAll": "全部",
+      "periodDays": "{days}天"
     },
     "topMovers": {
       "title": "热门变动",
       "ups": "涨幅榜",
       "downs": "跌幅榜",
-      "viewAll": "查看全部"
+      "viewAll": "查看全部",
+      "noData": "暂无数据。",
+      "periodDays": "{days}天"
     },
     "list": {
       "title": "所有卡片",
       "search": "搜索",
       "sort": "排序",
-      "filters": "筛选"
+      "filters": "筛选",
+      "searchPlaceholder": "搜索…",
+      "sortDelta": "排序: Δ 30天",
+      "sortPrice": "排序: 价格",
+      "sortName": "排序: 名称",
+      "sortSet": "排序: 系列",
+      "statusAll": "所有状态",
+      "statusForSale": "Vinted",
+      "statusCollection": "库存",
+      "statusPokedex": "宝可梦图鉴",
+      "setFilterClear": "系列: {set} ✕"
     },
     "empty": {
       "noCards": "扫描你的第一张卡片",
       "noHistory": "历史数据还不够 — 几天后再来"
+    },
+    "trend": {
+      "tooltip": "{period}天{pct}%（{base} → {current}）",
+      "ariaUp": "上涨",
+      "ariaDown": "下跌"
+    },
+    "trio": {
+      "low": "Low",
+      "trend": "Trend",
+      "avg": "Avg",
+      "refresh": "刷新",
+      "refreshing": "刷新中…",
+      "refreshAria": "刷新价格",
+      "lagged": "基于{days}天前的价格快照"
+    },
+    "chart": {
+      "title": "走势",
+      "noHistory": "暂无历史 — 明天再来。",
+      "lineLabel": "Avg",
+      "period7d": "7天",
+      "period30d": "30天",
+      "period90d": "90天",
+      "period1y": "1年",
+      "periodAll": "全部"
+    },
+    "statsGrid": {
+      "min": "最低",
+      "max": "最高",
+      "median": "中位数",
+      "volatility": "波动率"
+    },
+    "delta": {
+      "d7": "Δ 7天",
+      "d30": "Δ 30天",
+      "d90": "Δ 90天",
+      "d365": "Δ 1年"
+    },
+    "modal": {
+      "close": "关闭",
+      "cardmarketLink": "Cardmarket 链接",
+      "viewAllMovements": "查看所有变动"
     }
   },
   "modals": {
