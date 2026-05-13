@@ -26,6 +26,7 @@ import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
 import LotRow from '@/components/lots/LotRow';
 import LotSoldRow from '@/components/lots/LotSoldRow';
 import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
+import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
 import BulkSelectionBottomBar from './BulkSelectionBottomBar';
 import BulkSoldModal, { type BulkSoldItem } from './BulkSoldModal';
 import BulkSoldRecapModal from './BulkSoldRecapModal';
@@ -430,6 +431,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
   const isEmpty = groups.length === 0 && soldRows.length === 0 && forSaleLots.length === 0 && soldLotsList.length === 0;
 
   return (
+    <PriceTrendsProvider>
     <div>
       <VintedFilters
         value={filters}
@@ -664,5 +666,6 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
         />
       )}
     </div>
+    </PriceTrendsProvider>
   );
 }

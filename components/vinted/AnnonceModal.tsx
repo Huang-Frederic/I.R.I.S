@@ -10,6 +10,7 @@ import MagnifierLoupe from '@/components/ui/MagnifierLoupe';
 import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
 import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
 import CardmarketLink from '@/components/ui/CardmarketLink';
+import { PriceWithTrend } from '@/components/ui/PriceWithTrend';
 
 interface Props {
   card: Card;
@@ -256,7 +257,15 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
             <div className={`border-border grid ${onCardRefreshed ? 'grid-cols-5' : 'grid-cols-4'} gap-2 rounded border p-3 text-center text-xs`}>
               <PriceCell label={t('priceLow')} value={card.cm_price_low} />
               <PriceCell label={t('priceTrend')} value={card.cm_price_trend} />
-              <PriceCell label={t('priceAvg')} value={card.cm_price_avg} />
+              <div>
+                <p className="text-text-faint">{t('priceAvg')}</p>
+                <PriceWithTrend
+                  cardId={card.id}
+                  cmPriceAvg={card.cm_price_avg}
+                  variant="inline"
+                  onPriceClick={() => {/* TODO Phase 3 */}}
+                />
+              </div>
               <div>
                 <p className="text-text-faint">{t('priceListing')}</p>
                 {editingSuggested ? (
