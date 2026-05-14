@@ -446,7 +446,14 @@
     "deleteConfirmAction": "取り下げ",
     "refreshConfirmTitle": "この出品を更新しますか?",
     "refreshConfirmBody": "出品日を今日にリセットします(現在 {days}日)。Vinted.com 側でも出品をプッシュするのを忘れずに。",
-    "refreshConfirmAction": "更新"
+    "refreshConfirmAction": "更新",
+    "takeOfflineTitle": "Vintedから取り下げるにはクリック",
+    "postOnlineConfirmTitle": "オンラインにしますか?",
+    "postOnlineConfirmBody": "IRIS側で出品中としてマークされます。Vinted.com 側でも公開するのを忘れずに。",
+    "postOnlineConfirmAction": "オンラインにする",
+    "takeOfflineConfirmTitle": "Vintedから取り下げますか?",
+    "takeOfflineConfirmBody": "IRIS側の出品が取り下げられます。カードは販売中のままです。Vinted.com 側でも取り下げるのを忘れずに。",
+    "takeOfflineConfirmAction": "取り下げ"
   },
   "retireListing": {
     "modalTitle": "出品を取り下げ",

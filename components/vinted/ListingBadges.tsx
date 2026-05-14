@@ -50,6 +50,8 @@ export default function ListingBadges({
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmRefresh, setConfirmRefresh] = useState(false);
+  const [confirmPostOnline, setConfirmPostOnline] = useState(false);
+  const [confirmTakeOffline, setConfirmTakeOffline] = useState(false);
   const [retireOpen, setRetireOpen] = useState(false);
 
   const mine = getMyListing(listings, myUserId);
@@ -162,13 +164,17 @@ export default function ListingBadges({
     <>
       <div className="flex flex-wrap items-center gap-1.5 text-xs">
         {mine && !stale && (
-          <span
-            className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5"
-            title={t('listedByMe', { days: daysSince(mine.listed_at, now) })}
+          <button
+            type="button"
+            onClick={() => setConfirmTakeOffline(true)}
+            disabled={busy}
+            title={t('takeOfflineTitle')}
+            aria-label={t('takeOfflineTitle')}
+            className="bg-rarity-r/20 text-rarity-r hover:bg-rarity-r/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors disabled:opacity-50"
           >
             <Globe className="h-3 w-3" />
             <span className="hidden sm:inline">{t('listedByMe', { days: daysSince(mine.listed_at, now) })}</span>
-          </span>
+          </button>
         )}
 
         {mine && stale && (
@@ -212,7 +218,7 @@ export default function ListingBadges({
         {!mine && (
           <button
             type="button"
-            onClick={postListing}
+            onClick={() => setConfirmPostOnline(true)}
             disabled={busy}
             aria-label={t('putOnline')}
             title={t('putOnline')}
@@ -267,6 +273,35 @@ export default function ListingBadges({
             setConfirmRefresh(false);
           }}
           onCancel={() => setConfirmRefresh(false)}
+        />
+      )}
+
+      {confirmPostOnline && (
+        <ConfirmDialog
+          title={t('postOnlineConfirmTitle')}
+          body={t('postOnlineConfirmBody')}
+          confirmLabel={t('postOnlineConfirmAction')}
+          busy={busy}
+          onConfirm={async () => {
+            await postListing();
+            setConfirmPostOnline(false);
+          }}
+          onCancel={() => setConfirmPostOnline(false)}
+        />
+      )}
+
+      {confirmTakeOffline && mine && (
+        <ConfirmDialog
+          title={t('takeOfflineConfirmTitle')}
+          body={t('takeOfflineConfirmBody')}
+          confirmLabel={t('takeOfflineConfirmAction')}
+          confirmTone="danger"
+          busy={busy}
+          onConfirm={async () => {
+            await deleteListing();
+            setConfirmTakeOffline(false);
+          }}
+          onCancel={() => setConfirmTakeOffline(false)}
         />
       )}
 
