@@ -324,6 +324,7 @@
     "loadError": "読み込みエラー: {message}",
     "emptyFiltered": "フィルターに一致するカードなし。",
     "filtersSearchPlaceholder": "検索: 名前、セット、番号…",
+    "filtersToggle": "フィルター",
     "filterLanguageAria": "言語",
     "filterRarityAria": "レアリティ",
     "filterVariantAria": "バリアント",

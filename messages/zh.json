@@ -324,6 +324,7 @@
     "loadError": "加载错误: {message}",
     "emptyFiltered": "无卡片匹配筛选条件。",
     "filtersSearchPlaceholder": "搜索: 名称、套装、编号…",
+    "filtersToggle": "筛选",
     "filterLanguageAria": "语言",
     "filterRarityAria": "稀有度",
     "filterVariantAria": "变体",

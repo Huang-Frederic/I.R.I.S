@@ -324,6 +324,7 @@
     "loadError": "Erreur de chargement : {message}",
     "emptyFiltered": "Aucune carte ne correspond aux filtres.",
     "filtersSearchPlaceholder": "Recherche : nom, set, n°…",
+    "filtersToggle": "Filtres",
     "filterLanguageAria": "Langue",
     "filterRarityAria": "Rareté",
     "filterVariantAria": "Variant",

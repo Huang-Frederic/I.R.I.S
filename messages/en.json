@@ -324,6 +324,7 @@
     "loadError": "Load error: {message}",
     "emptyFiltered": "No cards match the filters.",
     "filtersSearchPlaceholder": "Search: name, set, no.…",
+    "filtersToggle": "Filters",
     "filterLanguageAria": "Language",
     "filterRarityAria": "Rarity",
     "filterVariantAria": "Variant",
