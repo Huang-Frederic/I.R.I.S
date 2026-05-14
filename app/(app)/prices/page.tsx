@@ -35,12 +35,14 @@ function PricesPageContent() {
   };
 
   return (
-    <div className="space-y-4 p-4">
+    <section>
       <h1 className="text-xl font-semibold">{t('title')}</h1>
-      <StatsHeader />
-      <PortfolioValueChart />
-      <TopMoversPanel onCardClick={openCard} />
-      <AllCardsList initialSetFilter={initialSet} onCardClick={openCard} />
+      <div className="mt-6 space-y-4">
+        <StatsHeader />
+        <PortfolioValueChart />
+        <TopMoversPanel onCardClick={openCard} />
+        <AllCardsList initialSetFilter={initialSet} onCardClick={openCard} />
+      </div>
       {modalCard && (
         <PriceDetailModal
           card={modalCard}
@@ -49,6 +51,6 @@ function PricesPageContent() {
           onCardUpdated={(updated) => setModalCard(updated)}
         />
       )}
-    </div>
+    </section>
   );
 }
