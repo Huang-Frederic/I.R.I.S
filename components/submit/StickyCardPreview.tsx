@@ -69,7 +69,11 @@ export default function StickyCardPreview({
       window.removeEventListener('scroll', compute);
       window.removeEventListener('resize', compute);
     };
-  }, [triggerRef]);
+    // `uploadedPhotoUrl` is a dep so the effect re-runs once the parent renders
+    // the trigger element (the photo container only mounts after a photo is
+    // chosen). Without it, the first run sees `triggerRef.current === null`,
+    // bails, and never observes anything.
+  }, [triggerRef, uploadedPhotoUrl]);
 
   // Nothing to show until we have at least one piece of context AND the user
   // has scrolled past the trigger. Bailing early keeps the DOM lean on first
