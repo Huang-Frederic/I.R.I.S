@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { Card, Lot, CardWithListings, LotWithListings, BaseListing } from '@/lib/types';
-import { groupCards, groupKey, type CardGroup } from '@/lib/utils/group-cards';
+import { groupCards, groupKey } from '@/lib/utils/group-cards';
 import { interleaveCardsAndLots, type MixedRow, type CardGroupWithListings } from '@/lib/utils/vinted-interleave';
 import { getPartnerListing } from '@/lib/utils/listings';
 import VintedFilters, { INITIAL_FILTERS, type VintedFilterState } from './VintedFilters';

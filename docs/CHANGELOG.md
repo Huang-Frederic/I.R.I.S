@@ -6,6 +6,21 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-05-14 — v1.0.1 UI polish: mobile density, sticky scanner recap, themeColor fix, Vinted interleave
+
+A focused QoL pass. No new features — the goal is making the daily flow feel less cramped on mobile and ironing out a few visible mismatches reported during v1.0.0 use.
+
+- **Prices page padding** — `/prices` was wrapped in `<div className="space-y-4 p-4">` on top of the layout's `px-4 md:px-8`, giving it ~32px lateral mobile margins vs ~16px on Dashboard / Pokédex. Restructured to match the sibling pages ([commit 1912c91](../app/(app)/prices/page.tsx)).
+- **Theme-aware Android status bar** — `app/layout.tsx`'s `viewport` was OS-themed (media-gated), so toggling the in-app cookie left the system status bar mismatched with the page bg. Replaced with `generateViewport()` reading the same `theme` cookie `RootLayout` uses for `data-theme`. iOS keeps `black-translucent` ([commit c77ca40](../app/layout.tsx)). Bottom Android nav bar isn't addressable from the web — accepted limitation.
+- **Mobile sticky scanner recap** — wired the previously-orphaned `<StickyCardPreview>` into [CardScanForm](../components/submit/CardScanForm.tsx). `IntersectionObserver` on the photo container fires when its bottom edge crosses the upper half of the viewport; a 3-thumbnail bar (matched card · sprite · uploaded photo) pins to the top, mirroring the original layout. `md:hidden` — desktop's `lg:sticky` photo column already covers this case.
+- **Vinted interleave for cards + lots** — when "All" is selected, the for-sale list used to render every card then every lot. Now they interleave by the same 3-bucket logic (`offline` → `stale` → `fresh`) used for cards, with `date_added` ASC within bucket 0 and `listed_at` ordering within buckets 1/2. New utility [`vinted-interleave.ts`](../lib/utils/vinted-interleave.ts) with 8 unit tests; existing `sortVintedGroups` left intact for cards-only paths and to keep the test suite stable.
+- **Mobile collapse on Vinted / Stock filters** — the search input + a "Filtres" toggle button stay visible on mobile; the rest of the filter section (selects, kind tabs, state chips, multi-user chips, divider, count) collapses behind the toggle. `md:flex` on the wrappers keeps desktop unchanged. New `vinted.filtersToggle` and `stock.filtersToggle` translation keys in all 4 message files.
+- **Tighter row density on mobile** — uniform recipe across `VintedRow`, `StockRow`, `LotRow`, `SoldRow`, `LotSoldRow`: outer padding `p-2 sm:p-3`, gap `gap-2 sm:gap-3`, thumbnails `70×50px sm:84×60px`, name font `text-xs sm:text-sm`, chip row `gap-1 text-[10px] sm:gap-2 sm:text-xs`. Empty-thumbnail fallbacks on lot rows updated symmetrically. Desktop visually identical.
+- **Out of scope** — the Chrome-on-Android "scroll to top" FAB users sometimes see is browser/OS chrome, not addressable from the PWA. Documented; skipped.
+- 495/495 tests passing, build clean, no new lint warnings.
+
+---
+
 ## 2026-05-13 — Price history: daily snapshots, trend arrows everywhere, dedicated `/prices` page
 
 A single Cardmarket reading was never enough — you want to know if a card has been climbing for a month or just bounced back from a dip. This phase introduces a rolling price history, surfaces it on every chip in the app, and dedicates a top-level page to portfolio-wide movement.
