@@ -31,7 +31,7 @@ export default function LotRow({
   const thumb = lot.photo_urls.length > 0 ? storagePublicUrl(lot.photo_urls[0]) : null;
 
   return (
-    <li className="bg-surface border-border flex flex-col gap-3 rounded-lg border p-3 text-sm sm:flex-row sm:items-center">
+    <li className="bg-surface border-border flex flex-col gap-2 rounded-lg border p-2 text-sm sm:flex-row sm:items-center sm:gap-3 sm:p-3">
       <div className="flex items-center gap-3">
         {selectionMode && (
           <input
@@ -55,23 +55,23 @@ export default function LotRow({
               src={thumb}
               alt=""
               loading="lazy"
-              className="bg-surface-off h-[84px] w-[60px] rounded object-cover"
+              className="bg-surface-off h-[70px] w-[50px] rounded object-cover sm:h-[84px] sm:w-[60px]"
             />
           </button>
         ) : (
-          <div className="bg-surface-off flex h-[84px] w-[60px] shrink-0 items-center justify-center rounded">
+          <div className="bg-surface-off flex h-[70px] w-[50px] shrink-0 items-center justify-center rounded sm:h-[84px] sm:w-[60px]">
             <Package className="text-text-faint h-6 w-6" />
           </div>
         )}
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate font-medium">{lot.name}</p>
+            <p className="truncate text-xs font-medium sm:text-sm">{lot.name}</p>
             <span className="bg-rarity-chr/20 text-rarity-chr shrink-0 rounded px-1.5 py-0.5 text-xs font-medium">
               {t('lotBadge')}
             </span>
           </div>
-          <div className="text-text-muted mt-1 flex flex-wrap items-center gap-2 text-xs">
+          <div className="text-text-muted mt-1 flex flex-wrap items-center gap-1 text-[10px] sm:gap-2 sm:text-xs">
             {lot.language && <span className="font-mono">{lot.language}</span>}
             <span>·</span>
             <span>{lot.condition}</span>
