@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { Card, Lot, CardWithListings, LotWithListings, BaseListing } from '@/lib/types';
 import { groupCards, groupKey, type CardGroup } from '@/lib/utils/group-cards';
-import { sortVintedGroups } from '@/lib/utils/vinted-sort';
+import { interleaveCardsAndLots, type MixedRow, type CardGroupWithListings } from '@/lib/utils/vinted-interleave';
 import { getPartnerListing } from '@/lib/utils/listings';
 import VintedFilters, { INITIAL_FILTERS, type VintedFilterState } from './VintedFilters';
 import VintedRow from './VintedRow';
@@ -49,13 +49,6 @@ export interface VintedListProps {
   registered: Set<number>;
   config: Record<string, string>;
 }
-
-/** Type helper: CardGroup with CardWithListings instead of Card. */
-type CardGroupWithListings = Omit<CardGroup, 'head' | 'cards'> & {
-  head: CardWithListings;
-  cards: CardWithListings[];
-  position?: number;
-};
 
 function normalize(s: string): string {
   return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
@@ -386,7 +379,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
 
   const currentBulkPromote = bulkPromoteQueue[0] ?? null;
 
-  const { groups, soldRows, forSaleLots, soldLotsList, totalVisible } = useMemo(() => {
+  const { forSaleRows, soldRows, soldLotsList, totalVisible } = useMemo(() => {
     const showCards = filters.kindFilter !== 'lots';
     const showLots = filters.kindFilter !== 'cards';
 
@@ -424,11 +417,6 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           .filter(passesCommon)
           .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''));
 
-    const sorted = sortVintedGroups(groupCards(finalForSale) as CardGroupWithListings[], now, myUserId).map((g, i) => ({
-      ...g,
-      position: i + 1,
-    }));
-
     // Lots: same logic as cards. Any non-for_sale status with my listing up
     // belongs to the action pile (À retirer), not the sold pile. Lots only
     // have for_sale | sold (no pokedex/collection), but we keep the same
@@ -446,6 +434,9 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
             passesMultiUserChip(l as { status: string; listings: BaseListing[] }, filters.multiUserChip, myUserId, partnerUserId),
         );
 
+    const groupedCards = groupCards(finalForSale) as CardGroupWithListings[];
+    const forSaleRows: MixedRow[] = interleaveCardsAndLots(groupedCards, forSaleLots, now, myUserId);
+
     const soldLotsList = !showLots || !filters.showSold
       ? []
       : lots
@@ -453,15 +444,15 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''));
 
     return {
-      groups: sorted,
+      forSaleRows,
       soldRows: soldSubset,
-      forSaleLots,
       soldLotsList,
       totalVisible: finalForSale.length + soldSubset.length + forSaleLots.length + soldLotsList.length,
     };
   }, [cards, lots, filters, now, myUserId, partnerUserId]);
 
-  const isEmpty = groups.length === 0 && soldRows.length === 0 && forSaleLots.length === 0 && soldLotsList.length === 0;
+  const isEmpty =
+    forSaleRows.length === 0 && soldRows.length === 0 && soldLotsList.length === 0;
 
   return (
     <PriceTrendsProvider>
@@ -482,54 +473,57 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
         </div>
       ) : (
         <ul className="space-y-2">
-          {groups.map((g) => (
-            <VintedRow
-              key={g.key}
-              group={g}
-              isRegistered={g.head.pokemon_number != null && registered.has(g.head.pokemon_number)}
-              priceCell={
-                <EditablePriceCell
-                  cardId={g.head.id}
-                  initialPrice={g.head.suggested_price}
-                  onSaved={(newPrice) => updateCardPrice(g.head.id, newPrice)}
-                />
-              }
-              onAnnonceClick={() => setAnnonceTarget(g.head)}
-              onSoldClick={() => setSoldTarget({ kind: 'card', card: g.head })}
-              listings={g.head.listings ?? []}
-              myUserId={myUserId}
-              partnerUserId={partnerUserId}
-              partnerName={partnerName}
-              onListingsChanged={onListingsChanged}
-              onImageClick={() => setZoomCard(g.head)}
-              onMoveToPokedexClick={() => setMoveToPokedexCard(g.head)}
-              onComparePokedexClick={() => void handleCompareClick(g.head)}
-              selectionMode={selectionMode}
-              selected={selectedIds.has(g.head.id)}
-              onToggleSelect={() => toggleSelect(g.head.id)}
-              stockCount={stockCountByGroup.get(groupKey(g.head)) ?? 0}
-              onSetStockCount={(target) => handleSetStockCount(g.head, target)}
-              stockBusy={stockBusyKeys.has(g.key)}
-            />
-          ))}
-          {forSaleLots.map((l) => (
-            <LotRow
-              key={`lot-${l.id}`}
-              lot={l}
-              storagePublicUrl={storagePublicUrl}
-              onAnnonceClick={(lot) => setLotAnnonceTarget(lot)}
-              onSoldClick={(lot) => setSoldTarget({ kind: 'lot', lot })}
-              onPriceSaved={updateLotPrice}
-              listings={l.listings ?? []}
-              myUserId={myUserId}
-              partnerUserId={partnerUserId}
-              partnerName={partnerName}
-              onListingsChanged={onListingsChanged}
-              selectionMode={selectionMode}
-              selected={selectedIds.has(l.id)}
-              onToggleSelect={() => toggleSelect(l.id)}
-            />
-          ))}
+          {forSaleRows.map((row) =>
+            row.kind === 'card' ? (
+              <VintedRow
+                key={row.group.key}
+                group={row.group}
+                isRegistered={
+                  row.group.head.pokemon_number != null && registered.has(row.group.head.pokemon_number)
+                }
+                priceCell={
+                  <EditablePriceCell
+                    cardId={row.group.head.id}
+                    initialPrice={row.group.head.suggested_price}
+                    onSaved={(newPrice) => updateCardPrice(row.group.head.id, newPrice)}
+                  />
+                }
+                onAnnonceClick={() => setAnnonceTarget(row.group.head)}
+                onSoldClick={() => setSoldTarget({ kind: 'card', card: row.group.head })}
+                listings={row.group.head.listings ?? []}
+                myUserId={myUserId}
+                partnerUserId={partnerUserId}
+                partnerName={partnerName}
+                onListingsChanged={onListingsChanged}
+                onImageClick={() => setZoomCard(row.group.head)}
+                onMoveToPokedexClick={() => setMoveToPokedexCard(row.group.head)}
+                onComparePokedexClick={() => void handleCompareClick(row.group.head)}
+                selectionMode={selectionMode}
+                selected={selectedIds.has(row.group.head.id)}
+                onToggleSelect={() => toggleSelect(row.group.head.id)}
+                stockCount={stockCountByGroup.get(groupKey(row.group.head)) ?? 0}
+                onSetStockCount={(target) => handleSetStockCount(row.group.head, target)}
+                stockBusy={stockBusyKeys.has(row.group.key)}
+              />
+            ) : (
+              <LotRow
+                key={`lot-${row.lot.id}`}
+                lot={row.lot}
+                storagePublicUrl={storagePublicUrl}
+                onAnnonceClick={(lot) => setLotAnnonceTarget(lot)}
+                onSoldClick={(lot) => setSoldTarget({ kind: 'lot', lot })}
+                onPriceSaved={updateLotPrice}
+                listings={row.lot.listings ?? []}
+                myUserId={myUserId}
+                partnerUserId={partnerUserId}
+                partnerName={partnerName}
+                onListingsChanged={onListingsChanged}
+                selectionMode={selectionMode}
+                selected={selectedIds.has(row.lot.id)}
+                onToggleSelect={() => toggleSelect(row.lot.id)}
+              />
+            ),
+          )}
           {soldRows.map((c) => (
             <SoldRow key={c.id} card={c} onAnnonceClick={(card) => setAnnonceTarget(card)} />
           ))}

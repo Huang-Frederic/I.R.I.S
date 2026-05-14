@@ -55,13 +55,17 @@ export function interleaveCardsAndLots(
     row.kind === 'card' ? row.group.head.date_added : row.lot.date_added;
 
   const listedAtOf = (row: MixedRow): string => {
-    const listings = row.kind === 'card' ? row.group.head.listings : row.lot.listings;
-    return getMyListing(listings, myUserId)?.listed_at ?? '';
+    if (row.kind === 'card') {
+      return getMyListing(row.group.head.listings, myUserId)?.listed_at ?? '';
+    }
+    return getMyListing(row.lot.listings, myUserId)?.listed_at ?? '';
   };
 
   const bucketRow = (row: MixedRow): Bucket => {
-    const listings = row.kind === 'card' ? row.group.head.listings : row.lot.listings;
-    return bucketOf(listings, now, myUserId);
+    if (row.kind === 'card') {
+      return bucketOf(row.group.head.listings, now, myUserId);
+    }
+    return bucketOf(row.lot.listings, now, myUserId);
   };
 
   return rows.sort((a, b) => {
