@@ -93,7 +93,7 @@ export default function StockRow({
             src={thumbUrl(card)}
             alt=""
             loading="lazy"
-            className="bg-surface-off h-[70px] w-[50px] origin-[center_35%] scale-[2] rounded object-cover sm:h-[84px] sm:w-[60px]"
+            className="bg-surface-off h-[70px] w-[50px] origin-[center_35%] scale-[1.8] rounded object-cover sm:h-[84px] sm:w-[60px]"
           />
         </button>
 
