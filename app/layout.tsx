@@ -29,21 +29,21 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const viewport: Viewport = {
-  // Drives Android PWA's status bar tint and iOS Safari's chrome. Two media-
-  // gated entries so the bar blends with whichever theme the OS is on,
-  // eliminating the visible color seam between the system bar and the app bg
-  // (--color-bg). Note: this follows the OS theme, not the in-app cookie
-  // toggle — close enough for 99% of users since the manual toggle in
-  // /options usually mirrors the system theme.
-  themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#111110' },
-    { media: '(prefers-color-scheme: light)', color: '#fafaf9' },
-  ],
-  width: 'device-width',
-  initialScale: 1,
-  viewportFit: 'cover',
-};
+export async function generateViewport(): Promise<Viewport> {
+  // Drives Android PWA's status bar tint. We read the same `theme` cookie
+  // RootLayout uses for `data-theme` so the system bar follows the in-app
+  // toggle instead of `prefers-color-scheme` — eliminates the visible color
+  // seam reported in v1.0.1. iOS falls back to `apple-mobile-web-app-status-bar-style`
+  // declared in `metadata.appleWebApp` (kept as `black-translucent`).
+  const cookieStore = await cookies();
+  const theme = cookieStore.get('theme')?.value === 'light' ? 'light' : 'dark';
+  return {
+    themeColor: theme === 'light' ? '#fafaf9' : '#111110',
+    width: 'device-width',
+    initialScale: 1,
+    viewportFit: 'cover',
+  };
+}
 
 export default async function RootLayout({
   children,
