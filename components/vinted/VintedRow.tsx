@@ -118,7 +118,7 @@ export default function VintedRow({
                   className="bg-rarity-r/20 text-rarity-r hover:bg-rarity-r/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors disabled:cursor-default"
                 >
                   <BookmarkCheck className="h-3 w-3" />
-                  {t('badgePokedex')}
+                  <span className="hidden sm:inline">{t('badgePokedex')}</span>
                 </button>
               ) : (
                 <button
@@ -129,7 +129,7 @@ export default function VintedRow({
                   className="bg-rarity-ar/20 text-rarity-ar hover:bg-rarity-ar/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors disabled:cursor-default"
                 >
                   <Bookmark className="h-3 w-3" />
-                  {t('badgeNotPokedex')}
+                  <span className="hidden sm:inline">{t('badgeNotPokedex')}</span>
                 </button>
               )
             )}

@@ -162,9 +162,12 @@ export default function ListingBadges({
     <>
       <div className="flex flex-wrap items-center gap-1.5 text-xs">
         {mine && !stale && (
-          <span className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5">
+          <span
+            className="bg-rarity-r/20 text-rarity-r inline-flex items-center gap-1 rounded px-1.5 py-0.5"
+            title={t('listedByMe', { days: daysSince(mine.listed_at, now) })}
+          >
             <Globe className="h-3 w-3" />
-            {t('listedByMe', { days: daysSince(mine.listed_at, now) })}
+            <span className="hidden sm:inline">{t('listedByMe', { days: daysSince(mine.listed_at, now) })}</span>
           </span>
         )}
 
@@ -174,17 +177,21 @@ export default function ListingBadges({
             onClick={() => setConfirmRefresh(true)}
             disabled={busy}
             title={t('staleTitle')}
+            aria-label={t('stale', { days: daysSince(mine.listed_at, now) })}
             className="bg-red text-bg inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:opacity-90 disabled:opacity-50"
           >
             <RefreshCw className="h-3 w-3" />
-            {t('stale', { days: daysSince(mine.listed_at, now) })}
+            <span className="hidden sm:inline">{t('stale', { days: daysSince(mine.listed_at, now) })}</span>
           </button>
         )}
 
         {partner && partnerName && (
-          <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 ${badgeClassesForColor(partnerColor)}`}>
+          <span
+            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 ${badgeClassesForColor(partnerColor)}`}
+            title={t('listedByPartner', { name: partnerName })}
+          >
             <Globe className="h-3 w-3" />
-            {t('listedByPartner', { name: partnerName })}
+            <span className="hidden sm:inline">{t('listedByPartner', { name: partnerName })}</span>
           </span>
         )}
 
@@ -193,10 +200,12 @@ export default function ListingBadges({
             type="button"
             onClick={() => setConfirmDelete(true)}
             disabled={busy}
+            aria-label={t('toRetire')}
+            title={t('toRetire')}
             className="bg-red text-bg inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:opacity-90 disabled:opacity-50"
           >
             <AlertTriangle className="h-3 w-3" />
-            {t('toRetire')}
+            <span className="hidden sm:inline">{t('toRetire')}</span>
           </button>
         )}
 
@@ -205,10 +214,12 @@ export default function ListingBadges({
             type="button"
             onClick={postListing}
             disabled={busy}
+            aria-label={t('putOnline')}
+            title={t('putOnline')}
             className="bg-rarity-ar/20 text-rarity-ar hover:bg-rarity-ar/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors disabled:opacity-50"
           >
             <GlobeLock className="h-3 w-3" />
-            {t('putOnline')}
+            <span className="hidden sm:inline">{t('putOnline')}</span>
           </button>
         )}
 
