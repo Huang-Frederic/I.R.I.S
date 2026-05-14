@@ -39,7 +39,7 @@ export default function SoldRow({ card, onAnnonceClick }: Props) {
       <button
         type="button"
         onClick={() => onAnnonceClick(card)}
-        className="hover:ring-red shrink-0 rounded transition-shadow hover:ring-2"
+        className="hover:ring-red shrink-0 overflow-hidden rounded transition-shadow hover:ring-2"
         aria-label={t('soldRowAnnonceAria', { name: displayCardName(card) })}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -47,7 +47,7 @@ export default function SoldRow({ card, onAnnonceClick }: Props) {
           src={thumbUrl(card)}
           alt=""
           loading="lazy"
-          className="bg-surface-off h-[70px] w-[50px] rounded object-cover sm:h-[84px] sm:w-[60px]"
+          className="bg-surface-off h-[70px] w-[50px] origin-top scale-[1.3] rounded object-cover sm:h-[84px] sm:w-[60px]"
         />
       </button>
 
