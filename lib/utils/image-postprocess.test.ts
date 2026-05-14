@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 // The full processImageForVinted is hard to unit-test in happy-dom (no real canvas).
 // We test the filename + quality contracts and the EXIF helpers via small
 // synthetic invocations. Source-level inspection guards the randomization
-// ranges (crops 5-30, rotation ±0.3°, color factor ±5%, noise ±2).
+// ranges (crops 5-30, rotation ±1.5°, color factor ±5%, noise ±6).
 
 describe('image-postprocess', () => {
   it('exports the expected shape', async () => {
@@ -29,10 +29,14 @@ describe('image-postprocess', () => {
     );
     expect(src).toMatch(/CROP_MIN_PX\s*=\s*5\b/);
     expect(src).toMatch(/CROP_MAX_PX\s*=\s*30\b/);
-    expect(src).toMatch(/ROTATION_MAX_DEG\s*=\s*0\.3\b/);
+    expect(src).toMatch(/ROTATION_MAX_DEG\s*=\s*1\.5\b/);
     expect(src).toMatch(/COLOR_FACTOR_MIN\s*=\s*0\.95\b/);
     expect(src).toMatch(/COLOR_FACTOR_MAX\s*=\s*1\.05\b/);
-    expect(src).toMatch(/NOISE_AMPLITUDE\s*=\s*2\b/);
+    expect(src).toMatch(/NOISE_AMPLITUDE\s*=\s*6\b/);
+    // 4096*4096 = ~16M pixels — covers up to 16MP photos so the colour+noise
+    // pass actually runs on real phone-camera output (the previous 4M cap
+    // skipped every 12MP iPhone/Pixel/Samsung shot).
+    expect(src).toMatch(/PIXEL_PASS_MAX_AREA\s*=\s*4096\s*\*\s*4096\b/);
   });
 
   it('imports piexifjs for fake EXIF injection', async () => {

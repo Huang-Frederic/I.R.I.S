@@ -1,7 +1,7 @@
 // Browser-only canvas-based image post-processing for Vinted upload.
-// Pipeline: random rotation ±0.3° → asymmetric crop 5-30px each edge →
-// brightness/contrast shift ±5% → light gaussian noise → JPEG recompress
-// at random quality 88-92 → fake EXIF injection → randomized filename.
+// Pipeline: random rotation ±1.5° → asymmetric crop 5-30px each edge →
+// brightness/contrast shift ±5% → gaussian noise ±6/255 → JPEG recompress
+// at random quality 88-92 → fake EXIF injection → phone-realistic filename.
 // Designed to make re-uploaded images significantly less detectable by
 // duplicate-detection / anti-fraud systems while keeping perceptual quality.
 
@@ -11,12 +11,15 @@ const QUALITY_MIN = 0.88;
 const QUALITY_MAX = 0.92;
 const CROP_MIN_PX = 5;
 const CROP_MAX_PX = 30;
-const ROTATION_MAX_DEG = 0.3;
+const ROTATION_MAX_DEG = 1.5;
 const COLOR_FACTOR_MIN = 0.95;
 const COLOR_FACTOR_MAX = 1.05;
-const NOISE_AMPLITUDE = 2; // ±2 in 0-255
+const NOISE_AMPLITUDE = 6; // ±6 in 0-255 — invisible to the eye, perturbs DCT-based hashes more than ±2
 // Skip the per-pixel pass for very large images to keep the UI responsive.
-const PIXEL_PASS_MAX_AREA = 2000 * 2000;
+// 4096×4096 = ~16M pixels, covers up to 16MP phone photos (12MP/12.2MP common
+// on iPhone 13-15, Pixel 7/8, S23/S24). The pass costs ~100-300 ms on a
+// typical mobile device — acceptable for a one-shot user-initiated download.
+const PIXEL_PASS_MAX_AREA = 4096 * 4096;
 
 const FAKE_PHONE_MODELS: ReadonlyArray<{ Make: string; Model: string }> = [
   { Make: 'Apple', Model: 'iPhone 13' },
@@ -58,10 +61,31 @@ function randColorFactor(): number {
   return COLOR_FACTOR_MIN + Math.random() * (COLOR_FACTOR_MAX - COLOR_FACTOR_MIN);
 }
 
-/** `IMG_<8 base36 chars>.jpg` */
-function randFilename(): string {
-  const chars = Math.random().toString(36).slice(2, 10).padEnd(8, '0');
-  return `IMG_${chars.toUpperCase()}.jpg`;
+/**
+ * Phone-realistic filename matching the chosen EXIF Make. iPhone uses a
+ * 4-digit counter (`IMG_NNNN.JPG`), Samsung uses a compact timestamp
+ * (`YYYYMMDD_HHMMSS.jpg`), Pixel uses `PXL_YYYYMMDD_HHMMSSmmm.jpg`. Any
+ * other Make falls back to the iPhone style.
+ *
+ * `dateTaken` must be in EXIF format `YYYY:MM:DD HH:MM:SS`.
+ */
+function filenameForPhone(
+  phone: { Make: string; Model: string },
+  dateTaken: string,
+): string {
+  if (phone.Make === 'Apple') {
+    return `IMG_${randInt(1000, 9999)}.JPG`;
+  }
+  // "2026:05:14 14:05:23" → "20260514_140523"
+  const compact = dateTaken.replace(/:/g, '').replace(/ /g, '_');
+  if (phone.Make === 'samsung') {
+    return `${compact}.jpg`;
+  }
+  if (phone.Make === 'Google') {
+    const ms = String(randInt(0, 999)).padStart(3, '0');
+    return `PXL_${compact}${ms}.jpg`;
+  }
+  return `IMG_${randInt(1000, 9999)}.JPG`;
 }
 
 function pickRandom<T>(arr: ReadonlyArray<T>): T {
@@ -94,7 +118,14 @@ export interface ProcessedImage {
  * loaded or canvas encoding fails.
  */
 export async function processImageForVinted(srcUrl: string): Promise<ProcessedImage> {
-  const img = await loadImage(srcUrl);
+  // Pick the phone identity ONCE so EXIF, software, dateTaken, and the
+  // filename all align (Apple → IMG_NNNN.JPG, samsung → YYYYMMDD_HHMMSS.jpg,
+  // Pixel → PXL_*). A consistent triple is harder to flag than a random one.
+  const phone = pickRandom(FAKE_PHONE_MODELS);
+  const software = pickRandom(FAKE_SOFTWARES);
+  const dateTaken = fakeRecentDate();
+
+  const img = await loadImageRobust(srcUrl);
   const srcW = img.naturalWidth;
   const srcH = img.naturalHeight;
 
@@ -158,17 +189,24 @@ export async function processImageForVinted(srcUrl: string): Promise<ProcessedIm
     );
   });
 
-  // 6. Inject randomized fake EXIF so the file looks like a fresh phone shot.
+  // 6. Inject the pre-picked fake EXIF (phone/software/date chosen at the
+  // top of this function so the filename matches).
   let blob: Blob;
   try {
-    blob = await injectFakeExif(rawBlob, targetW, targetH);
+    blob = await injectFakeExif(rawBlob, targetW, targetH, phone, software, dateTaken);
   } catch {
     // If EXIF injection fails for any reason, fall back to the raw JPEG —
     // the canvas randomization alone is still valuable.
     blob = rawBlob;
   }
 
-  return { blob, filename: randFilename(), width: targetW, height: targetH, quality };
+  return {
+    blob,
+    filename: filenameForPhone(phone, dateTaken),
+    width: targetW,
+    height: targetH,
+    quality,
+  };
 }
 
 /**
@@ -205,12 +243,19 @@ function applyColorAndNoise(
   ctx.putImageData(imageData, 0, 0);
 }
 
-/** Insert randomized fake EXIF into a JPEG blob and return a new blob. */
-async function injectFakeExif(jpegBlob: Blob, width: number, height: number): Promise<Blob> {
-  const phone = pickRandom(FAKE_PHONE_MODELS);
-  const software = pickRandom(FAKE_SOFTWARES);
-  const dateTaken = fakeRecentDate();
-
+/**
+ * Insert fake EXIF into a JPEG blob and return a new blob. The phone,
+ * software, and dateTaken are passed in (rather than picked here) so the
+ * caller can keep the filename in sync with the EXIF Make.
+ */
+async function injectFakeExif(
+  jpegBlob: Blob,
+  width: number,
+  height: number,
+  phone: { Make: string; Model: string },
+  software: string,
+  dateTaken: string,
+): Promise<Blob> {
   const exifObj = {
     '0th': {
       [piexif.ImageIFD.Make]: phone.Make,
@@ -267,6 +312,32 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     img.onerror = () => reject(new Error(`failed to load ${src}`));
     img.src = src;
   });
+}
+
+/**
+ * Try to load `srcUrl` via fetch + blob URL first so the canvas stays
+ * same-origin and the colour+noise pixel pass can run regardless of the
+ * source's CORS headers. If the fetch fails (e.g. CORS-blocked source with
+ * no permissive headers), fall back to a direct image load — the canvas
+ * may end up tainted, the pixel pass silently skips, but rotation+crop
+ * +EXIF still apply so the download isn't a total loss.
+ */
+async function loadImageRobust(srcUrl: string): Promise<HTMLImageElement> {
+  try {
+    const res = await fetch(srcUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+      // Once the image is decoded into the HTMLImageElement, the pixel data
+      // lives in memory and the object URL can be revoked safely.
+      return await loadImage(objectUrl);
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  } catch {
+    return loadImage(srcUrl);
+  }
 }
 
 /** Trigger a browser download of a blob with the given filename. */
