@@ -13,7 +13,7 @@
  *   const group = makeGroup(card);
  */
 
-import type { Card, CardListing, CardWithListings } from '@/lib/types';
+import type { Card, CardListing, CardWithListings, Lot, LotListing, LotWithListings } from '@/lib/types';
 import type { CardGroup } from './group-cards';
 
 /** Test-only narrowing of CardGroup whose head/cards are CardWithListings.
@@ -88,5 +88,44 @@ export function makeGroup(
     head: card,
     count: 1,
     position,
+  };
+}
+
+const LOT_DEFAULTS: Lot = {
+  id: 'test-lot-id',
+  photo_url: null,
+  created_at: '2026-01-01T00:00:00Z',
+  name: 'Test lot',
+  language: 'EN',
+  condition: 'NM',
+  extra_description: null,
+  price: null,
+  status: 'for_sale',
+  date_sold: null,
+  sold_price: null,
+  sold_by_user_id: null,
+  photo_urls: [],
+  date_added: '2026-01-01T00:00:00Z',
+};
+
+/** Build a Lot with sensible defaults. Pass overrides for fields under test. */
+export function makeLot(overrides: Partial<Lot> = {}): Lot {
+  return { ...LOT_DEFAULTS, ...overrides };
+}
+
+/** Same as makeLot but adds an empty `listings` array (vinted-list tests). */
+export function makeLotWithListings(
+  overrides: Partial<LotWithListings> = {},
+): LotWithListings {
+  return { ...LOT_DEFAULTS, listings: [], ...overrides };
+}
+
+/** Build a LotListing — used to test per-user "lot listed on Vinted" logic. */
+export function makeLotListing(overrides: Partial<LotListing> = {}): LotListing {
+  return {
+    lot_id: 'test-lot-id',
+    user_id: 'test-user-id',
+    listed_at: '2026-01-01T00:00:00Z',
+    ...overrides,
   };
 }
