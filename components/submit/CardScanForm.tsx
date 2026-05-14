@@ -31,6 +31,7 @@ import PokemonSpriteBadge from '@/components/ui/PokemonSpriteBadge';
 import CardMatchPreview from '@/components/scanner/CardMatchPreview';
 import { detectNumberMismatch } from '@/lib/utils/pokedex-mismatch';
 import { Field, Input, Select, CandidatePicker } from './CardScanFormUI';
+import StickyCardPreview from './StickyCardPreview';
 
 const LANGUAGES: readonly CardLanguage[] = UI_LANGUAGES;
 const CONDITIONS: CardCondition[] = ['NM', 'EX', 'GD', 'PL', 'PO'];
@@ -251,6 +252,7 @@ export default function CardScanForm({
     cardNameFr?: string | null;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
   /** Stashed firstCardId between save success and SaveSuccessModal dismiss
    * (needed by onSaved for batch-mode auto-advance). */
   const pendingFirstCardId = useRef<string | null>(null);
@@ -1048,6 +1050,12 @@ export default function CardScanForm({
 
   return (
     <div className="flex flex-col gap-4">
+      <StickyCardPreview
+        uploadedPhotoUrl={previewUrl}
+        matchedCardImageUrl={form.tcg_image_url || null}
+        pokemonNumber={form.pokemon_number === '' ? null : Number(form.pokemon_number)}
+        triggerRef={previewContainerRef}
+      />
       <input
         ref={fileInputRef}
         type="file"
@@ -1132,7 +1140,7 @@ export default function CardScanForm({
               ) : (
                 // Photo + loupe when photo loaded
                 <>
-                  <div className="relative">
+                  <div className="relative" ref={previewContainerRef}>
                     <MagnifierLoupe
                       src={previewUrl}
                       alt={t('previewAlt')}
