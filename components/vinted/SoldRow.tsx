@@ -47,7 +47,7 @@ export default function SoldRow({ card, onAnnonceClick }: Props) {
           src={thumbUrl(card)}
           alt=""
           loading="lazy"
-          className="bg-surface-off h-[70px] w-[50px] origin-[center_25%] scale-[1.6] rounded object-cover sm:h-[84px] sm:w-[60px]"
+          className="bg-surface-off h-[70px] w-[50px] origin-[center_25%] scale-[3] rounded object-cover sm:h-[84px] sm:w-[60px]"
         />
       </button>
 
