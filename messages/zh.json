@@ -283,6 +283,7 @@
     "pageSubtitle": "{count, plural, =0 {收藏中无卡片(未出售)} =1 {收藏中 1 张卡片(未出售)} other {收藏中 # 张卡片(未出售)}}",
     "loadError": "加载错误: {message}",
     "filtersSearchPlaceholder": "搜索: 名称、套装、编号…",
+    "filtersToggle": "筛选",
     "filterLanguageAria": "语言",
     "filterRarityAria": "稀有度",
     "filterVariantAria": "变体",

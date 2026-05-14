@@ -283,6 +283,7 @@
     "pageSubtitle": "{count, plural, =0 {No cards in collection (not for sale)} =1 {1 card in collection (not for sale)} other {# cards in collection (not for sale)}}",
     "loadError": "Load error: {message}",
     "filtersSearchPlaceholder": "Search: name, set, no.…",
+    "filtersToggle": "Filters",
     "filterLanguageAria": "Language",
     "filterRarityAria": "Rarity",
     "filterVariantAria": "Variant",

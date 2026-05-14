@@ -283,6 +283,7 @@
     "pageSubtitle": "{count, plural, =0 {コレクションにカードなし(出品なし)} =1 {コレクションに 1 枚(出品なし)} other {コレクションに # 枚(出品なし)}}",
     "loadError": "読み込みエラー: {message}",
     "filtersSearchPlaceholder": "検索: 名前、セット、番号…",
+    "filtersToggle": "フィルター",
     "filterLanguageAria": "言語",
     "filterRarityAria": "レアリティ",
     "filterVariantAria": "バリアント",
