@@ -59,33 +59,33 @@ export default function VintedRow({
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
 
   return (
-    <li className="bg-surface border-border flex flex-col gap-2 rounded-lg border p-2 text-sm sm:flex-row sm:items-center sm:gap-3 sm:p-3">
-      <div className="flex items-center gap-3">
-        {selectionMode && (
-          <input
-            type="checkbox"
-            checked={!!selected}
-            onChange={onToggleSelect}
-            onClick={(e) => e.stopPropagation()}
-            aria-label={selected ? t('deselectAria') : t('selectAria')}
-            className="accent-red h-5 w-5 shrink-0 cursor-pointer"
-          />
-        )}
-        <button
-          type="button"
-          onClick={() => onImageClick?.(card)}
-          className="hover:ring-red shrink-0 overflow-hidden rounded transition-shadow hover:ring-2"
-          aria-label={t('rowZoomAria', { name: displayCardName(card) })}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={thumbUrl(card)}
-            alt=""
-            loading="lazy"
-            className="bg-surface-off h-[70px] w-[50px] origin-[center_35%] scale-[1.8] rounded object-cover sm:h-[84px] sm:w-[60px]"
-          />
-        </button>
+    <li className="bg-surface border-border flex items-stretch gap-2 rounded-lg border p-2 text-sm sm:items-center sm:gap-3 sm:p-3">
+      {selectionMode && (
+        <input
+          type="checkbox"
+          checked={!!selected}
+          onChange={onToggleSelect}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={selected ? t('deselectAria') : t('selectAria')}
+          className="accent-red h-5 w-5 shrink-0 cursor-pointer self-center"
+        />
+      )}
+      <button
+        type="button"
+        onClick={() => onImageClick?.(card)}
+        className="hover:ring-red shrink-0 self-stretch overflow-hidden rounded transition-shadow hover:ring-2 sm:self-auto"
+        aria-label={t('rowZoomAria', { name: displayCardName(card) })}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={thumbUrl(card)}
+          alt=""
+          loading="lazy"
+          className="bg-surface-off h-full w-[50px] origin-[center_35%] scale-[1.8] rounded object-cover sm:h-[84px] sm:w-[60px]"
+        />
+      </button>
 
+      <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="truncate text-xs font-medium sm:text-sm">{displayCardName(card)}</p>
@@ -151,10 +151,9 @@ export default function VintedRow({
             />
           </div>
         </div>
-      </div>
 
-      <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
-        {group.count > 1 && (
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
+          {group.count > 1 && (
           <span className="bg-surface-off text-text-muted shrink-0 rounded px-2 py-1 font-mono text-xs">
             ×{group.count}
           </span>
@@ -185,6 +184,7 @@ export default function VintedRow({
             {t('rowSoldButton')}
           </button>
         )}
+        </div>
       </div>
     </li>
   );
