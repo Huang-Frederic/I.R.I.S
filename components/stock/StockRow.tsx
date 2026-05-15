@@ -80,23 +80,23 @@ export default function StockRow({
   };
 
   return (
-    <li className="bg-surface border-border flex items-stretch gap-2 rounded-lg border p-2 text-sm sm:items-center sm:gap-3 sm:p-3">
-      <button
-        type="button"
-        onClick={() => setZoomSrc(thumbUrl(card))}
-        className="hover:ring-red shrink-0 self-stretch overflow-hidden rounded transition-shadow hover:ring-2 sm:self-auto"
-        aria-label={t('rowZoomAria', { name: displayCardName(card) })}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={thumbUrl(card)}
-          alt=""
-          loading="lazy"
-          className="bg-surface-off h-full w-[50px] origin-[center_35%] scale-[1.8] rounded object-cover sm:h-[84px] sm:w-[60px]"
-        />
-      </button>
+    <li className="bg-surface border-border flex flex-col gap-2 rounded-lg border p-2 text-sm sm:flex-row sm:items-center sm:gap-3 sm:p-3">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setZoomSrc(thumbUrl(card))}
+          className="hover:ring-red shrink-0 overflow-hidden rounded transition-shadow hover:ring-2"
+          aria-label={t('rowZoomAria', { name: displayCardName(card) })}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={thumbUrl(card)}
+            alt=""
+            loading="lazy"
+            className="bg-surface-off h-[70px] w-[50px] origin-[center_35%] scale-[1.8] rounded object-cover sm:h-[84px] sm:w-[60px]"
+          />
+        </button>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="truncate text-xs font-medium sm:text-sm">{displayCardName(card)}</p>
@@ -163,8 +163,9 @@ export default function StockRow({
             )}
           </div>
         </div>
+      </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
+      <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
         {/* Cardmarket price chip — avg + trend arrow only.
             Hidden entirely when no price has been resolved yet (newly-scanned
             card pre-cron, or variant kept on manual pricing). */}
@@ -213,7 +214,6 @@ export default function StockRow({
           <Tag className="mr-1 inline h-3.5 w-3.5" />
           {t('listForSale')}
         </button>
-        </div>
       </div>
 
       {zoomSrc && (
