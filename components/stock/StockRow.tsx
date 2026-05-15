@@ -80,7 +80,7 @@ export default function StockRow({
   };
 
   return (
-    <li className="bg-surface border-border flex flex-col gap-2 rounded-lg border p-2 text-sm sm:flex-row sm:items-center sm:gap-3 sm:p-3">
+    <li className="bg-surface border-border flex items-center gap-2 rounded-lg border p-2 text-sm sm:gap-3 sm:p-3">
       <div className="flex items-center gap-3">
         <button
           type="button"
