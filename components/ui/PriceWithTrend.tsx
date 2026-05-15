@@ -16,7 +16,7 @@ export type PriceWithTrendProps = {
 };
 
 const VARIANT_CLASSES: Record<PriceWithTrendProps['variant'], string> = {
-  chip: 'inline-flex items-center gap-1.5 rounded border border-border bg-surface-2 px-2 py-1 text-sm',
+  chip: 'inline-flex items-center gap-1 rounded border border-border bg-surface-2 px-1.5 py-0.5 text-[11px] sm:gap-1.5 sm:px-2 sm:py-1 sm:text-sm',
   inline: 'inline-flex items-center gap-1 text-sm',
   compact: 'inline-flex items-center gap-0.5 text-xs',
 };
@@ -61,11 +61,11 @@ export function PriceWithTrend({
       }`}
     >
       {trend.delta_pct > 0 ? (
-        <ArrowUp className="h-3.5 w-3.5" aria-label={t('ariaUp')} />
+        <ArrowUp className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-label={t('ariaUp')} />
       ) : (
-        <ArrowDown className="h-3.5 w-3.5" aria-label={t('ariaDown')} />
+        <ArrowDown className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-label={t('ariaDown')} />
       )}
-      <span className="text-xs font-medium">{Math.abs(trend.delta_pct).toFixed(0)}%</span>
+      <span className="text-[10px] font-medium sm:text-xs">{Math.abs(trend.delta_pct).toFixed(0)}%</span>
     </span>
   ) : null;
 
