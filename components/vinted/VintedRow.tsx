@@ -73,7 +73,7 @@ export default function VintedRow({
       <button
         type="button"
         onClick={() => onImageClick?.(card)}
-        className="hover:ring-red shrink-0 self-stretch overflow-hidden rounded transition-shadow hover:ring-2 sm:self-auto"
+        className="hover:ring-red aspect-[5/7] shrink-0 self-stretch overflow-hidden rounded transition-shadow hover:ring-2 sm:aspect-auto sm:self-auto"
         aria-label={t('rowZoomAria', { name: displayCardName(card) })}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -81,7 +81,7 @@ export default function VintedRow({
           src={thumbUrl(card)}
           alt=""
           loading="lazy"
-          className="bg-surface-off h-full w-[50px] origin-[center_35%] scale-[1.8] rounded object-cover sm:h-[84px] sm:w-[60px]"
+          className="bg-surface-off h-full w-full origin-[center_35%] scale-[1.8] rounded object-cover sm:h-[84px] sm:w-[60px]"
         />
       </button>
 
