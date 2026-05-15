@@ -452,13 +452,13 @@
     "refreshConfirmTitle": "刷新此出售?",
     "refreshConfirmBody": "你将把上架日期重置为今天(当前 {days}天)。请同时在 Vinted.com 上推送出售。",
     "refreshConfirmAction": "刷新",
-    "takeOfflineTitle": "点击从 Vinted 下架",
+    "takeOfflineTitle": "点击将挂牌标记为离线",
     "postOnlineConfirmTitle": "上架?",
     "postOnlineConfirmBody": "在 IRIS 中标记为在线状态。请同时在 Vinted.com 上发布。",
     "postOnlineConfirmAction": "上架",
-    "takeOfflineConfirmTitle": "从 Vinted 下架?",
-    "takeOfflineConfirmBody": "在 IRIS 中下架,卡片保持在售状态。请同时在 Vinted.com 上撤销发布。",
-    "takeOfflineConfirmAction": "下架"
+    "takeOfflineConfirmTitle": "将挂牌标记为离线?",
+    "takeOfflineConfirmBody": "IRIS 中的挂牌将标记为离线 — 卡片保持在售状态(不会离开 Vinted 分类)。请同时在 Vinted.com 上撤销发布。",
+    "takeOfflineConfirmAction": "标记离线"
   },
   "retireListing": {
     "modalTitle": "下架你的出售",

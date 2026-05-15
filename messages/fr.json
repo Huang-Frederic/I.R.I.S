@@ -452,13 +452,13 @@
     "refreshConfirmTitle": "Rafraîchir cette annonce ?",
     "refreshConfirmBody": "Tu vas remettre la date de mise en ligne à aujourd'hui (actuellement {days}j). Pense à pousser l'annonce sur Vinted.com en parallèle.",
     "refreshConfirmAction": "Rafraîchir",
-    "takeOfflineTitle": "Cliquer pour retirer de Vinted",
+    "takeOfflineTitle": "Cliquer pour mettre l'annonce hors ligne",
     "postOnlineConfirmTitle": "Mettre en ligne ?",
     "postOnlineConfirmBody": "L'annonce sera marquée comme en ligne côté IRIS. Pense à la publier sur Vinted.com en parallèle.",
     "postOnlineConfirmAction": "Mettre en ligne",
-    "takeOfflineConfirmTitle": "Retirer de Vinted ?",
-    "takeOfflineConfirmBody": "L'annonce sera retirée côté IRIS, la carte reste en vente. Pense à la dépublier sur Vinted.com en parallèle.",
-    "takeOfflineConfirmAction": "Retirer"
+    "takeOfflineConfirmTitle": "Mettre l'annonce hors ligne ?",
+    "takeOfflineConfirmBody": "L'annonce passera en 'hors ligne' côté IRIS — la carte reste en vente (elle ne quitte pas la catégorie Vinted). Pense à la dépublier sur Vinted.com en parallèle.",
+    "takeOfflineConfirmAction": "Mettre hors ligne"
   },
   "retireListing": {
     "modalTitle": "Retirer ton annonce",

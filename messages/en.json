@@ -452,13 +452,13 @@
     "refreshConfirmTitle": "Refresh this listing?",
     "refreshConfirmBody": "You're about to reset the listing date to today (currently {days}d). Remember to push the listing on Vinted.com in parallel.",
     "refreshConfirmAction": "Refresh",
-    "takeOfflineTitle": "Click to remove from Vinted",
+    "takeOfflineTitle": "Click to mark this listing offline",
     "postOnlineConfirmTitle": "Put online?",
     "postOnlineConfirmBody": "The listing will be marked as online in IRIS. Don't forget to publish it on Vinted.com in parallel.",
     "postOnlineConfirmAction": "Put online",
-    "takeOfflineConfirmTitle": "Remove from Vinted?",
-    "takeOfflineConfirmBody": "The listing will be removed in IRIS, the card stays for sale. Don't forget to take it down on Vinted.com in parallel.",
-    "takeOfflineConfirmAction": "Remove"
+    "takeOfflineConfirmTitle": "Mark this listing offline?",
+    "takeOfflineConfirmBody": "The listing will be marked offline in IRIS — the card stays for sale (it doesn't leave the Vinted category). Don't forget to take it down on Vinted.com in parallel.",
+    "takeOfflineConfirmAction": "Mark offline"
   },
   "retireListing": {
     "modalTitle": "Remove your listing",
