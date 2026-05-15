@@ -149,7 +149,7 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       // Backdrop click closes — but only when the click target is the
       // backdrop itself. The `target === currentTarget` guard keeps clicks
       // inside the modal body (or any future nested popover) from bubbling
@@ -159,10 +159,10 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
       }}
     >
       <div
-        className="bg-surface border-border my-6 w-full max-w-3xl rounded-lg border shadow-xl"
+        className="bg-surface border-border flex w-full max-w-3xl flex-col rounded-lg border shadow-xl max-h-[calc(100dvh-2rem)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="border-border flex items-center justify-between border-b px-5 py-3">
+        <header className="border-border flex shrink-0 items-center justify-between border-b px-5 py-3">
           <h2 className="text-base font-semibold">{t('modalTitle')}</h2>
           <button
             type="button"
@@ -172,9 +172,9 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
           >
             <X className="h-5 w-5" />
           </button>
-        </div>
+        </header>
 
-        <div className="space-y-5 p-5">
+        <div className="space-y-5 overflow-y-auto overscroll-contain p-5">
           {/* TOP — Cards */}
           {/* Mobile: PiP. Desktop: 2-up side-by-side */}
           <div className="flex flex-col gap-3">

@@ -48,7 +48,12 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
       if (e.key === 'ArrowRight') setPhotoIndex((i) => Math.min(lot.photo_urls.length - 1, i + 1));
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
   }, [onClose, lot.photo_urls.length]);
 
   async function copy(text: string, field: 'title' | 'desc') {
@@ -104,20 +109,22 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
-        className="bg-surface border-border w-full max-w-3xl overflow-hidden rounded-lg border shadow-xl"
+        className="bg-surface border-border flex w-full max-w-3xl flex-col rounded-lg border shadow-xl max-h-[calc(100dvh-2rem)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="border-border flex items-center justify-between border-b px-5 py-3">
+        <header className="border-border flex shrink-0 items-center justify-between border-b px-5 py-3">
           <h2 className="text-base font-semibold">{t('annonceModalTitle')}</h2>
           <button type="button" onClick={onClose} aria-label={tCommon('close')} className="text-text-muted hover:text-text">
             <X className="h-5 w-5" />
           </button>
         </header>
 
-        <div className="grid gap-4 p-5 md:grid-cols-2">
+        <div className="grid gap-4 overflow-y-auto overscroll-contain p-5 md:grid-cols-2">
           {/* Photo carousel */}
           <div className="space-y-2">
             <div className="bg-surface-off relative flex aspect-square items-center justify-center rounded">
