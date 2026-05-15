@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 // We test the helper exports indirectly through their effect on ProcessedImage.
-// The full processImageForVinted is hard to unit-test in happy-dom (no real canvas).
-// We test the filename + quality contracts and the EXIF helpers via small
-// synthetic invocations. Source-level inspection guards the randomization
-// ranges (crops 5-30, rotation ±1.5°, color factor ±5%, noise ±6).
+// The full processImageForVinted is hard to unit-test in happy-dom (no real
+// canvas). Source-level guards lock the minimalist pipeline shape so a future
+// regression that re-introduces fake EXIF / synthetic noise / rotation is
+// caught immediately.
 
 describe('image-postprocess', () => {
   it('exports the expected shape', async () => {
@@ -19,27 +19,37 @@ describe('image-postprocess', () => {
     expect(() => downloadBlob(blob, 'test.jpg')).not.toThrow();
   });
 
-  it('source declares the expected aggressive randomization ranges', async () => {
-    // Source-level guard so a future regression that softens the tweaks is caught.
+  it('source declares the minimalist crop+recompress contract', async () => {
     const fs = await import('node:fs/promises');
     const path = await import('node:path');
     const src = await fs.readFile(
       path.resolve(__dirname, 'image-postprocess.ts'),
       'utf8',
     );
-    expect(src).toMatch(/CROP_MIN_PX\s*=\s*5\b/);
-    expect(src).toMatch(/CROP_MAX_PX\s*=\s*30\b/);
-    expect(src).toMatch(/ROTATION_MAX_DEG\s*=\s*1\.5\b/);
-    expect(src).toMatch(/COLOR_FACTOR_MIN\s*=\s*0\.95\b/);
-    expect(src).toMatch(/COLOR_FACTOR_MAX\s*=\s*1\.05\b/);
-    expect(src).toMatch(/NOISE_AMPLITUDE\s*=\s*6\b/);
-    // 4096*4096 = ~16M pixels — covers up to 16MP photos so the colour+noise
-    // pass actually runs on real phone-camera output (the previous 4M cap
-    // skipped every 12MP iPhone/Pixel/Samsung shot).
-    expect(src).toMatch(/PIXEL_PASS_MAX_AREA\s*=\s*4096\s*\*\s*4096\b/);
+    expect(src).toMatch(/QUALITY\s*=\s*0\.95\b/);
+    expect(src).toMatch(/CROP_MIN_RATIO\s*=\s*0\.02\b/);
+    expect(src).toMatch(/CROP_MAX_RATIO\s*=\s*0\.04\b/);
   });
 
-  it('imports piexifjs for fake EXIF injection', async () => {
+  it('source does not re-introduce the old anti-fingerprint hacks', async () => {
+    // Guard against regressions: rotation, synthetic noise, per-channel colour
+    // shift, fake phone identities, and fake EXIF injection all flag the
+    // upload as "manipulated by script" on Vinted's naturalness checks. Stay out.
+    const fs = await import('node:fs/promises');
+    const path = await import('node:path');
+    const src = await fs.readFile(
+      path.resolve(__dirname, 'image-postprocess.ts'),
+      'utf8',
+    );
+    expect(src).not.toMatch(/FAKE_PHONE_MODELS/);
+    expect(src).not.toMatch(/FAKE_SOFTWARES/);
+    expect(src).not.toMatch(/injectFakeExif/);
+    expect(src).not.toMatch(/applyColorAndNoise/);
+    expect(src).not.toMatch(/ROTATION_MAX_DEG/);
+    expect(src).not.toMatch(/NOISE_AMPLITUDE/);
+  });
+
+  it('preserves the source EXIF (Orientation reset, dimensions updated)', async () => {
     const fs = await import('node:fs/promises');
     const path = await import('node:path');
     const src = await fs.readFile(
@@ -47,15 +57,14 @@ describe('image-postprocess', () => {
       'utf8',
     );
     expect(src).toMatch(/from\s+['"]piexifjs['"]/);
-    expect(src).toMatch(/injectFakeExif/);
-    expect(src).toMatch(/FAKE_PHONE_MODELS/);
+    expect(src).toMatch(/reinjectExif/);
+    expect(src).toMatch(/PixelXDimension/);
+    expect(src).toMatch(/PixelYDimension/);
+    expect(src).toMatch(/Orientation\]\s*:\s*1/);
   });
 
   it('piexifjs round-trips through base64 and produces a JPEG with an APP1 EXIF segment', async () => {
-    // Validates the encode→inject→decode pipeline used by injectFakeExif.
     const piexif = (await import('piexifjs')).default;
-    // Minimal valid JPEG (1×1 white): SOI + DQT + SOF0 + DHT + SOS + EOI is
-    // overkill for piexif. We use a known-good 1×1 white JPEG bytes blob.
     const jpegBytes = Uint8Array.from([
       0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01,
       0x00, 0x01, 0x00, 0x00, 0xff, 0xdb, 0x00, 0x43, 0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08,
@@ -95,7 +104,6 @@ describe('image-postprocess', () => {
     });
     const withExif = piexif.insert(exifBytes, dataUrl);
     expect(withExif.startsWith('data:image/jpeg;base64,')).toBe(true);
-    // Decode the result and confirm an APP1 (0xFF 0xE1) EXIF marker is present.
     const decoded = atob(withExif.split(',')[1]);
     let app1Found = false;
     for (let i = 0; i < decoded.length - 1; i++) {
