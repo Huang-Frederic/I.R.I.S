@@ -80,23 +80,23 @@ export default function StockRow({
   };
 
   return (
-    <li className="bg-surface border-border flex items-center gap-2 rounded-lg border p-2 text-sm sm:gap-3 sm:p-3">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setZoomSrc(thumbUrl(card))}
-          className="hover:ring-red shrink-0 overflow-hidden rounded transition-shadow hover:ring-2"
-          aria-label={t('rowZoomAria', { name: displayCardName(card) })}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={thumbUrl(card)}
-            alt=""
-            loading="lazy"
-            className="bg-surface-off h-[70px] w-[50px] origin-[center_35%] scale-[1.8] rounded object-cover sm:h-[84px] sm:w-[60px]"
-          />
-        </button>
+    <li className="bg-surface border-border flex items-stretch gap-2 rounded-lg border p-2 text-sm sm:items-center sm:gap-3 sm:p-3">
+      <button
+        type="button"
+        onClick={() => setZoomSrc(thumbUrl(card))}
+        className="hover:ring-red shrink-0 self-stretch overflow-hidden rounded transition-shadow hover:ring-2 sm:self-auto"
+        aria-label={t('rowZoomAria', { name: displayCardName(card) })}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={thumbUrl(card)}
+          alt=""
+          loading="lazy"
+          className="bg-surface-off h-full w-[60px] origin-[center_35%] scale-[1.8] rounded object-cover sm:h-[84px] sm:w-[60px]"
+        />
+      </button>
 
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="truncate text-xs font-medium sm:text-sm">{displayCardName(card)}</p>
@@ -163,57 +163,57 @@ export default function StockRow({
             )}
           </div>
         </div>
-      </div>
 
-      <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
-        {/* Cardmarket price chip — avg + trend arrow only.
-            Hidden entirely when no price has been resolved yet (newly-scanned
-            card pre-cron, or variant kept on manual pricing). */}
-        {card.cm_price_avg != null && (
-          <PriceWithTrend
-            cardId={card.id}
-            cmPriceAvg={card.cm_price_avg}
-            cardmarketUrl={card.cardmarket_url}
-            variant="chip"
-            onPriceClick={onOpenPriceModal}
-          />
-        )}
+        <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 sm:ml-auto">
+          {/* Cardmarket price chip — avg + trend arrow only.
+              Hidden entirely when no price has been resolved yet (newly-scanned
+              card pre-cron, or variant kept on manual pricing). */}
+          {card.cm_price_avg != null && (
+            <PriceWithTrend
+              cardId={card.id}
+              cmPriceAvg={card.cm_price_avg}
+              cardmarketUrl={card.cardmarket_url}
+              variant="chip"
+              onPriceClick={onOpenPriceModal}
+            />
+          )}
 
-        {/* Editable count: type a number and blur (or Enter) to apply.
-            Caller diffs against the previous count to clone or delete. */}
-        <label className="border-border bg-surface-2 text-text-muted flex items-center gap-1 rounded border px-2 py-1">
-          <Boxes className="h-3 w-3" />
-          <span className="font-mono text-xs">×</span>
-          <input
-            type="number"
-            min={0}
-            value={draftCount}
-            disabled={busy}
-            onChange={(e) => setDraftCount(e.target.value)}
-            onBlur={commitCount}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.currentTarget.blur();
-              } else if (e.key === 'Escape') {
-                setDraftCount(String(group.count));
-                e.currentTarget.blur();
-              }
-            }}
-            aria-label={t('countAria')}
-            className="bg-transparent text-text w-10 font-mono text-xs outline-none disabled:opacity-40"
-          />
-        </label>
+          {/* Editable count: type a number and blur (or Enter) to apply.
+              Caller diffs against the previous count to clone or delete. */}
+          <label className="border-border bg-surface-2 text-text-muted flex items-center gap-1 rounded border px-1.5 py-0.5 sm:px-2 sm:py-1">
+            <Boxes className="h-3 w-3" />
+            <span className="font-mono text-[10px] sm:text-xs">×</span>
+            <input
+              type="number"
+              min={0}
+              value={draftCount}
+              disabled={busy}
+              onChange={(e) => setDraftCount(e.target.value)}
+              onBlur={commitCount}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                } else if (e.key === 'Escape') {
+                  setDraftCount(String(group.count));
+                  e.currentTarget.blur();
+                }
+              }}
+              aria-label={t('countAria')}
+              className="bg-transparent text-text w-8 font-mono text-[10px] outline-none disabled:opacity-40 sm:w-10 sm:text-xs"
+            />
+          </label>
 
-        <button
-          type="button"
-          onClick={() => onListForSaleClick(card)}
-          disabled={busy || hasForSaleSibling}
-          title={hasForSaleSibling ? t('listForSaleConflictTitle') : undefined}
-          className="bg-red text-bg shrink-0 rounded px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Tag className="mr-1 inline h-3.5 w-3.5" />
-          {t('listForSale')}
-        </button>
+          <button
+            type="button"
+            onClick={() => onListForSaleClick(card)}
+            disabled={busy || hasForSaleSibling}
+            title={hasForSaleSibling ? t('listForSaleConflictTitle') : undefined}
+            className="bg-red text-bg shrink-0 rounded px-2 py-1 text-[10px] font-medium hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 sm:py-1.5 sm:text-xs"
+          >
+            <Tag className="mr-1 inline h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            {t('listForSale')}
+          </button>
+        </div>
       </div>
 
       {zoomSrc && (
