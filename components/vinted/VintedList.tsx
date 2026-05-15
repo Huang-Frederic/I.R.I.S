@@ -635,24 +635,29 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           onClose={() => setPartnerCleanupQueue((q) => q.slice(1))}
         />
       )}
-      {annonceTarget && (
-        <AnnonceModal
-          card={annonceTarget}
-          config={vintedConfig}
-          onClose={() => setAnnonceTarget(null)}
-          onPriceSaved={(cardId, newPrice) => {
-            updateCardPrice(cardId, newPrice);
-            // Also re-seed the modal's source state so its display reads the
-            // new value without requiring a close/reopen. Without this, the
-            // list refreshes but the modal still shows the stale prop.
-            setAnnonceTarget((prev) => (prev && prev.id === cardId ? { ...prev, suggested_price: newPrice } : prev));
-          }}
-          onCardRefreshed={(updated) => {
-            setCards((prev) => prev.map((c): CardWithListings => (c.id === updated.id ? { ...updated, listings: c.listings } : c)));
-            setAnnonceTarget(updated);
-          }}
-        />
-      )}
+      {annonceTarget && (() => {
+        const targetWithListings = cards.find((c) => c.id === annonceTarget.id);
+        return (
+          <AnnonceModal
+            card={annonceTarget}
+            config={vintedConfig}
+            listings={targetWithListings?.listings ?? []}
+            myUserId={myUserId}
+            partnerUserId={partnerUserId}
+            partnerName={partnerName}
+            onListingsChanged={onListingsChanged}
+            onClose={() => setAnnonceTarget(null)}
+            onPriceSaved={(cardId, newPrice) => {
+              updateCardPrice(cardId, newPrice);
+              setAnnonceTarget((prev) => (prev && prev.id === cardId ? { ...prev, suggested_price: newPrice } : prev));
+            }}
+            onCardRefreshed={(updated) => {
+              setCards((prev) => prev.map((c): CardWithListings => (c.id === updated.id ? { ...updated, listings: c.listings } : c)));
+              setAnnonceTarget(updated);
+            }}
+          />
+        );
+      })()}
       {lotAnnonceTarget && (
         <LotAnnonceModal
           lot={lotAnnonceTarget}
@@ -660,9 +665,11 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           onClose={() => setLotAnnonceTarget(null)}
           onPriceSaved={(lotId, newPrice) => {
             updateLotPrice(lotId, newPrice);
-            // Same as the card modal: keep the modal's source state in sync
-            // with the list update so the new price is visible immediately.
             setLotAnnonceTarget((prev) => (prev && prev.id === lotId ? { ...prev, price: newPrice } : prev));
+          }}
+          onLotDeleted={() => {
+            setLots((prev) => prev.filter((l) => l.id !== lotAnnonceTarget.id));
+            router.refresh();
           }}
         />
       )}

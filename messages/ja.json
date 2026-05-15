@@ -234,6 +234,10 @@
     "copyDescription": "説明をコピー",
     "salePrice": "販売価格",
     "editPriceTitle": "クリックして編集",
+    "removeLotLink": "このロットを削除",
+    "deleteLotConfirmTitle": "このロットを削除しますか?",
+    "deleteLotConfirmBody": "ロットと写真が完全に削除されます。関連するすべての出品(自分と相手の出品)も削除されます。",
+    "deleteLotConfirmAction": "完全に削除",
     "lotBadge": "ロット",
     "rowAnnonceAria": "{name} の出品を表示",
     "rowZoomAria": "{name} を拡大表示",
@@ -386,7 +390,8 @@
     "priceTrend": "Trend",
     "priceAvg": "Avg",
     "priceListing": "出品",
-    "editPriceTitle": "クリックして編集"
+    "editPriceTitle": "クリックして編集",
+    "removeAnnonceLink": "この出品を削除"
   },
   "vintedSold": {
     "modalTitle": "販売済みにする",

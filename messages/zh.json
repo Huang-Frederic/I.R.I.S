@@ -234,6 +234,10 @@
     "copyDescription": "复制描述",
     "salePrice": "售价",
     "editPriceTitle": "点击编辑",
+    "removeLotLink": "删除此套装",
+    "deleteLotConfirmTitle": "删除此套装?",
+    "deleteLotConfirmBody": "套装及其照片将被永久删除,所有相关挂牌(你和搭档的)也将一并删除。",
+    "deleteLotConfirmAction": "永久删除",
     "lotBadge": "套装",
     "rowAnnonceAria": "查看 {name} 的出售",
     "rowZoomAria": "放大查看 {name}",
@@ -386,7 +390,8 @@
     "priceTrend": "Trend",
     "priceAvg": "Avg",
     "priceListing": "出售",
-    "editPriceTitle": "点击编辑"
+    "editPriceTitle": "点击编辑",
+    "removeAnnonceLink": "删除此挂牌"
   },
   "vintedSold": {
     "modalTitle": "标记为已售",

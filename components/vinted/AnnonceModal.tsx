@@ -3,22 +3,29 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Copy, Download, X, Check } from 'lucide-react';
-import type { Card } from '@/lib/types';
+import type { Card, BaseListing } from '@/lib/types';
 import type { PriceHistoryPoint } from '@/lib/types/price-history';
 import { createClient } from '@/lib/supabase/client';
 import { fetchHistoryForCard } from '@/lib/api/price-history';
 import { buildTitle, buildDescription, MAX_TITLE_LENGTH, type VintedConfig } from '@/lib/utils/vinted-template';
 import { processImageForVinted, downloadBlob } from '@/lib/utils/image-postprocess';
+import { getPartnerListing } from '@/lib/utils/listings';
 import PriceFreshnessBadge from '@/components/ui/PriceFreshnessBadge';
 import RefreshPriceButton from '@/components/ui/RefreshPriceButton';
 import CardmarketLink from '@/components/ui/CardmarketLink';
 import { PriceWithTrend } from '@/components/ui/PriceWithTrend';
 import { PriceHistoryChart } from '@/components/price/PriceHistoryChart';
 import CardImagesPair from '@/components/price/CardImagesPair';
+import RetireListingModal from './RetireListingModal';
 
 interface Props {
   card: Card;
   config: VintedConfig;
+  listings: BaseListing[];
+  myUserId: string;
+  partnerUserId: string | null;
+  partnerName: string | null;
+  onListingsChanged: () => void;
   onClose: () => void;
   onPriceSaved: (cardId: string, newPrice: number | null) => void;
   /** Called when the manual refresh button updates the card's full row (cm_price_*, cm_updated_at). */
@@ -33,7 +40,7 @@ function pokeApiSprite(n: number | null): string | null {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${n}.png`;
 }
 
-export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefreshed }: Props) {
+export default function AnnonceModal({ card, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onClose, onPriceSaved, onCardRefreshed }: Props) {
   const t = useTranslations('vintedAnnonce');
   const tCommon = useTranslations('common');
   // Dismiss on Escape, lock body scroll while the modal is open. Same pattern
@@ -56,6 +63,8 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
   const [copiedField, setCopiedField] = useState<'title' | 'desc' | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [retireOpen, setRetireOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   // Editable Suggested price (replaces the old separate "Vinted price" input)
   const [suggestedDraft, setSuggestedDraft] = useState<string>(
@@ -139,6 +148,52 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
     }
   };
 
+  async function retireToStock() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const patch = await fetch(`/api/cards/${card.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status: 'collection' }),
+      });
+      if (!patch.ok) {
+        console.error(`PATCH /api/cards/${card.id} status=collection failed (${patch.status})`);
+        return;
+      }
+      const del = await fetch(`/api/listings/card/${card.id}`, { method: 'DELETE' });
+      if (!del.ok) {
+        console.error(`DELETE listing after stock-retire failed (${del.status})`);
+      }
+      onListingsChanged();
+      onClose();
+    } catch (e) {
+      console.error('retireToStock network error:', e);
+    } finally {
+      setBusy(false);
+      setRetireOpen(false);
+    }
+  }
+
+  async function deleteCard() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/cards/${card.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        console.error(`DELETE /api/cards/${card.id} failed (${res.status})`);
+        return;
+      }
+      onListingsChanged();
+      onClose();
+    } catch (e) {
+      console.error('deleteCard network error:', e);
+    } finally {
+      setBusy(false);
+      setRetireOpen(false);
+    }
+  }
+
   const titleOver = title.length > MAX_TITLE_LENGTH;
   // Fallback chain: user's photo → TCG official → PokeAPI sprite (if Pokémon) → empty.
   // For Trainers/Energies (pokemon_number null), there's no sprite — usually
@@ -146,6 +201,9 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
   const sprite = pokeApiSprite(card.pokemon_number) ?? '';
   const myPhoto = card.image_url ?? sprite;
   const tcgPhoto = card.tcg_image_url ?? sprite;
+
+  const partnerListing = getPartnerListing(listings, partnerUserId);
+  const partnerForRetire = partnerListing && partnerName ? partnerName : null;
 
   return (
     <div
@@ -307,8 +365,30 @@ export default function AnnonceModal({ card, onClose, onPriceSaved, onCardRefres
                 describe the same data (current snapshot vs. trajectory). */}
             <PriceHistoryChart points={points} />
           </div>
+
+          <div className="border-border flex justify-start border-t pt-4">
+            <button
+              type="button"
+              onClick={() => setRetireOpen(true)}
+              disabled={busy}
+              className="text-red hover:underline text-sm disabled:opacity-50"
+            >
+              {t('removeAnnonceLink')}
+            </button>
+          </div>
         </div>
       </div>
+
+      {retireOpen && (
+        <RetireListingModal
+          cardName={card.card_name}
+          partnerName={partnerForRetire}
+          busy={busy}
+          onStock={retireToStock}
+          onDelete={deleteCard}
+          onCancel={() => setRetireOpen(false)}
+        />
+      )}
     </div>
   );
 }

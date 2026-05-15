@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Globe, GlobeLock, AlertTriangle, X, RefreshCw } from 'lucide-react';
+import { Globe, GlobeLock, AlertTriangle, RefreshCw } from 'lucide-react';
 import type { BaseListing } from '@/lib/types';
 import {
   getMyListing,
@@ -11,7 +11,6 @@ import {
 } from '@/lib/utils/listings';
 import { badgeClassesForColor, colorForUserName } from '@/lib/utils/user-colors';
 import ConfirmDialog from './ConfirmDialog';
-import RetireListingModal from './RetireListingModal';
 
 interface Props {
   itemKind: 'card' | 'lot';
@@ -52,7 +51,6 @@ export default function ListingBadges({
   const [confirmRefresh, setConfirmRefresh] = useState(false);
   const [confirmPostOnline, setConfirmPostOnline] = useState(false);
   const [confirmTakeOffline, setConfirmTakeOffline] = useState(false);
-  const [retireOpen, setRetireOpen] = useState(false);
 
   const mine = getMyListing(listings, myUserId);
   const partner = getPartnerListing(listings, partnerUserId);
@@ -106,57 +104,6 @@ export default function ListingBadges({
     } finally {
       setBusy(false);
       setConfirmDelete(false);
-    }
-  }
-
-  /** Retire-to-Stock: PATCH status='collection' + DELETE my listing.
-   *  Two sequential calls; first must succeed before the second. If the second
-   *  fails the card is in the right status but the listing lingers — user can
-   *  cleanup via the "À retirer" red button afterwards. */
-  async function retireToStock() {
-    if (busy) return;
-    if (itemKind !== 'card') return; // lots don't transition to 'collection'
-    setBusy(true);
-    try {
-      const patch = await fetch(`/api/cards/${itemId}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ status: 'collection' }),
-      });
-      if (!patch.ok) {
-        console.error(`PATCH /api/cards/${itemId} status=collection failed (${patch.status})`);
-        return;
-      }
-      const del = await fetch(`/api/listings/${itemKind}/${itemId}`, { method: 'DELETE' });
-      if (!del.ok) {
-        console.error(`DELETE listing after stock-retire failed (${del.status})`);
-      }
-      onUnlisted();
-    } catch (e) {
-      console.error('retireToStock network error:', e);
-    } finally {
-      setBusy(false);
-      setRetireOpen(false);
-    }
-  }
-
-  /** Permanently delete the card (cascade-deletes all listings via FK). */
-  async function deleteCard() {
-    if (busy) return;
-    if (itemKind !== 'card') return; // lots have their own delete flow
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/cards/${itemId}`, { method: 'DELETE' });
-      if (!res.ok) {
-        console.error(`DELETE /api/cards/${itemId} failed (${res.status})`);
-        return;
-      }
-      onUnlisted();
-    } catch (e) {
-      console.error('deleteCard network error:', e);
-    } finally {
-      setBusy(false);
-      setRetireOpen(false);
     }
   }
 
@@ -228,22 +175,6 @@ export default function ListingBadges({
             <span className="hidden sm:inline">{t('putOnline')}</span>
           </button>
         )}
-
-        {/* Show retire X when:
-         *  - cards: always (with or without my listing — user can always move to Stock or delete)
-         *  - lots: only when I have a listing to retire
-         *  Skip when toDelete (a separate "À retirer" button handles that state). */}
-        {!toDelete && (itemKind === 'card' || mine) && (
-          <button
-            type="button"
-            onClick={() => (itemKind === 'card' ? setRetireOpen(true) : setConfirmDelete(true))}
-            disabled={busy}
-            aria-label={mine ? t('retireMyAd') : t('retireFromVinted')}
-            className="text-text-muted hover:text-red inline-flex items-center rounded p-0.5 disabled:opacity-50"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        )}
       </div>
 
       {confirmDelete && (
@@ -302,16 +233,6 @@ export default function ListingBadges({
             setConfirmTakeOffline(false);
           }}
           onCancel={() => setConfirmTakeOffline(false)}
-        />
-      )}
-
-      {retireOpen && (
-        <RetireListingModal
-          partnerName={partner ? partnerName : null}
-          busy={busy}
-          onStock={retireToStock}
-          onDelete={deleteCard}
-          onCancel={() => setRetireOpen(false)}
         />
       )}
     </>

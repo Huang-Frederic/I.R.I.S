@@ -234,6 +234,10 @@
     "copyDescription": "Copy description",
     "salePrice": "Sale price",
     "editPriceTitle": "Click to edit",
+    "removeLotLink": "Delete this lot",
+    "deleteLotConfirmTitle": "Delete this lot?",
+    "deleteLotConfirmBody": "The lot and its photos will be permanently deleted, along with all associated listings (yours and your partner's if any).",
+    "deleteLotConfirmAction": "Delete permanently",
     "lotBadge": "Lot",
     "rowAnnonceAria": "View listing for {name}",
     "rowZoomAria": "View {name} larger",
@@ -386,7 +390,8 @@
     "priceTrend": "Trend",
     "priceAvg": "Avg",
     "priceListing": "Listing",
-    "editPriceTitle": "Click to edit"
+    "editPriceTitle": "Click to edit",
+    "removeAnnonceLink": "Remove this listing"
   },
   "vintedSold": {
     "modalTitle": "Mark as sold",

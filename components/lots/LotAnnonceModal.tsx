@@ -6,15 +6,17 @@ import { ChevronLeft, ChevronRight, Copy, Check, Download, X } from 'lucide-reac
 import type { Lot } from '@/lib/types';
 import { buildLotAnnonce } from '@/lib/utils/lot-template';
 import { processImageForVinted, downloadBlob } from '@/lib/utils/image-postprocess';
+import ConfirmDialog from '@/components/vinted/ConfirmDialog';
 
 interface Props {
   lot: Lot;
   storagePublicUrl: (path: string) => string;
   onClose: () => void;
   onPriceSaved: (lotId: string, newPrice: number | null) => void;
+  onLotDeleted: () => void;
 }
 
-export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPriceSaved }: Props) {
+export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPriceSaved, onLotDeleted }: Props) {
   const t = useTranslations('lots');
   const tCommon = useTranslations('common');
   const initial = buildLotAnnonce({
@@ -29,6 +31,8 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
   const [copiedField, setCopiedField] = useState<'title' | 'desc' | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [confirmDeleteLot, setConfirmDeleteLot] = useState(false);
+  const [deletingLot, setDeletingLot] = useState(false);
 
   // Editable price
   const [priceDraft, setPriceDraft] = useState(lot.price !== null ? String(lot.price) : '');
@@ -101,6 +105,25 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
       setDownloadError(err instanceof Error ? err.message : String(err));
     } finally {
       setDownloading(false);
+    }
+  }
+
+  async function deleteLot() {
+    if (deletingLot) return;
+    setDeletingLot(true);
+    try {
+      const res = await fetch(`/api/lots/${lot.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        console.error(`DELETE /api/lots/${lot.id} failed (${res.status})`);
+        return;
+      }
+      onLotDeleted();
+      onClose();
+    } catch (e) {
+      console.error('deleteLot network error:', e);
+    } finally {
+      setDeletingLot(false);
+      setConfirmDeleteLot(false);
     }
   }
 
@@ -256,8 +279,31 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
               )}
             </div>
           </div>
+
+          <div className="border-border col-span-full flex justify-start border-t pt-4 md:col-span-2">
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteLot(true)}
+              disabled={deletingLot}
+              className="text-red hover:underline text-sm disabled:opacity-50"
+            >
+              {t('removeLotLink')}
+            </button>
+          </div>
         </div>
       </div>
+
+      {confirmDeleteLot && (
+        <ConfirmDialog
+          title={t('deleteLotConfirmTitle')}
+          body={t('deleteLotConfirmBody')}
+          confirmLabel={t('deleteLotConfirmAction')}
+          confirmTone="danger"
+          busy={deletingLot}
+          onConfirm={deleteLot}
+          onCancel={() => setConfirmDeleteLot(false)}
+        />
+      )}
     </div>
   );
 }
