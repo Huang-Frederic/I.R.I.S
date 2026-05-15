@@ -6,6 +6,21 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-05-15 — v1.0.2 polish: modal scroll, row layout, delete-from-modal
+
+Follow-up to v1.0.1 covering the Vinted annonce flow (cards + lots) and the mobile row UX.
+
+- **Annonce modal scroll fixed on mobile** — restructured `AnnonceModal` and `LotAnnonceModal` so the body scrolls inside the modal box (`max-h-[calc(100dvh-2rem)]`, sticky header, `overflow-y-auto overscroll-contain`). The X close button is always reachable. Body scroll lock + backdrop click guard work on iOS, Android, and desktop. `LotAnnonceModal` previously had no inner scroll at all and could trap users on small viewports.
+- **Card / lot delete moved out of row chips** — the X icon at the end of each chip row was redundant after v1.0.1's clickable Globe (take-offline) chip. Removed from `ListingBadges`. Replaced with a red `Supprimer cette annonce` / `Supprimer ce lot` link at the bottom-left of the corresponding annonce modal body, with hover underline. Cards click → existing `RetireListingModal` (move-to-Stock or delete-card-entirely). The retire/delete flow's state and handlers moved from `ListingBadges` to `AnnonceModal`, with `listings`/`myUserId`/`partnerUserId`/`partnerName`/`onListingsChanged` plumbed in from `VintedList`.
+- **Lot X = permanent delete (not just unlist)** — the lot link calls `DELETE /api/lots/[id]` which removes the lot row + storage photos + cascades all associated listings (yours and your partner's). Confirm dialog before action. Previous behaviour was to remove the listing only.
+- **Mobile row layout: image-left + stacked content** — on mobile, Vinted/Stock rows now render `[image left, full row height] | [name/variant on top, set info, chips, action buttons stacked vertically on the right]`. Image stays at fixed `60px` width to avoid the v1.0.1 stretched-aspect experiment we tried, undid, and discussed; mobile rows now feel compact and readable rather than packed onto a single horizontal line that wrapped awkwardly. Desktop layout unchanged via `sm:flex-row`.
+- **Smaller action buttons + price chip on mobile** — `Annonce`/`Vendu` (Vinted), `List for sale` (Stock), the count input, and the `PriceWithTrend` chip all shrink to `text-[10px]/[11px]` with tighter `px-1.5/2 py-0.5/1` padding on mobile (`sm:` keeps the desktop sizing). Frees up width inside the right-side column so the row content actually fits without wrapping.
+- **Online-toggle wording clarified** — `Retirer de Vinted ?` was misleading: it sounded like leaving the Vinted category. Renamed to `Mettre l'annonce hors ligne ?` with body `L'annonce passera en 'hors ligne' côté IRIS — la carte reste en vente (elle ne quitte pas la catégorie Vinted). Pense à la dépublier sur Vinted.com en parallèle.` Action button: `Mettre hors ligne`. Same i18n update across fr/en/ja/zh.
+- 7 new translation keys × 4 languages (`vintedAnnonce.removeAnnonceLink`, `lots.removeLotLink/deleteLotConfirm{Title,Body,Action}`, plus 4 reworded `listingBadges.takeOffline*`).
+- 495/495 tests passing, build clean.
+
+---
+
 ## 2026-05-14 — v1.0.1 UI polish: mobile density, sticky scanner recap, themeColor fix, Vinted interleave
 
 A focused QoL pass. No new features — the goal is making the daily flow feel less cramped on mobile and ironing out a few visible mismatches reported during v1.0.0 use.
