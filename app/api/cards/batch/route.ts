@@ -130,6 +130,9 @@ export async function POST(request: Request) {
   // --- Pre-check 3: for_sale slot taken (fallback for edge cases) ---
   // Same payload shape as POST /api/cards's catch-block 23505 → DuplicateForSaleModal.
   // Handles edge cases like card_id_tcg null on existing (un-enriched) or race conditions.
+  // Requires card_id_tcg: without it we can't distinguish cards, and the null case
+  // would match unrelated for_sale cards sharing language/condition/variant. The DB
+  // constraint (one_for_sale_per_group) is the final safety net for null card_id_tcg.
   if (status === 'for_sale' && card_id_tcg) {
     const { data: existingForSale } = await supabase
       .from('cards')
@@ -226,6 +229,25 @@ export async function POST(request: Request) {
     .select('id, status');
   if (error) {
     console.error('[cards/batch] bulk insert failed:', error);
+    const isUniqueViolation =
+      error.code === '23505' ||
+      /one_for_sale_per_group|duplicate key|unique constraint/i.test(error.message ?? '');
+    if (isUniqueViolation && status === 'for_sale') {
+      let q = supabase
+        .from('cards')
+        .select('id, card_name, image_url, tcg_image_url, suggested_price, date_added, language, condition, variant, set_name, set_code')
+        .eq('language', language)
+        .eq('condition', condition)
+        .eq('status', 'for_sale');
+      // eq() uses SQL `=` which never matches NULL rows — must use IS NULL for null card_id_tcg.
+      q = card_id_tcg ? q.eq('card_id_tcg', card_id_tcg) : q.is('card_id_tcg', null);
+      const { data: existingCard } = await q.maybeSingle();
+      return apiError('for_sale_conflict', {
+        status: 409,
+        message: 'This card is already for sale on Vinted.',
+        extra: { existingCard },
+      });
+    }
     return apiError('insert_failed', { status: 500, message: error.message });
   }
 

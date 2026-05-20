@@ -154,7 +154,9 @@ function formatLocalizedName(
   const raw = (rawOriginal ?? '').trim();
   if (!fr) return raw;
   if (language === 'FR' || !raw) return fr;
-  if (raw.toLowerCase() === fr.toLowerCase()) return fr;
+  // Guard: if raw is already embedded in fr (server already applied bilingual
+  // formatting), don't double-wrap — e.g. "Meloetta ex (メロエッタex)" + "メロエッタex".
+  if (fr.toLowerCase().includes(raw.toLowerCase())) return fr;
   return `${fr} (${raw})`;
 }
 
@@ -519,16 +521,20 @@ export default function CardScanForm({
     const formPokemonNumber = form.pokemon_number.trim()
       ? Number(form.pokemon_number)
       : null;
+    // Strip the bilingual "(JP name)" suffix before sending form values to the
+    // server — the enrich strategies use reverseLookupEn() which can't resolve
+    // "Meloetta (メロエッタ)" but correctly handles "Meloetta" alone.
+    const stripBilingual = (s: string) => s.replace(/\s*\([^)]+\)\s*$/, '').trim();
     const body = {
       setPrefix: setPrefix || undefined,
       setNumber: localId || undefined,
       setTotal: totalStr ? Number(totalStr) : undefined,
       language: form.language,
-      pokemonName: form.pokemon_name || undefined,
+      pokemonName: form.pokemon_name ? stripBilingual(form.pokemon_name) || form.pokemon_name : undefined,
       pokemonNumber: Number.isFinite(formPokemonNumber)
         ? formPokemonNumber
         : (ocrGemini?.pokemonNumber ?? undefined),
-      cardName: form.card_name || undefined,
+      cardName: form.card_name ? stripBilingual(form.card_name) || form.card_name : undefined,
       illustrator: ocrIllustrator ?? undefined,
     };
 
@@ -1024,6 +1030,8 @@ export default function CardScanForm({
     photoChoice: 'new' | 'existing',
   ) {
     if (!formSnapshot) return;
+    setPhase('saving');
+    setErrorMsg(null);
     const data = new FormData();
     formSnapshot.forEach((value, key) => {
       // Drop the original 'image' and 'accept_duplicates' so we control them here.

@@ -93,7 +93,11 @@ function cardmarketToEnriched(c: CardmarketCard, body: EnrichBody): EnrichedCard
   const cardName = body.cardNameFr || body.cardName || c.card_name;
   const pokemonName = body.pokemonNameFr || body.pokemonName || c.card_name;
   return {
-    card_id_tcg: c.set_prefix && c.set_number ? `${c.set_prefix}-${c.set_number}` : '',
+    card_id_tcg: c.set_prefix && c.set_number
+      ? `${c.set_prefix}-${c.set_number}`
+      : c.cardmarket_id
+        ? `cm-${c.cardmarket_id}`
+        : '',
     card_name: cardName,
     pokemon_name: body.pokemonNumber == null ? '' : pokemonName,
     pokemon_number: body.pokemonNumber ?? null,
@@ -300,7 +304,10 @@ async function strategyTCGdex(ctx: StrategyContext): Promise<EnrichResult | null
       ...tcgdex,
       pokemon_number: ctx.body.pokemonNumber ?? tcgdex.pokemon_number,
       pokemon_name: ctx.body.pokemonName ?? tcgdex.pokemon_name,
-      card_name: ctx.body.cardName ?? tcgdex.card_name,
+      // Prefer the raw TCGdex name as the base for bilingual formatting.
+      // ctx.body.cardName may already be bilingual ("FR (JP)") from a previous
+      // enrichment pass and would produce double-wrapped names on re-search.
+      card_name: tcgdex.card_name || ctx.body.cardName || '',
     };
     // Apply FR bilingual format on Pokémon cards when source language isn't FR.
     // Use static map keyed by Gemini's number — never TCGdex's dexId.
