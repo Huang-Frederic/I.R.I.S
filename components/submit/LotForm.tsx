@@ -1,7 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Upload, X } from 'lucide-react';
 import { buildLotAnnonce } from '@/lib/utils/lot-template';
@@ -14,7 +13,6 @@ const TITLE_MAX = 80;
 export default function LotForm() {
   const t = useTranslations('lots');
   const tErrors = useTranslations('errors');
-  const router = useRouter();
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [language, setLanguage] = useState<CardLanguage>('JP');
@@ -23,6 +21,15 @@ export default function LotForm() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  const submittedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (submittedTimerRef.current) clearTimeout(submittedTimerRef.current);
+    };
+  }, []);
 
   // Visible languages in the lot form. The CardLanguage enum still supports DE/IT/ES/PT
   // for legacy cards, but lots only need the 5 markets the user actively sells in.
@@ -102,7 +109,15 @@ export default function LotForm() {
         const localized = translateErrorCode(tErrors, json.error);
         throw new Error(localized ?? json.message ?? t('lotFormErrorServer'));
       }
-      router.push('/vinted');
+      setName('');
+      setPrice('');
+      setLanguage('JP');
+      setCondition('NM');
+      setExtraDescription('');
+      setPhotos([]);
+      setSubmitting(false);
+      setSubmitted(true);
+      submittedTimerRef.current = setTimeout(() => setSubmitted(false), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setSubmitting(false);
@@ -186,6 +201,7 @@ export default function LotForm() {
         </label>
 
         {error && <p className="text-red text-xs">{error}</p>}
+        {submitted && <p className="text-green-600 dark:text-green-400 text-xs font-medium">{t('lotFormSuccess')}</p>}
 
         <button
           type="submit"

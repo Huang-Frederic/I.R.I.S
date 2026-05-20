@@ -87,14 +87,15 @@ export interface TCGdexCard {
  * older pokemontcg.io vocabulary.
  */
 const RARITY_MAP: Record<string, CardRarity> = {
+  // Scarlet & Violet (modern)
   Common: 'C',
   Uncommon: 'UC',
   Rare: 'R',
   'Rare Holo': 'R_HOLO',
   'Holo Rare': 'R_HOLO',
-  'Rare Holo V': 'R_HOLO',
-  'Rare Holo VMAX': 'R_HOLO',
-  'Rare Holo VSTAR': 'R_HOLO',
+  'Rare Holo V': 'RR',
+  'Rare Holo VMAX': 'RR',
+  'Rare Holo VSTAR': 'RR',
   'Trainer Gallery Holo Rare': 'R_HOLO',
   'Double rare': 'RR',
   'Double Rare': 'RR',
@@ -107,6 +108,21 @@ const RARITY_MAP: Record<string, CardRarity> = {
   'Special Illustration Rare': 'SAR',
   'Hyper rare': 'SAR',
   'Hyper Rare': 'SAR',
+  // XY era
+  'Rare Holo EX': 'RR',
+  'Rare Ultra': 'SR',
+  'Rare BREAK': 'R_HOLO',
+  'Rare Shining': 'SR',
+  // SM era
+  'Rare Holo GX': 'RR',
+  'Rare Rainbow': 'SAR',
+  'Rare Secret': 'SAR',
+  // BW era
+  'Rare Prime': 'R_HOLO',
+  LEGEND: 'RR',
+  'Rare ACE': 'RR',
+  // Gold Star / vintage
+  'Rare Holo Star': 'SAR',
 };
 
 export function mapRarity(rarity: string | undefined): CardRarity {

@@ -10,6 +10,7 @@ import type { PriceHistoryPoint } from '@/lib/types/price-history';
 
 interface CardRow {
   id: string;
+  card_id_tcg: string | null;
   card_name: string;
   set_name: string;
   set_code: string | null;
@@ -49,7 +50,7 @@ export function AllCardsList({ initialSetFilter, onCardClick }: Props) {
       const supabase = createClient();
       const { data: cards } = await supabase
         .from('cards')
-        .select('id, card_name, set_name, set_code, set_number, cm_price_avg, status')
+        .select('id, card_id_tcg, card_name, set_name, set_code, set_number, cm_price_avg, status')
         .in('status', ['for_sale', 'collection', 'pokedex'])
         .not('cm_price_avg', 'is', null);
       if (cancelled || !cards) { setLoading(false); return; }
@@ -87,7 +88,21 @@ export function AllCardsList({ initialSetFilter, onCardClick }: Props) {
       });
 
       if (!cancelled) {
-        setRows(enriched);
+        // Collapse multiple copies of the same print into one row, preserving
+        // the sort order from the enriched array (delta, price, name, or set).
+        const seen = new Map<string, { row: RowWithHistory; index: number }>();
+        for (let i = 0; i < enriched.length; i++) {
+          const r = enriched[i];
+          const key = r.card_id_tcg ?? r.id;
+          const prev = seen.get(key);
+          if (!prev || (r.cm_price_avg ?? 0) > (prev.row.cm_price_avg ?? 0)) {
+            seen.set(key, { row: r, index: i });
+          }
+        }
+        const deduplicated = Array.from(seen.values())
+          .sort((a, b) => a.index - b.index)
+          .map(({ row }) => row);
+        setRows(deduplicated);
         setLoading(false);
       }
     })();

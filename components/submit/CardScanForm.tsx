@@ -260,6 +260,9 @@ export default function CardScanForm({
     existingCard: PokedexReplaceModalCard;
     hasForSaleConflict: boolean;
   } | null>(null);
+  /** Set when the card is already saved (as for_sale) and we're waiting for
+   * the user to confirm the pokédex swap via PokedexReplaceModal. */
+  const [pendingReplaceCardId, setPendingReplaceCardId] = useState<string | null>(null);
   /**
    * Pokémon number actually detected in the photo (via Gemini OCR or TCGdex
    * match). We track this SEPARATELY from `form.pokemon_number` because, when
@@ -851,27 +854,17 @@ export default function CardScanForm({
       const counts = { for_sale: 0, pokedex: 0, collection: 0 };
       for (const c of created) counts[c.status]++;
 
-      // Replace flow uses the FIRST inserted card (which went in as for_sale
-      // per effectiveStatus). The swap promotes it to pokedex and demotes the
-      // old pokedex card to for_sale.
+      // Replace flow: the card is already saved as for_sale. Show the modal
+      // so the user can confirm (and choose where to displace the old card)
+      // before we call /api/pokedex/replace.
       if (wantsToReplace && suggestion?.existingCard && firstCardId) {
-        const swap = await fetch('/api/pokedex/replace', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            old_card_id: suggestion.existingCard.id,
-            old_new_status: 'for_sale',
-            new_card_id: firstCardId,
-          }),
+        setPendingReplaceCardId(firstCardId);
+        setReplaceModal({
+          existingCard: suggestion.existingCard as PokedexReplaceModalCard,
+          hasForSaleConflict: false,
         });
-        if (!swap.ok) {
-          const body = (await swap.json().catch(() => ({}))) as { error?: string; message?: string };
-          const localized = translateErrorCode(tErrors, body.error);
-          throw new Error(localized ?? body.message ?? tErrors('replaceFailed', { status: swap.status }));
-        }
-        // The swap reclassified the first row from for_sale to pokedex.
-        counts.for_sale--;
-        counts.pokedex++;
+        setPhase('reviewing');
+        return;
       }
 
       setSuccessCounts(counts);
@@ -937,6 +930,34 @@ export default function CardScanForm({
     if (!replaceModal) return;
     setPhase('saving');
     try {
+      // Fast path: card was already saved as for_sale in handleSave (can_replace
+      // suggestion). Call /api/pokedex/replace to atomically promote it to
+      // pokedex and demote the old card to the chosen status.
+      if (pendingReplaceCardId) {
+        const swap = await fetch('/api/pokedex/replace', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            old_card_id: replaceModal.existingCard.id,
+            old_new_status: displaceTo,
+            new_card_id: pendingReplaceCardId,
+          }),
+        });
+        if (!swap.ok) {
+          const body = (await swap.json().catch(() => ({}))) as { error?: string; message?: string };
+          const localized = translateErrorCode(tErrors, body.error);
+          throw new Error(localized ?? body.message ?? tErrors('replaceFailed', { status: swap.status }));
+        }
+        const newCardId = pendingReplaceCardId;
+        setPendingReplaceCardId(null);
+        setReplaceModal(null);
+        setSuccessCounts({ for_sale: 0, pokedex: 1, collection: 0 });
+        setPhase('success');
+        pendingFirstCardId.current = newCardId;
+        return;
+      }
+
+      // Slow path (pokedex_slot_taken 409 flow): card has NOT been saved yet.
       // Step 1: Demote the existing pokedex card to the chosen status
       const demoteRes = await fetch(`/api/cards/${replaceModal.existingCard.id}`, {
         method: 'PATCH',
@@ -986,6 +1007,7 @@ export default function CardScanForm({
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : tCommon('errorUnknown'));
       setPhase('error');
+      setPendingReplaceCardId(null);
       setReplaceModal(null);
     }
   }
@@ -1093,7 +1115,15 @@ export default function CardScanForm({
           }}
           hasForSaleConflict={replaceModal.hasForSaleConflict}
           onConfirm={handleReplaceConfirm}
-          onCancel={() => setReplaceModal(null)}
+          onCancel={() => {
+            setReplaceModal(null);
+            if (pendingReplaceCardId) {
+              // Card is already saved as for_sale — just close and reset the
+              // form so the user can scan the next card.
+              setPendingReplaceCardId(null);
+              reset();
+            }
+          }}
           submitting={phase === 'saving'}
         />
       )}

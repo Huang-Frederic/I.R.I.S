@@ -267,6 +267,7 @@
     "lotFormErrorPrice": "Price required (number)",
     "lotFormErrorPhotos": "At least 1 photo required",
     "lotFormErrorServer": "Server error",
+    "lotFormSuccess": "Lot created successfully!",
     "lotFormPhotosLabel": "Photos ({count})",
     "lotFormPhotosDropOrClick": "Drop or click to add",
     "lotFormPhotoRemoveAria": "Remove this photo",
@@ -432,7 +433,10 @@
     "partnerCleanupTitle": "Action needed for {name}",
     "partnerCleanupBodyCard": "This card is marked as sold and there's no other copy to put back up for sale.",
     "partnerCleanupBodyLot": "This lot is marked as sold and there's no other copy to put back up for sale.",
-    "partnerCleanupNote": "{name} will need to remove their Vinted listing manually (IRIS can't delete a listing on a third-party account)."
+    "partnerCleanupNote": "{name} will need to remove their Vinted listing manually (IRIS can't delete a listing on a third-party account).",
+    "bulkPromoteTitle": "Promote cards to Vinted",
+    "bulkPromoteSubtitle": "{count, plural, one {1 card can replace a sold listing} other {# cards can replace sold listings}}",
+    "bulkPromoteConfirm": "{count, plural, one {List for sale} other {List {count} for sale}}"
   },
   "listingBadges": {
     "listedByMe": "Listed by Me · {days}d",
@@ -720,6 +724,7 @@
     "lastSalesTitleCount": "Latest sales ({count})",
     "lastSalesEmpty": "No sales recorded.",
     "lastSalesTotal": "€{total} total",
+    "lotLabel": "Lot",
     "rarityDonutTitle": "Rarity breakdown",
     "rarityDonutEmpty": "No cards yet.",
     "rarityModeCount": "Count",

@@ -15,6 +15,7 @@ import SoldModal, { type SoldEntity } from './SoldModal';
 import RestockToast from './RestockToast';
 import AnnonceModal from './AnnonceModal';
 import PromoteAfterSoldModal from './PromoteAfterSoldModal';
+import BulkPromoteModal from './BulkPromoteModal';
 import PartnerCleanupModal from './PartnerCleanupModal';
 import CardZoomModal from './CardZoomModal';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
@@ -143,8 +144,8 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     restocks: RestockAlert[];
     promotes: PromoteCandidate[];
   } | null>(null);
-  /** Promote candidates from a bulk-sold batch, drained one-by-one after the recap modal closes. */
-  const [bulkPromoteQueue, setBulkPromoteQueue] = useState<PromoteCandidate[]>([]);
+  /** Promote candidates from a bulk-sold batch — shown together in BulkPromoteModal after the recap modal closes. */
+  const [bulkPromoteCandidates, setBulkPromoteCandidates] = useState<PromoteCandidate[]>([]);
   const [annonceTarget, setAnnonceTarget] = useState<Card | null>(null);
   const [lotAnnonceTarget, setLotAnnonceTarget] = useState<Lot | null>(null);
   const [zoomCard, setZoomCard] = useState<Card | null>(null);
@@ -363,21 +364,14 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     }
   }
 
-  // After the bulk recap modal closes, drain the promote queue one-by-one. The
-  // existing <PromoteAfterSoldModal> handles each candidate; on close/promote
-  // we shift the queue so the next render shows the next one.
+  // After the bulk recap modal closes, open the BulkPromoteModal with all
+  // promote candidates at once instead of draining them one-by-one.
   function dismissBulkRecap() {
     if (!bulkRecap) return;
     const queue = [...bulkRecap.promotes];
     setBulkRecap(null);
-    setBulkPromoteQueue(queue);
+    if (queue.length > 0) setBulkPromoteCandidates(queue);
   }
-
-  function shiftBulkPromoteQueue() {
-    setBulkPromoteQueue((q) => q.slice(1));
-  }
-
-  const currentBulkPromote = bulkPromoteQueue[0] ?? null;
 
   const { forSaleRows, soldRows, soldLotsList, totalVisible } = useMemo(() => {
     const showCards = filters.kindFilter !== 'lots';
@@ -579,20 +573,17 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
         />
       )}
 
-      {/* Drain bulk-promote queue: shown after the recap modal closes. Each
-        decision shifts the queue, exposing the next candidate.
-        `key={cardId}` forces React to remount the modal between candidates
-        — without it, the same instance is reused and its `submitting`
-        useState stays true from the previous successful PATCH, so the
-        2nd+ modal shows "Patientez…" forever. */}
-      {!bulkRecap && currentBulkPromote && (
-        <PromoteAfterSoldModal
-          key={currentBulkPromote.cardId}
-          candidate={currentBulkPromote}
-          onClose={shiftBulkPromoteQueue}
-          onPromoted={() => {
-            shiftBulkPromoteQueue();
-            router.refresh();
+      {bulkPromoteCandidates.length > 0 && (
+        <BulkPromoteModal
+          candidates={bulkPromoteCandidates}
+          onClose={() => setBulkPromoteCandidates([])}
+          onPromoted={(promotedIds) => {
+            setCards((prev) =>
+              prev.map((c) =>
+                promotedIds.includes(c.id) ? { ...c, status: 'for_sale' as const } : c,
+              ),
+            );
+            setBulkPromoteCandidates([]);
           }}
         />
       )}
@@ -627,7 +618,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
         and bulk-promote queue both finish. Same modal as the single-item
         flow, surfaced for each unreplaced sold item that had a partner
         listing. */}
-      {!bulkRecap && !currentBulkPromote && partnerCleanupQueue.length > 0 && partnerName && (
+      {!bulkRecap && bulkPromoteCandidates.length === 0 && partnerCleanupQueue.length > 0 && partnerName && (
         <PartnerCleanupModal
           partnerName={partnerName}
           itemDisplayName={partnerCleanupQueue[0].itemDisplayName}

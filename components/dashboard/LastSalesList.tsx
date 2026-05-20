@@ -4,6 +4,7 @@ import type { Card } from '@/lib/types';
 import { displayCardName } from '@/lib/utils/format-name';
 
 interface SoldCard {
+  kind: 'card';
   id: string;
   card_name: string;
   pokemon_name: string | null;
@@ -12,6 +13,24 @@ interface SoldCard {
   rarity: Card['rarity'];
   sold_price: number | null;
   date_sold: string | null;
+}
+
+interface SoldLot {
+  kind: 'lot';
+  id: string;
+  name: string;
+  photo_urls: string[];
+  sold_price: number | null;
+  date_sold: string | null;
+  language: string | null;
+  condition: string | null;
+}
+
+type SoldItem = SoldCard | SoldLot;
+
+interface Props {
+  sales: readonly SoldItem[];
+  storagePublicUrl: string;
 }
 
 function formatDate(iso: string | null): string {
@@ -23,11 +42,7 @@ function formatDate(iso: string | null): string {
   });
 }
 
-export default async function LastSalesList({
-  sales,
-}: {
-  sales: readonly SoldCard[];
-}) {
+export default async function LastSalesList({ sales, storagePublicUrl }: Props) {
   const t = await getTranslations('dashboard');
   if (sales.length === 0) {
     return (
@@ -53,28 +68,41 @@ export default async function LastSalesList({
         </span>
       </div>
       <ul className="divide-border divide-y">
-        {sales.map((s) => (
-          <li key={s.id} className="flex items-center gap-3 py-2 text-sm">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={s.image_url ?? s.tcg_image_url ?? ''}
-              alt=""
-              className="h-12 w-9 rounded object-cover"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="text-text truncate font-medium">{displayCardName(s)}</div>
-              <div className="text-text-muted text-xs">
-                <span className={RARITY_COLOR[s.rarity] ?? ''}>
-                  {s.rarity}
-                </span>
-                <span className="ml-2">{formatDate(s.date_sold)}</span>
+        {sales.map((s) => {
+          const thumb =
+            s.kind === 'card'
+              ? (s.image_url ?? s.tcg_image_url ?? null)
+              : s.photo_urls[0]
+                ? `${storagePublicUrl}/storage/v1/object/public/lot-photos/${s.photo_urls[0]}`
+                : null;
+          const label = s.kind === 'card' ? displayCardName(s) : s.name;
+          const sub =
+            s.kind === 'card' ? (
+              <span className={RARITY_COLOR[s.rarity] ?? 'text-text-muted'}>{s.rarity}</span>
+            ) : (
+              <span className="text-text-muted">{t('lotLabel')}</span>
+            );
+          return (
+            <li key={`${s.kind}-${s.id}`} className="flex items-center gap-3 py-2 text-sm">
+              {thumb ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={thumb} alt="" className="h-12 w-9 rounded object-cover" />
+              ) : (
+                <div className="h-12 w-9 rounded bg-surface-alt" />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-text truncate font-medium">{label}</div>
+                <div className="text-text-muted text-xs">
+                  {sub}
+                  <span className="ml-2">{formatDate(s.date_sold)}</span>
+                </div>
               </div>
-            </div>
-            <div className="text-text shrink-0 font-mono">
-              €{Number(s.sold_price ?? 0).toFixed(2)}
-            </div>
-          </li>
-        ))}
+              <div className="text-text shrink-0 font-mono">
+                €{Number(s.sold_price ?? 0).toFixed(2)}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

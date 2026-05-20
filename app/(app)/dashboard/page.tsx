@@ -72,6 +72,7 @@ export default async function DashboardPage({
     { data: ocrLog24w },
     { data: cardsAdded24w },
     { data: lastSales },
+    { data: lastLots },
     { data: pokedexRows },
     { data: lastPokedexAdds },
   ] = await Promise.all([
@@ -102,6 +103,13 @@ export default async function DashboardPage({
       .order('date_sold', { ascending: false })
       .limit(10),
     supabase
+      .from('lots')
+      .select('id, name, photo_urls, sold_price, date_sold, language, condition')
+      .eq('status', 'sold')
+      .not('date_sold', 'is', null)
+      .order('date_sold', { ascending: false })
+      .limit(10),
+    supabase
       .from('cards')
       .select('pokemon_number', { head: false })
       .eq('status', 'pokedex'),
@@ -118,6 +126,16 @@ export default async function DashboardPage({
     cm_price_trend: number | null;
     cm_price_low: number | null;
   })[];
+
+  type SoldCardItem = NonNullable<typeof lastSales>[number] & { kind: 'card' };
+  type SoldLotItem = { kind: 'lot'; id: string; name: string; photo_urls: string[]; sold_price: number | null; date_sold: string | null; language: string | null; condition: string | null };
+  type SoldItem = SoldCardItem | SoldLotItem;
+
+  const soldCards: SoldItem[] = (lastSales ?? []).map((s) => ({ kind: 'card' as const, ...s }));
+  const soldLots: SoldItem[] = (lastLots ?? []).map((l) => ({ kind: 'lot' as const, ...l }));
+  const allSales = [...soldCards, ...soldLots]
+    .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''))
+    .slice(0, 10);
 
   const rarityCounts = buildRarityCounts(cards);
   const rarityValues = buildRarityValues(cards);
@@ -179,7 +197,10 @@ export default async function DashboardPage({
 
       <PriceTrendsProvider>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <LastSalesList sales={lastSales ?? []} />
+          <LastSalesList
+                sales={allSales}
+                storagePublicUrl={process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
+              />
           <TopRaresList cards={topRares} />
         </div>
       </PriceTrendsProvider>

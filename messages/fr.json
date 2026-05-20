@@ -267,6 +267,7 @@
     "lotFormErrorPrice": "Prix requis (nombre)",
     "lotFormErrorPhotos": "Au moins 1 photo requise",
     "lotFormErrorServer": "Erreur serveur",
+    "lotFormSuccess": "Lot créé avec succès !",
     "lotFormPhotosLabel": "Photos ({count})",
     "lotFormPhotosDropOrClick": "Drop ou clic pour ajouter",
     "lotFormPhotoRemoveAria": "Retirer cette photo",
@@ -432,7 +433,10 @@
     "partnerCleanupTitle": "Action requise pour {name}",
     "partnerCleanupBodyCard": "Cette carte est marquée comme vendue et il n'y a pas d'autre exemplaire à remettre en vente.",
     "partnerCleanupBodyLot": "Ce lot est marqué comme vendu et il n'y a pas d'autre exemplaire à remettre en vente.",
-    "partnerCleanupNote": "{name} devra retirer son annonce Vinted manuellement (IRIS ne peut pas supprimer une annonce sur un compte tiers)."
+    "partnerCleanupNote": "{name} devra retirer son annonce Vinted manuellement (IRIS ne peut pas supprimer une annonce sur un compte tiers).",
+    "bulkPromoteTitle": "Mettre des cartes en vente",
+    "bulkPromoteSubtitle": "{count, plural, one {1 carte peut remplacer une vente} other {# cartes peuvent remplacer des ventes}}",
+    "bulkPromoteConfirm": "{count, plural, one {Mettre en vente} other {Mettre {count} en vente}}"
   },
   "listingBadges": {
     "listedByMe": "Listée par Moi · {days}j",
@@ -720,6 +724,7 @@
     "lastSalesTitleCount": "Dernières ventes ({count})",
     "lastSalesEmpty": "Aucune vente enregistrée.",
     "lastSalesTotal": "€{total} total",
+    "lotLabel": "Lot",
     "rarityDonutTitle": "Répartition rareté",
     "rarityDonutEmpty": "Pas encore de cartes.",
     "rarityModeCount": "Compte",

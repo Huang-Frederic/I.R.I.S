@@ -22,6 +22,23 @@ describe('mapRarity (TCGdex vocabulary)', () => {
     expect(mapRarity('Hyper rare')).toBe('SAR');
   });
 
+  it('maps XY/BW/SM era rarity strings', () => {
+    expect(mapRarity('Rare Holo EX')).toBe('RR');
+    expect(mapRarity('Rare Ultra')).toBe('SR');
+    expect(mapRarity('Rare BREAK')).toBe('R_HOLO');
+    expect(mapRarity('Rare Holo GX')).toBe('RR');
+    expect(mapRarity('Rare Rainbow')).toBe('SAR');
+    expect(mapRarity('Rare Prime')).toBe('R_HOLO');
+    expect(mapRarity('LEGEND')).toBe('RR');
+    expect(mapRarity('Rare Shining')).toBe('SR');
+    expect(mapRarity('Rare Secret')).toBe('SAR');
+    expect(mapRarity('Rare ACE')).toBe('RR');
+    expect(mapRarity('Rare Holo Star')).toBe('SAR');
+    expect(mapRarity('Rare Holo V')).toBe('RR');
+    expect(mapRarity('Rare Holo VMAX')).toBe('RR');
+    expect(mapRarity('Rare Holo VSTAR')).toBe('RR');
+  });
+
   it('falls back to OTHER for unknown or missing values', () => {
     expect(mapRarity(undefined)).toBe('OTHER');
     expect(mapRarity('')).toBe('OTHER');
