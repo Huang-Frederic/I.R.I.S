@@ -43,6 +43,6 @@ export const config = {
      * - /api/prices/update (cron, protected by CRON_SECRET instead of Supabase auth)
      * - any image asset
      */
-    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icons/|api/prices/update|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icons/|api/prices/update|api/prices/snapshot|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

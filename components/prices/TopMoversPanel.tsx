@@ -20,24 +20,41 @@ interface Props {
 }
 
 const PERIOD_OPTIONS = [7, 30, 90] as const;
+// Descending fallback chain: if the selected period has no movers yet (not
+// enough history), automatically try shorter periods so the panel isn't empty
+// while the price_history table is still accumulating data.
+const ALL_PERIODS = [90, 30, 7, 1] as const;
 
 export function TopMoversPanel({ onCardClick }: Props) {
   const t = useTranslations('prices.topMovers');
   const [period, setPeriod] = useState<number>(7);
   const [ups, setUps] = useState<MoverRow[]>([]);
   const [downs, setDowns] = useState<MoverRow[]>([]);
+  const [actualPeriod, setActualPeriod] = useState<number>(7);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const supabase = createClient();
-      const [{ data: u }, { data: d }] = await Promise.all([
-        supabase.rpc('price_history_top_movers', { period_days: period, direction: 'up' }),
-        supabase.rpc('price_history_top_movers', { period_days: period, direction: 'down' }),
-      ]);
-      if (cancelled) return;
-      setUps((u ?? []) as MoverRow[]);
-      setDowns((d ?? []) as MoverRow[]);
+      // Build fallback chain: selected period first, then shorter ones.
+      const chain = ALL_PERIODS.filter((p) => p <= period);
+      for (const p of chain) {
+        const [{ data: u }, { data: d }] = await Promise.all([
+          supabase.rpc('price_history_top_movers', { period_days: p, direction: 'up' }),
+          supabase.rpc('price_history_top_movers', { period_days: p, direction: 'down' }),
+        ]);
+        if (cancelled) return;
+        const uRows = (u ?? []) as MoverRow[];
+        const dRows = (d ?? []) as MoverRow[];
+        if (uRows.length > 0 || dRows.length > 0) {
+          setUps(uRows);
+          setDowns(dRows);
+          setActualPeriod(p);
+          return;
+        }
+      }
+      // All periods returned empty — not enough history yet.
+      if (!cancelled) { setUps([]); setDowns([]); setActualPeriod(period); }
     })();
     return () => { cancelled = true; };
   }, [period]);
@@ -45,7 +62,12 @@ export function TopMoversPanel({ onCardClick }: Props) {
   return (
     <div className="border-border rounded border p-3">
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-medium">{t('title')}</h2>
+        <h2 className="text-sm font-medium">
+          {t('title')}
+          {actualPeriod !== period && (
+            <span className="text-text-faint ml-1.5 text-xs font-normal">({actualPeriod}j)</span>
+          )}
+        </h2>
         <div className="flex gap-1">
           {PERIOD_OPTIONS.map((p) => (
             <button

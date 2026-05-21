@@ -791,18 +791,25 @@ export default function CardScanForm({
       const finalStatus = (lockedStatus ?? form.status) as 'for_sale' | 'pokedex' | 'collection';
       const totalCount = form.count;
 
-      // First iteration potentially triggers replace flow if Pokédex + can_replace
-      const wantsToReplace =
+      // can_replace: show the PokedexReplaceModal BEFORE inserting anything.
+      // handleReplaceConfirm's slow path (pendingReplaceCardId = null) then
+      // demotes the old card and inserts the new one as pokedex atomically.
+      // This avoids orphaning a for_sale card if the user cancels the modal.
+      if (
         finalStatus === 'pokedex' &&
         !lockedStatus &&
         suggestion?.type === 'can_replace' &&
-        !!suggestion.existingCard;
+        suggestion.existingCard
+      ) {
+        setReplaceModal({
+          existingCard: suggestion.existingCard as PokedexReplaceModalCard,
+          hasForSaleConflict: false,
+        });
+        setPhase('reviewing');
+        return;
+      }
 
-      // Bucket the FIRST row gets. Copies 2..N fall back to 'collection'
-      // server-side via buildBatchRows (matches the legacy loop's behaviour).
-      // wantsToReplace flips it to for_sale because the swap moves the old
-      // pokedex card to for_sale and the new card takes the pokedex slot.
-      const effectiveStatus: 'for_sale' | 'pokedex' | 'collection' = wantsToReplace ? 'for_sale' : finalStatus;
+      const effectiveStatus: 'for_sale' | 'pokedex' | 'collection' = finalStatus;
 
       const data = new FormData();
       if (photoBlob) data.append('image', photoBlob, 'card.jpg');
@@ -859,19 +866,6 @@ export default function CardScanForm({
       const firstCardId = created[0]?.id ?? null;
       const counts = { for_sale: 0, pokedex: 0, collection: 0 };
       for (const c of created) counts[c.status]++;
-
-      // Replace flow: the card is already saved as for_sale. Show the modal
-      // so the user can confirm (and choose where to displace the old card)
-      // before we call /api/pokedex/replace.
-      if (wantsToReplace && suggestion?.existingCard && firstCardId) {
-        setPendingReplaceCardId(firstCardId);
-        setReplaceModal({
-          existingCard: suggestion.existingCard as PokedexReplaceModalCard,
-          hasForSaleConflict: false,
-        });
-        setPhase('reviewing');
-        return;
-      }
 
       setSuccessCounts(counts);
       setPhase('success');

@@ -21,7 +21,8 @@ interface CardRow {
 
 interface RowWithHistory extends CardRow {
   history: number[];        // up to last 30 daily points (avg)
-  delta30Pct: number | null;
+  deltaPct: number | null;
+  deltaPeriodDays: 30 | 7 | 1 | null;
 }
 
 const ROW_HEIGHT = 44;
@@ -75,16 +76,18 @@ export function AllCardsList({ initialSetFilter, onCardClick }: Props) {
       const enriched: RowWithHistory[] = cards.map((c) => {
         const points = byCard.get(c.id) ?? [];
         const values = points.map((p) => p.cm_price_avg).filter((v): v is number => v != null);
-        // Honest "Δ 30j" — only compare against a point near J-30 (±2j),
-        // matching the matrix tolerance in price-trend.ts. If the card was
-        // added < 28 days ago, no qualifying point exists and we render '—'
-        // rather than a misleading shorter-period delta.
-        const base = findPointForTier(points, todayIso, 30);
+        // Try J-30 → J-7 → J-1: use the longest period that has a data point.
+        let base: number | null = null;
+        let deltaPeriodDays: 30 | 7 | 1 | null = null;
+        for (const days of [30, 7, 1] as const) {
+          const b = findPointForTier(points, todayIso, days);
+          if (b !== null) { base = b; deltaPeriodDays = days; break; }
+        }
         const last = c.cm_price_avg ?? values[values.length - 1] ?? null;
         const deltaPct = base != null && last != null && base > 0
           ? ((last - base) / base) * 100
           : null;
-        return { ...(c as CardRow), history: values, delta30Pct: deltaPct };
+        return { ...(c as CardRow), history: values, deltaPct, deltaPeriodDays };
       });
 
       if (!cancelled) {
@@ -125,7 +128,7 @@ export function AllCardsList({ initialSetFilter, onCardClick }: Props) {
     out = [...out].sort((a, b) => {
       switch (sortKey) {
         case 'delta':
-          return (b.delta30Pct ?? -Infinity) - (a.delta30Pct ?? -Infinity);
+          return (b.deltaPct ?? -Infinity) - (a.deltaPct ?? -Infinity);
         case 'price':
           return (b.cm_price_avg ?? 0) - (a.cm_price_avg ?? 0);
         case 'name':
@@ -202,8 +205,15 @@ export function AllCardsList({ initialSetFilter, onCardClick }: Props) {
                 {r.card_name} <span className="text-text-faint text-xs">{r.set_number} · {r.set_name}</span>
               </span>
               <Sparkline values={r.history} />
-              <span className={`w-16 text-right text-xs ${r.delta30Pct == null ? 'text-text-faint' : r.delta30Pct >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {r.delta30Pct == null ? '—' : `${r.delta30Pct >= 0 ? '+' : ''}${r.delta30Pct.toFixed(1)}%`}
+              <span className={`w-16 text-right text-xs ${r.deltaPct == null ? 'text-text-faint' : r.deltaPct >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {r.deltaPct == null ? '—' : (
+                  <>
+                    {r.deltaPct >= 0 ? '+' : ''}{r.deltaPct.toFixed(1)}%
+                    {r.deltaPeriodDays !== 30 && (
+                      <span className="ml-0.5 opacity-50">{r.deltaPeriodDays}j</span>
+                    )}
+                  </>
+                )}
               </span>
               <span className="w-14 text-right text-xs">
                 {r.cm_price_avg == null ? '—' : `${r.cm_price_avg.toFixed(2)}€`}

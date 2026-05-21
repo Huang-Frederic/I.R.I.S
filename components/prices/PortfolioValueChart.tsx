@@ -15,40 +15,117 @@ interface Snapshot {
   value_pokedex: number;
 }
 
+interface CardEntry {
+  id: string;
+  status: 'for_sale' | 'collection' | 'pokedex';
+  cm_price_avg: number;
+}
+
+interface FirstPrice {
+  date: string;  // earliest bucket_date in price_history
+  price: number; // cm_price_avg at that date
+}
+
 export function PortfolioValueChart() {
   const t = useTranslations('prices.portfolio');
   const [period, setPeriod] = useState<Period>(90);
   const [includes, setIncludes] = useState({ for_sale: true, collection: true, pokedex: false });
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  // For each card: the earliest price_history entry (date + price).
+  // Used to backfill snapshot dates that predate the card's first snapshot,
+  // so adding a new card doesn't appear as an instant profit spike.
+  const [cards, setCards] = useState<CardEntry[]>([]);
+  const [firstPriceMap, setFirstPriceMap] = useState<Map<string, FirstPrice>>(new Map());
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const supabase = createClient();
-      let query = supabase.from('stock_value_snapshots')
+
+      // 1. Snapshots for the selected period
+      let snapQuery = supabase
+        .from('stock_value_snapshots')
         .select('date, value_for_sale, value_collection, value_pokedex')
         .order('date', { ascending: true });
       if (period !== 'all') {
         const cutoff = new Date(Date.now() - (period as number) * 86_400_000).toISOString().slice(0, 10);
-        query = query.gte('date', cutoff);
+        snapQuery = snapQuery.gte('date', cutoff);
       }
-      const { data } = await query;
-      if (!cancelled) setSnapshots((data ?? []) as Snapshot[]);
+
+      // 2. All currently priceable cards (to detect which ones are new)
+      const cardQuery = supabase
+        .from('cards')
+        .select('id, status, cm_price_avg')
+        .in('status', ['for_sale', 'collection', 'pokedex'])
+        .not('cm_price_avg', 'is', null);
+
+      const [{ data: snapData }, { data: cardData }] = await Promise.all([snapQuery, cardQuery]);
+      if (cancelled) return;
+
+      const loadedCards = (cardData ?? []) as CardEntry[];
+      setSnapshots((snapData ?? []) as Snapshot[]);
+      setCards(loadedCards);
+
+      if (loadedCards.length === 0) { setFirstPriceMap(new Map()); return; }
+
+      // 3. Earliest price_history entry per card (daily granularity only).
+      // Ordered ASC so we can stop at the first row per card client-side.
+      // No date lower bound: we need the absolute earliest entry regardless of
+      // the chart window, because a card added 200 days ago with a 90-day chart
+      // window should still be treated as "always present" within that window.
+      const { data: histData } = await supabase
+        .from('price_history')
+        .select('card_id, bucket_date, cm_price_avg')
+        .in('card_id', loadedCards.map((c) => c.id))
+        .eq('granularity', 'daily')
+        .order('bucket_date', { ascending: true });
+
+      if (cancelled) return;
+
+      const map = new Map<string, FirstPrice>();
+      for (const row of (histData ?? []) as { card_id: string; bucket_date: string; cm_price_avg: number | null }[]) {
+        if (!map.has(row.card_id) && row.cm_price_avg != null) {
+          map.set(row.card_id, { date: row.bucket_date, price: row.cm_price_avg });
+        }
+      }
+      setFirstPriceMap(map);
     })();
     return () => { cancelled = true; };
   }, [period]);
 
-  const chartData = useMemo(
-    () =>
-      snapshots.map((s) => ({
+  const chartData = useMemo(() => {
+    return snapshots.map((s) => {
+      // For each snapshot date, add the contribution of cards that did NOT
+      // appear in that snapshot yet (their first price_history entry is after
+      // this date, or they have no history at all). This makes the portfolio
+      // line flat before a card's first snapshot rather than spiking upward
+      // the day the card was discovered/priced.
+      let adj_for_sale = 0;
+      let adj_collection = 0;
+      let adj_pokedex = 0;
+
+      for (const card of cards) {
+        const first = firstPriceMap.get(card.id);
+        const appearsOnDate = first != null && first.date <= s.date;
+        if (!appearsOnDate) {
+          // Use first-known price as the constant backfill; fall back to
+          // current price for cards that have never had a price_history entry.
+          const backfill = first?.price ?? card.cm_price_avg;
+          if (card.status === 'for_sale') adj_for_sale += backfill;
+          else if (card.status === 'collection') adj_collection += backfill;
+          else if (card.status === 'pokedex') adj_pokedex += backfill;
+        }
+      }
+
+      return {
         date: s.date,
         total:
-          (includes.for_sale ? s.value_for_sale : 0) +
-          (includes.collection ? s.value_collection : 0) +
-          (includes.pokedex ? s.value_pokedex : 0),
-      })),
-    [snapshots, includes],
-  );
+          (includes.for_sale ? (s.value_for_sale ?? 0) + adj_for_sale : 0) +
+          (includes.collection ? (s.value_collection ?? 0) + adj_collection : 0) +
+          (includes.pokedex ? (s.value_pokedex ?? 0) + adj_pokedex : 0),
+      };
+    });
+  }, [snapshots, cards, firstPriceMap, includes]);
 
   const current = chartData[chartData.length - 1]?.total ?? 0;
   const start = chartData[0]?.total ?? 0;
