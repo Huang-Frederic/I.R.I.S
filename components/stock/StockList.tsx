@@ -11,7 +11,6 @@ import StockRow from './StockRow';
 import ExchangeOnConflictModal, { type ExchangeConflictCard } from '@/components/vinted/ExchangeOnConflictModal';
 import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
 import PokedexCompareModal, { type PokedexCompareModalCard } from '@/components/cards/PokedexCompareModal';
-import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
 import { PriceDetailModal } from '@/components/price/PriceDetailModal';
 import { createClient } from '@/lib/supabase/client';
 import { normalizeForSearch } from '@/lib/utils/text-normalize';
@@ -196,8 +195,7 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
   };
 
   return (
-    <PriceTrendsProvider>
-      <div>
+    <div>
         <StockFilters
           value={filters}
           onChange={setFilters}
@@ -279,6 +277,5 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
           />
         )}
       </div>
-    </PriceTrendsProvider>
   );
 }

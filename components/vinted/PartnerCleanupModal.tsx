@@ -6,9 +6,7 @@ import { AlertTriangle } from 'lucide-react';
 
 interface Props {
   partnerName: string;
-  /** Display name of the item that was just sold (card_name or lot.name). */
-  itemDisplayName: string;
-  itemKind: 'card' | 'lot';
+  items: Array<{ displayName: string; kind: 'card' | 'lot' }>;
   onClose: () => void;
 }
 
@@ -22,11 +20,10 @@ interface Props {
  * dismissed any restock proposal. Not shown when restock is available
  * (the new for-sale row covers the partner's listing).
  */
-export default function PartnerCleanupModal({ partnerName, itemDisplayName, itemKind, onClose }: Props) {
+export default function PartnerCleanupModal({ partnerName, items, onClose }: Props) {
   const t = useTranslations('vintedPromote');
   const tCommon = useTranslations('common');
 
-  // Escape closes — purely informational modal, no in-flight state.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -34,6 +31,12 @@ export default function PartnerCleanupModal({ partnerName, itemDisplayName, item
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  const bodyKey = items.length > 1
+    ? 'partnerCleanupBodyMultiple'
+    : items[0].kind === 'card'
+      ? 'partnerCleanupBodyCard'
+      : 'partnerCleanupBodyLot';
 
   return (
     <div
@@ -50,14 +53,20 @@ export default function PartnerCleanupModal({ partnerName, itemDisplayName, item
           </div>
           <div>
             <h2 className="text-lg font-semibold">{t('partnerCleanupTitle', { name: partnerName })}</h2>
-            <p className="text-text-muted mt-1 text-sm">{itemDisplayName}</p>
+            {items.length === 1 ? (
+              <p className="text-text-muted mt-1 text-sm">{items[0].displayName}</p>
+            ) : (
+              <ul className="text-text-muted mt-1 space-y-0.5 text-sm">
+                {items.map((item, i) => (
+                  <li key={i}>· {item.displayName}</li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 
         <div className="space-y-3 text-sm">
-          <p>
-            {itemKind === 'card' ? t('partnerCleanupBodyCard') : t('partnerCleanupBodyLot')}
-          </p>
+          <p>{t(bodyKey)}</p>
           <p className="text-text-muted">
             {t('partnerCleanupNote', { name: partnerName })}
           </p>

@@ -22,6 +22,7 @@ interface SoldLot {
   photo_urls: string[];
   sold_price: number | null;
   date_sold: string | null;
+  date_added: string;
   language: string | null;
   condition: string | null;
 }

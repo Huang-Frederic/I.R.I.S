@@ -433,6 +433,7 @@
     "partnerCleanupTitle": "Action needed for {name}",
     "partnerCleanupBodyCard": "This card is marked as sold and there's no other copy to put back up for sale.",
     "partnerCleanupBodyLot": "This lot is marked as sold and there's no other copy to put back up for sale.",
+    "partnerCleanupBodyMultiple": "These items are marked as sold and have no other copy to put back up for sale.",
     "partnerCleanupNote": "{name} will need to remove their Vinted listing manually (IRIS can't delete a listing on a third-party account).",
     "bulkPromoteTitle": "Promote cards to Vinted",
     "bulkPromoteSubtitle": "{count, plural, one {1 card can replace a sold listing} other {# cards can replace sold listings}}",

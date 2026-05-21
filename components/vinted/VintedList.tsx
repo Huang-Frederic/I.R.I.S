@@ -29,7 +29,6 @@ import { createClient } from '@/lib/supabase/client';
 import LotRow from '@/components/lots/LotRow';
 import LotSoldRow from '@/components/lots/LotSoldRow';
 import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
-import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
 import BulkSelectionBottomBar from './BulkSelectionBottomBar';
 import BulkSoldModal, { type BulkSoldItem } from './BulkSoldModal';
 import BulkSoldRecapModal from './BulkSoldRecapModal';
@@ -449,7 +448,6 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     forSaleRows.length === 0 && soldRows.length === 0 && soldLotsList.length === 0;
 
   return (
-    <PriceTrendsProvider>
     <div>
       <VintedFilters
         value={filters}
@@ -608,8 +606,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
       {partnerCleanup && !promoteCandidate && partnerName && (
         <PartnerCleanupModal
           partnerName={partnerName}
-          itemDisplayName={partnerCleanup.itemDisplayName}
-          itemKind={partnerCleanup.itemKind}
+          items={[{ displayName: partnerCleanup.itemDisplayName, kind: partnerCleanup.itemKind }]}
           onClose={() => setPartnerCleanup(null)}
         />
       )}
@@ -621,9 +618,8 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
       {!bulkRecap && bulkPromoteCandidates.length === 0 && partnerCleanupQueue.length > 0 && partnerName && (
         <PartnerCleanupModal
           partnerName={partnerName}
-          itemDisplayName={partnerCleanupQueue[0].itemDisplayName}
-          itemKind={partnerCleanupQueue[0].itemKind}
-          onClose={() => setPartnerCleanupQueue((q) => q.slice(1))}
+          items={partnerCleanupQueue.map((e) => ({ displayName: e.itemDisplayName, kind: e.itemKind }))}
+          onClose={() => setPartnerCleanupQueue([])}
         />
       )}
       {annonceTarget && (() => {
@@ -700,6 +696,5 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
         />
       )}
     </div>
-    </PriceTrendsProvider>
   );
 }

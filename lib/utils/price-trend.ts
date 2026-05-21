@@ -1,6 +1,6 @@
 import type { DeltaMatrixData, PriceHistoryPoint, PriceTrend } from '@/lib/types/price-history';
 
-const STABLE_THRESHOLD_EUR = 0.01;
+const STABLE_THRESHOLD_PCT = 0.5; // skip tier only if price changed by less than 0.5%
 const TIER_TOLERANCE_DAYS = 2;
 const CASCADE_TIERS: PriceTrend['period_days'][] = [1, 3, 7, 30, 90];
 
@@ -23,7 +23,7 @@ export function computeCascadeTrend(
   for (const tier of CASCADE_TIERS) {
     const base = pickOldest(buckets.get(tier) ?? []);
     if (base == null) continue;
-    if (Math.abs(currentPrice - base) < STABLE_THRESHOLD_EUR) continue;
+    if (base > 0 && Math.abs((currentPrice - base) / base) * 100 < STABLE_THRESHOLD_PCT) continue;
     return {
       delta_eur: currentPrice - base,
       delta_pct: ((currentPrice - base) / base) * 100,

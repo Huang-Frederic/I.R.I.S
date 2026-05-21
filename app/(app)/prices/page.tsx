@@ -3,7 +3,6 @@
 import { Suspense, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
 import { StatsHeader } from '@/components/prices/StatsHeader';
 import { PortfolioValueChart } from '@/components/prices/PortfolioValueChart';
 import { TopMoversPanel } from '@/components/prices/TopMoversPanel';
@@ -15,9 +14,7 @@ import type { Card } from '@/lib/types';
 export default function PricesPage() {
   return (
     <Suspense>
-      <PriceTrendsProvider>
-        <PricesPageContent />
-      </PriceTrendsProvider>
+      <PricesPageContent />
     </Suspense>
   );
 }

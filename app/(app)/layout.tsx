@@ -3,6 +3,7 @@ import BottomNav from '@/components/layout/BottomNav';
 import RouteChangeRefresher from '@/components/layout/RouteChangeRefresher';
 import InstallPrompt from '@/components/layout/InstallPrompt';
 import { UserContextProvider, type UserContextValue } from '@/lib/hooks/useUserContext';
+import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
 import { createClient } from '@/lib/supabase/server';
 import type { UserProfile } from '@/lib/types';
 
@@ -33,15 +34,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <UserContextProvider value={userContextValue}>
-      <RouteChangeRefresher />
-      <div className="min-h-screen overflow-x-hidden">
-        <Sidebar />
-        <main className="min-h-screen md:pl-[220px]">
-          <div className="mx-auto max-w-[1200px] px-4 pb-20 pt-6 md:px-8 md:pb-8">{children}</div>
-        </main>
-        <BottomNav />
-        <InstallPrompt />
-      </div>
+      <PriceTrendsProvider>
+        <RouteChangeRefresher />
+        <div className="min-h-screen overflow-x-hidden">
+          <Sidebar />
+          <main className="min-h-screen md:pl-[220px]">
+            <div className="mx-auto max-w-[1200px] px-4 pb-20 pt-6 md:px-8 md:pb-8">{children}</div>
+          </main>
+          <BottomNav />
+          <InstallPrompt />
+        </div>
+      </PriceTrendsProvider>
     </UserContextProvider>
   );
 }

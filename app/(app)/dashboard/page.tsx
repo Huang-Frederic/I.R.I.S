@@ -23,7 +23,6 @@ import ScanHeatmap from '@/components/dashboard/ScanHeatmap';
 import TopRaresList from '@/components/dashboard/TopRaresList';
 import LastSalesList from '@/components/dashboard/LastSalesList';
 import PokedexCount from '@/components/dashboard/PokedexCount';
-import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
 import type { Card } from '@/lib/types';
 
 export async function generateMetadata() {
@@ -104,10 +103,9 @@ export default async function DashboardPage({
       .limit(10),
     supabase
       .from('lots')
-      .select('id, name, photo_urls, sold_price, date_sold, language, condition')
+      .select('id, name, photo_urls, sold_price, date_sold, date_added, language, condition')
       .eq('status', 'sold')
-      .not('date_sold', 'is', null)
-      .order('date_sold', { ascending: false })
+      .order('date_sold', { ascending: false, nullsFirst: false })
       .limit(10),
     supabase
       .from('cards')
@@ -128,14 +126,16 @@ export default async function DashboardPage({
   })[];
 
   type SoldCardItem = NonNullable<typeof lastSales>[number] & { kind: 'card' };
-  type SoldLotItem = { kind: 'lot'; id: string; name: string; photo_urls: string[]; sold_price: number | null; date_sold: string | null; language: string | null; condition: string | null };
+  type SoldLotItem = { kind: 'lot'; id: string; name: string; photo_urls: string[]; sold_price: number | null; date_sold: string | null; date_added: string; language: string | null; condition: string | null };
   type SoldItem = SoldCardItem | SoldLotItem;
 
   const soldCards: SoldItem[] = (lastSales ?? []).map((s) => ({ kind: 'card' as const, ...s }));
   const soldLots: SoldItem[] = (lastLots ?? []).map((l) => ({ kind: 'lot' as const, ...l }));
+  const sortKey = (s: SoldItem) =>
+    s.date_sold ?? (s.kind === 'lot' ? s.date_added : '');
   const allSales = [...soldCards, ...soldLots]
-    .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''))
-    .slice(0, 10);
+    .sort((a, b) => sortKey(b).localeCompare(sortKey(a)))
+    .slice(0, 15);
 
   const rarityCounts = buildRarityCounts(cards);
   const rarityValues = buildRarityValues(cards);
@@ -195,15 +195,13 @@ export default async function DashboardPage({
         <ScanHeatmap matrix={heatmap} details={Object.fromEntries(dayDetails)} />
       </div>
 
-      <PriceTrendsProvider>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <LastSalesList
-                sales={allSales}
-                storagePublicUrl={process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
-              />
-          <TopRaresList cards={topRares} />
-        </div>
-      </PriceTrendsProvider>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <LastSalesList
+              sales={allSales}
+              storagePublicUrl={process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
+            />
+        <TopRaresList cards={topRares} />
+      </div>
     </section>
   );
 }
