@@ -6,6 +6,16 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-05-21 — v1.0.3: cron snapshot fix, trend arrows persistence, bulk partner cleanup, lots in dashboard
+
+- **Snapshot cron 401 corrigé** — `proxy.ts` (le middleware Next.js) bloquait `/api/prices/snapshot` via la vérification Supabase auth, renvoyant 401 à Vercel Cron chaque nuit. Le chemin est maintenant exclu du matcher d'auth au même titre que `/api/prices/update`. `price_history` recommence à s'alimenter à 23:55 UTC.
+- **Trend arrows persistent entre pages** — `PriceTrendsProvider` était instancié séparément dans chaque page (Dashboard, Prices, Stock, Vinted), provoquant un remontage complet à chaque navigation et effaçant le cache de prix. Remonté au niveau du layout `(app)` — un seul provider pour toute l'appli, les flèches restent affichées sans re-fetch.
+- **Seuil de stabilité relatif** — l'ancien seuil absolu de 0,01 € était trop strict pour des cartes à 5-15 € avec peu d'historique (8 jours). Remplacé par un seuil relatif de 0,5 % : une variation de moins de 0,5 % du prix de référence est considérée stable. Les flèches apparaissent maintenant correctement sur les cartes peu chères.
+- **Bulk partner cleanup : 1 modal au lieu de N** — lors d'une vente multiple impliquant plusieurs cartes d'un partenaire sans stock de remplacement, IRIS empilait un modal de warning par carte. Remplacé par un seul modal listant toutes les cartes concernées (`partnerCleanupBodyMultiple`). Nouvelle clé de traduction en FR/EN.
+- **Lots dans les dernières ventes du dashboard** — les lots vendus n'apparaissaient pas dans le widget "Dernières ventes" du dashboard. Deux causes : filtre `.not('date_sold', 'is', null)` trop strict sur les lots, et `slice(0, 10)` qui pouvait les exclure si des cartes récentes dominaient. Filtre retiré, tri avec fallback sur `date_added`, slice porté à 15.
+
+---
+
 ## 2026-05-15 — v1.0.2 polish: modal scroll, row layout, delete-from-modal
 
 Follow-up to v1.0.1 covering the Vinted annonce flow (cards + lots) and the mobile row UX.
