@@ -57,7 +57,7 @@ export function StatsHeader() {
       <div className="border-border rounded border p-3">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-medium">{t('overview')}</h2>
-          <PeriodButtons period={period} setPeriod={setPeriod} tStats={tStats} />
+          <PeriodButtons period={period} setPeriod={setPeriod} />
         </div>
         <p className="text-text-faint text-xs">Pas encore de données — le premier snapshot arrive ce soir à 23h55.</p>
       </div>
@@ -77,7 +77,7 @@ export function StatsHeader() {
             <span className="text-text-faint ml-1.5 text-xs font-normal">({actualPeriod}j)</span>
           )}
         </h2>
-        <PeriodButtons period={period} setPeriod={setPeriod} tStats={tStats} />
+        <PeriodButtons period={period} setPeriod={setPeriod} />
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
         <Stat icon={<TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />} label={tStats('labelUp')} value={stats.cards_up} />
@@ -92,12 +92,11 @@ export function StatsHeader() {
 function PeriodButtons({
   period,
   setPeriod,
-  tStats,
 }: {
   period: number;
   setPeriod: (p: number) => void;
-  tStats: (key: string, values?: Record<string, unknown>) => string;
 }) {
+  const tStats = useTranslations('prices.stats');
   return (
     <div className="flex gap-1">
       {PERIOD_OPTIONS.map((p) => (
