@@ -8,6 +8,7 @@ import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
 import { displayCardName, displaySetName } from '@/lib/utils/format-name';
 import ListingBadges from './ListingBadges';
 import StockCountChip from './StockCountChip';
+import VintedPostButton from './VintedPostButton';
 
 function thumbUrl(card: Card): string {
   if (card.image_url) return card.image_url;
@@ -170,6 +171,23 @@ export default function VintedRow({
             <Tag className="mr-1 inline h-3 w-3 sm:h-3.5 sm:w-3.5" />
             {t('rowAnnonceButton')}
           </button>
+
+          {/* Post to Vinted — shown when not yet posted and not in selection mode */}
+          {!card.vinted_listing_id && !selectionMode && (
+            <VintedPostButton cardId={card.id} />
+          )}
+
+          {/* When already posted — show a link to the listing */}
+          {card.vinted_listing_id && !selectionMode && (
+            <a
+              href={`https://www.vinted.fr/items/${card.vinted_listing_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] sm:text-xs text-green-500 underline shrink-0"
+            >
+              Vinted ↗
+            </a>
+          )}
 
           {/* Hide the Vendu button when the card is already sold — only the
             partner could mark it sold, my row is here only because my listing

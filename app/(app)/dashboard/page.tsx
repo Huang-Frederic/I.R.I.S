@@ -22,6 +22,7 @@ import RarityDonut from '@/components/dashboard/RarityDonut';
 import ScanHeatmap from '@/components/dashboard/ScanHeatmap';
 import TopRaresList from '@/components/dashboard/TopRaresList';
 import LastSalesList from '@/components/dashboard/LastSalesList';
+import VintedPostsWidget from '@/components/dashboard/VintedPostsWidget';
 import PokedexCount from '@/components/dashboard/PokedexCount';
 import type { Card } from '@/lib/types';
 
@@ -74,6 +75,7 @@ export default async function DashboardPage({
     { data: lastLots },
     { data: pokedexRows },
     { data: lastPokedexAdds },
+    { data: vintedPostedToday },
   ] = await Promise.all([
     supabase
       .from('cards')
@@ -117,6 +119,12 @@ export default async function DashboardPage({
       .eq('status', 'pokedex')
       .order('date_added', { ascending: false })
       .limit(3),
+    supabase
+      .from('cards')
+      .select('id, card_name, vinted_listing_id, vinted_posted_at, image_url, tcg_image_url')
+      .not('vinted_listing_id', 'is', null)
+      .gte('vinted_posted_at', new Date().toISOString().slice(0, 10))
+      .order('vinted_posted_at', { ascending: false }),
   ]);
 
   const cards = (pricedCards ?? []) as unknown as (Card & {
@@ -128,6 +136,14 @@ export default async function DashboardPage({
   type SoldCardItem = NonNullable<typeof lastSales>[number] & { kind: 'card' };
   type SoldLotItem = { kind: 'lot'; id: string; name: string; photo_urls: string[]; sold_price: number | null; date_sold: string | null; date_added: string; language: string | null; condition: string | null };
   type SoldItem = SoldCardItem | SoldLotItem;
+  type PostedCard = {
+    id: string;
+    card_name: string;
+    vinted_listing_id: string;
+    vinted_posted_at: string;
+    image_url: string | null;
+    tcg_image_url: string | null;
+  };
 
   const soldCards: SoldItem[] = (lastSales ?? []).map((s) => ({ kind: 'card' as const, ...s }));
   const soldLots: SoldItem[] = (lastLots ?? []).map((l) => ({ kind: 'lot' as const, ...l }));
@@ -201,6 +217,10 @@ export default async function DashboardPage({
               storagePublicUrl={process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
             />
         <TopRaresList cards={topRares} />
+      </div>
+
+      <div className="mt-4">
+        <VintedPostsWidget cards={(vintedPostedToday ?? []) as PostedCard[]} />
       </div>
     </section>
   );
