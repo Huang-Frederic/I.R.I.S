@@ -72,6 +72,11 @@ export default async function VintedPage() {
     listings: lotListings.filter((ll) => ll.lot_id === l.id),
   }));
 
+  const currentUserId = (await supabase.auth.getUser()).data.user?.id ?? '';
+  const allowedVintedIds = (process.env.VINTED_USER_IDS ?? '')
+    .split(',').map((s) => s.trim()).filter(Boolean);
+  const vintedEnabled = allowedVintedIds.includes(currentUserId);
+
   return (
     <section>
       <PageTitle
@@ -79,7 +84,7 @@ export default async function VintedPage() {
         subtitle={t('pageSubtitle', { count: cards.length })}
       />
       <div className="mt-6">
-        <VintedList cards={cardsWithListings} lots={lotsWithListings} collectionCards={collectionCards} registered={registered} config={config} />
+        <VintedList cards={cardsWithListings} lots={lotsWithListings} collectionCards={collectionCards} registered={registered} config={config} vintedEnabled={vintedEnabled} />
       </div>
     </section>
   );

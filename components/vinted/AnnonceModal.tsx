@@ -198,8 +198,8 @@ export default function AnnonceModal({ card, listings, myUserId, partnerUserId, 
   // Fallback chain: user's photo → TCG official → PokeAPI sprite (if Pokémon) → empty.
   // For Trainers/Energies (pokemon_number null), there's no sprite — usually
   // image_url or tcg_image_url is present anyway.
-  const sprite = pokeApiSprite(card.pokemon_number) ?? '';
-  const myPhoto = card.image_url ?? sprite;
+  const sprite = pokeApiSprite(card.pokemon_number);
+  const myPhoto = card.image_url ?? sprite ?? '';
   const tcgPhoto = card.tcg_image_url ?? sprite;
 
   const partnerListing = getPartnerListing(listings, partnerUserId);

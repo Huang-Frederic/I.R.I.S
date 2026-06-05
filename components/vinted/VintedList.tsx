@@ -48,6 +48,9 @@ export interface VintedListProps {
   collectionCards: Card[];
   registered: Set<number>;
   config: Record<string, string>;
+  /** When true, the current user is the designated Vinted user and the
+   *  "Post to Vinted" button is shown in each row. */
+  vintedEnabled: boolean;
 }
 
 function normalize(s: string): string {
@@ -81,7 +84,7 @@ function matchesAttrFilters(card: CardWithListings, f: VintedFilterState): boole
   return true;
 }
 
-export default function VintedList({ cards: initial, lots: initialLots, collectionCards: initialCollection, registered, config }: VintedListProps) {
+export default function VintedList({ cards: initial, lots: initialLots, collectionCards: initialCollection, registered, config, vintedEnabled }: VintedListProps) {
   const router = useRouter();
   const t = useTranslations('vinted');
   const tSold = useTranslations('vintedSold');
@@ -496,6 +499,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
                 stockCount={stockCountByGroup.get(groupKey(row.group.head)) ?? 0}
                 onSetStockCount={(target) => handleSetStockCount(row.group.head, target)}
                 stockBusy={stockBusyKeys.has(row.group.key)}
+                vintedEnabled={vintedEnabled}
               />
             ) : (
               <LotRow

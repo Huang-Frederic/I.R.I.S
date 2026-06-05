@@ -86,3 +86,6 @@ docs/screenshots/*.mp4
 
 # Local SQL exports (one-shot debug exports from Supabase SQL editor).
 *.csv
+# Vinted mitmproxy captures
+vinted_capture.txt
+vinted_ress/

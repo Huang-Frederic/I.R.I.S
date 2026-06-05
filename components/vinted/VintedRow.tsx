@@ -6,9 +6,11 @@ import type { Card, BaseListing } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
 import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
 import { displayCardName, displaySetName } from '@/lib/utils/format-name';
+import { getMyListing } from '@/lib/utils/listings';
 import ListingBadges from './ListingBadges';
 import StockCountChip from './StockCountChip';
 import VintedPostButton from './VintedPostButton';
+import VintedLogo from '@/components/ui/VintedLogo';
 
 function thumbUrl(card: Card): string {
   if (card.image_url) return card.image_url;
@@ -50,13 +52,18 @@ interface Props {
   onSetStockCount: (target: number) => void;
   /** True while the parent is mid-clone/delete for this group's stock. */
   stockBusy?: boolean;
+  /** When true, the current user is the designated Vinted user and the
+   *  "Post to Vinted" button is shown. */
+  vintedEnabled?: boolean;
 }
 
 export default function VintedRow({
-  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onImageClick, onMoveToPokedexClick, onComparePokedexClick, selectionMode, selected, onToggleSelect, stockCount, onSetStockCount, stockBusy,
+  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onImageClick, onMoveToPokedexClick, onComparePokedexClick, selectionMode, selected, onToggleSelect, stockCount, onSetStockCount, stockBusy, vintedEnabled,
 }: Props) {
   const t = useTranslations('vinted');
   const card = group.head;
+  const mine = getMyListing(listings, myUserId);
+  const isOnline = mine !== null;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
 
   return (
@@ -172,35 +179,46 @@ export default function VintedRow({
             {t('rowAnnonceButton')}
           </button>
 
-          {/* Post to Vinted — shown when not yet posted and not in selection mode */}
-          {!card.vinted_listing_id && !selectionMode && (
-            <VintedPostButton cardId={card.id} />
+          {!isOnline && !selectionMode && vintedEnabled && (
+            <VintedPostButton
+              cardId={card.id}
+              hasPrice={card.suggested_price !== null}
+              onListingsChanged={onListingsChanged}
+            />
           )}
 
-          {/* When already posted — show a link to the listing */}
-          {card.vinted_listing_id && !selectionMode && (
-            <a
-              href={`https://www.vinted.fr/items/${card.vinted_listing_id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[10px] sm:text-xs text-green-500 underline shrink-0"
-            >
-              Vinted ↗
-            </a>
-          )}
-
-          {/* Hide the Vendu button when the card is already sold — only the
-            partner could mark it sold, my row is here only because my listing
-            is still up (À retirer). The ListingBadges X button handles that. */}
-          {group.head.status !== 'sold' && (
-            <button
-              type="button"
-              onClick={onSoldClick}
-              disabled={selectionMode}
-              className="bg-red text-bg shrink-0 rounded px-2 py-1 text-[10px] font-medium hover:opacity-90 disabled:opacity-40 sm:px-3 sm:py-1.5 sm:text-xs"
-            >
-              {t('rowSoldButton')}
-            </button>
+          {isOnline && !selectionMode && (
+            <>
+              {group.head.status !== 'sold' && (
+                <button
+                  type="button"
+                  onClick={onSoldClick}
+                  disabled={selectionMode}
+                  className="bg-red text-bg shrink-0 rounded px-2 py-1 text-[10px] font-medium hover:opacity-90 disabled:opacity-40 sm:px-3 sm:py-1.5 sm:text-xs"
+                >
+                  {t('rowSoldButton')}
+                </button>
+              )}
+              {vintedEnabled && (
+                card.vinted_listing_id ? (
+                  <a
+                    href={`https://www.vinted.fr/items/${card.vinted_listing_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 hover:opacity-70 transition-opacity"
+                    title="Voir l'annonce sur Vinted"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/vinted-logo.jpeg" alt="Vinted" className="h-6 w-6 rounded sm:h-7 sm:w-7 object-cover" />
+                  </a>
+                ) : (
+                  <span className="shrink-0 cursor-not-allowed opacity-25" title="Pas de lien Vinted (posté manuellement)">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/vinted-logo.jpeg" alt="Vinted" className="h-6 w-6 rounded sm:h-7 sm:w-7 object-cover" />
+                  </span>
+                )
+              )}
+            </>
           )}
         </div>
       </div>

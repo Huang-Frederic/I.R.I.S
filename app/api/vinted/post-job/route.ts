@@ -21,9 +21,16 @@ export async function POST(request: Request) {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return unauthorizedResponse();
 
+  // Only designated Vinted users can post — each has their own Vinted account/cookies
+  const allowedIds = (process.env.VINTED_USER_IDS ?? '')
+    .split(',').map((s) => s.trim()).filter(Boolean);
+  if (!allowedIds.includes(auth.user.id)) {
+    return apiError('forbidden', { status: 403, message: 'Vinted posting not enabled for this account' });
+  }
+
   const { data: card, error: cardError } = await supabase
     .from('cards')
-    .select('id, status, vinted_listing_id')
+    .select('id, status, vinted_listing_id, suggested_price, cm_price_low, cm_price_avg')
     .eq('id', card_id)
     .single();
 
@@ -36,14 +43,18 @@ export async function POST(request: Request) {
   if (card.status !== 'for_sale') {
     return apiError('invalid_status', { status: 400, message: 'Card must be for_sale' });
   }
+  if (card.suggested_price === null) {
+    return apiError('no_price', { status: 400, message: 'Aucun prix Vinted défini pour cette carte' });
+  }
 
   const { data: job, error: jobError } = await supabase
     .from('vinted_post_jobs')
-    .insert({ card_id })
+    .insert({ card_id, user_id: auth.user.id })
     .select()
     .single();
 
   if (jobError) {
+    console.error('[vinted/post-job] insert failed:', jobError.message, jobError.code);
     return apiError('job_create_failed', { status: 500, message: jobError.message });
   }
 

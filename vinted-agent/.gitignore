@@ -1,5 +1,8 @@
-cookies.json
+cookies_*.json
+vinted_users.json
 .env
 __pycache__/
 *.pyc
 .pytest_cache/
+login.py
+start_chrome_debug.bat
