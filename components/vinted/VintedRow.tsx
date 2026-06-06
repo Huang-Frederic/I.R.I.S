@@ -10,6 +10,7 @@ import { getMyListing } from '@/lib/utils/listings';
 import ListingBadges from './ListingBadges';
 import StockCountChip from './StockCountChip';
 import VintedPostButton from './VintedPostButton';
+import VintedBumpButton from './VintedBumpButton';
 import VintedLogo from '@/components/ui/VintedLogo';
 
 function thumbUrl(card: Card): string {
@@ -201,16 +202,19 @@ export default function VintedRow({
               )}
               {vintedEnabled && (
                 card.vinted_listing_id ? (
-                  <a
-                    href={`https://www.vinted.fr/items/${card.vinted_listing_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 hover:opacity-70 transition-opacity"
-                    title="Voir l'annonce sur Vinted"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/vinted-logo.jpeg" alt="Vinted" className="h-6 w-6 rounded sm:h-7 sm:w-7 object-cover" />
-                  </a>
+                  <>
+                    <a
+                      href={`https://www.vinted.fr/items/${card.vinted_listing_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 hover:opacity-70 transition-opacity"
+                      title="Voir l'annonce sur Vinted"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/vinted-logo.jpeg" alt="Vinted" className="h-6 w-6 rounded sm:h-7 sm:w-7 object-cover" />
+                    </a>
+                    <VintedBumpButton cardId={card.id} onListingsChanged={onListingsChanged} />
+                  </>
                 ) : (
                   <span className="shrink-0 cursor-not-allowed opacity-25" title="Pas de lien Vinted (posté manuellement)">
                     {/* eslint-disable-next-line @next/next/no-img-element */}

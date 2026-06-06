@@ -104,8 +104,42 @@ class VintedClient:
             h["x-csrf-token"] = self._csrf
         return h
 
+    def _try_token_refresh(self) -> bool:
+        """Use refresh_token_web to get a new access_token_web via /oauth/token."""
+        log = logging.getLogger(__name__)
+        refresh_token = self._cookies.get("refresh_token_web", "")
+        if not refresh_token:
+            log.warning("No refresh_token_web in cookies — cannot auto-refresh")
+            return False
+        try:
+            r = self._session.post(
+                f"{VINTED_BASE}/oauth/token",
+                data={"grant_type": "refresh_token", "client_id": "web", "refresh_token": refresh_token},
+                headers=self._headers(),
+                timeout=10,
+            )
+            log.info("Token refresh → %s: %s", r.status_code, r.text[:300])
+            if r.ok:
+                # Vinted may return new tokens in JSON body rather than Set-Cookie
+                try:
+                    body = r.json()
+                    if body.get("access_token"):
+                        self._cookies["access_token_web"] = body["access_token"]
+                        self._session.cookies.set("access_token_web", body["access_token"])
+                    if body.get("refresh_token"):
+                        self._cookies["refresh_token_web"] = body["refresh_token"]
+                        self._session.cookies.set("refresh_token_web", body["refresh_token"])
+                except Exception:
+                    pass
+                self._save_cookies()
+                log.info("Token refreshed successfully")
+                return True
+        except Exception as e:
+            log.warning("Token refresh error: %s", e)
+        return False
+
     def refresh_csrf(self) -> None:
-        """Fetch Vinted, run Playwright session-refresh if needed, extract CSRF."""
+        """Fetch /items/new and extract the CSRF token, auto-refreshing token if needed."""
         r = self._session.get(
             f"{VINTED_BASE}/items/new",
             headers={"User-Agent": self._headers()["User-Agent"], "Accept": "text/html"},
@@ -115,11 +149,10 @@ class VintedClient:
         r.raise_for_status()
 
         if "session-refresh" in r.url:
-            logging.getLogger(__name__).info(
-                "Session expired — launching Chromium to refresh tokens…"
-            )
-            self._playwright_refresh_session()
-            # Retry now that cookies are fresh
+            logging.getLogger(__name__).info("access_token expired — trying API refresh…")
+            if not self._try_token_refresh():
+                raise RuntimeError("Token refresh failed — relance import_cookies.py --user <user>")
+            # Retry with fresh token
             r = self._session.get(
                 f"{VINTED_BASE}/items/new",
                 headers={"User-Agent": self._headers()["User-Agent"], "Accept": "text/html"},
@@ -127,72 +160,13 @@ class VintedClient:
                 allow_redirects=True,
             )
             r.raise_for_status()
+            if "session-refresh" in r.url:
+                raise RuntimeError("Token refresh inefficace — relance import_cookies.py --user <user>")
 
         token = _parse_csrf(r.text)
         if not token:
-            raise RuntimeError(
-                "Session expired and Playwright refresh failed. "
-                "Run: python login.py --email YOUR_EMAIL --password YOUR_PASSWORD"
-            )
+            raise RuntimeError("CSRF token introuvable — relance import_cookies.py --user <user>")
         self._csrf = token
-
-    def _playwright_refresh_session(self) -> None:
-        """Launch headless Chromium, complete Vinted's JS session-refresh flow
-        (includes Cloudflare challenge), extract fresh cookies, persist to disk."""
-        import time
-        from playwright.sync_api import sync_playwright
-
-        domain = VINTED_BASE.replace("https://", "")  # www.vinted.fr
-
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            ctx = browser.new_context(
-                user_agent=self._headers()["User-Agent"],
-                locale="fr-FR",
-            )
-            # Load current cookies (refresh_token_web etc.)
-            pw_cookies = [
-                {"name": k, "value": v, "domain": domain, "path": "/"}
-                for k, v in self._cookies.items() if v
-            ]
-            if pw_cookies:
-                ctx.add_cookies(pw_cookies)
-
-            page = ctx.new_page()
-            # Navigate to session-refresh and wait for JS to exchange refresh_token
-            # for new access_token — the page redirects away when done.
-            page.goto(
-                f"{VINTED_BASE}/session-refresh?ref_url=%2Fitems%2Fnew",
-                wait_until="commit",
-                timeout=30000,
-            )
-            try:
-                # Wait until the JS completes the token exchange and redirects away
-                page.wait_for_url(
-                    lambda url: "session-refresh" not in url,
-                    timeout=20000,
-                )
-            except Exception:
-                # Fallback: wait a bit and proceed anyway
-                time.sleep(8)
-
-            fresh = {
-                c["name"]: c["value"]
-                for c in ctx.cookies()
-                if "vinted" in c["domain"] and c["name"] in {
-                    "access_token_web", "refresh_token_web",
-                    "_vinted_fr_session", "datadome", "cf_clearance",
-                }
-            }
-            browser.close()
-
-        if fresh:
-            self._cookies.update(fresh)
-            self._session.cookies.update(fresh)
-            self._save_cookies()
-            logging.getLogger(__name__).info(
-                "Playwright session refresh done — got: %s", list(fresh.keys())
-            )
 
     def _save_cookies(self) -> None:
         """Persist the session's current cookies back to cookies.json."""
@@ -325,3 +299,13 @@ class VintedClient:
             )
         r.raise_for_status()
         return str(r.json()["item"]["id"])
+
+    def delete_listing(self, listing_id: str) -> None:
+        r = self._session.delete(
+            f"{VINTED_BASE}/api/v2/items/{listing_id}",
+            headers=self._headers(),
+            timeout=15,
+        )
+        if r.status_code == 404:
+            return  # Already gone — not an error
+        r.raise_for_status()

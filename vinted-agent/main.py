@@ -206,11 +206,29 @@ def pick_price(card: dict) -> float:
 async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) -> None:
     job_id = job["id"]
     card_id = job["card_id"]
-    log.info("Processing job %s for card %s", job_id, card_id)
+    job_type = job.get("job_type", "post")
+    log.info("Processing job %s for card %s (type=%s)", job_id, card_id, job_type)
 
     await supabase.table("vinted_post_jobs").update({
         "status": "processing"
     }).eq("id", job_id).execute()
+
+    if job_type == "repost":
+        meta = await supabase.table("cards").select("vinted_listing_id").eq("id", card_id).single().execute()
+        old_listing_id = (meta.data or {}).get("vinted_listing_id")
+        if old_listing_id:
+            try:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, vinted.delete_listing, old_listing_id)
+                log.info("Old listing %s deleted", old_listing_id)
+            except Exception as e:
+                log.warning("Could not delete old listing %s: %s", old_listing_id, e)
+        await supabase.table("cards").update({
+            "vinted_listing_id": None, "vinted_posted_at": None, "vinted_post_error": None,
+        }).eq("id", card_id).execute()
+        delay = random.uniform(30, 90)
+        log.info("Repost cooldown: %.0fs before reposting card %s", delay, card_id)
+        await asyncio.sleep(delay)
 
     card = await get_card(supabase, card_id)
     if not card:
