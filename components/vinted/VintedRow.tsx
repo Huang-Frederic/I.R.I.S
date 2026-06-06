@@ -66,6 +66,9 @@ export default function VintedRow({
   const mine = getMyListing(listings, myUserId);
   const isOnline = mine !== null;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
+  const isStale = card.vinted_posted_at
+    ? Date.now() - new Date(card.vinted_posted_at).getTime() > 21 * 24 * 60 * 60 * 1000
+    : false;
 
   return (
     <li className="bg-surface border-border flex items-stretch gap-2 rounded-lg border p-2 text-sm sm:items-center sm:gap-3 sm:p-3">
@@ -213,7 +216,7 @@ export default function VintedRow({
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src="/vinted-logo.jpeg" alt="Vinted" className="h-6 w-6 rounded sm:h-7 sm:w-7 object-cover" />
                     </a>
-                    <VintedBumpButton cardId={card.id} onListingsChanged={onListingsChanged} />
+                    {isStale && <VintedBumpButton cardId={card.id} onListingsChanged={onListingsChanged} />}
                   </>
                 ) : (
                   <span className="shrink-0 cursor-not-allowed opacity-25" title="Pas de lien Vinted (posté manuellement)">
