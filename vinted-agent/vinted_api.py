@@ -120,18 +120,19 @@ class VintedClient:
             )
             log.info("Token refresh → %s: %s", r.status_code, r.text[:300])
             if r.ok:
-                # Vinted may return new tokens in JSON body rather than Set-Cookie
                 try:
                     body = r.json()
                     if body.get("access_token"):
                         self._cookies["access_token_web"] = body["access_token"]
-                        self._session.cookies.set("access_token_web", body["access_token"])
                     if body.get("refresh_token"):
                         self._cookies["refresh_token_web"] = body["refresh_token"]
-                        self._session.cookies.set("refresh_token_web", body["refresh_token"])
                 except Exception:
                     pass
                 self._save_cookies()
+                # curl_cffi/libcurl has an internal cookie jar that .cookies.set() does not
+                # update reliably — reinitialise the session so the new access_token is used.
+                self._session = curl_requests.Session(impersonate="chrome120")
+                self._session.cookies.update(self._cookies)
                 log.info("Token refreshed successfully")
                 return True
         except Exception as e:
@@ -169,12 +170,8 @@ class VintedClient:
         self._csrf = token
 
     def _save_cookies(self) -> None:
-        """Persist the session's current cookies back to cookies.json."""
-        updated = dict(self._session.cookies)
-        # Keep only the keys we originally loaded (drop tracking cookies)
-        merged = {k: updated.get(k, v) for k, v in self._cookies.items()}
-        self._cookies = merged
-        Path(self._cookies_path).write_text(json.dumps(merged, indent=2))
+        """Persist the current cookie dict to disk."""
+        Path(self._cookies_path).write_text(json.dumps(self._cookies, indent=2))
 
     def upload_photo(self, image_url: str) -> int:
         raw = requests.get(image_url, timeout=20).content
