@@ -78,6 +78,17 @@ def _variant_label(variant: str | None) -> str | None:
     return VARIANT_LABEL.get(variant, variant)
 
 
+def _strip_cjk(text: str) -> str:
+    """Remove CJK (Japanese/Chinese) characters and tidy up resulting empty parens."""
+    import re
+    cleaned = re.sub(
+        r'[⺀-⻿　-ヿㇰ-ㇿ㐀-䶿一-鿿豈-﫿︰-﹏]',
+        '', text,
+    )
+    cleaned = re.sub(r'\(\s*\)', '', cleaned)
+    return re.sub(r'\s+', ' ', cleaned).strip()
+
+
 def _strip_paren(name: str) -> str:
     import re
     return re.sub(r'\s*\([^)]+\)\s*', ' ', name).strip()
@@ -99,7 +110,7 @@ def _strip_denominator(set_number: str | None) -> str | None:
 
 def build_title(card: dict) -> str:
     variant = _variant_label(card.get("variant"))
-    full_name = card.get("card_name", "")
+    full_name = _normalize_caps(_strip_cjk(card.get("card_name", "")))
     stripped_name = _strip_paren(full_name)
     set_number_short = _strip_denominator(card.get("set_number"))
     set_code = card.get("set_code")
@@ -118,10 +129,6 @@ def build_title(card: dict) -> str:
     variant_seg = f" {variant}" if variant else ""
     lang_seg = f" [{lang}]"
 
-    # Vinted rejects non-ASCII characters (katakana/hiragana) and excessive caps.
-    # Always use stripped_name (no bilingual paren), then normalize VMAX/VSTAR etc.
-    stripped_name = _normalize_caps(stripped_name)
-    variant_seg = f" {_normalize_caps(variant)}" if variant else ""
     ladder = [
         f"Carte Pokémon {stripped_name}{variant_seg}{set_seg_full}{lang_seg}",
         f"{stripped_name}{variant_seg}{set_seg_full}{lang_seg}",
@@ -141,7 +148,7 @@ def build_title(card: dict) -> str:
 
 def build_description(card: dict) -> str:
     variant = _variant_label(card.get("variant"))
-    full_name = card.get("card_name", "")
+    full_name = _normalize_caps(_strip_cjk(card.get("card_name", "")))
     set_number_short = _strip_denominator(card.get("set_number"))
     set_code = card.get("set_code")
     set_name = card.get("set_name")

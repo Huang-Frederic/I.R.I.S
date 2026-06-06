@@ -38,6 +38,20 @@ function stripParen(name: string): string {
   return name.replace(/\s*\([^)]+\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+/** Remove CJK (Japanese/Chinese) Unicode characters and clean up resulting empty parens. */
+function stripCjk(text: string): string {
+  return text
+    .replace(/[⺀-⻿　-ヿㇰ-ㇿ㐀-䶿一-鿿豈-﫿︰-﹏]/g, '')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Convert ALL-CAPS words of 4+ letters to Title case. VMAX → Vmax. Leaves GX, EX, V as-is. */
+function normalizeCaps(text: string): string {
+  return text.replace(/\b([A-Z]{4,})\b/g, (m) => m[0] + m.slice(1).toLowerCase());
+}
+
 /** "70/167" → "70". Returns the original if no slash. */
 function stripDenominator(setNumber: string | null): string | null {
   if (!setNumber) return null;
@@ -74,7 +88,7 @@ function composeTitle(parts: TitleParts): string {
  */
 export function buildTitle(card: Card): string {
   const variant = variantLabel(card.variant);
-  const fullName = card.card_name;
+  const fullName = normalizeCaps(stripCjk(card.card_name));
   const strippedName = stripParen(fullName);
   const setNumberShort = stripDenominator(card.set_number);
   const setCode = card.set_code ?? null;
@@ -136,7 +150,7 @@ const DEFAULT_FOOTER_LINES = [
  */
 export function buildDescription(card: Card): string {
   const variant = variantLabel(card.variant);
-  const fullName = card.card_name;
+  const fullName = normalizeCaps(stripCjk(card.card_name));
   const setNumberShort = stripDenominator(card.set_number);
   const setBits = [card.set_code, setNumberShort].filter(Boolean).join(' ');
   const setSegment = card.set_name
