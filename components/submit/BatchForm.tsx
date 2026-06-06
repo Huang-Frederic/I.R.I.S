@@ -37,7 +37,9 @@ export default function BatchForm() {
   const [results, setResults] = useState<SaveResult[]>([]);
 
   function addPhotos(files: FileList | File[]) {
-    const arr = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    const arr = Array.from(files)
+      .filter((f) => f.type.startsWith('image/'))
+      .sort((a, b) => a.name.localeCompare(b.name));
     setPhotos((prev) => [...prev, ...arr].slice(0, MAX_PHOTOS));
   }
 

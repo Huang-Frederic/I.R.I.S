@@ -349,6 +349,8 @@
     "chipOffline": "Pas en ligne",
     "chipSold": "Vendus",
     "chipStale": "À rafraîchir",
+    "sortAsc": "Ancien en premier",
+    "sortDesc": "Récent en premier",
     "chipsCount": "{visible} sur {total}",
     "userAll": "Tous",
     "userMine": "Par moi",

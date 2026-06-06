@@ -45,6 +45,7 @@ export function interleaveCardsAndLots(
   lots: LotWithListings[],
   now: number,
   myUserId: string,
+  direction: 'asc' | 'desc' = 'asc',
 ): MixedRow[] {
   const rows: MixedRow[] = [
     ...groups.map((group): MixedRow => ({ kind: 'card', group })),
@@ -74,7 +75,8 @@ export function interleaveCardsAndLots(
     if (ba !== bb) return ba - bb;
 
     if (ba === 0) {
-      return dateAddedOf(a).localeCompare(dateAddedOf(b));
+      const cmp = dateAddedOf(a).localeCompare(dateAddedOf(b));
+      return direction === 'desc' ? -cmp : cmp;
     }
     if (ba === 1) {
       return listedAtOf(a).localeCompare(listedAtOf(b));

@@ -348,6 +348,8 @@
     "chipOffline": "オフライン",
     "chipSold": "販売済み",
     "chipStale": "古い",
+    "sortAsc": "古い順",
+    "sortDesc": "新しい順",
     "chipsCount": "{visible} / {total}",
     "userAll": "すべて",
     "userMine": "自分",

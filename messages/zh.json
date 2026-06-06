@@ -348,6 +348,8 @@
     "chipOffline": "未在线",
     "chipSold": "已售",
     "chipStale": "需刷新",
+    "sortAsc": "旧到新",
+    "sortDesc": "新到旧",
     "chipsCount": "{visible} / {total}",
     "userAll": "全部",
     "userMine": "我的",

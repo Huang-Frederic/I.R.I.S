@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Search, Globe, GlobeLock, Tag, RefreshCw, CheckSquare, Square, User, ChevronDown } from 'lucide-react';
+import { Search, Globe, GlobeLock, Tag, RefreshCw, CheckSquare, Square, User, ChevronDown, ArrowUpNarrowWide, ArrowDownNarrowWide } from 'lucide-react';
 import { UI_LANGUAGES, type CardLanguage, type CardRarity } from '@/lib/types';
 import { type MultiUserChip } from '@/lib/utils/vinted-filter';
 import { useUserContext } from '@/lib/hooks/useUserContext';
@@ -21,6 +21,7 @@ export interface VintedFilterState {
   showSold: boolean;       // include sold cards (individual rows)
   showStale: boolean;      // restrict to "à rafraîchir" (>21j)
   multiUserChip: MultiUserChip;
+  sortDirection: 'asc' | 'desc';
 }
 
 export const INITIAL_FILTERS: VintedFilterState = {
@@ -34,6 +35,7 @@ export const INITIAL_FILTERS: VintedFilterState = {
   showSold: false,
   showStale: false,
   multiUserChip: 'all',
+  sortDirection: 'asc',
 };
 
 const LANGUAGES: ReadonlyArray<CardLanguage> = UI_LANGUAGES;
@@ -170,6 +172,16 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
           >
             {selectionMode ? <CheckSquare className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
             {selectionMode ? t('selectionCancel') : t('selectionEnable')}
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange({ ...value, sortDirection: value.sortDirection === 'asc' ? 'desc' : 'asc' })}
+            className="bg-surface-2 text-text-muted hover:text-text inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs"
+          >
+            {value.sortDirection === 'asc'
+              ? <ArrowUpNarrowWide className="h-3.5 w-3.5" />
+              : <ArrowDownNarrowWide className="h-3.5 w-3.5" />}
+            {value.sortDirection === 'asc' ? t('sortAsc') : t('sortDesc')}
           </button>
         </div>
 

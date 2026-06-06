@@ -431,7 +431,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
         );
 
     const groupedCards = groupCards(finalForSale) as CardGroupWithListings[];
-    const forSaleRows: MixedRow[] = interleaveCardsAndLots(groupedCards, forSaleLots, now, myUserId);
+    const forSaleRows: MixedRow[] = interleaveCardsAndLots(groupedCards, forSaleLots, now, myUserId, filters.sortDirection);
 
     const soldLotsList = !showLots || !filters.showSold
       ? []

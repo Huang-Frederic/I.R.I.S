@@ -26,6 +26,7 @@ export function sortVintedGroups<T extends CardGroup & { head: CardGroup['head']
   groups: T[],
   now: number,
   myUserId: string,
+  direction: 'asc' | 'desc' = 'asc',
 ): T[] {
   const bucketOf = (g: T): 0 | 1 | 2 => {
     const myListing = getMyListing(g.head.listings, myUserId);
@@ -39,8 +40,9 @@ export function sortVintedGroups<T extends CardGroup & { head: CardGroup['head']
     if (ba !== bb) return ba - bb;
 
     if (ba === 0) {
-      // Both offline — oldest date_added first.
-      return a.head.date_added.localeCompare(b.head.date_added);
+      // Both offline — sort by date_added, direction-controlled.
+      const cmp = a.head.date_added.localeCompare(b.head.date_added);
+      return direction === 'desc' ? -cmp : cmp;
     }
     const myListingA = getMyListing(a.head.listings, myUserId);
     const myListingB = getMyListing(b.head.listings, myUserId);

@@ -152,15 +152,25 @@ export default function AnnonceModal({ card, listings, myUserId, partnerUserId, 
     if (busy) return;
     setBusy(true);
     try {
-      const patch = await fetch(`/api/cards/${card.id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ status: 'collection' }),
-      });
-      if (!patch.ok) {
-        console.error(`PATCH /api/cards/${card.id} status=collection failed (${patch.status})`);
-        return;
+      // If the partner still has an active listing on this card, don't change the
+      // card's status — that would hide it from their Vinted page too. Just remove
+      // my own listing; the card stays 'for_sale' for the partner.
+      const partnerHasListing = partnerUserId
+        ? listings.some((l) => l.user_id === partnerUserId)
+        : false;
+
+      if (!partnerHasListing) {
+        const patch = await fetch(`/api/cards/${card.id}`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ status: 'collection' }),
+        });
+        if (!patch.ok) {
+          console.error(`PATCH /api/cards/${card.id} status=collection failed (${patch.status})`);
+          return;
+        }
       }
+
       const del = await fetch(`/api/listings/card/${card.id}`, { method: 'DELETE' });
       if (!del.ok) {
         console.error(`DELETE listing after stock-retire failed (${del.status})`);

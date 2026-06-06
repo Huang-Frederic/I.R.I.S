@@ -349,6 +349,8 @@
     "chipOffline": "Not online",
     "chipSold": "Sold",
     "chipStale": "Stale",
+    "sortAsc": "Oldest first",
+    "sortDesc": "Newest first",
     "chipsCount": "{visible} of {total}",
     "userAll": "All",
     "userMine": "By me",
