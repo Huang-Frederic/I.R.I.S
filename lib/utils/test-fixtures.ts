@@ -73,6 +73,8 @@ export function makeListing(overrides: Partial<CardListing> = {}): CardListing {
     card_id: 'test-card-id',
     user_id: 'test-user-id',
     listed_at: '2026-01-01T00:00:00Z',
+    vinted_listing_id: null,
+    vinted_posted_at: null,
     ...overrides,
   };
 }
