@@ -150,7 +150,7 @@ export default async function DashboardPage({
   const postedCards: PostedCard[] = (vintedPostedToday ?? [])
     .filter((l) => l.cards)
     .map((l) => {
-      const c = l.cards as { id: string; card_name: string; image_url: string | null; tcg_image_url: string | null };
+      const c = l.cards as unknown as { id: string; card_name: string; image_url: string | null; tcg_image_url: string | null };
       return {
         id: c.id,
         card_name: c.card_name,
