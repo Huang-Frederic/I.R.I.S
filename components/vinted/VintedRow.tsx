@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { BookmarkCheck, Bookmark, Tag } from 'lucide-react';
-import type { Card, BaseListing } from '@/lib/types';
+import type { Card, CardListing } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
 import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
 import { displayCardName, displaySetName } from '@/lib/utils/format-name';
@@ -25,7 +25,7 @@ interface Props {
   priceCell: React.ReactNode;
   onAnnonceClick: () => void;
   onSoldClick: () => void;
-  listings: BaseListing[];
+  listings: CardListing[];
   myUserId: string;
   partnerUserId: string | null;
   partnerName: string | null;
