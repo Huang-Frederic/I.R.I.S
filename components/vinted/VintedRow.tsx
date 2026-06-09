@@ -66,8 +66,8 @@ export default function VintedRow({
   const mine = getMyListing(listings, myUserId);
   const isOnline = mine !== null;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
-  const isStale = card.vinted_posted_at
-    ? Date.now() - new Date(card.vinted_posted_at).getTime() > 21 * 24 * 60 * 60 * 1000
+  const isStale = mine?.vinted_posted_at
+    ? Date.now() - new Date(mine.vinted_posted_at).getTime() > 21 * 24 * 60 * 60 * 1000
     : false;
 
   return (
@@ -186,6 +186,7 @@ export default function VintedRow({
           {!isOnline && !selectionMode && vintedEnabled && (
             <VintedPostButton
               cardId={card.id}
+              userId={myUserId}
               hasPrice={card.suggested_price !== null}
               onListingsChanged={onListingsChanged}
             />
@@ -204,10 +205,10 @@ export default function VintedRow({
                 </button>
               )}
               {vintedEnabled && (
-                card.vinted_listing_id ? (
+                mine?.vinted_listing_id ? (
                   <>
                     <a
-                      href={`https://www.vinted.fr/items/${card.vinted_listing_id}`}
+                      href={`https://www.vinted.fr/items/${mine.vinted_listing_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="shrink-0 hover:opacity-70 transition-opacity"
@@ -216,7 +217,7 @@ export default function VintedRow({
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src="/vinted-logo.jpeg" alt="Vinted" className="h-6 w-6 rounded sm:h-7 sm:w-7 object-cover" />
                     </a>
-                    {isStale && <VintedBumpButton cardId={card.id} onListingsChanged={onListingsChanged} />}
+                    {isStale && <VintedBumpButton cardId={card.id} userId={myUserId} onListingsChanged={onListingsChanged} />}
                   </>
                 ) : (
                   <span className="shrink-0 cursor-not-allowed opacity-25" title="Pas de lien Vinted (posté manuellement)">

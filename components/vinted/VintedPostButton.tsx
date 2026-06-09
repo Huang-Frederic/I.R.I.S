@@ -8,11 +8,12 @@ import VintedLogo from '@/components/ui/VintedLogo';
 
 interface Props {
   cardId: string;
+  userId: string;
   hasPrice: boolean;
   onListingsChanged: () => void;
 }
 
-export default function VintedPostButton({ cardId, hasPrice, onListingsChanged }: Props) {
+export default function VintedPostButton({ cardId, userId, hasPrice, onListingsChanged }: Props) {
   const router = useRouter();
   const [state, setState] = useState<'idle' | 'loading' | 'queued' | 'success' | 'error'>('idle');
   const [mounted, setMounted] = useState(false);
@@ -28,6 +29,7 @@ export default function VintedPostButton({ cardId, hasPrice, onListingsChanged }
       .from('vinted_post_jobs')
       .select('id, status')
       .eq('card_id', cardId)
+      .eq('user_id', userId)
       .in('status', ['pending', 'processing', 'error'])
       .limit(1)
       .maybeSingle()
@@ -41,7 +43,7 @@ export default function VintedPostButton({ cardId, hasPrice, onListingsChanged }
           setState('queued');
         }
       });
-  }, [cardId, hasPrice]);
+  }, [cardId, userId, hasPrice]);
 
   // Poll for job completion when queued
   useEffect(() => {
@@ -56,13 +58,13 @@ export default function VintedPostButton({ cardId, hasPrice, onListingsChanged }
       if (!job) return;
       if (job.status === 'done') {
         clearInterval(pollRef.current!);
-        // Get the listing id from the card
-        const { data: card } = await supabase
-          .from('cards')
+        const { data: listing } = await supabase
+          .from('card_listings')
           .select('vinted_listing_id')
-          .eq('id', cardId)
+          .eq('card_id', cardId)
+          .eq('user_id', userId)
           .maybeSingle();
-        setListingId(card?.vinted_listing_id ?? null);
+        setListingId(listing?.vinted_listing_id ?? null);
         setState('success');
       } else if (job.status === 'error') {
         clearInterval(pollRef.current!);

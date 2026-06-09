@@ -29,21 +29,30 @@ export async function POST(request: Request) {
 
   const { data: card, error: cardError } = await supabase
     .from('cards')
-    .select('id, status, vinted_listing_id, suggested_price')
+    .select('id, status, suggested_price')
     .eq('id', card_id)
     .single();
 
   if (cardError || !card) {
     return apiError('card_not_found', { status: 404 });
   }
-  if (!card.vinted_listing_id) {
-    return apiError('no_listing', { status: 409, message: 'No existing Vinted listing to bump' });
-  }
   if (card.status !== 'for_sale') {
     return apiError('invalid_status', { status: 400, message: 'Card must be for_sale' });
   }
   if (card.suggested_price === null) {
     return apiError('no_price', { status: 400, message: 'Aucun prix Vinted défini pour cette carte' });
+  }
+
+  // Verify the caller has their own active Vinted listing for this card
+  const { data: myListing } = await supabase
+    .from('card_listings')
+    .select('vinted_listing_id')
+    .eq('card_id', card_id)
+    .eq('user_id', auth.user.id)
+    .maybeSingle();
+
+  if (!myListing?.vinted_listing_id) {
+    return apiError('no_listing', { status: 409, message: 'No existing Vinted listing to bump' });
   }
 
   const { data: job, error: jobError } = await supabase

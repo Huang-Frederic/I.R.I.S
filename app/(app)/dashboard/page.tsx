@@ -65,6 +65,7 @@ export default async function DashboardPage({
 
   const supabase = await createClient();
   const t = await getTranslations('dashboard');
+  const { data: { user } } = await supabase.auth.getUser();
 
   const [
     { data: pricedCards },
@@ -120,8 +121,9 @@ export default async function DashboardPage({
       .order('date_added', { ascending: false })
       .limit(3),
     supabase
-      .from('cards')
-      .select('id, card_name, vinted_listing_id, vinted_posted_at, image_url, tcg_image_url')
+      .from('card_listings')
+      .select('vinted_listing_id, vinted_posted_at, cards(id, card_name, image_url, tcg_image_url)')
+      .eq('user_id', user?.id ?? '')
       .not('vinted_listing_id', 'is', null)
       .gte('vinted_posted_at', new Date().toISOString().slice(0, 10))
       .order('vinted_posted_at', { ascending: false }),
@@ -144,6 +146,20 @@ export default async function DashboardPage({
     image_url: string | null;
     tcg_image_url: string | null;
   };
+
+  const postedCards: PostedCard[] = (vintedPostedToday ?? [])
+    .filter((l) => l.cards)
+    .map((l) => {
+      const c = l.cards as { id: string; card_name: string; image_url: string | null; tcg_image_url: string | null };
+      return {
+        id: c.id,
+        card_name: c.card_name,
+        image_url: c.image_url,
+        tcg_image_url: c.tcg_image_url,
+        vinted_listing_id: l.vinted_listing_id!,
+        vinted_posted_at: l.vinted_posted_at!,
+      };
+    });
 
   const soldCards: SoldItem[] = (lastSales ?? []).map((s) => ({ kind: 'card' as const, ...s }));
   const soldLots: SoldItem[] = (lastLots ?? []).map((l) => ({ kind: 'lot' as const, ...l }));
@@ -220,7 +236,7 @@ export default async function DashboardPage({
       </div>
 
       <div className="mt-4">
-        <VintedPostsWidget cards={(vintedPostedToday ?? []) as PostedCard[]} />
+        <VintedPostsWidget cards={postedCards} />
       </div>
     </section>
   );

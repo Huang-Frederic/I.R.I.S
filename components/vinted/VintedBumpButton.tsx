@@ -7,10 +7,11 @@ import { createClient } from '@/lib/supabase/client';
 
 interface Props {
   cardId: string;
+  userId: string;
   onListingsChanged: () => void;
 }
 
-export default function VintedBumpButton({ cardId, onListingsChanged }: Props) {
+export default function VintedBumpButton({ cardId, userId, onListingsChanged }: Props) {
   const router = useRouter();
   const [state, setState] = useState<'idle' | 'loading' | 'queued' | 'success' | 'error'>('idle');
   const [mounted, setMounted] = useState(false);
@@ -25,6 +26,7 @@ export default function VintedBumpButton({ cardId, onListingsChanged }: Props) {
       .from('vinted_post_jobs')
       .select('id, status')
       .eq('card_id', cardId)
+      .eq('user_id', userId)
       .eq('job_type', 'repost')
       .in('status', ['pending', 'processing', 'error'])
       .limit(1)
@@ -39,7 +41,7 @@ export default function VintedBumpButton({ cardId, onListingsChanged }: Props) {
           setState('queued');
         }
       });
-  }, [cardId]);
+  }, [cardId, userId]);
 
   useEffect(() => {
     if (state !== 'queued' || !jobId) return;
@@ -53,12 +55,13 @@ export default function VintedBumpButton({ cardId, onListingsChanged }: Props) {
       if (!job) return;
       if (job.status === 'done') {
         clearInterval(pollRef.current!);
-        const { data: card } = await supabase
-          .from('cards')
+        const { data: listing } = await supabase
+          .from('card_listings')
           .select('vinted_listing_id')
-          .eq('id', cardId)
+          .eq('card_id', cardId)
+          .eq('user_id', userId)
           .maybeSingle();
-        setListingId(card?.vinted_listing_id ?? null);
+        setListingId(listing?.vinted_listing_id ?? null);
         setState('success');
       } else if (job.status === 'error') {
         clearInterval(pollRef.current!);

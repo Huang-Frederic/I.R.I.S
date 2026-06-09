@@ -1,11 +1,12 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from './route';
 
 const mockCard = {
   id: 'card-1',
   status: 'for_sale',
-  vinted_listing_id: null,
-  user_id: 'user-1',
+  suggested_price: 5.00,
+  cm_price_low: null,
+  cm_price_avg: null,
 };
 
 const supabaseMock = {
@@ -17,7 +18,14 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: () => Promise.resolve(supabaseMock),
 }));
 
-afterEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  process.env.VINTED_USER_IDS = 'user-1';
+});
+
+afterEach(() => {
+  vi.clearAllMocks();
+  delete process.env.VINTED_USER_IDS;
+});
 
 function makeRequest(body: unknown) {
   return new Request('http://localhost/api/vinted/post-job', {
@@ -40,15 +48,24 @@ describe('POST /api/vinted/post-job', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 409 when card already has a listing', async () => {
+  it('returns 409 when user already has a Vinted listing for this card', async () => {
     supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
-    supabaseMock.from.mockReturnValue({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({
-        data: { ...mockCard, vinted_listing_id: 'existing-id' },
-        error: null,
-      }),
+    supabaseMock.from.mockImplementation((table: string) => {
+      if (table === 'cards') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: mockCard, error: null }),
+        };
+      }
+      if (table === 'card_listings') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: { vinted_listing_id: 'existing-id' }, error: null }),
+        };
+      }
+      return {};
     });
     const res = await POST(makeRequest({ card_id: 'card-1' }));
     expect(res.status).toBe(409);
@@ -57,18 +74,30 @@ describe('POST /api/vinted/post-job', () => {
   it('creates a job and returns 201', async () => {
     supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
     const jobRow = { id: 'job-1', card_id: 'card-1', status: 'pending' };
-    const fromMock = vi.fn()
-      .mockReturnValueOnce({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({ data: mockCard, error: null }),
-      })
-      .mockReturnValueOnce({
-        insert: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({ data: jobRow, error: null }),
-      });
-    supabaseMock.from = fromMock;
+    supabaseMock.from.mockImplementation((table: string) => {
+      if (table === 'cards') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: mockCard, error: null }),
+        };
+      }
+      if (table === 'card_listings') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        };
+      }
+      if (table === 'vinted_post_jobs') {
+        return {
+          insert: vi.fn().mockReturnThis(),
+          select: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: jobRow, error: null }),
+        };
+      }
+      return {};
+    });
     const res = await POST(makeRequest({ card_id: 'card-1' }));
     expect(res.status).toBe(201);
     const json = await res.json();

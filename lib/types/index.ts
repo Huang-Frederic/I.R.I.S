@@ -75,9 +75,6 @@ export interface Card {
   sold_by_user_id: string | null;
   notes: string | null;
   variant: string | null;
-  vinted_listing_id: string | null;
-  vinted_posted_at: string | null;
-  vinted_post_error: string | null;
 }
 
 export interface Lot {
@@ -228,6 +225,8 @@ export interface BaseListing {
 
 export interface CardListing extends BaseListing {
   card_id: string;
+  vinted_listing_id: string | null;
+  vinted_posted_at: string | null;
 }
 
 export interface LotListing extends BaseListing {

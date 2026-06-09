@@ -53,9 +53,6 @@ const CARD_DEFAULTS: Card = {
   sold_by_user_id: null,
   notes: null,
   variant: null,
-  vinted_listing_id: null,
-  vinted_posted_at: null,
-  vinted_post_error: null,
 };
 
 /** Build a Card with sensible defaults; pass overrides for the fields under test. */

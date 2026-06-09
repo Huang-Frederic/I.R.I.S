@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from dotenv import load_dotenv
 from supabase import acreate_client, AsyncClient
+from realtime.types import RealtimeSubscribeStates
 
 from vinted_api import VintedClient
 from vinted_api import CONDITION_MAP
@@ -221,8 +222,9 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
     }).eq("id", job_id).execute()
 
     if job_type == "repost":
-        meta = await supabase.table("cards").select("vinted_listing_id").eq("id", card_id).single().execute()
-        old_listing_id = (meta.data or {}).get("vinted_listing_id")
+        user_id = job.get("user_id")
+        meta = await supabase.table("card_listings").select("vinted_listing_id").eq("card_id", card_id).eq("user_id", user_id).limit(1).execute()
+        old_listing_id = (meta.data[0] if meta.data else {}).get("vinted_listing_id")
         if old_listing_id:
             try:
                 loop = asyncio.get_event_loop()
@@ -230,9 +232,9 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
                 log.info("Old listing %s deleted", old_listing_id)
             except Exception as e:
                 log.warning("Could not delete old listing %s: %s", old_listing_id, e)
-        await supabase.table("cards").update({
-            "vinted_listing_id": None, "vinted_posted_at": None, "vinted_post_error": None,
-        }).eq("id", card_id).execute()
+        await supabase.table("card_listings").update({
+            "vinted_listing_id": None, "vinted_posted_at": None,
+        }).eq("card_id", card_id).eq("user_id", user_id).execute()
         delay = random.uniform(30, 90)
         log.info("Repost cooldown: %.0fs before reposting card %s", delay, card_id)
         await asyncio.sleep(delay)
@@ -286,23 +288,32 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
         return
 
     now = datetime.now(timezone.utc).isoformat()
-    await supabase.table("cards").update({
-        "vinted_listing_id": listing_id,
-        "vinted_posted_at": now,
-        "vinted_post_error": None,
-    }).eq("id", card_id).execute()
+    user_id_for_listing = job.get("user_id")
+    if user_id_for_listing:
+        try:
+            await supabase.table("card_listings").upsert({
+                "card_id": card_id,
+                "user_id": user_id_for_listing,
+                "listed_at": now,
+                "vinted_listing_id": listing_id,
+                "vinted_posted_at": now,
+            }).execute()
+        except Exception as e:
+            log.error(
+                "card_listings upsert failed for card %s user %s: %s "
+                "— card IS on Vinted (listing %s) but IRIS status is out of sync",
+                card_id, user_id_for_listing, e, listing_id,
+            )
+    else:
+        log.warning(
+            "Job %s has no user_id — card_listings not updated; card IS on Vinted (listing %s)",
+            job_id, listing_id,
+        )
 
     await supabase.table("vinted_post_jobs").update({
         "status": "done",
         "processed_at": now,
     }).eq("id", job_id).execute()
-
-    # Mark card as "online" in IRIS for the user who requested the job
-    await supabase.table("card_listings").upsert({
-        "card_id": card_id,
-        "user_id": job["user_id"],
-        "listed_at": now,
-    }).execute()
 
     log.info("Card %s posted → Vinted listing %s", card_id, listing_id)
 
@@ -314,9 +325,6 @@ async def _fail_job(supabase: AsyncClient, job_id: str, card_id: str, error: str
     await supabase.table("vinted_post_jobs").update({
         "status": "error", "error": safe_error, "processed_at": now
     }).eq("id", job_id).execute()
-    await supabase.table("cards").update({
-        "vinted_post_error": error
-    }).eq("id", card_id).execute()
     log.error("Job %s failed: %s", job_id, error)
 
 
@@ -353,6 +361,48 @@ async def _dispatch_job(supabase: AsyncClient, record: dict) -> None:
 # Main loop
 # ---------------------------------------------------------------------------
 
+async def _subscribe_with_retry(supabase: AsyncClient, on_job_callback):
+    """Subscribe to vinted_post_jobs INSERT events, retrying with backoff on error.
+
+    The library's built-in rejoin_timer only fires on phx_error (connection-level
+    drops). A failed phx_join reply (e.g. DatabaseLackOfConnections) silently leaves
+    the channel in JOINING state unless we supply a status callback and retry here.
+    """
+    attempt = 0
+    while True:
+        attempt += 1
+        succeeded = False
+        sub_done = asyncio.Event()
+
+        def on_status(status, error=None):
+            nonlocal succeeded
+            if status == RealtimeSubscribeStates.SUBSCRIBED:
+                succeeded = True
+            elif status == RealtimeSubscribeStates.CHANNEL_ERROR:
+                log.warning("Realtime subscription error (attempt %d): %s", attempt, error)
+            elif status == RealtimeSubscribeStates.TIMED_OUT:
+                log.warning("Realtime subscription timed out (attempt %d)", attempt)
+            sub_done.set()
+
+        channel = supabase.realtime.channel("vinted_jobs")
+        channel.on_postgres_changes(
+            event="INSERT",
+            schema="public",
+            table="vinted_post_jobs",
+            callback=on_job_callback,
+        )
+        await channel.subscribe(callback=on_status)
+        await sub_done.wait()
+
+        if succeeded:
+            log.info("Subscribed to vinted_post_jobs Realtime (attempt %d)", attempt)
+            return channel
+
+        delay = min(2 ** attempt, 60)
+        log.warning("Retrying Realtime subscription in %.0fs…", delay)
+        await asyncio.sleep(delay)
+
+
 async def main() -> None:
     log.info("Starting Vinted agent…")
     log.info("Loaded %d Vinted user(s): %s", len(VINTED_USERS), list(VINTED_USERS.keys()))
@@ -365,15 +415,7 @@ async def main() -> None:
         if record.get("status") == "pending":
             asyncio.create_task(_dispatch_job(supabase, record))
 
-    channel = supabase.realtime.channel("vinted_jobs")
-    channel.on_postgres_changes(
-        event="INSERT",
-        schema="public",
-        table="vinted_post_jobs",
-        callback=on_job,
-    )
-    await channel.subscribe()
-    log.info("Subscribed to vinted_post_jobs Realtime")
+    channel = await _subscribe_with_retry(supabase, on_job)
 
     log.info("Listening for posting jobs… (Ctrl+C to stop)")
     try:
