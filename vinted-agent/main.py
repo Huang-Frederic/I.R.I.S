@@ -427,8 +427,8 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
                 description=description,
                 price=price,
                 condition=condition,
-                image_url=image_url,
-                photo_id=photo_id,
+                image_urls=[image_url],
+                photo_ids=[photo_id],
             )
         )
     except Exception as e:
@@ -504,12 +504,12 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
         await _fail_job(supabase, job_id, lot_id, "Lot not found")
         return
 
-    photo_urls = lot.get("photo_urls") or []
-    image_url = (
-        f"{SUPABASE_URL}/storage/v1/object/public/lot-photos/{photo_urls[0]}"
-        if photo_urls else None
-    )
-    if not image_url:
+    raw_photo_urls = lot.get("photo_urls") or []
+    image_urls = [
+        f"{SUPABASE_URL}/storage/v1/object/public/lot-photos/{p}"
+        for p in raw_photo_urls
+    ]
+    if not image_urls:
         await _fail_job(supabase, job_id, lot_id, "No image available for lot")
         return
 
@@ -528,19 +528,23 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
 
     try:
         await asyncio.sleep(random.uniform(0.5, 1.5))
-        photo_id = await asyncio.get_running_loop().run_in_executor(
-            None, vinted.upload_photo, image_url
-        )
-        log.info("📷  Photo uploadée")
+        loop = asyncio.get_running_loop()
+        photo_ids = []
+        for url in image_urls:
+            pid = await loop.run_in_executor(None, vinted.upload_photo, url)
+            photo_ids.append(pid)
+            if url != image_urls[-1]:
+                await asyncio.sleep(random.uniform(1.0, 2.0))
+        log.info("📷  %d photo(s) uploadée(s)", len(photo_ids))
         await asyncio.sleep(random.uniform(2.0, 4.0))
-        listing_id = await asyncio.get_running_loop().run_in_executor(
+        listing_id = await loop.run_in_executor(
             None, lambda: vinted.create_listing(
                 title=title,
                 description=description,
                 price=price,
                 condition=condition,
-                image_url=image_url,
-                photo_id=photo_id,
+                image_urls=image_urls,
+                photo_ids=photo_ids,
                 catalog_id=catalog_id,
                 brand_id=brand_id,
                 brand=brand,

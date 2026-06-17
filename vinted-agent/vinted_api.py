@@ -258,7 +258,7 @@ class VintedClient:
     def _build_listing_payload(
         self,
         temp_uuid: str,
-        photo_id: int,
+        photo_ids: list,
         title: str,
         description: str,
         price: float,
@@ -284,7 +284,7 @@ class VintedClient:
                 "package_size_id": PACKAGE_SIZE_ID,
                 "shipment_prices": {"domestic": None, "international": None},
                 "color_ids": [],
-                "assigned_photos": [{"id": photo_id, "orientation": 0}],
+                "assigned_photos": [{"id": pid, "orientation": 0} for pid in photo_ids],
                 "measurement_length": None,
                 "measurement_width": None,
                 "item_attributes": [
@@ -305,8 +305,8 @@ class VintedClient:
         description: str,
         price: float,
         condition: str,
-        image_url: str,
-        photo_id: Optional[int] = None,
+        image_urls: list,
+        photo_ids: Optional[list] = None,
         catalog_id: int = POKEMON_CATALOG_ID,
         brand_id: int = POKEMON_BRAND_ID,
         brand: str = "Pokémon",
@@ -315,12 +315,12 @@ class VintedClient:
             self.refresh_csrf()
 
         temp_uuid = str(uuid.uuid4())
-        if photo_id is None:
-            photo_id = self.upload_photo(image_url)
+        if photo_ids is None:
+            photo_ids = [self.upload_photo(url) for url in image_urls]
 
         payload = self._build_listing_payload(
             temp_uuid=temp_uuid,
-            photo_id=photo_id,
+            photo_ids=photo_ids,
             title=title,
             description=description,
             price=price,
