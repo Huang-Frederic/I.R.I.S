@@ -20,6 +20,8 @@ interface Props {
   myUserId: string;
   partnerUserId: string | null;
   partnerName: string | null;
+  /** True while a bump (repost) job is queued/processing for this item. */
+  isBumping?: boolean;
   /** Called after a successful POST /api/listings — caller updates local state. */
   onListed: () => void;
   /** Called after a successful DELETE /api/listings/[kind]/[id]. */
@@ -41,6 +43,7 @@ export default function ListingBadges({
   myUserId,
   partnerUserId,
   partnerName,
+  isBumping = false,
   onListed,
   onUnlisted,
 }: Props) {
@@ -162,7 +165,14 @@ export default function ListingBadges({
           </button>
         )}
 
-        {!mine && (
+        {isBumping && (
+          <span className="bg-rarity-ar/20 text-rarity-ar inline-flex items-center gap-1 rounded px-1.5 py-0.5">
+            <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            <span className="hidden sm:inline">{t('bumping')}</span>
+          </span>
+        )}
+
+        {!mine && !isBumping && (
           <button
             type="button"
             onClick={() => setConfirmPostOnline(true)}

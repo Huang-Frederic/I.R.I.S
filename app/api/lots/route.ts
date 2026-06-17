@@ -42,6 +42,14 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const extra_description = (formData.get('extra_description') as string | null) ?? null;
 
+  const catalogIdRaw = formData.get('catalog_id') as string | null;
+  const catalog_id = catalogIdRaw ? parseInt(catalogIdRaw, 10) || null : null;
+
+  const brandIdRaw = formData.get('brand_id') as string | null;
+  const brand_id = brandIdRaw ? parseInt(brandIdRaw, 10) || null : null;
+
+  const brand_name = (formData.get('brand_name') as string | null) ?? null;
+
   const photos = formData.getAll('photos').filter((p): p is File => p instanceof File && p.size > 0);
   if (photos.length === 0) return validationResponse('At least one photo is required');
 
@@ -55,6 +63,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       extra_description,
       price,
       status: 'for_sale',
+      ...(catalog_id != null && { catalog_id }),
+      ...(brand_id != null && { brand_id }),
+      ...(brand_name != null && { brand_name }),
     })
     .select('id')
     .single();

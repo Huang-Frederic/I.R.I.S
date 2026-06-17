@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { NAV_ITEMS } from './nav-items';
+import { useAgentStatus } from '@/lib/hooks/useAgentStatus';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const t = useTranslations('nav');
+  const agentStatus = useAgentStatus();
 
   return (
     <aside className="bg-surface border-border fixed inset-y-0 left-0 z-30 hidden w-[220px] flex-col border-r md:flex">
@@ -46,6 +48,15 @@ export default function Sidebar() {
           );
         })}
       </nav>
+
+      <div className="border-border mx-3 border-t px-3 py-3">
+        <div className="flex items-center gap-2">
+          <span className={`h-2 w-2 shrink-0 rounded-full ${agentStatus === 'online' ? 'bg-green-500' : 'bg-text-faint'}`} />
+          <span className="text-text-muted text-xs">
+            {t(agentStatus === 'online' ? 'agentOnline' : 'agentOffline')}
+          </span>
+        </div>
+      </div>
     </aside>
   );
 }

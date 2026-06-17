@@ -96,6 +96,12 @@ export interface Lot {
   /** Array of Storage paths relative to the lot-photos bucket, e.g. ["{lot_id}/0.jpg"]. */
   photo_urls: string[];
   date_added: string;
+  /** Vinted catalog ID: 4875 = single card, 4879 = lot. Null for legacy rows (treated as lot). */
+  catalog_id: number | null;
+  /** Vinted brand ID. Null for legacy rows (treated as Pokémon). */
+  brand_id: number | null;
+  /** Vinted brand display name as sent to Vinted API. */
+  brand_name: string | null;
 }
 
 export interface RarityRank {
@@ -221,12 +227,12 @@ export interface EnrichResult {
 export interface BaseListing {
   user_id: string;
   listed_at: string;
+  vinted_listing_id: string | null;
+  vinted_posted_at: string | null;
 }
 
 export interface CardListing extends BaseListing {
   card_id: string;
-  vinted_listing_id: string | null;
-  vinted_posted_at: string | null;
 }
 
 export interface LotListing extends BaseListing {

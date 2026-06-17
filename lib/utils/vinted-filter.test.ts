@@ -14,8 +14,13 @@ const NONE: ChipState = {
 };
 
 const offline = null;
-const fresh = { user_id: 'u', listed_at: isoDaysAgo(5) };
-const stale = { user_id: 'u', listed_at: isoDaysAgo(40) };
+// Listing row with a known Vinted ID, posted 5 days ago (fresh).
+const fresh: BaseListing = { user_id: 'u', listed_at: isoDaysAgo(5), vinted_listing_id: 'v-fresh', vinted_posted_at: isoDaysAgo(5) };
+// Listing row with a known Vinted ID, posted 40 days ago (stale).
+const stale: BaseListing = { user_id: 'u', listed_at: isoDaysAgo(40), vinted_listing_id: 'v-stale', vinted_posted_at: isoDaysAgo(40) };
+// Listing row with no Vinted ID (ID lost after a failed repost).
+// Should behave as "fresh online" — not offline, not stale (can't bump without ID).
+const noId: BaseListing = { user_id: 'u', listed_at: isoDaysAgo(10), vinted_listing_id: null, vinted_posted_at: null };
 
 describe('passesStateChips', () => {
   it('with no state chip active, every for_sale card passes', () => {
@@ -43,6 +48,14 @@ describe('passesStateChips', () => {
     expect(passesStateChips(offline, chips, NOW)).toBe(false);
     expect(passesStateChips(fresh, chips, NOW)).toBe(false);
     expect(passesStateChips(stale, chips, NOW)).toBe(true);
+  });
+
+  it('listing row with null vinted_listing_id → treated as fresh (En ligne), never offline', () => {
+    // ID was lost after a failed repost — item may still be on Vinted.
+    // It should NOT appear in "Pas en ligne" (that means "never listed in IRIS").
+    expect(passesStateChips(noId, { ...NONE, showOffline: true }, NOW)).toBe(false);
+    expect(passesStateChips(noId, { ...NONE, showOnline: true }, NOW)).toBe(true);
+    expect(passesStateChips(noId, { ...NONE, showStale: true }, NOW)).toBe(false);
   });
 
   it('En ligne + À rafraîchir = union of fresh-only and stale-only = all listed', () => {
@@ -109,25 +122,27 @@ interface FakeItem {
   listings: BaseListing[];
 }
 
+const BASE_L = { vinted_listing_id: null, vinted_posted_at: null };
+
 const noListings: FakeItem = { status: 'for_sale', listings: [] };
 const onlyMine: FakeItem = {
   status: 'for_sale',
-  listings: [{ user_id: MY_ID, listed_at: '2026-05-01T00:00:00Z' }],
+  listings: [{ user_id: MY_ID, listed_at: '2026-05-01T00:00:00Z', ...BASE_L }],
 };
 const onlyPartner: FakeItem = {
   status: 'for_sale',
-  listings: [{ user_id: PARTNER_ID, listed_at: '2026-04-15T00:00:00Z' }],
+  listings: [{ user_id: PARTNER_ID, listed_at: '2026-04-15T00:00:00Z', ...BASE_L }],
 };
 const cross: FakeItem = {
   status: 'for_sale',
   listings: [
-    { user_id: MY_ID, listed_at: '2026-05-01T00:00:00Z' },
-    { user_id: PARTNER_ID, listed_at: '2026-04-15T00:00:00Z' },
+    { user_id: MY_ID, listed_at: '2026-05-01T00:00:00Z', ...BASE_L },
+    { user_id: PARTNER_ID, listed_at: '2026-04-15T00:00:00Z', ...BASE_L },
   ],
 };
 const mineButSold: FakeItem = {
   status: 'sold',
-  listings: [{ user_id: MY_ID, listed_at: '2026-05-01T00:00:00Z' }],
+  listings: [{ user_id: MY_ID, listed_at: '2026-05-01T00:00:00Z', ...BASE_L }],
 };
 
 describe('passesMultiUserChip', () => {

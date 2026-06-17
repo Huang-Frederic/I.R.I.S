@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { Card, Lot, CardWithListings, LotWithListings, BaseListing } from '@/lib/types';
@@ -74,6 +74,27 @@ function matchesLotSearch(lot: LotWithListings, query: string): boolean {
   return fields.some((f) => f && normalize(f).includes(q));
 }
 
+const CATALOG_SINGLE = 4875;
+const BRAND_IDS = { pokemon: 191646, onepiece: 89766, magic: 399547, lorcana: 287189 } as const;
+
+function matchesLotFilters(lot: LotWithListings, f: VintedFilterState): boolean {
+  if (f.kindFilter === 'single' && lot.catalog_id !== CATALOG_SINGLE) return false;
+  if (f.kindFilter === 'lot' && lot.catalog_id === CATALOG_SINGLE) return false;
+  if (f.lotBrand !== 'all') {
+    const bid = lot.brand_id;
+    switch (f.lotBrand) {
+      case 'pokemon': if (bid !== null && bid !== BRAND_IDS.pokemon) return false; break;
+      case 'onepiece': if (bid !== BRAND_IDS.onepiece) return false; break;
+      case 'magic': if (bid !== BRAND_IDS.magic) return false; break;
+      case 'lorcana': if (bid !== BRAND_IDS.lorcana) return false; break;
+      case 'autres':
+        if (bid === null || bid === BRAND_IDS.pokemon || bid === BRAND_IDS.onepiece || bid === BRAND_IDS.magic || bid === BRAND_IDS.lorcana) return false;
+        break;
+    }
+  }
+  return true;
+}
+
 function matchesAttrFilters(card: CardWithListings, f: VintedFilterState): boolean {
   if (f.language !== 'all' && card.language !== f.language) return false;
   if (f.rarity !== 'all' && card.rarity !== f.rarity) return false;
@@ -101,6 +122,35 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
 
   const [filters, setFilters] = useState<VintedFilterState>(INITIAL_FILTERS);
   const [now] = useState(() => Date.now());
+
+  // Track items with a queued bump (repost) job so the row can show a badge.
+  const [bumpingIds, setBumpingIds] = useState<Map<string, string>>(new Map());
+  const bumpPollRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
+
+  const onBumpQueued = useCallback((itemId: string, jobId: string) => {
+    setBumpingIds((prev) => new Map(prev).set(itemId, jobId));
+    const supabase = createClient();
+    const interval = setInterval(async () => {
+      const { data: job } = await supabase
+        .from('vinted_post_jobs')
+        .select('status')
+        .eq('id', jobId)
+        .maybeSingle();
+      if (job?.status === 'done' || job?.status === 'error') {
+        clearInterval(interval);
+        bumpPollRef.current.delete(itemId);
+        setBumpingIds((prev) => { const next = new Map(prev); next.delete(itemId); return next; });
+        router.refresh();
+      }
+    }, 3000);
+    bumpPollRef.current.set(itemId, interval);
+  }, [router]);
+
+  // Clean up any running polls on unmount.
+  useEffect(() => {
+    const polls = bumpPollRef.current;
+    return () => { polls.forEach((iv) => clearInterval(iv)); };
+  }, []);
 
   const { selectionMode, selectedIds, toggleSelect, toggleSelectionMode, cancelSelection } =
     useSelectionMode();
@@ -376,7 +426,9 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
   }
 
   const { forSaleRows, soldRows, soldLotsList, totalVisible } = useMemo(() => {
-    const showCards = filters.kindFilter !== 'lots';
+    // Cards are always Pokémon — hide them when a non-Pokémon brand is selected.
+    const showCards = filters.kindFilter === 'cards'
+      || (filters.kindFilter === 'all' && (filters.lotBrand === 'all' || filters.lotBrand === 'pokemon'));
     const showLots = filters.kindFilter !== 'cards';
 
     // "Pile à actionner" = items the user can still act on:
@@ -426,6 +478,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           (l) =>
             lotInActionPile(l) &&
             matchesLotSearch(l, filters.search) &&
+            matchesLotFilters(l, filters) &&
             passesStateChips(getMyListing(l.listings, myUserId), filters, now) &&
             passesMultiUserChip(l as { status: string; listings: BaseListing[] }, filters.multiUserChip, myUserId, partnerUserId),
         );
@@ -436,7 +489,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     const soldLotsList = !showLots || !filters.showSold
       ? []
       : lots
-          .filter((l) => l.status === 'sold' && !lotInActionPile(l) && matchesLotSearch(l, filters.search))
+          .filter((l) => l.status === 'sold' && !lotInActionPile(l) && matchesLotSearch(l, filters.search) && matchesLotFilters(l, filters))
           .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''));
 
     return {
@@ -490,6 +543,8 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
                 partnerUserId={partnerUserId}
                 partnerName={partnerName}
                 onListingsChanged={onListingsChanged}
+                onBumpQueued={onBumpQueued}
+                isBumping={bumpingIds.has(row.group.head.id)}
                 onImageClick={() => setZoomCard(row.group.head)}
                 onMoveToPokedexClick={() => setMoveToPokedexCard(row.group.head)}
                 onComparePokedexClick={() => void handleCompareClick(row.group.head)}
@@ -514,9 +569,12 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
                 partnerUserId={partnerUserId}
                 partnerName={partnerName}
                 onListingsChanged={onListingsChanged}
+                onBumpQueued={onBumpQueued}
+                isBumping={bumpingIds.has(row.lot.id)}
                 selectionMode={selectionMode}
                 selected={selectedIds.has(row.lot.id)}
                 onToggleSelect={() => toggleSelect(row.lot.id)}
+                vintedEnabled={vintedEnabled}
               />
             ),
           )}

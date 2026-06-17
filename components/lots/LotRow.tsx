@@ -1,10 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Tag, Package } from 'lucide-react';
-import type { Lot, BaseListing } from '@/lib/types';
+import type { Lot, LotListing } from '@/lib/types';
 import EditablePriceCell from '@/components/vinted/EditablePriceCell';
 import ListingBadges from '@/components/vinted/ListingBadges';
+import VintedPostButton from '@/components/vinted/VintedPostButton'
+import VintedActionModal from '@/components/vinted/VintedActionModal';
 
 interface Props {
   lot: Lot;
@@ -12,22 +15,29 @@ interface Props {
   onAnnonceClick: (lot: Lot) => void;
   onSoldClick: (lot: Lot) => void;
   onPriceSaved: (lotId: string, newPrice: number | null) => void;
-  listings: BaseListing[];
+  listings: LotListing[];
   myUserId: string;
   partnerUserId: string | null;
   partnerName: string | null;
   onListingsChanged: () => void;
+  onBumpQueued: (itemId: string, jobId: string) => void;
+  isBumping?: boolean;
   onImageClick?: (lot: Lot) => void;
   /** When true, show a checkbox on the left and disable Annonce/Vendu buttons. */
   selectionMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  vintedEnabled?: boolean;
 }
 
 export default function LotRow({
-  lot, storagePublicUrl, onAnnonceClick, onSoldClick, onPriceSaved, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onImageClick, selectionMode, selected, onToggleSelect,
+  lot, storagePublicUrl, onAnnonceClick, onSoldClick, onPriceSaved, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onBumpQueued, isBumping, onImageClick, selectionMode, selected, onToggleSelect, vintedEnabled,
 }: Props) {
   const t = useTranslations('lots');
+  const myListing = listings.find((l) => l.user_id === myUserId) ?? null;
+  const isOnline = myListing?.vinted_listing_id != null;
+  const [actionModalOpen, setActionModalOpen] = useState(false);
+  const isStale = myListing?.vinted_posted_at ? Date.now() - new Date(myListing.vinted_posted_at).getTime() > 21 * 24 * 60 * 60 * 1000 : false;
   const thumb = lot.photo_urls.length > 0 ? storagePublicUrl(lot.photo_urls[0]) : null;
 
   return (
@@ -67,9 +77,8 @@ export default function LotRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="truncate text-xs font-medium sm:text-sm">{lot.name}</p>
-            <span className="bg-rarity-chr/20 text-rarity-chr shrink-0 rounded px-1.5 py-0.5 text-xs font-medium">
-              {t('lotBadge')}
-            </span>
+            <LotTypeBadge catalogId={lot.catalog_id} />
+            <LotBrandBadge brandId={lot.brand_id} />
           </div>
           <div className="text-text-muted mt-1 flex flex-wrap items-center gap-1 text-[10px] sm:gap-2 sm:text-xs">
             {lot.language && <span className="font-mono">{lot.language}</span>}
@@ -89,6 +98,7 @@ export default function LotRow({
               myUserId={myUserId}
               partnerUserId={partnerUserId}
               partnerName={partnerName}
+              isBumping={isBumping}
               onListed={onListingsChanged}
               onUnlisted={onListingsChanged}
             />
@@ -130,7 +140,104 @@ export default function LotRow({
             {t('soldButton')}
           </button>
         )}
+
+        {vintedEnabled && !isOnline && !selectionMode && (
+          <VintedPostButton
+            lotId={lot.id}
+            userId={myUserId}
+            hasPrice={lot.price !== null}
+            onListingsChanged={onListingsChanged}
+          />
+        )}
+
+        {vintedEnabled && isOnline && !selectionMode && myListing?.vinted_listing_id && (
+          myListing.vinted_posted_at ? (
+            // Posted via IRIS — active: stale badge + clickable logo opens modal
+            <>
+              {isStale && (
+                <button
+                  type="button"
+                  onClick={() => setActionModalOpen(true)}
+                  className="bg-rarity-ar/20 text-rarity-ar shrink-0 rounded px-1.5 py-0.5 text-[10px] sm:text-xs"
+                  title="Annonce stale — cliquer pour bumper"
+                >
+                  ⏰ Stale
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setActionModalOpen(true)}
+                className="shrink-0 hover:opacity-70 transition-opacity"
+                title="Voir ou bumper l'annonce Vinted"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/vinted-logo.jpeg"
+                  alt="Vinted"
+                  className={`h-6 w-6 rounded sm:h-7 sm:w-7 object-cover ${isStale ? 'ring-2 ring-rarity-ar' : ''}`}
+                />
+              </button>
+            </>
+          ) : (
+            // Posted externally (no vinted_posted_at) — greyed logo, no modal
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src="/vinted-logo.jpeg"
+              alt="Vinted"
+              className="h-6 w-6 rounded sm:h-7 sm:w-7 object-cover opacity-40 grayscale"
+              title="Annonce Vinted (gérée en dehors d'IRIS)"
+            />
+          )
+        )}
       </div>
+
+      {actionModalOpen && myListing?.vinted_listing_id && (
+        <VintedActionModal
+          listingId={myListing.vinted_listing_id}
+          lotId={lot.id}
+          name={lot.name ?? 'Lot'}
+          postedAt={myListing.vinted_posted_at}
+          price={lot.price ?? null}
+          userId={myUserId}
+          onBumpQueued={onBumpQueued}
+          onClose={() => setActionModalOpen(false)}
+        />
+      )}
     </li>
+  );
+}
+
+const CATALOG_SINGLE = 4875;
+
+function LotTypeBadge({ catalogId }: { catalogId: number | null }) {
+  const isSingle = catalogId === CATALOG_SINGLE;
+  return (
+    <span className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${
+      isSingle
+        ? 'bg-blue-500/15 text-blue-400'
+        : 'bg-rarity-chr/20 text-rarity-chr'
+    }`}>
+      {isSingle ? 'Single' : 'Lot'}
+    </span>
+  );
+}
+
+const BRAND_LABELS: Record<number, string> = {
+  191646: 'Pokémon',
+  89766: 'One Piece',
+  399547: 'Magic',
+  287189: 'Lorcana',
+  312702: 'Yu-Gi-Oh!',
+  284189: 'Digimon',
+  350491: 'Dragon Ball',
+  12800798: 'Wankul',
+};
+
+function LotBrandBadge({ brandId }: { brandId: number | null }) {
+  const label = brandId == null ? 'Pokémon' : (BRAND_LABELS[brandId] ?? 'Autres');
+  return (
+    <span className="bg-surface-2 text-text-muted shrink-0 rounded px-1.5 py-0.5 text-xs">
+      {label}
+    </span>
   );
 }

@@ -108,6 +108,9 @@ const LOT_DEFAULTS: Lot = {
   sold_by_user_id: null,
   photo_urls: [],
   date_added: '2026-01-01T00:00:00Z',
+  catalog_id: null,
+  brand_id: null,
+  brand_name: null,
 };
 
 /** Build a Lot with sensible defaults. Pass overrides for fields under test. */
@@ -128,6 +131,8 @@ export function makeLotListing(overrides: Partial<LotListing> = {}): LotListing 
     lot_id: 'test-lot-id',
     user_id: 'test-user-id',
     listed_at: '2026-01-01T00:00:00Z',
+    vinted_listing_id: null,
+    vinted_posted_at: null,
     ...overrides,
   };
 }

@@ -19,7 +19,10 @@ type Bucket = 0 | 1 | 2;
 function bucketOf(listings: BaseListing[], now: number, myUserId: string): Bucket {
   const mine = getMyListing(listings, myUserId);
   if (!mine) return 0;
-  return isListingStale(mine.listed_at, now) ? 1 : 2;
+  // Listing row exists but ID is null (lost after failed repost) → treat as fresh.
+  // Mirrors passesStateChips: these items are "En ligne", not "Pas en ligne".
+  if (!mine.vinted_listing_id) return 2;
+  return isListingStale(mine.vinted_posted_at, now) ? 1 : 2;
 }
 
 /**
@@ -56,10 +59,10 @@ export function interleaveCardsAndLots(
     row.kind === 'card' ? row.group.head.date_added : row.lot.date_added;
 
   const listedAtOf = (row: MixedRow): string => {
-    if (row.kind === 'card') {
-      return getMyListing(row.group.head.listings, myUserId)?.listed_at ?? '';
-    }
-    return getMyListing(row.lot.listings, myUserId)?.listed_at ?? '';
+    const mine = row.kind === 'card'
+      ? getMyListing(row.group.head.listings, myUserId)
+      : getMyListing(row.lot.listings, myUserId);
+    return mine?.vinted_posted_at ?? '';
   };
 
   const bucketRow = (row: MixedRow): Bucket => {
@@ -79,8 +82,12 @@ export function interleaveCardsAndLots(
       return direction === 'desc' ? -cmp : cmp;
     }
     if (ba === 1) {
-      return listedAtOf(a).localeCompare(listedAtOf(b));
+      // Bucket 1 (stale): most overdue first (ASC) by default, reversed by direction.
+      const cmp = listedAtOf(a).localeCompare(listedAtOf(b));
+      return direction === 'desc' ? -cmp : cmp;
     }
-    return listedAtOf(b).localeCompare(listedAtOf(a));
+    // Bucket 2 (fresh): most recently listed first (DESC) by default, reversed by direction.
+    const cmp = listedAtOf(a).localeCompare(listedAtOf(b));
+    return direction === 'asc' ? -cmp : cmp;
   });
 }

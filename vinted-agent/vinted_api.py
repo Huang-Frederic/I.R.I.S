@@ -13,6 +13,17 @@ from PIL import Image
 
 VINTED_BASE = "https://www.vinted.fr"
 
+
+class ListingGoneError(RuntimeError):
+    """Raised when Vinted returns 404 on POST .../delete — listing not found.
+
+    With the correct endpoint, a 404 definitively means the listing no longer
+    exists on Vinted (manually deleted or expired). The caller may safely
+    clear the stale ID and create a new listing.
+    """
+    pass
+
+
 CONDITION_MAP = {
     "NM": 1,
     "EX": 2,
@@ -21,9 +32,21 @@ CONDITION_MAP = {
     "PO": 5,
 }
 
-POKEMON_CATALOG_ID = 4875
-POKEMON_BRAND_ID = 191646
+CARDS_CATALOG_ID = 4875       # Cartes à collectionner (unité)
+CARD_LOTS_CATALOG_ID = 4879  # Lots de cartes à collectionner
+POKEMON_CATALOG_ID = CARDS_CATALOG_ID  # alias kept for process_job
 PACKAGE_SIZE_ID = 1
+
+# Brand IDs (catalog 4875 / 4879)
+POKEMON_BRAND_ID = 191646
+ONE_PIECE_BRAND_ID = 89766
+MAGIC_BRAND_ID = 399547
+YUGIOH_BRAND_ID = 312702
+DIGIMON_BRAND_ID = 284189
+DRAGON_BALL_BRAND_ID = 350491
+LORCANA_BRAND_ID = 287189    # published by Ravensburger
+WANKUL_BRAND_ID = 12800798
+SANS_MARQUE_BRAND_ID = 1     # "Sans marque" — fallback for unknown TCG
 
 
 _CROP_MIN = 0.02
@@ -70,26 +93,28 @@ class VintedClient:
         raw = json.loads(Path(cookies_path).read_text())
         # Skip comment keys and empty values — sending access_token_web="" would break auth
         self._cookies = {k: v for k, v in raw.items() if v and not k.startswith("_comment")}
-        # curl_cffi impersonates Chrome's TLS fingerprint (JA3) to bypass DataDome
-        self._session = curl_requests.Session(impersonate="chrome120")
+        # curl_cffi impersonates Chrome's TLS fingerprint (JA3) to bypass DataDome.
+        # Must match the Chrome version in the User-Agent to avoid DataDome mismatch detection.
+        self._session = curl_requests.Session(impersonate="chrome131")
         self._session.cookies.update(self._cookies)
         self._csrf: Optional[str] = None
 
     def _headers(self) -> dict:
         h = {
+            # Chrome 131 on Windows — matches impersonate="chrome131" TLS fingerprint
             "User-Agent": (
-                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) SamsungBrowser/30.0 Chrome/143.0.0.0 Mobile Safari/537.36"
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
             ),
             "Accept": "application/json,text/plain,*/*,image/webp",
-            "Accept-Language": "fr",
+            "Accept-Language": "fr-FR,fr;q=0.9",
             "locale": "fr-FR",
             "Origin": VINTED_BASE,
             "Referer": f"{VINTED_BASE}/items/new",
-            # Browser hint headers — DataDome uses these to verify browser identity
-            "sec-ch-ua": '"Samsung Internet";v="30.0", "Chromium";v="143", "Not A(Brand";v="24"',
-            "sec-ch-ua-mobile": "?1",
-            "sec-ch-ua-platform": '"Android"',
+            # Browser hint headers — must match UA above for DataDome consistency check
+            "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
             "sec-fetch-site": "same-origin",
             "sec-fetch-mode": "cors",
             "sec-fetch-dest": "empty",
@@ -131,7 +156,7 @@ class VintedClient:
                 self._save_cookies()
                 # curl_cffi/libcurl has an internal cookie jar that .cookies.set() does not
                 # update reliably — reinitialise the session so the new access_token is used.
-                self._session = curl_requests.Session(impersonate="chrome120")
+                self._session = curl_requests.Session(impersonate="chrome131")
                 self._session.cookies.update(self._cookies)
                 log.info("Token refreshed successfully")
                 return True
@@ -139,11 +164,26 @@ class VintedClient:
             log.warning("Token refresh error: %s", e)
         return False
 
+    def _html_headers(self) -> dict:
+        """Headers for page-load requests (text/html) — full browser fingerprint for DataDome."""
+        h = self._headers()
+        h["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+        h["sec-fetch-mode"] = "navigate"
+        h["sec-fetch-dest"] = "document"
+        h["sec-fetch-site"] = "none"
+        h.pop("locale", None)
+        h.pop("x-anon-id", None)
+        h.pop("accept-features", None)
+        h.pop("x-enable-dynamic-attribute-condition", None)
+        h.pop("x-enable-dynamic-attribute-size", None)
+        h.pop("x-enable-dynamic-attribute-video-game-rating", None)
+        return h
+
     def refresh_csrf(self) -> None:
         """Fetch /items/new and extract the CSRF token, auto-refreshing token if needed."""
         r = self._session.get(
             f"{VINTED_BASE}/items/new",
-            headers={"User-Agent": self._headers()["User-Agent"], "Accept": "text/html"},
+            headers=self._html_headers(),
             timeout=15,
             allow_redirects=True,
         )
@@ -156,7 +196,7 @@ class VintedClient:
             # Retry with fresh token
             r = self._session.get(
                 f"{VINTED_BASE}/items/new",
-                headers={"User-Agent": self._headers()["User-Agent"], "Accept": "text/html"},
+                headers=self._html_headers(),
                 timeout=15,
                 allow_redirects=True,
             )
@@ -223,6 +263,9 @@ class VintedClient:
         description: str,
         price: float,
         condition: str,
+        catalog_id: int = POKEMON_CATALOG_ID,
+        brand_id: int = POKEMON_BRAND_ID,
+        brand: str = "Pokémon",
     ) -> dict:
         return {
             "item": {
@@ -231,9 +274,9 @@ class VintedClient:
                 "temp_uuid": temp_uuid,
                 "title": title,
                 "description": description,
-                "brand_id": POKEMON_BRAND_ID,
-                "brand": "Pokémon",
-                "catalog_id": POKEMON_CATALOG_ID,
+                "brand_id": brand_id,
+                "brand": brand,
+                "catalog_id": catalog_id,
                 "isbn": None,
                 "is_unisex": False,
                 "ai_photo": False,
@@ -264,6 +307,9 @@ class VintedClient:
         condition: str,
         image_url: str,
         photo_id: Optional[int] = None,
+        catalog_id: int = POKEMON_CATALOG_ID,
+        brand_id: int = POKEMON_BRAND_ID,
+        brand: str = "Pokémon",
     ) -> str:
         if not self._csrf:
             self.refresh_csrf()
@@ -279,11 +325,15 @@ class VintedClient:
             description=description,
             price=price,
             condition=condition,
+            catalog_id=catalog_id,
+            brand_id=brand_id,
+            brand=brand,
         )
 
         h = {**self._headers(), "content-type": "application/json", "x-upload-form": "true"}
-        import logging, json as _json
-        logging.getLogger(__name__).debug("Listing payload: %s", _json.dumps(payload, indent=2))
+        log = logging.getLogger(__name__)
+        import json as _json
+        log.debug("Listing payload: %s", _json.dumps(payload, indent=2))
         r = self._session.post(
             f"{VINTED_BASE}/api/v2/item_upload/items",
             json=payload,
@@ -291,18 +341,54 @@ class VintedClient:
             timeout=30,
         )
         if not r.ok:
-            logging.getLogger(__name__).error(
-                "Vinted API 400 response body: %s", r.text[:2000]
-            )
+            log.error("Vinted API error %s: %s", r.status_code, r.text[:2000])
+            # DataDome returns 403 with a JSON body containing a captcha URL.
+            if r.status_code == 403:
+                try:
+                    body = r.json()
+                    if "captcha-delivery.com" in body.get("url", ""):
+                        raise RuntimeError(
+                            "DataDome blocked listing creation (403 CAPTCHA) — run login.py to refresh session"
+                        )
+                except (ValueError, KeyError):
+                    pass
         r.raise_for_status()
         return str(r.json()["item"]["id"])
 
     def delete_listing(self, listing_id: str) -> None:
-        r = self._session.delete(
-            f"{VINTED_BASE}/api/v2/items/{listing_id}",
+        log = logging.getLogger(__name__)
+        r = self._session.post(
+            f"{VINTED_BASE}/api/v2/items/{listing_id}/delete",
             headers=self._headers(),
             timeout=15,
+            allow_redirects=False,
         )
+        if r.status_code == 401:
+            log.info("Session expired on POST .../delete %s, refreshing and retrying…", listing_id)
+            self.refresh_csrf()
+            r = self._session.post(
+                f"{VINTED_BASE}/api/v2/items/{listing_id}/delete",
+                headers=self._headers(),
+                timeout=15,
+                allow_redirects=False,
+            )
+        ct = r.headers.get("content-type", "")
+        if not r.ok:
+            log.warning("POST .../delete #%s → HTTP %s : %s", listing_id, r.status_code, r.text[:120])
         if r.status_code == 404:
-            return  # Already gone — not an error
+            # Listing genuinely gone from Vinted (deleted externally or expired).
+            # With the correct endpoint, 404 is unambiguous — safe to recreate.
+            raise ListingGoneError(
+                f"Listing {listing_id} introuvable sur Vinted (404) — supprimé externalement."
+            )
+        # DataDome: 3xx redirect to CAPTCHA challenge page
+        if 300 <= r.status_code < 400:
+            raise RuntimeError(
+                f"DataDome blocked POST .../delete listing {listing_id} (HTTP {r.status_code}) — run login.py"
+            )
+        # DataDome may return 200 with HTML instead of JSON.
+        if r.ok and "json" not in ct and "text/plain" not in ct:
+            raise RuntimeError(
+                f"DataDome blocked POST .../delete listing {listing_id} (HTTP 200 non-JSON, ct={ct!r}) — run login.py"
+            )
         r.raise_for_status()

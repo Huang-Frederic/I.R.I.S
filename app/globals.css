@@ -45,6 +45,9 @@
   --color-user-lui: #5591c7; /* blue (matches rarity-rr) */
   --color-user-elle: #d97aa6; /* pink */
 
+  /* Vinted brand */
+  --color-vinted: #005e68;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

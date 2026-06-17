@@ -13,8 +13,10 @@ export interface VintedFilterState {
   language: CardLanguage | 'all';
   rarity: CardRarity | 'all';
   variant: 'all' | 'standard' | 'pokeball' | 'masterball' | 'reverse_holo' | 'stamp' | 'promo';
-  /** Type of listings to show: all (cards+lots), cards only, or lots only. */
-  kindFilter: 'all' | 'cards' | 'lots';
+  /** Type of listings to show. 'single'/'lot' show only that catalog_id subset of lots. */
+  kindFilter: 'all' | 'cards' | 'single' | 'lot';
+  /** For lot rows: filter by brand (hidden when kindFilter='cards'). */
+  lotBrand: 'all' | 'pokemon' | 'onepiece' | 'magic' | 'lorcana' | 'autres';
   // Cumulative chips
   showOnline: boolean;     // include for_sale where I have a listing (fresh)
   showOffline: boolean;    // include for_sale where I have no listing
@@ -30,6 +32,7 @@ export const INITIAL_FILTERS: VintedFilterState = {
   rarity: 'all',
   variant: 'all',
   kindFilter: 'all',
+  lotBrand: 'all',
   showOnline: false,
   showOffline: false,
   showSold: false,
@@ -144,9 +147,9 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
       </div>
 
       <div className={`${expanded ? 'flex' : 'hidden'} flex-col gap-3 md:flex`}>
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           <span className="text-text-faint mr-1 text-xs">{t('typeLabel')}</span>
-          {(['all', 'cards', 'lots'] as const).map((k) => (
+          {(['all', 'cards', 'single', 'lot'] as const).map((k) => (
             <button
               key={k}
               type="button"
@@ -157,9 +160,24 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
                   : 'bg-surface-2 text-text-muted hover:text-text'
               }`}
             >
-              {k === 'all' ? t('typeAll') : k === 'cards' ? t('typeCards') : t('typeLots')}
+              {k === 'all' ? t('typeAll') : k === 'cards' ? t('typeCards') : k === 'single' ? t('typeSingle') : t('typeLots')}
             </button>
           ))}
+          {value.kindFilter !== 'cards' && (
+            <select
+              value={value.lotBrand}
+              onChange={(e) => onChange({ ...value, lotBrand: e.target.value as VintedFilterState['lotBrand'] })}
+              className="bg-surface-2 border-border ml-1 rounded border px-2 py-1 text-xs"
+              aria-label={t('lotBrandLabel')}
+            >
+              <option value="all">{t('lotBrandAll')}</option>
+              <option value="pokemon">Pokémon</option>
+              <option value="onepiece">One Piece</option>
+              <option value="magic">Magic</option>
+              <option value="lorcana">Lorcana</option>
+              <option value="autres">{t('lotBrandAutres')}</option>
+            </select>
+          )}
           <button
             type="button"
             onClick={onToggleSelectionMode}

@@ -25,6 +25,8 @@ const listing = (cardId: string, listedAt: string): CardListing => ({
   user_id: MY_ID,
   listed_at: listedAt,
   card_id: cardId,
+  vinted_listing_id: null,
+  vinted_posted_at: null,
 });
 
 describe('sortVintedGroups', () => {

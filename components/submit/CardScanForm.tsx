@@ -1470,7 +1470,6 @@ export default function CardScanForm({
             </div>
           )}
 
-          {/* Notes */}
           <Field label={t('fieldNotes')}>
           <textarea
             value={form.notes}

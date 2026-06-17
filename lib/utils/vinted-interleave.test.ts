@@ -13,10 +13,14 @@ const dayMs = 24 * 60 * 60 * 1000;
 const isoDaysAgo = (d: number) => new Date(NOW - d * dayMs).toISOString();
 const MY_ID = 'my-user-id';
 
+// Active Vinted listing: vinted_listing_id and vinted_posted_at must be set
+// for bucketOf() to classify the item as stale or fresh (not offline).
 const cardListing = (cardId: string, listedAt: string): CardListing => ({
   user_id: MY_ID,
   listed_at: listedAt,
   card_id: cardId,
+  vinted_listing_id: `v-${cardId}`,
+  vinted_posted_at: listedAt,
 });
 
 function makeCardGroup(overrides: Partial<CardWithListings> = {}) {
@@ -78,15 +82,15 @@ describe('interleaveCardsAndLots', () => {
   it('within bucket 1 (stale), sorts both cards and lots by listed_at ASC', () => {
     const cardStale30 = makeCardGroup({
       id: 'c-30',
-      listings: [cardListing('card-id', isoDaysAgo(30))],
+      listings: [cardListing('c-30', isoDaysAgo(30))],
     });
     const lotStale60 = makeLot({
       id: 'l-60',
-      listings: [makeLotListing({ user_id: MY_ID, listed_at: isoDaysAgo(60) })],
+      listings: [makeLotListing({ user_id: MY_ID, listed_at: isoDaysAgo(60), vinted_listing_id: 'v-l-60', vinted_posted_at: isoDaysAgo(60) })],
     });
     const cardStale90 = makeCardGroup({
       id: 'c-90',
-      listings: [cardListing('card-id', isoDaysAgo(90))],
+      listings: [cardListing('c-90', isoDaysAgo(90))],
     });
     const out = interleaveCardsAndLots([cardStale30, cardStale90], [lotStale60], NOW, MY_ID);
     expect(out.map((r) => (r.kind === 'card' ? r.group.head.id : r.lot.id))).toEqual([
@@ -99,15 +103,15 @@ describe('interleaveCardsAndLots', () => {
   it('within bucket 2 (fresh), sorts both cards and lots by listed_at DESC', () => {
     const cardFresh2 = makeCardGroup({
       id: 'c-2',
-      listings: [cardListing('card-id', isoDaysAgo(2))],
+      listings: [cardListing('c-2', isoDaysAgo(2))],
     });
     const lotFresh7 = makeLot({
       id: 'l-7',
-      listings: [makeLotListing({ user_id: MY_ID, listed_at: isoDaysAgo(7) })],
+      listings: [makeLotListing({ user_id: MY_ID, listed_at: isoDaysAgo(7), vinted_listing_id: 'v-l-7', vinted_posted_at: isoDaysAgo(7) })],
     });
     const cardFresh15 = makeCardGroup({
       id: 'c-15',
-      listings: [cardListing('card-id', isoDaysAgo(15))],
+      listings: [cardListing('c-15', isoDaysAgo(15))],
     });
     const out = interleaveCardsAndLots([cardFresh2, cardFresh15], [lotFresh7], NOW, MY_ID);
     expect(out.map((r) => (r.kind === 'card' ? r.group.head.id : r.lot.id))).toEqual([
@@ -123,19 +127,19 @@ describe('interleaveCardsAndLots', () => {
       lotOfflineNew: makeLot({ id: 'lo-new', date_added: '2026-03-01T00:00:00Z', listings: [] }),
       cardStale: makeCardGroup({
         id: 'cs',
-        listings: [cardListing('card-id', isoDaysAgo(50))],
+        listings: [cardListing('cs', isoDaysAgo(50))],
       }),
       lotStale: makeLot({
         id: 'ls',
-        listings: [makeLotListing({ user_id: MY_ID, listed_at: isoDaysAgo(80) })],
+        listings: [makeLotListing({ user_id: MY_ID, listed_at: isoDaysAgo(80), vinted_listing_id: 'v-ls', vinted_posted_at: isoDaysAgo(80) })],
       }),
       cardFresh: makeCardGroup({
         id: 'cf',
-        listings: [cardListing('card-id', isoDaysAgo(2))],
+        listings: [cardListing('cf', isoDaysAgo(2))],
       }),
       lotFresh: makeLot({
         id: 'lf',
-        listings: [makeLotListing({ user_id: MY_ID, listed_at: isoDaysAgo(10) })],
+        listings: [makeLotListing({ user_id: MY_ID, listed_at: isoDaysAgo(10), vinted_listing_id: 'v-lf', vinted_posted_at: isoDaysAgo(10) })],
       }),
     };
     const out = interleaveCardsAndLots(

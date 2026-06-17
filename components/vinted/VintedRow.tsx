@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { BookmarkCheck, Bookmark, Tag } from 'lucide-react';
 import type { Card, CardListing } from '@/lib/types';
@@ -10,7 +11,7 @@ import { getMyListing } from '@/lib/utils/listings';
 import ListingBadges from './ListingBadges';
 import StockCountChip from './StockCountChip';
 import VintedPostButton from './VintedPostButton';
-import VintedBumpButton from './VintedBumpButton';
+import VintedActionModal from '@/components/vinted/VintedActionModal';
 import VintedLogo from '@/components/ui/VintedLogo';
 
 function thumbUrl(card: Card): string {
@@ -30,6 +31,8 @@ interface Props {
   partnerUserId: string | null;
   partnerName: string | null;
   onListingsChanged: () => void;
+  onBumpQueued: (itemId: string, jobId: string) => void;
+  isBumping?: boolean;
   onImageClick?: (card: Card) => void;
   /**
    * Called when the user clicks the "Pas Pokédex" badge — invitation to
@@ -59,16 +62,17 @@ interface Props {
 }
 
 export default function VintedRow({
-  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onImageClick, onMoveToPokedexClick, onComparePokedexClick, selectionMode, selected, onToggleSelect, stockCount, onSetStockCount, stockBusy, vintedEnabled,
+  group, isRegistered, priceCell, onAnnonceClick, onSoldClick, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onBumpQueued, isBumping, onImageClick, onMoveToPokedexClick, onComparePokedexClick, selectionMode, selected, onToggleSelect, stockCount, onSetStockCount, stockBusy, vintedEnabled,
 }: Props) {
   const t = useTranslations('vinted');
   const card = group.head;
   const mine = getMyListing(listings, myUserId);
-  const isOnline = mine !== null;
+  const isOnline = mine?.vinted_listing_id != null;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
   const isStale = mine?.vinted_posted_at
     ? Date.now() - new Date(mine.vinted_posted_at).getTime() > 21 * 24 * 60 * 60 * 1000
     : false;
+  const [actionModalOpen, setActionModalOpen] = useState(false);
 
   return (
     <li className="bg-surface border-border flex items-stretch gap-2 rounded-lg border p-2 text-sm sm:items-center sm:gap-3 sm:p-3">
@@ -158,6 +162,7 @@ export default function VintedRow({
               myUserId={myUserId}
               partnerUserId={partnerUserId}
               partnerName={partnerName}
+              isBumping={isBumping}
               onListed={onListingsChanged}
               onUnlisted={onListingsChanged}
             />
@@ -205,31 +210,37 @@ export default function VintedRow({
                 </button>
               )}
               {vintedEnabled && (
-                mine?.vinted_listing_id ? (
-                  <>
-                    <a
-                      href={`https://www.vinted.fr/items/${mine.vinted_listing_id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0 hover:opacity-70 transition-opacity"
-                      title="Voir l'annonce sur Vinted"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/vinted-logo.jpeg" alt="Vinted" className="h-6 w-6 rounded sm:h-7 sm:w-7 object-cover" />
-                    </a>
-                    {isStale && <VintedBumpButton cardId={card.id} userId={myUserId} onListingsChanged={onListingsChanged} />}
-                  </>
-                ) : (
-                  <span className="shrink-0 cursor-not-allowed opacity-25" title="Pas de lien Vinted (posté manuellement)">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/vinted-logo.jpeg" alt="Vinted" className="h-6 w-6 rounded sm:h-7 sm:w-7 object-cover" />
-                  </span>
-                )
+                <button
+                  type="button"
+                  onClick={() => setActionModalOpen(true)}
+                  className="shrink-0 hover:opacity-70 transition-opacity"
+                  title="Voir ou bumper l'annonce Vinted"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/vinted-logo.jpeg"
+                    alt="Vinted"
+                    className={`h-6 w-6 rounded sm:h-7 sm:w-7 object-cover ${isStale ? 'ring-2 ring-orange-500' : ''}`}
+                  />
+                </button>
               )}
             </>
           )}
         </div>
       </div>
+
+      {actionModalOpen && mine?.vinted_listing_id && (
+        <VintedActionModal
+          listingId={mine.vinted_listing_id}
+          cardId={card.id}
+          name={displayCardName(card)}
+          postedAt={mine.vinted_posted_at!}
+          price={card.suggested_price ?? null}
+          userId={myUserId}
+          onBumpQueued={onBumpQueued}
+          onClose={() => setActionModalOpen(false)}
+        />
+      )}
     </li>
   );
 }

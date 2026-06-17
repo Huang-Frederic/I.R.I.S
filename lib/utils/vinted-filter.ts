@@ -45,8 +45,13 @@ export function passesStateChips(
   const noStateChip = !chips.showOnline && !chips.showOffline && !chips.showStale;
   if (noStateChip) return true; // "Tous" — show every for_sale row
 
+  // isOnline = any listing row in IRIS, regardless of vinted_listing_id.
+  // Items with a listing row but null vinted_listing_id (ID lost after a failed
+  // repost) are still "online" from the user's perspective — they appear in
+  // "En ligne" as fresh, not in "Pas en ligne" (never listed).
+  // Stale requires an actual vinted_listing_id; you can't bump without one.
   const isOnline = myListing !== null;
-  const isStale = isOnline && isListingStale(myListing.listed_at, now);
+  const isStale = isOnline && myListing!.vinted_listing_id !== null && isListingStale(myListing!.vinted_posted_at, now);
   const isFresh = isOnline && !isStale;
   const isOffline = !isOnline;
 

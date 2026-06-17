@@ -34,5 +34,8 @@ export function isStaleForListing(
   now: number,
 ): boolean {
   if (!listing) return false;
-  return isListingStale(listing.listed_at, now);
+  // Only stale when actually posted to Vinted — listed_at is the IRIS listing
+  // date and may be old even if the item was never posted to Vinted.
+  if (!listing.vinted_listing_id) return false;
+  return isListingStale(listing.vinted_posted_at, now);
 }

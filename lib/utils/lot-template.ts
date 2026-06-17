@@ -1,12 +1,15 @@
 import type { CardCondition, CardLanguage } from '@/lib/types';
 import { LANGUAGE_FEMALE, LANGUAGE_FLAGS, CONDITION_LABEL } from './vinted-template';
 
-interface LotForTemplate {
+export interface LotForTemplate {
   name: string;
-  /** When null, defaults to JP for the boilerplate. The form requires a value, so this should rarely happen. */
   language: CardLanguage | null;
   condition: CardCondition;
   extra_description: string | null;
+  /** Brand label used in the title/description (e.g. "One Piece", "Pokémon"). Defaults to "Pokémon". */
+  brandLabel?: string;
+  /** true = lot of cards (catalog 4879), false = single card (catalog 4875). Defaults to true. */
+  isLot?: boolean;
 }
 
 export interface LotAnnonce {
@@ -14,28 +17,31 @@ export interface LotAnnonce {
   description: string;
 }
 
-/**
- * Title suffix code per language. Same as enum value (CN replaced ZH after the
- * 2026-05-04 enum migration). ZH kept as alias for legacy rows.
- */
 const LANGUAGE_TITLE_CODE: Record<CardLanguage, string> = {
   JP: 'JP', EN: 'EN', FR: 'FR', DE: 'DE', IT: 'IT',
   ES: 'ES', KO: 'KO', PT: 'PT', ZH: 'CN', CN: 'CN',
 };
 
-const TITLE_PREFIX = 'Lot de Cartes Pokémon ';
-
-/**
- * Compose the final Vinted title from the user-typed middle part.
- * Example: name="Art Set SBB1C", language='ZH' → "Lot de Cartes Pokémon Art Set SBB1C [CN]"
- */
-export function composeLotTitle(name: string, language: CardLanguage | null): string {
+export function composeLotTitle(
+  name: string,
+  language: CardLanguage | null,
+  brandLabel = 'Pokémon',
+  isLot = true,
+): string {
   const code = LANGUAGE_TITLE_CODE[language ?? 'JP'];
-  return `${TITLE_PREFIX}${name} [${code}]`;
+  const typePrefix = isLot ? 'Lot de Cartes' : 'Carte';
+  const brandPart = brandLabel ? ` ${brandLabel}` : '';
+  const full = `${typePrefix}${brandPart} ${name} [${code}]`;
+  if (full.length <= 80) return full;
+  // fallback: drop brand from prefix
+  const short = `${typePrefix} ${name} [${code}]`;
+  if (short.length <= 80) return short;
+  // last resort: bare name + lang
+  return `${name} [${code}]`.slice(0, 80);
 }
 
 const DESCRIPTION_TEMPLATE = `✨ {{title}}
-📘 Cartes officielles {{language_name}} {{language_flag}}
+📘 {{lang_line}}
 ✅ État : {{condition_label}}, carte en excellent état (voir photos).
 {{extra_block}}
 🛡️ Chaque carte est envoyée sous sleeve + toploader !
@@ -51,16 +57,21 @@ export function buildLotAnnonce(lot: LotForTemplate): LotAnnonce {
   const langName = LANGUAGE_FEMALE[langKey];
   const langFlag = LANGUAGE_FLAGS[langKey];
   const condLabel = CONDITION_LABEL[lot.condition];
-  const title = composeLotTitle(lot.name, lot.language);
+  const brandLabel = lot.brandLabel ?? 'Pokémon';
+  const isLot = lot.isLot ?? true;
+
+  const title = composeLotTitle(lot.name, lot.language, brandLabel, isLot);
+
+  const langLine = isLot
+    ? `Cartes officielles ${langName} ${langFlag}`
+    : `Version ${langName} ${langFlag}`;
 
   const trimmedExtra = lot.extra_description?.trim() ?? '';
-  // Add 📝 emoji prefix to match the visual style of the other lines (✨ 📘 ✅ etc.)
   const extraBlock = trimmedExtra === '' ? '' : `\n📝 ${trimmedExtra}\n`;
 
   const description = DESCRIPTION_TEMPLATE
     .replace('{{title}}', title)
-    .replace('{{language_name}}', langName)
-    .replace('{{language_flag}}', langFlag)
+    .replace('{{lang_line}}', langLine)
     .replace('{{condition_label}}', condLabel)
     .replace('{{extra_block}}', extraBlock);
 
