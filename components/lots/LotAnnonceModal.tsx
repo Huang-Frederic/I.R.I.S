@@ -24,6 +24,8 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
     language: lot.language,
     condition: lot.condition,
     extra_description: lot.extra_description,
+    brandLabel: lot.brand_label ?? undefined,
+    isLot: lot.is_lot ?? true,
   });
   const [title, setTitle] = useState(initial.title);
   const [description, setDescription] = useState(initial.description);

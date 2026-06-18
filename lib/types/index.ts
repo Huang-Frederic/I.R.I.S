@@ -102,6 +102,10 @@ export interface Lot {
   brand_id: number | null;
   /** Vinted brand display name as sent to Vinted API. */
   brand_name: string | null;
+  /** Display label used in title/description (e.g. "Riftbound"). Null for legacy rows. */
+  brand_label: string | null;
+  /** true = Lot de Cartes (catalog 4879), false = single Carte (catalog 4875). Null for legacy rows (treated as lot). */
+  is_lot: boolean | null;
 }
 
 export interface RarityRank {

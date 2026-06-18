@@ -51,6 +51,12 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const brand_name = (formData.get('brand_name') as string | null) ?? null;
 
+  const isLotRaw = formData.get('is_lot') as string | null;
+  const is_lot = isLotRaw !== null ? isLotRaw === 'true' : true;
+
+  const brand_label_raw = (formData.get('brand_label') as string | null) ?? null;
+  const brand_label = brand_label_raw?.trim() || null;
+
   const photos = formData.getAll('photos').filter((p): p is File => p instanceof File && p.size > 0);
   if (photos.length === 0) return validationResponse('At least one photo is required');
 
@@ -64,9 +70,11 @@ export async function POST(request: Request): Promise<NextResponse> {
       extra_description,
       price,
       status: 'for_sale',
+      is_lot,
       ...(catalog_id != null && { catalog_id }),
       ...(brand_id != null && { brand_id }),
       ...(brand_name != null && { brand_name }),
+      ...(brand_label != null && { brand_label }),
     })
     .select('id')
     .single();

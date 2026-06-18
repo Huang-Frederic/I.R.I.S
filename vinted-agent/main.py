@@ -245,6 +245,7 @@ BRAND_LABEL_BY_ID: dict[int, str] = {
     284189: "Digimon",
     350491: "Dragon Ball",
     12800798: "Wankul",
+    509120: "Riftbound",
 }
 
 LANGUAGE_TITLE_CODE = {
@@ -254,20 +255,31 @@ LANGUAGE_TITLE_CODE = {
 
 
 def _lot_brand_label(lot: dict) -> str:
+    # Prefer the stored display label (e.g. "Riftbound", "One Piece").
+    # "Sans marque" and "Autre" are not user-facing labels — discard them.
+    label = (lot.get("brand_label") or "").strip()
+    if label and label not in ("Sans marque", "Autre"):
+        return label
     brand_id = lot.get("brand_id")
     if brand_id and brand_id in BRAND_LABEL_BY_ID:
         return BRAND_LABEL_BY_ID[brand_id]
-    return (lot.get("brand_name") or "").strip()
+    return ""
+
+
+def _resolve_is_lot(lot: dict) -> bool:
+    stored = lot.get("is_lot")
+    if stored is not None:
+        return bool(stored)
+    return (lot.get("catalog_id") or CARD_LOTS_CATALOG_ID) == CARD_LOTS_CATALOG_ID
 
 
 def build_lot_title(lot: dict) -> str:
     name = lot.get("name") or "Lot"
     lang = lot.get("language") or "JP"
     code = LANGUAGE_TITLE_CODE.get(lang, lang)
-    catalog_id = lot.get("catalog_id") or CARD_LOTS_CATALOG_ID
     brand_label = _lot_brand_label(lot)
 
-    is_lot = catalog_id == CARD_LOTS_CATALOG_ID
+    is_lot = _resolve_is_lot(lot)
     type_prefix = "Lot de Cartes" if is_lot else "Carte"
     brand_part = f" {brand_label}" if brand_label else ""
     full = f"{type_prefix}{brand_part} {name} [{code}]"
@@ -286,10 +298,9 @@ def build_lot_description(lot: dict) -> str:
     cond = lot.get("condition") or "NM"
     cond_label = LOT_CONDITION_LABEL.get(cond, cond)
     extra = (lot.get("extra_description") or "").strip()
-    catalog_id = lot.get("catalog_id") or CARD_LOTS_CATALOG_ID
     brand_label = _lot_brand_label(lot)
 
-    is_lot = catalog_id == CARD_LOTS_CATALOG_ID
+    is_lot = _resolve_is_lot(lot)
     type_prefix = "Lot de Cartes" if is_lot else "Carte"
     brand_part = f" {brand_label}" if brand_label else ""
     title = f"{type_prefix}{brand_part} {name} [{code}]".strip()
@@ -341,7 +352,8 @@ def pick_price(card: dict) -> float:
 
 async def get_lot(supabase: AsyncClient, lot_id: str) -> dict | None:
     res = await supabase.table("lots").select(
-        "id,name,language,condition,extra_description,price,photo_urls,catalog_id,brand_id,brand_name"
+        "id,name,language,condition,extra_description,price,photo_urls,"
+        "catalog_id,brand_id,brand_name,brand_label,is_lot"
     ).eq("id", lot_id).single().execute()
     return res.data
 
@@ -521,7 +533,7 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
     title       = build_lot_title(lot)
     description = build_lot_description(lot)
     price       = pick_lot_price(lot)
-    catalog_id  = lot.get("catalog_id") or CARD_LOTS_CATALOG_ID
+    catalog_id  = CARD_LOTS_CATALOG_ID if _resolve_is_lot(lot) else 4875
     brand_id    = lot.get("brand_id") or POKEMON_BRAND_ID
     brand       = lot.get("brand_name") or "Pokémon"
 

@@ -23,7 +23,7 @@ const BRANDS: Brand[] = [
   { id: 399547,   label: 'Magic',      vintedName: 'Magic: The Gathering' },
   { id: 191646,   label: 'Pokémon',   vintedName: 'Pokémon' },
   { id: 287189,   label: 'Lorcana',    vintedName: 'Ravensburger' },
-  { id: 1,        label: 'Riftbound',  vintedName: 'Sans marque' },
+  { id: 509120,   label: 'Riftbound',  vintedName: 'Riot Games' },
   { id: 1,        label: 'Autre',      vintedName: 'Sans marque' },
 ];
 
@@ -114,8 +114,10 @@ export default function OtherForm() {
       fd.set('condition', condition);
       if (extraDescription.trim()) fd.set('extra_description', extraDescription.trim());
       fd.set('catalog_id', String(isLot ? CARD_LOTS_CATALOG_ID : CARDS_CATALOG_ID));
+      fd.set('is_lot', String(isLot));
       fd.set('brand_id', String(brand.id));
       fd.set('brand_name', brand.vintedName);
+      fd.set('brand_label', brand.label === 'Autre' ? '' : brand.label);
       for (const p of photos) fd.append('photos', p);
 
       const res = await fetch('/api/lots', { method: 'POST', body: fd });

@@ -203,6 +203,48 @@ export async function PATCH(
     return apiError('update_failed', { status: 500, message: error.message });
   }
 
+  // When a card is promoted to for_sale, migrate active partner listings from sold/collection
+  // cards of the same group. This ensures partners (e.g. Hilyna) who still have their own
+  // Vinted listing don't see a stale "to_delete" chip on the old sold card.
+  if (body.status === 'for_sale' && updated.card_id_tcg) {
+    const { data: oldCards } = await supabase
+      .from('cards')
+      .select('id, variant')
+      .eq('card_id_tcg', updated.card_id_tcg)
+      .eq('language', updated.language)
+      .eq('condition', updated.condition)
+      .neq('status', 'for_sale')
+      .neq('id', id);
+
+    const targetVariant = (updated as Record<string, unknown>).variant ?? null;
+    const sameGroupOld = (oldCards ?? []).filter(
+      (c) => (c.variant ?? null) === targetVariant,
+    );
+
+    for (const oldCard of sameGroupOld) {
+      const { data: oldListings } = await supabase
+        .from('card_listings')
+        .select('user_id, vinted_listing_id, vinted_posted_at, listed_at')
+        .eq('card_id', oldCard.id)
+        .not('vinted_listing_id', 'is', null);
+
+      if (!oldListings?.length) continue;
+
+      await supabase.from('card_listings').upsert(
+        oldListings.map((l) => ({
+          card_id: id,
+          user_id: l.user_id,
+          vinted_listing_id: l.vinted_listing_id,
+          vinted_posted_at: l.vinted_posted_at,
+          listed_at: l.listed_at,
+        })),
+        { onConflict: 'card_id,user_id' },
+      );
+
+      await supabase.from('card_listings').delete().eq('card_id', oldCard.id);
+    }
+  }
+
   // Restock check only when this update marked the card sold
   let restock = null;
   if (update.status === 'sold' && updated.pokemon_number) {
