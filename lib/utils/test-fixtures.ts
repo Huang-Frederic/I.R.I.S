@@ -111,6 +111,8 @@ const LOT_DEFAULTS: Lot = {
   catalog_id: null,
   brand_id: null,
   brand_name: null,
+  brand_label: null,
+  is_lot: null,
 };
 
 /** Build a Lot with sensible defaults. Pass overrides for fields under test. */
