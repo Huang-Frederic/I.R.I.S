@@ -102,14 +102,14 @@ export default function OtherForm() {
     e.preventDefault();
     setError(null);
     if (!name.trim()) return setError(t('errorName'));
-    if (!price || !Number.isFinite(Number(price.replace(',', '.')))) return setError(t('errorPrice'));
+    if (price && !Number.isFinite(Number(price.replace(',', '.')))) return setError(t('errorPrice'));
     if (photos.length === 0) return setError(t('errorPhoto'));
 
     setSubmitting(true);
     try {
       const fd = new FormData();
       fd.set('name', name.trim());
-      fd.set('price', price.replace(',', '.'));
+      if (price) fd.set('price', price.replace(',', '.'));
       fd.set('language', language);
       fd.set('condition', condition);
       if (extraDescription.trim()) fd.set('extra_description', extraDescription.trim());

@@ -49,8 +49,9 @@ SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 _users_path = Path(__file__).parent / "vinted_users.json"
 VINTED_USERS: dict[str, str] = json.loads(_users_path.read_text()) if _users_path.exists() else {}
 
-# Per-user asyncio.Lock: serialises Vinted API calls per account.
-# Two users can post in parallel; the same user's jobs are queued.
+# Global lock: only one Vinted API session runs at a time across all users.
+# Prevents DataDome from seeing concurrent requests from the same IP.
+_global_vinted_lock: asyncio.Lock | None = None
 _user_locks: dict[str, asyncio.Lock] = {}
 
 # ---------------------------------------------------------------------------
@@ -616,6 +617,9 @@ def _make_vinted_client(cookies_file: str) -> VintedClient:
 
 
 async def _dispatch_job(supabase: AsyncClient, record: dict) -> None:
+    global _global_vinted_lock
+    if _global_vinted_lock is None:
+        _global_vinted_lock = asyncio.Lock()
     user_id = record.get("user_id")
     cookies_file = VINTED_USERS.get(user_id)
     if not cookies_file:
@@ -623,26 +627,27 @@ async def _dispatch_job(supabase: AsyncClient, record: dict) -> None:
         return
     lock = _user_locks.setdefault(user_id, asyncio.Lock())
     async with lock:
-        claim = await supabase.table("vinted_post_jobs") \
-            .update({"status": "processing"}) \
-            .eq("id", record["id"]) \
-            .eq("status", "pending") \
-            .execute()
-        if not claim.data:
-            return  # already claimed by subscribe+drain race — silent skip
-        try:
-            loop = asyncio.get_running_loop()
-            vinted = await loop.run_in_executor(None, _make_vinted_client, cookies_file)
-        except Exception as e:
-            log.error("❌  Session expirée pour user %s — relancer import_cookies.py : %s", user_id, e)
-            item_id = record.get("card_id") or record.get("lot_id")
-            await _fail_job(supabase, record["id"], item_id, "Session expirée — relance import_cookies.py")
-            return
-        if record.get("lot_id"):
-            await process_lot_job(supabase, vinted, record)
-        else:
-            await process_job(supabase, vinted, record)
-        await asyncio.sleep(random.uniform(20, 45))
+        async with _global_vinted_lock:
+            claim = await supabase.table("vinted_post_jobs") \
+                .update({"status": "processing"}) \
+                .eq("id", record["id"]) \
+                .eq("status", "pending") \
+                .execute()
+            if not claim.data:
+                return  # already claimed by subscribe+drain race — silent skip
+            try:
+                loop = asyncio.get_running_loop()
+                vinted = await loop.run_in_executor(None, _make_vinted_client, cookies_file)
+            except Exception as e:
+                log.error("❌  Session expirée pour user %s — relancer import_cookies.py : %s", user_id, e)
+                item_id = record.get("card_id") or record.get("lot_id")
+                await _fail_job(supabase, record["id"], item_id, "Session expirée — relance import_cookies.py")
+                return
+            if record.get("lot_id"):
+                await process_lot_job(supabase, vinted, record)
+            else:
+                await process_job(supabase, vinted, record)
+            await asyncio.sleep(random.uniform(20, 45))
 
 
 # ---------------------------------------------------------------------------

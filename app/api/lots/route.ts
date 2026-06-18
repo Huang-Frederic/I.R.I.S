@@ -27,10 +27,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (name === '') return validationResponse('Field "name" is required');
 
   const priceRaw = formData.get('price') as string | null;
-  const price = priceRaw ? Number(priceRaw.replace(',', '.')) : NaN;
-  if (!Number.isFinite(price) || price < 0) {
+  const priceNum = priceRaw ? Number(priceRaw.replace(',', '.')) : null;
+  if (priceNum !== null && (!Number.isFinite(priceNum) || priceNum < 0)) {
     return validationResponse('Field "price" must be a positive number');
   }
+  const price = priceNum;
 
   const language = formData.get('language') as string | null;
   if (!language || !ALLOWED_LANGUAGES.has(language)) {
