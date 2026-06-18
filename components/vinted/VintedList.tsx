@@ -75,7 +75,7 @@ function matchesLotSearch(lot: LotWithListings, query: string): boolean {
 }
 
 const CATALOG_SINGLE = 4875;
-const BRAND_IDS = { pokemon: 191646, onepiece: 89766, magic: 399547, lorcana: 287189 } as const;
+const BRAND_IDS = { pokemon: 191646, onepiece: 89766, magic: 399547, lorcana: 287189, riftbound: 509120 } as const;
 
 function matchesLotFilters(lot: LotWithListings, f: VintedFilterState): boolean {
   if (f.kindFilter === 'single' && lot.catalog_id !== CATALOG_SINGLE) return false;
@@ -87,8 +87,9 @@ function matchesLotFilters(lot: LotWithListings, f: VintedFilterState): boolean 
       case 'onepiece': if (bid !== BRAND_IDS.onepiece) return false; break;
       case 'magic': if (bid !== BRAND_IDS.magic) return false; break;
       case 'lorcana': if (bid !== BRAND_IDS.lorcana) return false; break;
+      case 'riftbound': if (bid !== BRAND_IDS.riftbound) return false; break;
       case 'autres':
-        if (bid === null || bid === BRAND_IDS.pokemon || bid === BRAND_IDS.onepiece || bid === BRAND_IDS.magic || bid === BRAND_IDS.lorcana) return false;
+        if (bid === null || bid === BRAND_IDS.pokemon || bid === BRAND_IDS.onepiece || bid === BRAND_IDS.magic || bid === BRAND_IDS.lorcana || bid === BRAND_IDS.riftbound) return false;
         break;
     }
   }

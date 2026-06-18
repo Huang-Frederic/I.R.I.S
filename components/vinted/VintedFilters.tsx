@@ -16,7 +16,7 @@ export interface VintedFilterState {
   /** Type of listings to show. 'single'/'lot' show only that catalog_id subset of lots. */
   kindFilter: 'all' | 'cards' | 'single' | 'lot';
   /** For lot rows: filter by brand (hidden when kindFilter='cards'). */
-  lotBrand: 'all' | 'pokemon' | 'onepiece' | 'magic' | 'lorcana' | 'autres';
+  lotBrand: 'all' | 'pokemon' | 'onepiece' | 'magic' | 'lorcana' | 'riftbound' | 'autres';
   // Cumulative chips
   showOnline: boolean;     // include for_sale where I have a listing (fresh)
   showOffline: boolean;    // include for_sale where I have no listing
@@ -175,6 +175,7 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
               <option value="onepiece">One Piece</option>
               <option value="magic">Magic</option>
               <option value="lorcana">Lorcana</option>
+              <option value="riftbound">Riftbound</option>
               <option value="autres">{t('lotBrandAutres')}</option>
             </select>
           )}

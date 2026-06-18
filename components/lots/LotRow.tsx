@@ -231,6 +231,7 @@ const BRAND_LABELS: Record<number, string> = {
   284189: 'Digimon',
   350491: 'Dragon Ball',
   12800798: 'Wankul',
+  509120: 'Riftbound',
 };
 
 function LotBrandBadge({ brandId }: { brandId: number | null }) {

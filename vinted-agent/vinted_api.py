@@ -214,41 +214,40 @@ class VintedClient:
         Path(self._cookies_path).write_text(json.dumps(self._cookies, indent=2))
 
     def upload_photo(self, image_url: str) -> int:
+        log = logging.getLogger(__name__)
         raw = requests.get(image_url, timeout=20).content
         img_bytes = _process_image(raw)
-        # curl_cffi uses CurlMime for multipart uploads
-        from curl_cffi import CurlMime
-        multipart = CurlMime()
-        multipart.addpart(name="photo[type]", data=b"item")
-        multipart.addpart(name="photo[file]", data=img_bytes,
-                          filename="card.jpg", content_type="image/jpeg")
+
+        def _make_multipart():
+            from curl_cffi import CurlMime
+            mp = CurlMime()
+            mp.addpart(name="photo[type]", data=b"item")
+            mp.addpart(name="photo[file]", data=img_bytes,
+                       filename="card.jpg", content_type="image/jpeg")
+            return mp
+
         r = self._session.post(
             f"{VINTED_BASE}/api/v2/photos",
-            multipart=multipart,
+            multipart=_make_multipart(),
             headers=self._headers(),
             timeout=30,
         )
         if r.status_code == 401:
-            logging.getLogger(__name__).info("Session expired, refreshing and retrying…")
+            log.info("Session expirée — refresh et retry…")
             self.refresh_csrf()
             r = self._session.post(
                 f"{VINTED_BASE}/api/v2/photos",
-                multipart=multipart,
+                multipart=_make_multipart(),
                 headers=self._headers(),
                 timeout=30,
             )
         # Detect DataDome binary block (200 with non-JSON binary body)
         content_type = r.headers.get("content-type", "")
         if r.ok and "json" not in content_type:
-            logging.getLogger(__name__).error(
-                "DataDome block detected on photo upload (status=%s, ct=%s) — run login.py to refresh session",
-                r.status_code, content_type,
-            )
+            log.error("DataDome bloque le photo upload (status=%s) — relance login.py", r.status_code)
             raise RuntimeError("DataDome blocked photo upload — run: python login.py")
         if not r.ok:
-            logging.getLogger(__name__).error(
-                "Photo upload failed %s: %s", r.status_code, r.text[:300]
-            )
+            log.error("Photo upload failed %s: %s", r.status_code, r.text[:300])
         r.raise_for_status()
         try:
             return r.json()["id"]
@@ -342,18 +341,119 @@ class VintedClient:
         )
         if not r.ok:
             log.error("Vinted API error %s: %s", r.status_code, r.text[:2000])
-            # DataDome returns 403 with a JSON body containing a captcha URL.
             if r.status_code == 403:
                 try:
                     body = r.json()
-                    if "captcha-delivery.com" in body.get("url", ""):
+                    captcha_url = body.get("url", "")
+                    if "captcha-delivery.com" in captcha_url:
+                        log.info("DataDome CAPTCHA — tentative CapSolver…")
+                        if self._solve_datadome_capsolver(captcha_url):
+                            self.refresh_csrf()
+                            h2 = {**self._headers(), "content-type": "application/json", "x-upload-form": "true"}
+                            r2 = self._session.post(
+                                f"{VINTED_BASE}/api/v2/item_upload/items",
+                                json=payload, headers=h2, timeout=30,
+                            )
+                            if r2.ok:
+                                return str(r2.json()["item"]["id"])
+                            log.error("CapSolver retry échoué (%s) : %s", r2.status_code, r2.text[:300])
                         raise RuntimeError(
-                            "DataDome blocked listing creation (403 CAPTCHA) — run login.py to refresh session"
+                            "DataDome blocked — vérifie CAPSOLVER_KEY dans .env"
                         )
                 except (ValueError, KeyError):
                     pass
         r.raise_for_status()
         return str(r.json()["item"]["id"])
+
+    def _solve_datadome_capsolver(self, captcha_url: str) -> bool:
+        """Send the DataDome CAPTCHA challenge to CapSolver and apply the resolved cookie.
+
+        Works for any Vinted account — the datadome cookie is IP/fingerprint-based, not
+        account-based. Requires CAPSOLVER_KEY + VINTED_PROXY in the environment.
+
+        Returns True if the fresh datadome cookie was applied, False otherwise.
+        """
+        import os
+        import time
+        from urllib.parse import urlparse
+        log = logging.getLogger(__name__)
+
+        api_key = os.getenv("CAPSOLVER_KEY", "")
+        if not api_key:
+            log.warning("CAPSOLVER_KEY non défini — skip CapSolver (ajoute-le dans .env)")
+            return False
+
+        proxy_url = os.getenv("VINTED_PROXY", "")
+        if not proxy_url:
+            log.warning("VINTED_PROXY non défini — CapSolver nécessite un proxy (ex: ngrok SOCKS5)")
+            return False
+
+        parsed = urlparse(proxy_url)
+        task: dict = {
+            "type": "DatadomeSliderTask",
+            "websiteURL": VINTED_BASE,
+            "captchaUrl": captcha_url,
+            "userAgent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            ),
+            "proxyType": parsed.scheme or "socks5",
+            "proxyAddress": parsed.hostname or "",
+            "proxyPort": parsed.port or 1080,
+        }
+        if parsed.username:
+            task["proxyLogin"] = parsed.username
+        if parsed.password:
+            task["proxyPassword"] = parsed.password
+
+        ua = task["userAgent"]
+        try:
+            r = requests.post(
+                "https://api.capsolver.com/createTask",
+                json={"clientKey": api_key, "task": task},
+                timeout=15,
+            )
+            data = r.json()
+            if data.get("errorId"):
+                log.warning("CapSolver createTask erreur : %s", data.get("errorDescription"))
+                return False
+            task_id = data.get("taskId")
+            if not task_id:
+                log.warning("CapSolver : pas de taskId dans la réponse")
+                return False
+
+            log.info("CapSolver task %s — résolution en cours…", task_id)
+            for _ in range(20):  # 20 × 3 s = 60 s max
+                time.sleep(3)
+                r = requests.post(
+                    "https://api.capsolver.com/getTaskResult",
+                    json={"clientKey": api_key, "taskId": task_id},
+                    timeout=15,
+                )
+                result = r.json()
+                status = result.get("status")
+                if status == "ready":
+                    cookie_str = result.get("solution", {}).get("cookie", "")
+                    if "datadome=" not in cookie_str:
+                        log.warning("CapSolver : solution sans cookie datadome (%s)", cookie_str[:80])
+                        return False
+                    new_dd = cookie_str.split("datadome=")[-1].split(";")[0]
+                    self._cookies["datadome"] = new_dd
+                    self._save_cookies()
+                    self._session = curl_requests.Session(impersonate="chrome131")
+                    self._session.cookies.update(self._cookies)
+                    log.info("CapSolver DataDome résolu ✓")
+                    return True
+                elif status == "failed":
+                    log.warning("CapSolver : task échouée — %s", result.get("errorDescription"))
+                    return False
+                # status == "processing" → continue polling
+
+            log.warning("CapSolver : timeout (60 s) sans résolution")
+            return False
+        except Exception as e:
+            log.warning("CapSolver erreur : %s", e)
+            return False
 
     def delete_listing(self, listing_id: str) -> None:
         log = logging.getLogger(__name__)

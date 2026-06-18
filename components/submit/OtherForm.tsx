@@ -128,7 +128,6 @@ export default function OtherForm() {
       }
       setName('');
       setPrice('');
-      setLanguage('JP');
       setCondition('NM');
       setExtraDescription('');
       setPhotos([]);
