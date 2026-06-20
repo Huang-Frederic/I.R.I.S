@@ -369,7 +369,7 @@ def build_lot_description(lot: dict) -> str:
 
 async def get_card(supabase: AsyncClient, card_id: str) -> dict | None:
     res = await supabase.table("cards").select(
-        "id,card_name,image_url,tcg_image_url,"
+        "id,status,card_name,image_url,tcg_image_url,"
         "suggested_price,cm_price_low,cm_price_avg,"
         "condition,language,variant,set_name,set_code,set_number,notes"
     ).eq("id", card_id).single().execute()
@@ -442,6 +442,14 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
     card = await get_card(supabase, card_id)
     if not card:
         await _fail_job(supabase, job_id, card_id, "Card not found")
+        return
+
+    if card.get("status") != "for_sale":
+        log.warning("⏭  %s carte %s status='%s' — job annulé", tag, card_id[:8], card.get("status"))
+        await supabase.table("vinted_post_jobs").update(
+            {"status": "error", "error": f"Card status is '{card.get('status')}', not for_sale",
+             "processed_at": datetime.now(timezone.utc).isoformat()}
+        ).eq("id", job_id).execute()
         return
 
     image_url = card.get("image_url") or card.get("tcg_image_url")

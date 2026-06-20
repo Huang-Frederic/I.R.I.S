@@ -153,6 +153,23 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     return () => { polls.forEach((iv) => clearInterval(iv)); };
   }, []);
 
+  // Realtime: when the partner migrates our listings to a new card (promote-after-sold),
+  // the card_listings row for our user_id is deleted + re-inserted on the new card.
+  // Without this, our page stays stale and shows "À retirer" until we manually refresh.
+  useEffect(() => {
+    if (!myUserId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`card-listings-${myUserId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'card_listings', filter: `user_id=eq.${myUserId}` },
+        () => router.refresh(),
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [myUserId, router]);
+
   const { selectionMode, selectedIds, toggleSelect, toggleSelectionMode, cancelSelection } =
     useSelectionMode();
   const [bulkSoldOpen, setBulkSoldOpen] = useState(false);
