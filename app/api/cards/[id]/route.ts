@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import { detectRestock } from '@/lib/utils/restock-detection';
 import { detectPromotable, type PromoteCandidate } from '@/lib/utils/promote-detection';
 import {
@@ -204,8 +205,9 @@ export async function PATCH(
   }
 
   // When a card is promoted to for_sale, migrate active partner listings from sold/collection
-  // cards of the same group. This ensures partners (e.g. Hilyna) who still have their own
-  // Vinted listing don't see a stale "to_delete" chip on the old sold card.
+  // cards of the same group. This ensures partners who still have their own Vinted listing
+  // don't see a stale "to_delete" chip on the old sold card.
+  // Uses the service client to bypass RLS — the acting user can't modify another user's rows.
   if (body.status === 'for_sale' && updated.card_id_tcg) {
     const { data: oldCards } = await supabase
       .from('cards')
@@ -221,27 +223,34 @@ export async function PATCH(
       (c) => (c.variant ?? null) === targetVariant,
     );
 
-    for (const oldCard of sameGroupOld) {
-      const { data: oldListings } = await supabase
-        .from('card_listings')
-        .select('user_id, vinted_listing_id, vinted_posted_at, listed_at')
-        .eq('card_id', oldCard.id)
-        .not('vinted_listing_id', 'is', null);
+    if (sameGroupOld.length > 0) {
+      const svc = createServiceClient();
+      for (const oldCard of sameGroupOld) {
+        const { data: oldListings } = await svc
+          .from('card_listings')
+          .select('user_id, vinted_listing_id, vinted_posted_at, listed_at')
+          .eq('card_id', oldCard.id)
+          .not('vinted_listing_id', 'is', null);
 
-      if (!oldListings?.length) continue;
+        if (!oldListings?.length) {
+          // No listings with a vinted_listing_id to migrate — still clean up the card_listings row.
+          await svc.from('card_listings').delete().eq('card_id', oldCard.id);
+          continue;
+        }
 
-      await supabase.from('card_listings').upsert(
-        oldListings.map((l) => ({
-          card_id: id,
-          user_id: l.user_id,
-          vinted_listing_id: l.vinted_listing_id,
-          vinted_posted_at: l.vinted_posted_at,
-          listed_at: l.listed_at,
-        })),
-        { onConflict: 'card_id,user_id' },
-      );
+        await svc.from('card_listings').upsert(
+          oldListings.map((l) => ({
+            card_id: id,
+            user_id: l.user_id,
+            vinted_listing_id: l.vinted_listing_id,
+            vinted_posted_at: l.vinted_posted_at,
+            listed_at: l.listed_at,
+          })),
+          { onConflict: 'card_id,user_id' },
+        );
 
-      await supabase.from('card_listings').delete().eq('card_id', oldCard.id);
+        await svc.from('card_listings').delete().eq('card_id', oldCard.id);
+      }
     }
   }
 
