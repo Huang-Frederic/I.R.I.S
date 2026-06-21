@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, ExternalLink, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -30,6 +30,21 @@ export default function VintedActionModal({
   const [confirmingBump, setConfirmingBump] = useState(false);
   const [bumping, setBumping] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // iOS Safari doesn't emit click on non-interactive elements unless body scroll
+  // is locked — lock body scroll for the modal duration.
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    return () => {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
 
   const postedLabel = postedAt
     ? (() => {
@@ -71,8 +86,9 @@ export default function VintedActionModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 cursor-pointer"
       onClick={onClose}
+      role="presentation"
     >
       <div
         className="relative w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-xl"
