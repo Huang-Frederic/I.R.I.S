@@ -156,6 +156,8 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
   // Realtime: when the partner migrates our listings to a new card (promote-after-sold),
   // the card_listings row for our user_id is deleted + re-inserted on the new card.
   // Without this, our page stays stale and shows "À retirer" until we manually refresh.
+  // Debounced to 2 s to avoid cascading refreshes when the agent posts many cards at once.
+  const realtimeRefreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!myUserId) return;
     const supabase = createClient();
@@ -164,10 +166,16 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'card_listings', filter: `user_id=eq.${myUserId}` },
-        () => router.refresh(),
+        () => {
+          if (realtimeRefreshRef.current) clearTimeout(realtimeRefreshRef.current);
+          realtimeRefreshRef.current = setTimeout(() => router.refresh(), 2000);
+        },
       )
       .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    return () => {
+      void supabase.removeChannel(channel);
+      if (realtimeRefreshRef.current) clearTimeout(realtimeRefreshRef.current);
+    };
   }, [myUserId, router]);
 
   const { selectionMode, selectedIds, toggleSelect, toggleSelectionMode, cancelSelection } =

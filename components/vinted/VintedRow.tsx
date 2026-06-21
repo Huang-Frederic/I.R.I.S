@@ -75,7 +75,7 @@ export default function VintedRow({
   const [actionModalOpen, setActionModalOpen] = useState(false);
 
   return (
-    <li className="bg-surface border-border flex items-stretch gap-2 rounded-lg border p-2 text-sm sm:items-center sm:gap-3 sm:p-3">
+    <li className="bg-surface border-border [content-visibility:auto] [contain-intrinsic-size:auto_106px] flex items-stretch gap-2 rounded-lg border p-2 text-sm sm:items-center sm:gap-3 sm:p-3">
       {selectionMode && (
         <input
           type="checkbox"
@@ -97,7 +97,7 @@ export default function VintedRow({
           src={thumbUrl(card)}
           alt=""
           loading="lazy"
-          className="bg-surface-off h-full w-[60px] origin-[center_35%] scale-[1.8] rounded object-cover sm:h-[84px] sm:w-[60px]"
+          className="bg-surface-off h-full w-[60px] rounded object-cover object-[center_25%] sm:h-[84px] sm:w-[60px]"
         />
       </button>
 

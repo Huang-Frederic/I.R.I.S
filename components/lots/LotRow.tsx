@@ -41,7 +41,7 @@ export default function LotRow({
   const thumb = lot.photo_urls.length > 0 ? storagePublicUrl(lot.photo_urls[0]) : null;
 
   return (
-    <li className="bg-surface border-border flex flex-col gap-2 rounded-lg border p-2 text-sm sm:flex-row sm:items-center sm:gap-3 sm:p-3">
+    <li className="bg-surface border-border [content-visibility:auto] [contain-intrinsic-size:auto_106px] flex flex-col gap-2 rounded-lg border p-2 text-sm sm:flex-row sm:items-center sm:gap-3 sm:p-3">
       <div className="flex items-center gap-3">
         {selectionMode && (
           <input

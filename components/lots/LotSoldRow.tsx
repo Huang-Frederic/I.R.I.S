@@ -41,7 +41,7 @@ export default function LotSoldRow({ lot, storagePublicUrl, onImageClick }: Prop
   const thumb = lot.photo_urls.length > 0 ? storagePublicUrl(lot.photo_urls[0]) : null;
 
   return (
-    <li className="bg-surface-off border-border flex items-center gap-2 rounded-lg border p-2 text-sm opacity-90 sm:gap-3 sm:p-3">
+    <li className="bg-surface-off border-border [content-visibility:auto] [contain-intrinsic-size:auto_90px] flex items-center gap-2 rounded-lg border p-2 text-sm opacity-90 sm:gap-3 sm:p-3">
       {thumb ? (
         <button
           type="button"

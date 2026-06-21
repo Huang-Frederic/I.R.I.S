@@ -35,7 +35,7 @@ export default function SoldRow({ card, onAnnonceClick }: Props) {
   const sellerColor = soldBySelf ? 'neutral' : colorForUserName(partnerName);
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
   return (
-    <li className="bg-surface-off border-border flex items-center gap-2 rounded-lg border p-2 text-sm opacity-90 sm:gap-3 sm:p-3">
+    <li className="bg-surface-off border-border [content-visibility:auto] [contain-intrinsic-size:auto_90px] flex items-center gap-2 rounded-lg border p-2 text-sm opacity-90 sm:gap-3 sm:p-3">
       <button
         type="button"
         onClick={() => onAnnonceClick(card)}
@@ -47,7 +47,7 @@ export default function SoldRow({ card, onAnnonceClick }: Props) {
           src={thumbUrl(card)}
           alt=""
           loading="lazy"
-          className="bg-surface-off h-[70px] w-[50px] origin-[center_35%] scale-[1.8] rounded object-cover sm:h-[84px] sm:w-[60px]"
+          className="bg-surface-off h-[70px] w-[50px] rounded object-cover object-[center_25%] sm:h-[84px] sm:w-[60px]"
         />
       </button>
 
