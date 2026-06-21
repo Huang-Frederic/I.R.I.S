@@ -50,8 +50,8 @@ export default async function VintedPage() {
       .eq('status', 'sold')
       .order('date_sold', { ascending: false })
       .limit(20),
-    supabase.from('card_listings').select('*'),
-    supabase.from('lot_listings').select('*'),
+    supabase.from('card_listings').select('card_id, user_id, listed_at, vinted_listing_id, vinted_posted_at'),
+    supabase.from('lot_listings').select('lot_id, user_id, listed_at, vinted_listing_id, vinted_posted_at'),
   ]);
 
   const fetchError =

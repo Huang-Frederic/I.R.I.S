@@ -38,7 +38,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <RouteChangeRefresher />
         <div className="min-h-screen overflow-x-hidden">
           <Sidebar />
-          <main className="min-h-screen md:pl-[220px]">
+          {/* env(safe-area-inset-*) are 0 on desktop and on non-standalone browser;
+              they only kick in for the iOS PWA standalone viewport. */}
+          <main
+            className="min-h-screen md:pl-[220px]"
+            style={{
+              paddingTop: 'env(safe-area-inset-top)',
+              paddingBottom: 'env(safe-area-inset-bottom)',
+            }}
+          >
             <div className="mx-auto max-w-[1200px] px-4 pb-20 pt-6 md:px-8 md:pb-8">{children}</div>
           </main>
           <BottomNav />

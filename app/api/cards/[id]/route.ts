@@ -211,7 +211,7 @@ export async function PATCH(
   if (body.status === 'for_sale' && updated.card_id_tcg) {
     const { data: oldCards } = await supabase
       .from('cards')
-      .select('id, variant')
+      .select('id, variant, suggested_price')
       .eq('card_id_tcg', updated.card_id_tcg)
       .eq('language', updated.language)
       .eq('condition', updated.condition)
@@ -225,7 +225,13 @@ export async function PATCH(
 
     if (sameGroupOld.length > 0) {
       const svc = createServiceClient();
+      let priceToCopy: number | null = null;
       for (const oldCard of sameGroupOld) {
+        // Collect the first available price from old cards for migration.
+        if (!priceToCopy && typeof oldCard.suggested_price === 'number') {
+          priceToCopy = oldCard.suggested_price;
+        }
+
         const { data: oldListings } = await svc
           .from('card_listings')
           .select('user_id, vinted_listing_id, vinted_posted_at, listed_at')
@@ -238,7 +244,7 @@ export async function PATCH(
           continue;
         }
 
-        await svc.from('card_listings').upsert(
+        const { error: upsertError } = await svc.from('card_listings').upsert(
           oldListings.map((l) => ({
             card_id: id,
             user_id: l.user_id,
@@ -249,7 +255,18 @@ export async function PATCH(
           { onConflict: 'card_id,user_id' },
         );
 
+        if (upsertError) {
+          // Leave old listings intact — don't delete so tracking data is not lost.
+          console.error('[migrate] listing upsert failed for card', oldCard.id, ':', upsertError.message);
+          continue;
+        }
+
         await svc.from('card_listings').delete().eq('card_id', oldCard.id);
+      }
+
+      // Copy suggested_price from old card to the new card if it has none.
+      if (!updated.suggested_price && priceToCopy) {
+        await svc.from('cards').update({ suggested_price: priceToCopy }).eq('id', id);
       }
     }
   }

@@ -326,11 +326,16 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
       );
     }
     setSoldTarget(null);
-    // Side-effect: DELETE my listing after sale
+    // Side-effect: DELETE my listing after sale — but only when there is no
+    // promote candidate. If a collection card can be promoted, keep the listing
+    // so the migration on the new for_sale card can carry it over (it will be
+    // cleaned up then). Deleting here would leave Fred's Vinted listing orphaned.
     const kind = info.kind === 'card' ? 'card' : 'lot';
-    fetch(`/api/listings/${kind}/${info.soldId}`, { method: 'DELETE' }).catch(() => {
-      // Silent — RLS allows me to delete only my own listings, error is non-fatal.
-    });
+    if (info.kind !== 'card' || !info.promote) {
+      fetch(`/api/listings/${kind}/${info.soldId}`, { method: 'DELETE' }).catch(() => {
+        // Silent — RLS allows me to delete only my own listings, error is non-fatal.
+      });
+    }
 
     // Partner cleanup notice — only relevant when partner had a listing.
     // Always queued upfront; the render gate hides it while PromoteAfterSold
@@ -400,11 +405,15 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
         } else {
           setLots((prev) => prev.map((l): LotWithListings => (l.id === id ? { ...l, status: 'sold' as const, sold_price, date_sold: dateSoldIso, sold_by_user_id: myUserId, listings: l.listings.filter((l2) => l2.user_id !== myUserId) } : l)));
         }
-        // Side-effect: DELETE my listing after sale
+        // Keep the listing when a promote candidate exists so the migration on
+        // the new for_sale card can carry it over.  Delete immediately only
+        // when there is no pending restock (otherwise the Vinted listing is lost).
         const kind = item.kind === 'card' ? 'card' : 'lot';
-        fetch(`/api/listings/${kind}/${id}`, { method: 'DELETE' }).catch(() => {
-          // Silent — best-effort
-        });
+        if (item.kind !== 'card' || !json.promote) {
+          fetch(`/api/listings/${kind}/${id}`, { method: 'DELETE' }).catch(() => {
+            // Silent — best-effort
+          });
+        }
       } catch (e) {
         failCount += 1;
         errors.push(`${item.kind === 'card' ? item.card.card_name : item.lot.name}: ${e instanceof Error ? e.message : 'network'}`);

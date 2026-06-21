@@ -17,8 +17,11 @@ import DashboardPeriodTabs from '@/components/dashboard/DashboardPeriodTabs';
 import RefreshButton from '@/components/dashboard/RefreshButton';
 import DayDetailKpi from '@/components/dashboard/DayDetailKpi';
 import DashboardKpiStrip from '@/components/dashboard/DashboardKpiStrip';
-import CostBarChart from '@/components/dashboard/CostBarChart';
-import RarityDonut from '@/components/dashboard/RarityDonut';
+import dynamic from 'next/dynamic';
+// Recharts is ~400 KB uncompressed — lazy-load so it doesn't block the initial
+// JS parse on iOS (JavaScriptCore is 2-3× slower than V8).
+const CostBarChart = dynamic(() => import('@/components/dashboard/CostBarChart'));
+const RarityDonut = dynamic(() => import('@/components/dashboard/RarityDonut'));
 import ScanHeatmap from '@/components/dashboard/ScanHeatmap';
 import TopRaresList from '@/components/dashboard/TopRaresList';
 import LastSalesList from '@/components/dashboard/LastSalesList';

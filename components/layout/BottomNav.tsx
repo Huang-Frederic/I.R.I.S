@@ -22,34 +22,40 @@ export default function BottomNav() {
   const nav = (
     <nav
       aria-label={t('ariaLabel')}
-      className="bg-surface border-border fixed inset-x-0 bottom-0 z-30 flex h-16 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="bg-surface border-border fixed inset-x-0 bottom-0 z-30 flex flex-col border-t md:hidden"
     >
-      {NAV_ITEMS.map(({ href, labelKey, icon: Icon }) => {
-        const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            prefetch={true}
-            aria-current={active ? 'page' : undefined}
-            className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] transition-colors ${
-              active ? 'text-red' : 'text-text-muted'
-            }`}
-          >
-            {href === '/vinted' ? (
-              <span className="relative">
+      {/* Fixed 64 px zone for the items — safe-area-inset-bottom must NOT eat into this. */}
+      <div className="flex h-16">
+        {NAV_ITEMS.map(({ href, labelKey, icon: Icon }) => {
+          const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              prefetch={true}
+              aria-current={active ? 'page' : undefined}
+              className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] transition-colors ${
+                active ? 'text-red' : 'text-text-muted'
+              }`}
+            >
+              {href === '/vinted' ? (
+                <span className="relative">
+                  <Icon className="h-5 w-5" aria-hidden />
+                  <span className={`border-surface absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border ${
+                    agentStatus === 'online' ? 'bg-green-500' : 'bg-text-faint'
+                  }`} />
+                </span>
+              ) : (
                 <Icon className="h-5 w-5" aria-hidden />
-                <span className={`border-surface absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border ${
-                  agentStatus === 'online' ? 'bg-green-500' : 'bg-text-faint'
-                }`} />
-              </span>
-            ) : (
-              <Icon className="h-5 w-5" aria-hidden />
-            )}
-            <span className="font-medium">{t(labelKey)}</span>
-          </Link>
-        );
-      })}
+              )}
+              <span className="font-medium">{t(labelKey)}</span>
+            </Link>
+          );
+        })}
+      </div>
+      {/* Spacer that fills the home-indicator zone on iPhone (34 px on Face ID
+          models, 0 on older devices). Keeps the bg-surface colour solid. */}
+      <div style={{ height: 'env(safe-area-inset-bottom)' }} />
     </nav>
   );
 
