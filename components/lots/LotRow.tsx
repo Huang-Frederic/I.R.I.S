@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { Tag, Package } from 'lucide-react';
 import type { Lot, LotListing } from '@/lib/types';
@@ -191,7 +192,7 @@ export default function LotRow({
         )}
       </div>
 
-      {actionModalOpen && myListing?.vinted_listing_id && (
+      {actionModalOpen && myListing?.vinted_listing_id && createPortal(
         <VintedActionModal
           listingId={myListing.vinted_listing_id}
           lotId={lot.id}
@@ -201,7 +202,8 @@ export default function LotRow({
           userId={myUserId}
           onBumpQueued={onBumpQueued}
           onClose={() => setActionModalOpen(false)}
-        />
+        />,
+        document.body
       )}
     </li>
   );

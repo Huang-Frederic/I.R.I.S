@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { BookmarkCheck, Bookmark, Tag } from 'lucide-react';
 import type { Card, CardListing } from '@/lib/types';
@@ -229,7 +230,7 @@ export default function VintedRow({
         </div>
       </div>
 
-      {actionModalOpen && mine?.vinted_listing_id && (
+      {actionModalOpen && mine?.vinted_listing_id && createPortal(
         <VintedActionModal
           listingId={mine.vinted_listing_id}
           cardId={card.id}
@@ -239,7 +240,8 @@ export default function VintedRow({
           userId={myUserId}
           onBumpQueued={onBumpQueued}
           onClose={() => setActionModalOpen(false)}
-        />
+        />,
+        document.body
       )}
     </li>
   );
