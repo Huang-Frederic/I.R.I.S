@@ -13,12 +13,20 @@ export default async function VintedPage() {
   const t = await getTranslations('vinted');
   const supabase = await createClient();
 
-  const [forSaleResult, collectionResult, pokedexResult, configResult, lotsResult, cardListingsResult, lotListingsResult] = await Promise.all([
+  const [forSaleResult, soldResult, collectionResult, pokedexResult, configResult, forSaleLotsResult, soldLotsResult, cardListingsResult, lotListingsResult] = await Promise.all([
     supabase
       .from('cards')
       .select('*')
-      .in('status', ['for_sale', 'sold'])
+      .eq('status', 'for_sale')
       .order('date_added', { ascending: true }),
+    // Cap sold cards to the 40 most recent — the full history can be hundreds
+    // of rows and bloats the initial HTML payload (→ slow iOS hydration).
+    supabase
+      .from('cards')
+      .select('*')
+      .eq('status', 'sold')
+      .order('date_sold', { ascending: false })
+      .limit(40),
     // Collection cards drive the per-row "stock count" chip in /vinted —
     // they're the extra physical copies of cards the user is also selling.
     supabase
@@ -34,14 +42,20 @@ export default async function VintedPage() {
     supabase
       .from('lots')
       .select('*')
-      .in('status', ['for_sale', 'sold'])
+      .eq('status', 'for_sale')
       .order('date_added', { ascending: true }),
+    supabase
+      .from('lots')
+      .select('*')
+      .eq('status', 'sold')
+      .order('date_sold', { ascending: false })
+      .limit(20),
     supabase.from('card_listings').select('*'),
     supabase.from('lot_listings').select('*'),
   ]);
 
   const fetchError =
-    forSaleResult.error ?? collectionResult.error ?? pokedexResult.error ?? configResult.error ?? lotsResult.error ?? cardListingsResult.error ?? lotListingsResult.error;
+    forSaleResult.error ?? soldResult.error ?? collectionResult.error ?? pokedexResult.error ?? configResult.error ?? forSaleLotsResult.error ?? soldLotsResult.error ?? cardListingsResult.error ?? lotListingsResult.error;
   if (fetchError) {
     return (
       <section>
@@ -51,9 +65,15 @@ export default async function VintedPage() {
     );
   }
 
-  const cards = (forSaleResult.data ?? []) as Card[];
+  const cards = [
+    ...(forSaleResult.data ?? []),
+    ...(soldResult.data ?? []),
+  ] as Card[];
   const collectionCards = (collectionResult.data ?? []) as Card[];
-  const lots = (lotsResult.data ?? []) as Lot[];
+  const lots = [
+    ...(forSaleLotsResult.data ?? []),
+    ...(soldLotsResult.data ?? []),
+  ] as Lot[];
   const cardListings = (cardListingsResult.data ?? []) as CardListing[];
   const lotListings = (lotListingsResult.data ?? []) as LotListing[];
   const registered = new Set<number>(
