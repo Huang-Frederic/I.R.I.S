@@ -234,23 +234,23 @@ export async function PATCH(
 
         const { data: oldListings } = await svc
           .from('card_listings')
-          .select('user_id, vinted_listing_id, vinted_posted_at, listed_at')
-          .eq('card_id', oldCard.id)
-          .not('vinted_listing_id', 'is', null);
+          .select('user_id')
+          .eq('card_id', oldCard.id);
 
         if (!oldListings?.length) {
-          // No listings with a vinted_listing_id to migrate — still clean up the card_listings row.
           await svc.from('card_listings').delete().eq('card_id', oldCard.id);
           continue;
         }
 
+        // Always reset vinted_listing_id/vinted_posted_at on migration: the old listing is
+        // either closed (sold via Vinted) or orphaned, and the restocked card needs a fresh post.
         const { error: upsertError } = await svc.from('card_listings').upsert(
           oldListings.map((l) => ({
             card_id: id,
             user_id: l.user_id,
-            vinted_listing_id: l.vinted_listing_id,
-            vinted_posted_at: l.vinted_posted_at,
-            listed_at: l.listed_at,
+            vinted_listing_id: null,
+            vinted_posted_at: null,
+            listed_at: new Date().toISOString(),
           })),
           { onConflict: 'card_id,user_id' },
         );

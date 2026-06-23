@@ -346,6 +346,15 @@ class VintedClient:
                     body = r.json()
                     captcha_url = body.get("url", "")
                     if "captcha-delivery.com" in captcha_url:
+                        from urllib.parse import urlparse, parse_qs
+                        qs = parse_qs(urlparse(captcha_url).query)
+                        challenge_type = qs.get("t", [""])[0]
+                        if challenge_type == "bv":
+                            # "bot verification" — interactive challenge, no CAPTCHA solver supports it.
+                            # Only a fresh login (python login.py) can clear it.
+                            raise RuntimeError(
+                                "Cookie DataDome expiré (challenge t=bv) — relance: python login.py"
+                            )
                         log.info("DataDome CAPTCHA — tentative CapSolver…")
                         if self._solve_datadome_capsolver(captcha_url):
                             self.refresh_csrf()
@@ -358,7 +367,7 @@ class VintedClient:
                                 return str(r2.json()["item"]["id"])
                             log.error("CapSolver retry échoué (%s) : %s", r2.status_code, r2.text[:300])
                         raise RuntimeError(
-                            "DataDome blocked — vérifie CAPSOLVER_KEY dans .env"
+                            "DataDome bloqué — relance: python login.py ou vérifie CAPSOLVER_KEY"
                         )
                 except (ValueError, KeyError):
                     pass
