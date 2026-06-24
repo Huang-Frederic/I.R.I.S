@@ -232,35 +232,8 @@ export async function PATCH(
           priceToCopy = oldCard.suggested_price;
         }
 
-        const { data: oldListings } = await svc
-          .from('card_listings')
-          .select('user_id')
-          .eq('card_id', oldCard.id);
-
-        if (!oldListings?.length) {
-          await svc.from('card_listings').delete().eq('card_id', oldCard.id);
-          continue;
-        }
-
-        // Always reset vinted_listing_id/vinted_posted_at on migration: the old listing is
-        // either closed (sold via Vinted) or orphaned, and the restocked card needs a fresh post.
-        const { error: upsertError } = await svc.from('card_listings').upsert(
-          oldListings.map((l) => ({
-            card_id: id,
-            user_id: l.user_id,
-            vinted_listing_id: null,
-            vinted_posted_at: null,
-            listed_at: new Date().toISOString(),
-          })),
-          { onConflict: 'card_id,user_id' },
-        );
-
-        if (upsertError) {
-          // Leave old listings intact — don't delete so tracking data is not lost.
-          console.error('[migrate] listing upsert failed for card', oldCard.id, ':', upsertError.message);
-          continue;
-        }
-
+        // Old listing is closed (sold via Vinted) or will be orphaned — don't carry it
+        // over. Delete it so the restocked card shows "put online" with no stale state.
         await svc.from('card_listings').delete().eq('card_id', oldCard.id);
       }
 
