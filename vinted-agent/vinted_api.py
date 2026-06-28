@@ -3,6 +3,7 @@ import json
 import logging
 import random
 import re
+import time
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -49,13 +50,19 @@ WANKUL_BRAND_ID = 12800798
 SANS_MARQUE_BRAND_ID = 1     # "Sans marque" — fallback for unknown TCG
 
 
-_CROP_MIN = 0.02
-_CROP_MAX = 0.04
+_CROP_MIN = 0.04
+_CROP_MAX = 0.09
 
 
 def _process_image(raw: bytes) -> bytes:
-    """Mirror the front's pipeline: random light crop (2-4% per edge) + JPEG 95%.
-    Makes each upload look like a lightly edited phone photo, not a script copy."""
+    """Transform image to break Vinted's perceptual duplicate detection.
+
+    Uses asymmetric crop (4-9% per edge, independently randomised) + slight
+    brightness/contrast jitter. Each account's upload ends up visually identical
+    to a human but produces a different perceptual hash than another account's
+    upload of the same source image.
+    """
+    from PIL import ImageEnhance
     img = Image.open(io.BytesIO(raw)).convert("RGB")
     w, h = img.size
 
@@ -70,8 +77,16 @@ def _process_image(raw: bytes) -> bytes:
     bottom = rand_px(h)
     cropped = img.crop((left, top, w - right, h - bottom))
 
+    # Slight brightness variation (±4%) — imperceptible to humans, breaks pHash
+    brightness = ImageEnhance.Brightness(cropped)
+    cropped = brightness.enhance(random.uniform(0.96, 1.04))
+
+    # Slight contrast variation (±3%)
+    contrast = ImageEnhance.Contrast(cropped)
+    cropped = contrast.enhance(random.uniform(0.97, 1.03))
+
     buf = io.BytesIO()
-    cropped.save(buf, format="JPEG", quality=95)
+    cropped.save(buf, format="JPEG", quality=random.randint(92, 96))
     return buf.getvalue()
 
 
@@ -213,6 +228,18 @@ class VintedClient:
         """Persist the current cookie dict to disk."""
         Path(self._cookies_path).write_text(json.dumps(self._cookies, indent=2))
 
+    def _sync_datadome(self, response) -> None:
+        """Read the updated datadome cookie from the session jar and persist it.
+
+        Vinted/DataDome rotates the datadome cookie on every response via Set-Cookie.
+        curl_cffi captures it in the internal jar but our in-memory dict stays stale —
+        syncing here prevents the next request from sending an outdated cookie.
+        """
+        jar_dd = self._session.cookies.get("datadome")
+        if jar_dd and jar_dd != self._cookies.get("datadome"):
+            self._cookies["datadome"] = jar_dd
+            self._save_cookies()
+
     def upload_photo(self, image_url: str) -> int:
         log = logging.getLogger(__name__)
         raw = requests.get(image_url, timeout=20).content
@@ -241,6 +268,7 @@ class VintedClient:
                 headers=self._headers(),
                 timeout=30,
             )
+        self._sync_datadome(r)
         # Detect DataDome binary block (200 with non-JSON binary body)
         content_type = r.headers.get("content-type", "")
         if r.ok and "json" not in content_type:
@@ -315,7 +343,11 @@ class VintedClient:
 
         temp_uuid = str(uuid.uuid4())
         if photo_ids is None:
-            photo_ids = [self.upload_photo(url) for url in image_urls]
+            photo_ids = []
+            for i, url in enumerate(image_urls):
+                if i > 0:
+                    time.sleep(random.uniform(1.5, 3.0))
+                photo_ids.append(self.upload_photo(url))
 
         payload = self._build_listing_payload(
             temp_uuid=temp_uuid,
@@ -339,6 +371,7 @@ class VintedClient:
             headers=h,
             timeout=30,
         )
+        self._sync_datadome(r)
         if not r.ok:
             log.error("Vinted API error %s: %s", r.status_code, r.text[:2000])
             if r.status_code == 403:
@@ -481,6 +514,7 @@ class VintedClient:
                 timeout=15,
                 allow_redirects=False,
             )
+        self._sync_datadome(r)
         ct = r.headers.get("content-type", "")
         if not r.ok:
             log.warning("POST .../delete #%s → HTTP %s : %s", listing_id, r.status_code, r.text[:120])
