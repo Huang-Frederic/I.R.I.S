@@ -65,19 +65,6 @@ export default async function OptionsPage() {
         <ManualBackupSection />
       </div>
 
-      <div className="mt-4">
-        <div className="bg-surface border-border rounded-lg border p-5">
-          <h2 className="text-text-muted mb-3 text-xs font-semibold uppercase tracking-wide">
-            Activité
-          </h2>
-          <a
-            href="/logs"
-            className="text-accent hover:text-accent/80 text-sm transition-colors"
-          >
-            Voir les logs d'activité →
-          </a>
-        </div>
-      </div>
     </section>
   );
 }

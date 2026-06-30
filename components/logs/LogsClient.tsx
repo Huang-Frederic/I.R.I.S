@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import PageTitle from '@/components/layout/PageTitle';
 
@@ -18,45 +19,10 @@ type AuditLog = {
 const FRED_ID = '35385d3c-5966-4a10-8568-8d92d1be47e7';
 const GILLY_ID = 'a018a4ef-e02e-4a67-9732-9fafe3167e10';
 
-function actorLabel(log: AuditLog): string {
-  if (log.actor_type === 'agent') {
-    if (log.actor_user_id === FRED_ID) return 'Agent Fred';
-    if (log.actor_user_id === GILLY_ID) return 'Agent Gilly';
-    return 'Agent';
-  }
-  if (log.actor_type === 'user') {
-    if (log.actor_user_id === FRED_ID) return 'Fred';
-    if (log.actor_user_id === GILLY_ID) return 'Gilly';
-    return 'User';
-  }
-  return 'Système';
-}
-
 function actorBadgeClass(log: AuditLog): string {
   if (log.actor_type === 'agent') return 'bg-orange-500/15 text-orange-400 border-orange-500/30';
   if (log.actor_type === 'user') return 'bg-blue-500/15 text-blue-400 border-blue-500/30';
   return 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30';
-}
-
-function actionLabel(action: string): string {
-  const map: Record<string, string> = {
-    'card.created': 'Carte créée',
-    'card.status_changed': 'Statut modifié',
-    'card.price_updated': 'Prix mis à jour',
-    'card.deleted': 'Carte supprimée',
-    'lot.status_changed': 'Lot statut modifié',
-    'lot.deleted': 'Lot supprimé',
-    'job.created': 'Job créé',
-    'job.failed': 'Job échoué',
-    'listing.posted': 'Annonce publiée',
-    'listing.deleted': 'Annonce supprimée',
-    'listing.bumped': 'Annonce bumpée',
-    'migration.listings_migrated': 'Listings migrés',
-    'migration.listings_dropped': 'Listings supprimés',
-    'system.restock_detected': 'Restock détecté',
-    'system.promote_detected': 'Promotion détectée',
-  };
-  return map[action] ?? action;
 }
 
 function actionDotClass(action: string): string {
@@ -68,7 +34,7 @@ function actionDotClass(action: string): string {
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleString('fr-FR', {
+  return d.toLocaleString(undefined, {
     day: '2-digit', month: '2-digit', year: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
@@ -85,8 +51,33 @@ function DetailsRow({ details }: { details: Record<string, unknown> }) {
 }
 
 function LogRow({ log }: { log: AuditLog }) {
+  const t = useTranslations('logs');
   const [open, setOpen] = useState(false);
   const hasDetails = log.details && Object.keys(log.details).length > 0;
+
+  function actorLabel(l: AuditLog): string {
+    if (l.actor_type === 'agent') {
+      if (l.actor_user_id === FRED_ID) return t('actors.agentFred');
+      if (l.actor_user_id === GILLY_ID) return t('actors.agentGilly');
+      return t('actors.agent');
+    }
+    if (l.actor_type === 'user') {
+      if (l.actor_user_id === FRED_ID) return t('actors.fred');
+      if (l.actor_user_id === GILLY_ID) return t('actors.gilly');
+      return t('actors.user');
+    }
+    return t('actors.system');
+  }
+
+  function actionLabel(action: string): string {
+    const key = `actions.${action}` as Parameters<typeof t>[0];
+    try {
+      const label = t(key);
+      return label !== key ? label : action;
+    } catch {
+      return action;
+    }
+  }
 
   return (
     <li>
@@ -99,9 +90,7 @@ function LogRow({ log }: { log: AuditLog }) {
           <div className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${actionDotClass(log.action)}`} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`border rounded px-1.5 py-0.5 font-mono text-xs ${actorBadgeClass(log)}`}
-              >
+              <span className={`border rounded px-1.5 py-0.5 font-mono text-xs ${actorBadgeClass(log)}`}>
                 {actorLabel(log)}
               </span>
               <span className="text-text text-sm font-medium">{actionLabel(log.action)}</span>
@@ -137,50 +126,59 @@ function LogRow({ log }: { log: AuditLog }) {
   );
 }
 
-const ACTOR_FILTERS = ['Tous', 'user', 'agent', 'system'] as const;
+const ACTOR_FILTERS = ['all', 'user', 'agent', 'system'] as const;
 type ActorFilter = (typeof ACTOR_FILTERS)[number];
 
 export default function LogsClient({ initialLogs }: { initialLogs: AuditLog[] }) {
+  const t = useTranslations('logs');
   const [logs, setLogs] = useState<AuditLog[]>(initialLogs);
-  const [actorFilter, setActorFilter] = useState<ActorFilter>('Tous');
+  const [actorFilter, setActorFilter] = useState<ActorFilter>('all');
   const [actionFilter, setActionFilter] = useState('');
   const [offset, setOffset] = useState(initialLogs.length);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(initialLogs.length === 100);
 
+  const filterLabels: Record<ActorFilter, string> = {
+    all: t('filterAll'),
+    user: t('filterUser'),
+    agent: t('filterAgent'),
+    system: t('filterSystem'),
+  };
+
+  const fetchLogs = useCallback(async (actor: ActorFilter, action: string, off: number) => {
+    const params = new URLSearchParams({ limit: '100', offset: String(off) });
+    if (actor !== 'all') params.set('actor_type', actor);
+    if (action) params.set('action', action);
+    const res = await fetch(`/api/logs?${params}`);
+    if (!res.ok) return null;
+    return res.json() as Promise<{ logs: AuditLog[]; total: number }>;
+  }, []);
+
   const loadMore = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ limit: '100', offset: String(offset) });
-    if (actorFilter !== 'Tous') params.set('actor_type', actorFilter);
-    if (actionFilter) params.set('action', actionFilter);
-    const res = await fetch(`/api/logs?${params}`);
-    if (res.ok) {
-      const data = await res.json();
+    const data = await fetchLogs(actorFilter, actionFilter, offset);
+    if (data) {
       setLogs((prev) => [...prev, ...data.logs]);
       setOffset((o) => o + data.logs.length);
       setHasMore(data.logs.length === 100);
     }
     setLoading(false);
-  }, [offset, actorFilter, actionFilter]);
+  }, [fetchLogs, offset, actorFilter, actionFilter]);
 
   const applyFilters = useCallback(async (actor: ActorFilter, action: string) => {
     setLoading(true);
-    const params = new URLSearchParams({ limit: '100', offset: '0' });
-    if (actor !== 'Tous') params.set('actor_type', actor);
-    if (action) params.set('action', action);
-    const res = await fetch(`/api/logs?${params}`);
-    if (res.ok) {
-      const data = await res.json();
+    const data = await fetchLogs(actor, action, 0);
+    if (data) {
       setLogs(data.logs);
       setOffset(data.logs.length);
       setHasMore(data.logs.length === 100);
     }
     setLoading(false);
-  }, []);
+  }, [fetchLogs]);
 
   return (
     <section>
-      <PageTitle title="Logs d'activité" subtitle="Toutes les actions utilisateur, agent et système" />
+      <PageTitle title={t('pageTitle')} subtitle={t('pageSubtitle')} />
 
       {/* Filters */}
       <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -195,13 +193,13 @@ export default function LogsClient({ initialLogs }: { initialLogs: AuditLog[] })
                   : 'bg-surface border-border text-text-muted border hover:text-text'
               }`}
             >
-              {f === 'Tous' ? 'Tous' : f === 'user' ? 'User' : f === 'agent' ? 'Agent' : 'Système'}
+              {filterLabels[f]}
             </button>
           ))}
         </div>
         <input
           type="text"
-          placeholder="Filtrer par action…"
+          placeholder={t('filterActionPlaceholder')}
           value={actionFilter}
           onChange={(e) => {
             setActionFilter(e.target.value);
@@ -209,13 +207,15 @@ export default function LogsClient({ initialLogs }: { initialLogs: AuditLog[] })
           }}
           className="bg-surface border-border text-text placeholder-text-faint rounded border px-2.5 py-1 text-xs focus:outline-none"
         />
-        <span className="text-text-faint text-xs">{logs.length} entrée{logs.length !== 1 ? 's' : ''}</span>
+        <span className="text-text-faint text-xs">
+          {logs.length <= 1 ? t('entries', { count: logs.length }) : t('entriesPlural', { count: logs.length })}
+        </span>
       </div>
 
       {/* Log list */}
       <div className="bg-surface border-border mt-4 overflow-hidden rounded-lg border">
         {logs.length === 0 ? (
-          <p className="text-text-faint p-6 text-center text-sm">Aucun log pour le moment.</p>
+          <p className="text-text-faint p-6 text-center text-sm">{t('empty')}</p>
         ) : (
           <ul className="divide-border divide-y">
             {logs.map((log) => (
@@ -232,7 +232,7 @@ export default function LogsClient({ initialLogs }: { initialLogs: AuditLog[] })
             disabled={loading}
             className="bg-surface border-border text-text-muted hover:text-text rounded border px-4 py-2 text-sm transition-colors disabled:opacity-50"
           >
-            {loading ? 'Chargement…' : 'Charger plus'}
+            {loading ? t('loading') : t('loadMore')}
           </button>
         </div>
       )}

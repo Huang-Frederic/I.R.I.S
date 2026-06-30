@@ -40,7 +40,8 @@
     "stock": "在庫",
     "vinted": "Vinted",
     "agentOnline": "エージェント接続中",
-    "agentOffline": "エージェント未接続"
+    "agentOffline": "エージェント未接続",
+    "logs": "アクティビティ"
   },
   "auth": {
     "credentialsRequired": "メールアドレスとパスワードが必要です。",
@@ -855,5 +856,45 @@
     "thisCard": "このカード",
     "pokedexCard": "ポケモン図鑑",
     "caption": "左：選択したカード。右：すでに図鑑に登録されているカード。"
+  },
+  "logs": {
+    "pageTitle": "アクティビティログ",
+    "pageSubtitle": "ユーザー・エージェント・システムの全アクション",
+    "filterAll": "すべて",
+    "filterUser": "ユーザー",
+    "filterAgent": "エージェント",
+    "filterSystem": "システム",
+    "filterActionPlaceholder": "アクションで絞り込み…",
+    "entries": "{count}件",
+    "entriesPlural": "{count}件",
+    "loadMore": "もっと読み込む",
+    "loading": "読み込み中…",
+    "empty": "ログはまだありません。",
+    "actors": {
+      "agentFred": "エージェント Fred",
+      "agentGilly": "エージェント Gilly",
+      "agent": "エージェント",
+      "fred": "Fred",
+      "gilly": "Gilly",
+      "user": "ユーザー",
+      "system": "システム"
+    },
+    "actions": {
+      "card.created": "カード作成",
+      "card.status_changed": "ステータス変更",
+      "card.price_updated": "価格更新",
+      "card.deleted": "カード削除",
+      "lot.status_changed": "ロットステータス変更",
+      "lot.deleted": "ロット削除",
+      "job.created": "ジョブ作成",
+      "job.failed": "ジョブ失敗",
+      "listing.posted": "出品完了",
+      "listing.deleted": "出品削除",
+      "listing.bumped": "出品バンプ",
+      "migration.listings_migrated": "リスティング移行",
+      "migration.listings_dropped": "リスティング削除",
+      "system.restock_detected": "再入荷検知",
+      "system.promote_detected": "昇格検知"
+    }
   }
 }

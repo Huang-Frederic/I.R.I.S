@@ -1,8 +1,13 @@
+import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import LogsClient from '@/components/logs/LogsClient';
 
-export const metadata = { title: 'Logs d\'activité — I.R.I.S' };
+export async function generateMetadata() {
+  const t = await getTranslations('logs');
+  return { title: t('pageTitle') };
+}
+
 export const dynamic = 'force-dynamic';
 
 export default async function LogsPage() {

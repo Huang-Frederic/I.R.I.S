@@ -40,7 +40,8 @@
     "stock": "Stock",
     "vinted": "Vinted",
     "agentOnline": "Agent online",
-    "agentOffline": "Agent offline"
+    "agentOffline": "Agent offline",
+    "logs": "Activity"
   },
   "auth": {
     "credentialsRequired": "Email and password required.",
@@ -861,5 +862,45 @@
     "thisCard": "This card",
     "pokedexCard": "Pokédex",
     "caption": "Left: the selected card. Right: the one already in your Pokédex."
+  },
+  "logs": {
+    "pageTitle": "Activity logs",
+    "pageSubtitle": "All user, agent and system actions",
+    "filterAll": "All",
+    "filterUser": "User",
+    "filterAgent": "Agent",
+    "filterSystem": "System",
+    "filterActionPlaceholder": "Filter by action…",
+    "entries": "{count} entry",
+    "entriesPlural": "{count} entries",
+    "loadMore": "Load more",
+    "loading": "Loading…",
+    "empty": "No logs yet.",
+    "actors": {
+      "agentFred": "Agent Fred",
+      "agentGilly": "Agent Gilly",
+      "agent": "Agent",
+      "fred": "Fred",
+      "gilly": "Gilly",
+      "user": "User",
+      "system": "System"
+    },
+    "actions": {
+      "card.created": "Card created",
+      "card.status_changed": "Status changed",
+      "card.price_updated": "Price updated",
+      "card.deleted": "Card deleted",
+      "lot.status_changed": "Lot status changed",
+      "lot.deleted": "Lot deleted",
+      "job.created": "Job created",
+      "job.failed": "Job failed",
+      "listing.posted": "Listing posted",
+      "listing.deleted": "Listing deleted",
+      "listing.bumped": "Listing bumped",
+      "migration.listings_migrated": "Listings migrated",
+      "migration.listings_dropped": "Listings dropped",
+      "system.restock_detected": "Restock detected",
+      "system.promote_detected": "Promotion detected"
+    }
   }
 }

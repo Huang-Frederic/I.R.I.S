@@ -40,7 +40,8 @@
     "stock": "库存",
     "vinted": "Vinted",
     "agentOnline": "代理已连接",
-    "agentOffline": "代理未连接"
+    "agentOffline": "代理未连接",
+    "logs": "活动记录"
   },
   "auth": {
     "credentialsRequired": "需要邮箱和密码。",
@@ -855,5 +856,45 @@
     "thisCard": "此卡片",
     "pokedexCard": "图鉴",
     "caption": "左：选中的卡片。右：已在图鉴中的卡片。"
+  },
+  "logs": {
+    "pageTitle": "活动日志",
+    "pageSubtitle": "所有用户、代理和系统操作",
+    "filterAll": "全部",
+    "filterUser": "用户",
+    "filterAgent": "代理",
+    "filterSystem": "系统",
+    "filterActionPlaceholder": "按操作筛选…",
+    "entries": "{count}条",
+    "entriesPlural": "{count}条",
+    "loadMore": "加载更多",
+    "loading": "加载中…",
+    "empty": "暂无日志。",
+    "actors": {
+      "agentFred": "代理 Fred",
+      "agentGilly": "代理 Gilly",
+      "agent": "代理",
+      "fred": "Fred",
+      "gilly": "Gilly",
+      "user": "用户",
+      "system": "系统"
+    },
+    "actions": {
+      "card.created": "创建卡片",
+      "card.status_changed": "状态更改",
+      "card.price_updated": "价格更新",
+      "card.deleted": "删除卡片",
+      "lot.status_changed": "批次状态更改",
+      "lot.deleted": "删除批次",
+      "job.created": "创建任务",
+      "job.failed": "任务失败",
+      "listing.posted": "发布商品",
+      "listing.deleted": "删除商品",
+      "listing.bumped": "推送商品",
+      "migration.listings_migrated": "迁移商品列表",
+      "migration.listings_dropped": "删除商品列表",
+      "system.restock_detected": "检测到补货",
+      "system.promote_detected": "检测到升级"
+    }
   }
 }

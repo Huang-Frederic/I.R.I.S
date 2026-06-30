@@ -40,7 +40,8 @@
     "stock": "Stock",
     "vinted": "Vinted",
     "agentOnline": "Agent connecté",
-    "agentOffline": "Agent déconnecté"
+    "agentOffline": "Agent déconnecté",
+    "logs": "Activité"
   },
   "auth": {
     "credentialsRequired": "Email et mot de passe requis.",
@@ -861,5 +862,45 @@
     "thisCard": "Cette carte",
     "pokedexCard": "Pokédex",
     "caption": "À gauche : la carte sélectionnée. À droite : celle déjà enregistrée dans ton Pokédex."
+  },
+  "logs": {
+    "pageTitle": "Logs d'activité",
+    "pageSubtitle": "Toutes les actions utilisateur, agent et système",
+    "filterAll": "Tous",
+    "filterUser": "Utilisateur",
+    "filterAgent": "Agent",
+    "filterSystem": "Système",
+    "filterActionPlaceholder": "Filtrer par action…",
+    "entries": "{count} entrée",
+    "entriesPlural": "{count} entrées",
+    "loadMore": "Charger plus",
+    "loading": "Chargement…",
+    "empty": "Aucun log pour le moment.",
+    "actors": {
+      "agentFred": "Agent Fred",
+      "agentGilly": "Agent Gilly",
+      "agent": "Agent",
+      "fred": "Fred",
+      "gilly": "Gilly",
+      "user": "Utilisateur",
+      "system": "Système"
+    },
+    "actions": {
+      "card.created": "Carte créée",
+      "card.status_changed": "Statut modifié",
+      "card.price_updated": "Prix mis à jour",
+      "card.deleted": "Carte supprimée",
+      "lot.status_changed": "Lot statut modifié",
+      "lot.deleted": "Lot supprimé",
+      "job.created": "Job créé",
+      "job.failed": "Job échoué",
+      "listing.posted": "Annonce publiée",
+      "listing.deleted": "Annonce supprimée",
+      "listing.bumped": "Annonce bumpée",
+      "migration.listings_migrated": "Listings migrés",
+      "migration.listings_dropped": "Listings supprimés",
+      "system.restock_detected": "Restock détecté",
+      "system.promote_detected": "Promotion détectée"
+    }
   }
 }
