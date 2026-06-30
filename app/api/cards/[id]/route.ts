@@ -217,7 +217,13 @@ export async function PATCH(
         to: body.status,
         card_name: (updated as Record<string, unknown>).card_name,
         card_id_tcg: (updated as Record<string, unknown>).card_id_tcg,
+        set_name: (updated as Record<string, unknown>).set_name,
         set_code: (updated as Record<string, unknown>).set_code,
+        language: (updated as Record<string, unknown>).language,
+        condition: (updated as Record<string, unknown>).condition,
+        variant: (updated as Record<string, unknown>).variant ?? null,
+        suggested_price: (updated as Record<string, unknown>).suggested_price,
+        ...(body.sold_price !== undefined && { sold_price: body.sold_price }),
       },
     });
   } else if (body.suggested_price !== undefined || body.sold_price !== undefined) {
@@ -228,9 +234,13 @@ export async function PATCH(
       entity_type: 'card',
       entity_id: id,
       details: {
+        card_name: (updated as Record<string, unknown>).card_name,
+        card_id_tcg: (updated as Record<string, unknown>).card_id_tcg,
+        set_code: (updated as Record<string, unknown>).set_code,
+        language: (updated as Record<string, unknown>).language,
+        condition: (updated as Record<string, unknown>).condition,
         suggested_price: body.suggested_price,
         sold_price: body.sold_price,
-        card_name: (updated as Record<string, unknown>).card_name,
       },
     });
   }
@@ -293,6 +303,8 @@ export async function PATCH(
             entity_type: 'card',
             entity_id: id,
             details: {
+              card_name: (updated as Record<string, unknown>).card_name,
+              card_id_tcg: (updated as Record<string, unknown>).card_id_tcg,
               from_card_id: oldCard.id,
               to_card_id: id,
               migrated: toMigrate.map((l) => ({
@@ -311,7 +323,15 @@ export async function PATCH(
             action: 'migration.listings_dropped',
             entity_type: 'card',
             entity_id: oldCard.id,
-            details: { count: nullOnly.length, reason: 'null_only' },
+            details: {
+              from_card_id: oldCard.id,
+              to_card_id: id,
+              card_name: (updated as Record<string, unknown>).card_name,
+              card_id_tcg: (updated as Record<string, unknown>).card_id_tcg,
+              count: nullOnly.length,
+              dropped_user_ids: nullOnly.map((l) => l.user_id),
+              reason: 'null_only',
+            },
           });
         }
 
@@ -417,10 +437,10 @@ export async function DELETE(
   } = await supabase.auth.getUser();
   if (!user) return unauthorizedResponse();
 
-  // Fetch card name before deleting for the audit log
+  // Fetch card details before deleting for the audit log
   const { data: cardToDelete } = await supabase
     .from('cards')
-    .select('card_name, card_id_tcg')
+    .select('card_name, card_id_tcg, set_code, set_name, language, condition, variant, status, suggested_price')
     .eq('id', id)
     .maybeSingle();
 
@@ -442,6 +462,13 @@ export async function DELETE(
     details: {
       card_name: cardToDelete?.card_name,
       card_id_tcg: cardToDelete?.card_id_tcg,
+      set_name: cardToDelete?.set_name,
+      set_code: cardToDelete?.set_code,
+      language: cardToDelete?.language,
+      condition: cardToDelete?.condition,
+      variant: cardToDelete?.variant ?? null,
+      status: cardToDelete?.status,
+      suggested_price: cardToDelete?.suggested_price,
     },
   });
 

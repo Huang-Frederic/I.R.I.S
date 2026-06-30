@@ -19,6 +19,7 @@ import { PRICE_COEFFICIENT } from '@/lib/constants/pricing';
 import { validateCardForm } from '@/lib/utils/validate-card-form';
 import { syncSiblingPhotos } from '@/lib/utils/sibling-photos';
 import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
+import { auditLog } from '@/lib/utils/audit-log';
 
 export const runtime = 'nodejs';
 
@@ -268,6 +269,27 @@ export async function POST(request: Request) {
       data[0].id,
     );
   }
+
+  void auditLog({
+    actor_type: 'user',
+    actor_user_id: user.id,
+    action: 'card.batch_created',
+    entity_type: 'card',
+    entity_id: data?.[0]?.id,
+    details: {
+      count,
+      card_name: base.card_name,
+      card_id_tcg: base.card_id_tcg,
+      set_name: base.set_name,
+      set_code: base.set_code,
+      language: base.language,
+      condition: base.condition,
+      variant: base.variant ?? null,
+      status_requested: status,
+      suggested_price: base.suggested_price,
+      inserted_ids: (data ?? []).map((r) => r.id),
+    },
+  });
 
   return NextResponse.json({ created: data ?? [] });
 }

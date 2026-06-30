@@ -10,6 +10,7 @@ import {
   validationResponse,
   notFoundResponse,
 } from '@/lib/utils/api-response';
+import { auditLog } from '@/lib/utils/audit-log';
 
 export const runtime = 'nodejs';
 
@@ -70,7 +71,7 @@ export async function POST(
   // Propagate the new photo to all sibling rows (same card identity).
   const { data: row } = await supabase
     .from('cards')
-    .select('card_id_tcg, language, condition, variant')
+    .select('card_name, card_id_tcg, language, condition, variant')
     .eq('id', id)
     .single();
   if (row) {
@@ -86,6 +87,22 @@ export async function POST(
       id,
     );
   }
+
+  void auditLog({
+    actor_type: 'user',
+    actor_user_id: user.id,
+    action: 'card.photo_updated',
+    entity_type: 'card',
+    entity_id: id,
+    details: {
+      card_name: row?.card_name ?? null,
+      card_id_tcg: row?.card_id_tcg ?? null,
+      language: row?.language ?? null,
+      condition: row?.condition ?? null,
+      variant: row?.variant ?? null,
+      image_url: newImageUrl,
+    },
+  });
 
   return NextResponse.json({ ok: true, image_url: newImageUrl });
 }

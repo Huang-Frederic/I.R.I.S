@@ -100,7 +100,29 @@ export async function PATCH(
       action: 'lot.status_changed',
       entity_type: 'lot',
       entity_id: id,
-      details: { to: body.status, name: (updated as Record<string, unknown>).name },
+      details: {
+        to: body.status,
+        name: (updated as Record<string, unknown>).name,
+        language: (updated as Record<string, unknown>).language,
+        condition: (updated as Record<string, unknown>).condition,
+        price: (updated as Record<string, unknown>).price,
+        ...(body.sold_price !== undefined && { sold_price: body.sold_price }),
+      },
+    });
+  } else {
+    void auditLog({
+      actor_type: 'user',
+      actor_user_id: user.id,
+      action: 'lot.updated',
+      entity_type: 'lot',
+      entity_id: id,
+      details: {
+        name: (updated as Record<string, unknown>).name,
+        language: (updated as Record<string, unknown>).language,
+        condition: (updated as Record<string, unknown>).condition,
+        price: (updated as Record<string, unknown>).price,
+        updated_fields: Object.keys(update),
+      },
     });
   }
 
@@ -121,7 +143,7 @@ export async function DELETE(
   // Read the lot to get photo_urls and name for audit log
   const { data: lot } = await supabase
     .from('lots')
-    .select('photo_urls, name')
+    .select('photo_urls, name, language, condition, price')
     .eq('id', id)
     .maybeSingle();
 
@@ -145,7 +167,12 @@ export async function DELETE(
     action: 'lot.deleted',
     entity_type: 'lot',
     entity_id: id,
-    details: { name: (lot as Record<string, unknown> | null)?.name },
+    details: {
+      name: (lot as Record<string, unknown> | null)?.name,
+      language: (lot as Record<string, unknown> | null)?.language,
+      condition: (lot as Record<string, unknown> | null)?.condition,
+      price: (lot as Record<string, unknown> | null)?.price,
+    },
   });
 
   return new NextResponse(null, { status: 204 });

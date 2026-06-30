@@ -260,9 +260,15 @@ export async function POST(request: Request) {
     details: {
       card_name: row.card_name,
       card_id_tcg: row.card_id_tcg,
+      set_name: row.set_name,
+      set_code: row.set_code,
       language: row.language,
       condition: row.condition,
+      variant: row.variant ?? null,
       status: row.status,
+      suggested_price: row.suggested_price,
+      pokemon_name: row.pokemon_name,
+      pokemon_number: row.pokemon_number,
     },
   });
 

@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   if (isCard) {
     const { data: card, error: cardError } = await supabase
       .from('cards')
-      .select('id, status, suggested_price, cm_price_low, cm_price_avg')
+      .select('id, status, suggested_price, cm_price_low, cm_price_avg, card_name, card_id_tcg, set_code, set_name, language, condition, variant, pokemon_name, pokemon_number')
       .eq('id', card_id!)
       .single();
 
@@ -95,7 +95,19 @@ export async function POST(request: Request) {
       action: 'job.created',
       entity_type: 'card',
       entity_id: card_id,
-      details: { job_id: job.id, job_type: 'post' },
+      details: {
+        job_id: job.id,
+        job_type: 'post',
+        card_name: card.card_name,
+        card_id_tcg: card.card_id_tcg,
+        set_name: card.set_name,
+        set_code: card.set_code,
+        language: card.language,
+        condition: card.condition,
+        variant: card.variant ?? null,
+        pokemon_name: card.pokemon_name,
+        suggested_price: card.suggested_price,
+      },
     });
     return NextResponse.json({ job_id: job.id }, { status: 201 });
   }
@@ -103,7 +115,7 @@ export async function POST(request: Request) {
   // Lot path
   const { data: lot, error: lotError } = await supabase
     .from('lots')
-    .select('id, status, price')
+    .select('id, status, price, name, language, condition')
     .eq('id', lot_id!)
     .single();
 
@@ -155,7 +167,14 @@ export async function POST(request: Request) {
     action: 'job.created',
     entity_type: 'lot',
     entity_id: lot_id,
-    details: { job_id: job.id, job_type: 'post' },
+    details: {
+      job_id: job.id,
+      job_type: 'post',
+      lot_name: lot.name,
+      price: lot.price,
+      language: lot.language,
+      condition: lot.condition,
+    },
   });
   return NextResponse.json({ job_id: job.id }, { status: 201 });
 }

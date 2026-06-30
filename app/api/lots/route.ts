@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
+import { auditLog } from '@/lib/utils/audit-log';
 import type { CardLanguage, CardCondition } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -127,6 +128,15 @@ export async function POST(request: Request): Promise<NextResponse> {
       message: updErr?.message ?? 'no data',
     });
   }
+
+  void auditLog({
+    actor_type: 'user',
+    actor_user_id: user.id,
+    action: 'lot.created',
+    entity_type: 'lot',
+    entity_id: lotId,
+    details: { name, language, condition, price },
+  });
 
   return NextResponse.json({
     lot: updated,

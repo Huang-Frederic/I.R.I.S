@@ -15,6 +15,7 @@ import {
   validationResponse,
   notFoundResponse,
 } from '@/lib/utils/api-response';
+import { auditLog } from '@/lib/utils/audit-log';
 
 export const runtime = 'nodejs';
 
@@ -70,6 +71,24 @@ export async function POST(
     console.error('Clone insert failed:', insertErr);
     return apiError('insert_failed', { status: 500, message: insertErr.message });
   }
+
+  void auditLog({
+    actor_type: 'user',
+    actor_user_id: user.id,
+    action: 'card.cloned',
+    entity_type: 'card',
+    entity_id: (inserted as Record<string, unknown>).id as string,
+    details: {
+      source_card_id: id,
+      card_name: (inserted as Record<string, unknown>).card_name,
+      card_id_tcg: (inserted as Record<string, unknown>).card_id_tcg,
+      set_name: (inserted as Record<string, unknown>).set_name,
+      set_code: (inserted as Record<string, unknown>).set_code,
+      language: (inserted as Record<string, unknown>).language,
+      condition: (inserted as Record<string, unknown>).condition,
+      variant: (inserted as Record<string, unknown>).variant ?? null,
+    },
+  });
 
   return NextResponse.json({ card: inserted });
 }

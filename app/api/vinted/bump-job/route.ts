@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
+import { auditLog } from '@/lib/utils/audit-log';
 
 export const runtime = 'nodejs';
 
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
   if (isCard) {
     const { data: card, error: cardError } = await supabase
       .from('cards')
-      .select('id, status')
+      .select('id, status, card_name, card_id_tcg, set_code, set_name, language, condition, variant, pokemon_name, suggested_price')
       .eq('id', card_id!)
       .single();
 
@@ -85,13 +86,34 @@ export async function POST(request: Request) {
       console.error('[vinted/bump-job] insert failed:', jobError.message, jobError.code);
       return apiError('job_create_failed', { status: 500, message: jobError.message });
     }
+    void auditLog({
+      actor_type: 'user',
+      actor_user_id: auth.user.id,
+      action: 'job.created',
+      entity_type: 'card',
+      entity_id: card_id,
+      details: {
+        job_id: job.id,
+        job_type: 'repost',
+        card_name: card.card_name,
+        card_id_tcg: card.card_id_tcg,
+        set_name: card.set_name,
+        set_code: card.set_code,
+        language: card.language,
+        condition: card.condition,
+        variant: card.variant ?? null,
+        pokemon_name: card.pokemon_name,
+        suggested_price: card.suggested_price,
+        vinted_listing_id: myListing.vinted_listing_id,
+      },
+    });
     return NextResponse.json({ job_id: job.id }, { status: 201 });
   }
 
   // Lot path
   const { data: lot, error: lotError } = await supabase
     .from('lots')
-    .select('id, status')
+    .select('id, status, name, price, language, condition')
     .eq('id', lot_id!)
     .single();
 
@@ -134,5 +156,21 @@ export async function POST(request: Request) {
     console.error('[vinted/bump-job] insert failed:', jobError.message, jobError.code);
     return apiError('job_create_failed', { status: 500, message: jobError.message });
   }
+  void auditLog({
+    actor_type: 'user',
+    actor_user_id: auth.user.id,
+    action: 'job.created',
+    entity_type: 'lot',
+    entity_id: lot_id,
+    details: {
+      job_id: job.id,
+      job_type: 'repost',
+      lot_name: lot.name,
+      price: lot.price,
+      language: lot.language,
+      condition: lot.condition,
+      vinted_listing_id: myLotListing.vinted_listing_id,
+    },
+  });
   return NextResponse.json({ job_id: job.id }, { status: 201 });
 }
