@@ -227,13 +227,36 @@ export async function PATCH(
       const svc = createServiceClient();
       let priceToCopy: number | null = null;
       for (const oldCard of sameGroupOld) {
-        // Collect the first available price from old cards for migration.
         if (!priceToCopy && typeof oldCard.suggested_price === 'number') {
           priceToCopy = oldCard.suggested_price;
         }
 
-        // Old listing is closed (sold via Vinted) or will be orphaned — don't carry it
-        // over. Delete it so the restocked card shows "put online" with no stale state.
+        // Fetch existing listings on this old card so we can decide per-row:
+        // - real vinted_listing_id → the partner still has their copy live on Vinted,
+        //   migrate the row to the new card so their badge stays correct.
+        // - null vinted_listing_id → never actually posted (or already sold),
+        //   drop it so the new card shows "put online" cleanly.
+        const { data: oldListings } = await svc
+          .from('card_listings')
+          .select('user_id, vinted_listing_id, vinted_posted_at')
+          .eq('card_id', oldCard.id);
+
+        if (!oldListings?.length) continue;
+
+        const toMigrate = oldListings.filter((l) => l.vinted_listing_id);
+        if (toMigrate.length) {
+          await svc.from('card_listings').upsert(
+            toMigrate.map((l) => ({
+              card_id: id,
+              user_id: l.user_id,
+              vinted_listing_id: l.vinted_listing_id,
+              vinted_posted_at: l.vinted_posted_at,
+              listed_at: new Date().toISOString(),
+            })),
+            { onConflict: 'card_id,user_id' },
+          );
+        }
+
         await svc.from('card_listings').delete().eq('card_id', oldCard.id);
       }
 
