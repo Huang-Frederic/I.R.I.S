@@ -9,6 +9,7 @@ import {
   validationResponse,
   notFoundResponse,
 } from '@/lib/utils/api-response';
+import { auditLog } from '@/lib/utils/audit-log';
 import type { CardStatus, Card } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -204,6 +205,36 @@ export async function PATCH(
     return apiError('update_failed', { status: 500, message: error.message });
   }
 
+  // Audit log for the card update itself
+  if (body.status !== undefined) {
+    void auditLog({
+      actor_type: 'user',
+      actor_user_id: user.id,
+      action: 'card.status_changed',
+      entity_type: 'card',
+      entity_id: id,
+      details: {
+        to: body.status,
+        card_name: (updated as Record<string, unknown>).card_name,
+        card_id_tcg: (updated as Record<string, unknown>).card_id_tcg,
+        set_code: (updated as Record<string, unknown>).set_code,
+      },
+    });
+  } else if (body.suggested_price !== undefined || body.sold_price !== undefined) {
+    void auditLog({
+      actor_type: 'user',
+      actor_user_id: user.id,
+      action: 'card.price_updated',
+      entity_type: 'card',
+      entity_id: id,
+      details: {
+        suggested_price: body.suggested_price,
+        sold_price: body.sold_price,
+        card_name: (updated as Record<string, unknown>).card_name,
+      },
+    });
+  }
+
   // When a card is promoted to for_sale, migrate active partner listings from sold/collection
   // cards of the same group. This ensures partners who still have their own Vinted listing
   // don't see a stale "to_delete" chip on the old sold card.
@@ -255,6 +286,33 @@ export async function PATCH(
             })),
             { onConflict: 'card_id,user_id' },
           );
+          void auditLog({
+            actor_type: 'system',
+            actor_user_id: user.id,
+            action: 'migration.listings_migrated',
+            entity_type: 'card',
+            entity_id: id,
+            details: {
+              from_card_id: oldCard.id,
+              to_card_id: id,
+              migrated: toMigrate.map((l) => ({
+                user_id: l.user_id,
+                vinted_listing_id: l.vinted_listing_id,
+              })),
+            },
+          });
+        }
+
+        const nullOnly = oldListings.filter((l) => !l.vinted_listing_id);
+        if (nullOnly.length) {
+          void auditLog({
+            actor_type: 'system',
+            actor_user_id: user.id,
+            action: 'migration.listings_dropped',
+            entity_type: 'card',
+            entity_id: oldCard.id,
+            details: { count: nullOnly.length, reason: 'null_only' },
+          });
         }
 
         await svc.from('card_listings').delete().eq('card_id', oldCard.id);
@@ -295,6 +353,21 @@ export async function PATCH(
       remainingForSaleCount: stillForSale?.length ?? 0,
       remainingStockCount: stillInStock?.length ?? 0,
     });
+    if (restock) {
+      void auditLog({
+        actor_type: 'system',
+        actor_user_id: user.id,
+        action: 'system.restock_detected',
+        entity_type: 'card',
+        entity_id: id,
+        details: {
+          pokemon_number: updated.pokemon_number,
+          pokemon_name: pokedex?.pokemon_name,
+          remaining_for_sale: stillForSale?.length ?? 0,
+          remaining_stock: stillInStock?.length ?? 0,
+        },
+      });
+    }
   }
 
   // Promote check: if just sold AND a stock copy of the same group exists, suggest promotion.
@@ -312,6 +385,20 @@ export async function PATCH(
       soldCard: updated,
       stockCards: (stockCandidates ?? []) as Card[],
     });
+    if (promote) {
+      void auditLog({
+        actor_type: 'system',
+        actor_user_id: user.id,
+        action: 'system.promote_detected',
+        entity_type: 'card',
+        entity_id: id,
+        details: {
+          card_name: (updated as Record<string, unknown>).card_name,
+          card_id_tcg: (updated as Record<string, unknown>).card_id_tcg,
+          promote_candidate_id: promote.cardId,
+        },
+      });
+    }
   }
 
   return NextResponse.json({ card: updated, restock, promote });
@@ -330,6 +417,13 @@ export async function DELETE(
   } = await supabase.auth.getUser();
   if (!user) return unauthorizedResponse();
 
+  // Fetch card name before deleting for the audit log
+  const { data: cardToDelete } = await supabase
+    .from('cards')
+    .select('card_name, card_id_tcg')
+    .eq('id', id)
+    .maybeSingle();
+
   // Try to delete the photo from Storage first (best-effort, don't fail if missing).
   await supabase.storage.from('card-photos').remove([`${id}.jpg`]).catch(() => {});
 
@@ -338,6 +432,18 @@ export async function DELETE(
     console.error('DELETE cards failed:', error);
     return apiError('delete_failed', { status: 500, message: error.message });
   }
+
+  void auditLog({
+    actor_type: 'user',
+    actor_user_id: user.id,
+    action: 'card.deleted',
+    entity_type: 'card',
+    entity_id: id,
+    details: {
+      card_name: cardToDelete?.card_name,
+      card_id_tcg: cardToDelete?.card_id_tcg,
+    },
+  });
 
   return NextResponse.json({ ok: true });
 }

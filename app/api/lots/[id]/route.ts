@@ -6,6 +6,7 @@ import {
   validationResponse,
   notFoundResponse,
 } from '@/lib/utils/api-response';
+import { auditLog } from '@/lib/utils/audit-log';
 import type { CardCondition, CardLanguage } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -91,6 +92,18 @@ export async function PATCH(
     if (error.code === 'PGRST116') return notFoundResponse('lot');
     return apiError('update_failed', { status: 500, message: error.message });
   }
+
+  if (body.status !== undefined) {
+    void auditLog({
+      actor_type: 'user',
+      actor_user_id: user.id,
+      action: 'lot.status_changed',
+      entity_type: 'lot',
+      entity_id: id,
+      details: { to: body.status, name: (updated as Record<string, unknown>).name },
+    });
+  }
+
   return NextResponse.json({ lot: updated });
 }
 
@@ -105,10 +118,10 @@ export async function DELETE(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return unauthorizedResponse();
 
-  // Read the lot to get photo_urls
+  // Read the lot to get photo_urls and name for audit log
   const { data: lot } = await supabase
     .from('lots')
-    .select('photo_urls')
+    .select('photo_urls, name')
     .eq('id', id)
     .maybeSingle();
 
@@ -125,5 +138,15 @@ export async function DELETE(
   if (error) {
     return apiError('delete_failed', { status: 500, message: error.message });
   }
+
+  void auditLog({
+    actor_type: 'user',
+    actor_user_id: user.id,
+    action: 'lot.deleted',
+    entity_type: 'lot',
+    entity_id: id,
+    details: { name: (lot as Record<string, unknown> | null)?.name },
+  });
+
   return new NextResponse(null, { status: 204 });
 }

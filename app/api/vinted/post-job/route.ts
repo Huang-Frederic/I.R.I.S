@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
+import { auditLog } from '@/lib/utils/audit-log';
 
 export const runtime = 'nodejs';
 
@@ -88,6 +89,14 @@ export async function POST(request: Request) {
       console.error('[vinted/post-job] insert failed:', jobError.message, jobError.code);
       return apiError('job_create_failed', { status: 500, message: jobError.message });
     }
+    void auditLog({
+      actor_type: 'user',
+      actor_user_id: auth.user.id,
+      action: 'job.created',
+      entity_type: 'card',
+      entity_id: card_id,
+      details: { job_id: job.id, job_type: 'post' },
+    });
     return NextResponse.json({ job_id: job.id }, { status: 201 });
   }
 
@@ -140,5 +149,13 @@ export async function POST(request: Request) {
     console.error('[vinted/post-job] insert failed:', jobError.message, jobError.code);
     return apiError('job_create_failed', { status: 500, message: jobError.message });
   }
+  void auditLog({
+    actor_type: 'user',
+    actor_user_id: auth.user.id,
+    action: 'job.created',
+    entity_type: 'lot',
+    entity_id: lot_id,
+    details: { job_id: job.id, job_type: 'post' },
+  });
   return NextResponse.json({ job_id: job.id }, { status: 201 });
 }

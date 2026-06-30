@@ -4,6 +4,7 @@ import { PRICE_COEFFICIENT } from '@/lib/constants/pricing';
 import { validateCardForm } from '@/lib/utils/validate-card-form';
 import { syncSiblingPhotos } from '@/lib/utils/sibling-photos';
 import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
+import { auditLog } from '@/lib/utils/audit-log';
 
 export const runtime = 'nodejs';
 
@@ -249,6 +250,21 @@ export async function POST(request: Request) {
     console.error('Card insert failed:', error);
     return apiError('insert_failed', { status: 500, message: error.message });
   }
+
+  void auditLog({
+    actor_type: 'user',
+    actor_user_id: user.id,
+    action: 'card.created',
+    entity_type: 'card',
+    entity_id: data?.id,
+    details: {
+      card_name: row.card_name,
+      card_id_tcg: row.card_id_tcg,
+      language: row.language,
+      condition: row.condition,
+      status: row.status,
+    },
+  });
 
   // Propagate the photo to all sibling rows (same card identity) if we uploaded one.
   if (data && image_url) {

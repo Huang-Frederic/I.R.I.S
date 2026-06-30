@@ -12,6 +12,7 @@ from realtime.types import RealtimeSubscribeStates
 
 from vinted_api import VintedClient, ListingGoneError
 from vinted_api import CONDITION_MAP, CARD_LOTS_CATALOG_ID, POKEMON_BRAND_ID
+from audit_log import audit_log
 
 load_dotenv()
 
@@ -415,11 +416,14 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, vinted.delete_listing, old_listing_id)
                 log.info("🗑  %s annonce #%s supprimée", tag, old_listing_id)
+                await audit_log(supabase, user_id, "listing.deleted",
+                                entity_type="card", entity_id=card_id,
+                                details={"vinted_listing_id": old_listing_id, "reason": "repost"})
             except ListingGoneError:
                 log.warning("~  %s annonce #%s introuvable — on reposte quand même", tag, old_listing_id)
             except Exception as e:
                 log.error("❌  %s delete #%s échoué — job annulé : %s", tag, old_listing_id, e)
-                await _fail_job(supabase, job_id, card_id, f"Delete échoué: {e}")
+                await _fail_job(supabase, job_id, card_id, f"Delete échoué: {e}", user_id)
                 return
             await supabase.table("card_listings").update({
                 "vinted_listing_id": None, "vinted_posted_at": None,
@@ -441,7 +445,7 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
 
     card = await get_card(supabase, card_id)
     if not card:
-        await _fail_job(supabase, job_id, card_id, "Card not found")
+        await _fail_job(supabase, job_id, card_id, "Card not found", user_id)
         return
 
     if card.get("status") != "for_sale":
@@ -454,7 +458,7 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
 
     image_url = card.get("image_url") or card.get("tcg_image_url")
     if not image_url:
-        await _fail_job(supabase, job_id, card_id, "No image available")
+        await _fail_job(supabase, job_id, card_id, "No image available", user_id)
         return
 
     condition = card.get("condition", "GD")
@@ -486,7 +490,7 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
         )
     except Exception as e:
         log.error("❌  %s erreur API Vinted : %s", tag, e)
-        await _fail_job(supabase, job_id, card_id, str(e))
+        await _fail_job(supabase, job_id, card_id, str(e), user_id)
         return
 
     now = datetime.now(timezone.utc).isoformat()
@@ -509,6 +513,9 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
     }).eq("id", job_id).execute()
     _session_posts[user_id] = _session_posts.get(user_id, 0) + 1
     log.info("✅  %s publié → vinted.fr/items/%s", tag, listing_id)
+    await audit_log(supabase, user_id, "listing.posted",
+                    entity_type="card", entity_id=card_id,
+                    details={"vinted_listing_id": listing_id, "title": title, "price": price})
 
 
 async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict) -> None:
@@ -529,6 +536,9 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, vinted.delete_listing, old_listing_id)
                 log.info("🗑  %s annonce #%s supprimée", tag, old_listing_id)
+                await audit_log(supabase, user_id, "listing.deleted",
+                                entity_type="lot", entity_id=lot_id,
+                                details={"vinted_listing_id": old_listing_id, "reason": "repost"})
             except ListingGoneError:
                 log.warning("~  %s annonce #%s introuvable — on reposte quand même", tag, old_listing_id)
             except Exception as e:
@@ -555,7 +565,7 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
 
     lot = await get_lot(supabase, lot_id)
     if not lot:
-        await _fail_job(supabase, job_id, lot_id, "Lot not found")
+        await _fail_job(supabase, job_id, lot_id, "Lot not found", user_id)
         return
 
     raw_photo_urls = lot.get("photo_urls") or []
@@ -564,7 +574,7 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
         for p in raw_photo_urls
     ]
     if not image_urls:
-        await _fail_job(supabase, job_id, lot_id, "No image available for lot")
+        await _fail_job(supabase, job_id, lot_id, "No image available for lot", user_id)
         return
 
     condition = lot.get("condition", "NM")
@@ -606,7 +616,7 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
         )
     except Exception as e:
         log.error("❌  %s erreur API Vinted : %s", tag, e)
-        await _fail_job(supabase, job_id, lot_id, str(e))
+        await _fail_job(supabase, job_id, lot_id, str(e), user_id)
         return
 
     now = datetime.now(timezone.utc).isoformat()
@@ -629,15 +639,22 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
     ).eq("id", job_id).execute()
     _session_posts[user_id] = _session_posts.get(user_id, 0) + 1
     log.info("✅  %s publié → vinted.fr/items/%s", tag, listing_id)
+    await audit_log(supabase, user_id, "listing.posted",
+                    entity_type="lot", entity_id=lot_id,
+                    details={"vinted_listing_id": listing_id, "title": title, "price": price})
 
 
-async def _fail_job(supabase: AsyncClient, job_id: str, item_id: str, error: str) -> None:
+async def _fail_job(supabase: AsyncClient, job_id: str, item_id: str, error: str, user_id: str = None) -> None:
     now = datetime.now(timezone.utc).isoformat()
     safe_error = "".join(c for c in str(error) if c.isprintable())[:500]
     await supabase.table("vinted_post_jobs").update({
         "status": "error", "error": safe_error, "processed_at": now
     }).eq("id", job_id).execute()
     log.error("❌  Job %s — %s", job_id[:8], error)
+    if user_id:
+        await audit_log(supabase, user_id, "job.failed",
+                        entity_id=item_id,
+                        details={"job_id": job_id, "error": safe_error})
 
 
 async def _drain_pending_jobs(supabase: AsyncClient) -> None:
