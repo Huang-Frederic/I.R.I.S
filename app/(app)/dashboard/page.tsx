@@ -29,6 +29,13 @@ import VintedPostsWidget from '@/components/dashboard/VintedPostsWidget';
 import PokedexCount from '@/components/dashboard/PokedexCount';
 import type { Card } from '@/lib/types';
 
+const FRED_ID = '35385d3c-5966-4a10-8568-8d92d1be47e7';
+const GILLY_ID = 'a018a4ef-e02e-4a67-9732-9fafe3167e10';
+const USER_NAMES: Record<string, string> = {
+  [FRED_ID]: 'Fred',
+  [GILLY_ID]: 'Gilly',
+};
+
 export async function generateMetadata() {
   const t = await getTranslations('dashboard');
   return { title: t('metaTitle') };
@@ -77,6 +84,10 @@ export default async function DashboardPage({
     { data: cardsAdded24w },
     { data: lastSales },
     { data: lastLots },
+    { data: allTimeSoldCards },
+    { data: allTimeSoldLots },
+    { data: periodSoldCards },
+    { data: periodSoldLots },
     { data: pokedexRows },
     { data: lastPokedexAdds },
     { data: vintedPostedToday },
@@ -84,8 +95,6 @@ export default async function DashboardPage({
     supabase
       .from('cards')
       .select('id, status, rarity, cm_price_avg, cm_price_trend, cm_price_low, card_name, pokemon_name, pokemon_number, image_url, tcg_image_url')
-      // Include pokedex cards in stock value / rarity stats / top rares —
-      // they're part of the collection's intrinsic value even if not for sale.
       .in('status', ['for_sale', 'collection', 'pokedex']),
     supabase
       .from('ocr_usage_log')
@@ -102,17 +111,37 @@ export default async function DashboardPage({
       .gte('date_added', since24w),
     supabase
       .from('cards')
-      .select('id, card_name, pokemon_name, image_url, tcg_image_url, rarity, sold_price, date_sold')
+      .select('id, card_name, pokemon_name, image_url, tcg_image_url, rarity, sold_price, date_sold, sold_by_user_id')
       .eq('status', 'sold')
       .not('date_sold', 'is', null)
       .order('date_sold', { ascending: false })
       .limit(10),
     supabase
       .from('lots')
-      .select('id, name, photo_urls, sold_price, date_sold, date_added, language, condition')
+      .select('id, name, photo_urls, sold_price, date_sold, date_added, language, condition, sold_by_user_id')
       .eq('status', 'sold')
       .order('date_sold', { ascending: false, nullsFirst: false })
       .limit(10),
+    // All-time totals for the LastSalesList header
+    supabase
+      .from('cards')
+      .select('sold_price, sold_by_user_id')
+      .eq('status', 'sold'),
+    supabase
+      .from('lots')
+      .select('sold_price, sold_by_user_id')
+      .eq('status', 'sold'),
+    // Period totals for the KPI tiles (sales by user in selected period)
+    supabase
+      .from('cards')
+      .select('sold_price, sold_by_user_id')
+      .eq('status', 'sold')
+      .gte('date_sold', sincePeriod),
+    supabase
+      .from('lots')
+      .select('sold_price, sold_by_user_id')
+      .eq('status', 'sold')
+      .gte('date_sold', sincePeriod),
     supabase
       .from('cards')
       .select('pokemon_number', { head: false })
@@ -139,7 +168,7 @@ export default async function DashboardPage({
   })[];
 
   type SoldCardItem = NonNullable<typeof lastSales>[number] & { kind: 'card' };
-  type SoldLotItem = { kind: 'lot'; id: string; name: string; photo_urls: string[]; sold_price: number | null; date_sold: string | null; date_added: string; language: string | null; condition: string | null };
+  type SoldLotItem = { kind: 'lot'; id: string; name: string; photo_urls: string[]; sold_price: number | null; date_sold: string | null; date_added: string; language: string | null; condition: string | null; sold_by_user_id: string | null };
   type SoldItem = SoldCardItem | SoldLotItem;
   type PostedCard = {
     id: string;
@@ -170,7 +199,36 @@ export default async function DashboardPage({
     s.date_sold ?? (s.kind === 'lot' ? s.date_added : '');
   const allSales = [...soldCards, ...soldLots]
     .sort((a, b) => sortKey(b).localeCompare(sortKey(a)))
-    .slice(0, 15);
+    .slice(0, 10);
+
+  // All-time sales totals (for LastSalesList header)
+  type SaleRow = { sold_price: number | null; sold_by_user_id: string | null };
+  const allTimeRows: SaleRow[] = [
+    ...(allTimeSoldCards ?? []),
+    ...(allTimeSoldLots ?? []),
+  ];
+  const allTimeByUser: Record<string, number> = {};
+  let allTimeOverall = 0;
+  for (const row of allTimeRows) {
+    const amt = Number(row.sold_price ?? 0);
+    allTimeOverall += amt;
+    if (row.sold_by_user_id) {
+      allTimeByUser[row.sold_by_user_id] = (allTimeByUser[row.sold_by_user_id] ?? 0) + amt;
+    }
+  }
+
+  // Period sales totals per user (for KPI tiles)
+  const periodRows: SaleRow[] = [
+    ...(periodSoldCards ?? []),
+    ...(periodSoldLots ?? []),
+  ];
+  const periodByUser: Record<string, number> = {};
+  for (const row of periodRows) {
+    const amt = Number(row.sold_price ?? 0);
+    if (row.sold_by_user_id) {
+      periodByUser[row.sold_by_user_id] = (periodByUser[row.sold_by_user_id] ?? 0) + amt;
+    }
+  }
 
   const rarityCounts = buildRarityCounts(cards);
   const rarityValues = buildRarityValues(cards);
@@ -184,11 +242,12 @@ export default async function DashboardPage({
   // KPI strip data
   const stockValue = computeStockValue(cards);
   const costPeriodTotal = (ocrLogPeriod ?? []).reduce((s, e) => s + Number(e.cost_eur ?? 0), 0);
-  const scansPeriodCount = (ocrLogPeriod ?? []).length;
-  const cardsAddedPeriod = (cardsAdded24w ?? []).filter((c) => c.date_added >= sincePeriod).length;
 
   const periodKey = periodLabelKey(days);
   const periodText = periodKey.values ? t(periodKey.key, periodKey.values) : t(periodKey.key);
+
+  const fredPeriodSales = periodByUser[FRED_ID] ?? 0;
+  const gillyPeriodSales = periodByUser[GILLY_ID] ?? 0;
 
   return (
     <section>
@@ -209,15 +268,12 @@ export default async function DashboardPage({
 
       <DashboardKpiStrip
         valueStock={{
-          // Stock = for_sale + collection. Pokédex value is shown separately
-          // on the Pokédex KPI card so a personal collection doesn't inflate
-          // the "what I could sell" figure.
           label: t('kpiStockValue'),
           value: formatEur(stockValue.value_for_sale + stockValue.value_collection),
         }}
         cost={{ label: t('kpiOcrCost', { period: periodText }), value: formatEur(costPeriodTotal) }}
-        scans={{ label: t('kpiScans', { period: periodText }), value: String(scansPeriodCount) }}
-        cardsAdded={{ label: t('kpiCardsAdded', { period: periodText }), value: String(cardsAddedPeriod) }}
+        salesFred={{ label: `Ventes ${periodText} — Fred`, value: formatEur(fredPeriodSales) }}
+        salesGilly={{ label: `Ventes ${periodText} — Gilly`, value: formatEur(gillyPeriodSales) }}
       />
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -232,9 +288,11 @@ export default async function DashboardPage({
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <LastSalesList
-              sales={allSales}
-              storagePublicUrl={process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
-            />
+          sales={allSales}
+          storagePublicUrl={process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
+          userNames={USER_NAMES}
+          allTimeTotals={{ overall: allTimeOverall, byUser: allTimeByUser }}
+        />
         <TopRaresList cards={topRares} />
       </div>
 

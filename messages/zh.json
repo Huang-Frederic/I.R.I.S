@@ -765,7 +765,7 @@
     "periodLabel90": "90 天",
     "periodLabel365": "1 年",
     "periodLabelOther": "{days} 天",
-    "kpiStockValue": "库存价值",
+    "kpiStockValue": "库存＋Vinted",
     "kpiOcrCost": "OCR 成本 {period}",
     "kpiScans": "扫描 {period}",
     "kpiCardsAdded": "添加卡片 {period}",

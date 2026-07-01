@@ -770,7 +770,7 @@
     "periodLabel90": "90 days",
     "periodLabel365": "1 year",
     "periodLabelOther": "{days} days",
-    "kpiStockValue": "Stock value",
+    "kpiStockValue": "Stock + Vinted",
     "kpiOcrCost": "OCR cost {period}",
     "kpiScans": "Scans {period}",
     "kpiCardsAdded": "Cards added {period}",

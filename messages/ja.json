@@ -765,7 +765,7 @@
     "periodLabel90": "90 日",
     "periodLabel365": "1 年",
     "periodLabelOther": "{days} 日",
-    "kpiStockValue": "在庫価値",
+    "kpiStockValue": "在庫＋Vinted",
     "kpiOcrCost": "OCR コスト {period}",
     "kpiScans": "スキャン {period}",
     "kpiCardsAdded": "追加カード {period}",

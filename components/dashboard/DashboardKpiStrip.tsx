@@ -6,8 +6,8 @@ interface TileData {
 interface Props {
   valueStock: TileData;
   cost: TileData;
-  scans: TileData;
-  cardsAdded: TileData;
+  salesFred: TileData;
+  salesGilly: TileData;
 }
 
 function Tile({ tile }: { tile: TileData }) {
@@ -24,8 +24,8 @@ export default function DashboardKpiStrip(props: Props) {
     <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
       <Tile tile={props.valueStock} />
       <Tile tile={props.cost} />
-      <Tile tile={props.scans} />
-      <Tile tile={props.cardsAdded} />
+      <Tile tile={props.salesFred} />
+      <Tile tile={props.salesGilly} />
     </div>
   );
 }
