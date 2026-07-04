@@ -252,7 +252,7 @@ export async function PATCH(
   if (body.status === 'for_sale' && updated.card_id_tcg) {
     const { data: oldCards } = await supabase
       .from('cards')
-      .select('id, variant, suggested_price')
+      .select('id, variant, suggested_price, status, sold_by_user_id')
       .eq('card_id_tcg', updated.card_id_tcg)
       .eq('language', updated.language)
       .eq('condition', updated.condition)
@@ -273,10 +273,16 @@ export async function PATCH(
         }
 
         // Fetch existing listings on this old card so we can decide per-row:
-        // - real vinted_listing_id → the partner still has their copy live on Vinted,
-        //   migrate the row to the new card so their badge stays correct.
-        // - null vinted_listing_id → never actually posted (or already sold),
-        //   drop it so the new card shows "put online" cleanly.
+        // - real vinted_listing_id, different user than the seller → a partner
+        //   still has their copy live on Vinted, migrate the row to the new
+        //   card so their badge stays correct.
+        // - real vinted_listing_id, SAME user as sold_by_user_id → this is the
+        //   listing that generated the sale itself. It's dead (the item is
+        //   gone), so drop it instead of migrating — otherwise the new
+        //   restocked card inherits a link to an already-sold Vinted ad and
+        //   never shows "put online".
+        // - null vinted_listing_id → never actually posted, drop it so the
+        //   new card shows "put online" cleanly.
         const { data: oldListings } = await svc
           .from('card_listings')
           .select('user_id, vinted_listing_id, vinted_posted_at')
@@ -284,7 +290,14 @@ export async function PATCH(
 
         if (!oldListings?.length) continue;
 
-        const toMigrate = oldListings.filter((l) => l.vinted_listing_id);
+        const isSellersOwnListing = (l: { user_id: string }) =>
+          oldCard.status === 'sold' &&
+          oldCard.sold_by_user_id != null &&
+          l.user_id === oldCard.sold_by_user_id;
+
+        const toMigrate = oldListings.filter(
+          (l) => l.vinted_listing_id && !isSellersOwnListing(l),
+        );
         if (toMigrate.length) {
           await svc.from('card_listings').upsert(
             toMigrate.map((l) => ({
@@ -331,6 +344,29 @@ export async function PATCH(
               count: nullOnly.length,
               dropped_user_ids: nullOnly.map((l) => l.user_id),
               reason: 'null_only',
+            },
+          });
+        }
+
+        const sellersOwnListing = oldListings.filter(
+          (l) => l.vinted_listing_id && isSellersOwnListing(l),
+        );
+        if (sellersOwnListing.length) {
+          void auditLog({
+            actor_type: 'system',
+            actor_user_id: user.id,
+            action: 'migration.listings_dropped',
+            entity_type: 'card',
+            entity_id: oldCard.id,
+            details: {
+              from_card_id: oldCard.id,
+              to_card_id: id,
+              card_name: (updated as Record<string, unknown>).card_name,
+              card_id_tcg: (updated as Record<string, unknown>).card_id_tcg,
+              count: sellersOwnListing.length,
+              dropped_user_ids: sellersOwnListing.map((l) => l.user_id),
+              dropped_vinted_listing_ids: sellersOwnListing.map((l) => l.vinted_listing_id),
+              reason: 'sold_by_seller',
             },
           });
         }
