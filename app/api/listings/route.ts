@@ -35,10 +35,17 @@ export async function POST(request: Request) {
   const table = kind === 'card' ? 'card_listings' : 'lot_listings';
   const fkColumn = kind === 'card' ? 'card_id' : 'lot_id';
 
+  // vinted_posted_at drives the 21-day stale calculation (isStaleForListing) —
+  // it must be reset alongside listed_at, otherwise clicking "refresh" on an
+  // already-stale listing zeroes the displayed day count but the item still
+  // reads as stale (vinted_posted_at untouched). Resetting it here doubles as
+  // the intended manual bypass: mark a listing fresh for another 21 days
+  // without going through the real Vinted repost/bump job.
+  const now = new Date().toISOString();
   const { data, error } = await supabase
     .from(table)
     .upsert(
-      { [fkColumn]: id, user_id: auth.user.id, listed_at: new Date().toISOString() },
+      { [fkColumn]: id, user_id: auth.user.id, listed_at: now, vinted_posted_at: now },
       { onConflict: `${fkColumn},user_id`, ignoreDuplicates: false },
     )
     .select()
