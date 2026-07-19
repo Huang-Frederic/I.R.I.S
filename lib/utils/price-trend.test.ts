@@ -70,6 +70,22 @@ describe('computeCascadeTrend', () => {
     // J-9 (2026-05-04) is closer to J-7 nominal than J-5 — picks 3.50
     expect(trend!.base_price).toBeCloseTo(3.50, 2);
   });
+
+  it('skips a zero-baseline tier instead of returning Infinity%', () => {
+    const points = [
+      pt('2026-05-12', 0),     // J-1: bogus 0 baseline — must not divide by it
+      pt('2026-05-06', 3.50),  // J-7: real baseline
+    ];
+    const trend = computeCascadeTrend(points, 4.00, today);
+    expect(trend!.period_days).toBe(7);
+    expect(Number.isFinite(trend!.delta_pct)).toBe(true);
+    expect(trend!.delta_pct).toBeCloseTo(14.29, 1);
+  });
+
+  it('returns null when the only baseline is zero (no usable tier)', () => {
+    const trend = computeCascadeTrend([pt('2026-05-12', 0)], 4.00, today);
+    expect(trend).toBeNull();
+  });
 });
 
 describe('computeMultiPeriodDeltas', () => {

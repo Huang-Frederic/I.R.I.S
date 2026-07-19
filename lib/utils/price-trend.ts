@@ -23,7 +23,12 @@ export function computeCascadeTrend(
   for (const tier of CASCADE_TIERS) {
     const base = pickOldest(buckets.get(tier) ?? []);
     if (base == null) continue;
-    if (base > 0 && Math.abs((currentPrice - base) / base) * 100 < STABLE_THRESHOLD_PCT) continue;
+    // A zero/negative baseline can't yield a meaningful percentage — the
+    // divide below would produce Infinity/NaN (rendered as "Infinity%"). Skip
+    // to a wider tier that might have a real baseline. Mirrors the
+    // `base === 0 ? 0` guard in computeMultiPeriodDeltas.
+    if (base <= 0) continue;
+    if (Math.abs((currentPrice - base) / base) * 100 < STABLE_THRESHOLD_PCT) continue;
     return {
       delta_eur: currentPrice - base,
       delta_pct: ((currentPrice - base) / base) * 100,
