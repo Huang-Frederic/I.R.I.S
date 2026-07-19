@@ -123,7 +123,7 @@ export default function ListingBadges({
             className="bg-rarity-r/20 text-rarity-r hover:bg-rarity-r/30 inline-flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors disabled:opacity-50"
           >
             <Globe className="h-3 w-3" />
-            <span className="hidden sm:inline">{t('listedByMe', { days: daysSince(mine.listed_at, now) })}</span>
+            <span className="hidden sm:inline">{t('listedByMe', { days: daysSince(mine.vinted_posted_at ?? mine.listed_at, now) })}</span>
           </button>
         )}
 
@@ -133,11 +133,11 @@ export default function ListingBadges({
             onClick={() => setConfirmRefresh(true)}
             disabled={busy}
             title={t('staleTitle')}
-            aria-label={t('stale', { days: daysSince(mine.listed_at, now) })}
+            aria-label={t('stale', { days: daysSince(mine.vinted_posted_at ?? mine.listed_at, now) })}
             className="bg-red text-bg inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:opacity-90 disabled:opacity-50"
           >
             <RefreshCw className="h-3 w-3" />
-            <span className="hidden sm:inline">{t('stale', { days: daysSince(mine.listed_at, now) })}</span>
+            <span className="hidden sm:inline">{t('stale', { days: daysSince(mine.vinted_posted_at ?? mine.listed_at, now) })}</span>
           </button>
         )}
 
@@ -206,7 +206,7 @@ export default function ListingBadges({
       {confirmRefresh && mine && (
         <ConfirmDialog
           title={t('refreshConfirmTitle')}
-          body={t('refreshConfirmBody', { days: daysSince(mine.listed_at, now) })}
+          body={t('refreshConfirmBody', { days: daysSince(mine.vinted_posted_at ?? mine.listed_at, now) })}
           confirmLabel={t('refreshConfirmAction')}
           busy={busy}
           onConfirm={async () => {
