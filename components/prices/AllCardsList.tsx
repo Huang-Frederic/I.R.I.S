@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { FixedSizeList } from 'react-window';
 import { createClient } from '@/lib/supabase/client';
+import { fetchAllRows, chunkArray } from '@/lib/api/fetch-all';
 import { Sparkline } from '@/components/price/Sparkline';
 import { findPointForTier } from '@/lib/utils/price-trend';
 import type { PriceHistoryPoint } from '@/lib/types/price-history';
@@ -49,22 +50,39 @@ export function AllCardsList({ initialSetFilter, onCardClick }: Props) {
     (async () => {
       setLoading(true);
       const supabase = createClient();
-      const { data: cards } = await supabase
-        .from('cards')
-        .select('id, card_id_tcg, card_name, set_name, set_code, set_number, cm_price_avg, status')
-        .in('status', ['for_sale', 'collection', 'pokedex'])
-        .not('cm_price_avg', 'is', null);
+      // Paginated: the priced-card set can exceed Supabase's 1000-row cap.
+      const { data: cards } = await fetchAllRows<CardRow>((from, to) =>
+        supabase
+          .from('cards')
+          .select('id, card_id_tcg, card_name, set_name, set_code, set_number, cm_price_avg, status')
+          .in('status', ['for_sale', 'collection', 'pokedex'])
+          .not('cm_price_avg', 'is', null)
+          .order('id', { ascending: true })
+          .range(from, to),
+      );
       if (cancelled || !cards) { setLoading(false); return; }
 
       const ids = cards.map((c) => c.id);
       const since = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
-      const { data: history } = await supabase
-        .from('price_history')
-        .select('card_id, bucket_date, cm_price_avg')
-        .in('card_id', ids)
-        .gte('bucket_date', since)
-        .eq('granularity', 'daily')
-        .order('bucket_date', { ascending: true });
+      // Chunk ids (URL-length limits) and page each chunk: N cards × 30 daily
+      // points blows way past the 1000-row cap, which used to silently blank
+      // most sparklines/deltas on this list.
+      const historyChunks = await Promise.all(
+        chunkArray(ids, 100).map((chunk) =>
+          fetchAllRows<Pick<PriceHistoryPoint, 'card_id' | 'bucket_date' | 'cm_price_avg'>>((from, to) =>
+            supabase
+              .from('price_history')
+              .select('card_id, bucket_date, cm_price_avg')
+              .in('card_id', chunk)
+              .gte('bucket_date', since)
+              .eq('granularity', 'daily')
+              .order('bucket_date', { ascending: true })
+              .order('card_id', { ascending: true })
+              .range(from, to),
+          ),
+        ),
+      );
+      const history = historyChunks.flatMap((r) => r.data ?? []);
 
       const byCard = new Map<string, PriceHistoryPoint[]>();
       for (const p of (history ?? []) as PriceHistoryPoint[]) {

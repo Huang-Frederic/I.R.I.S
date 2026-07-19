@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
+import { fetchAllRows } from '@/lib/api/fetch-all';
 import VintedList from '@/components/vinted/VintedList';
 import PageTitle from '@/components/layout/PageTitle';
 import type { Card, Lot, CardListing, LotListing } from '@/lib/types';
@@ -13,12 +14,18 @@ export default async function VintedPage() {
   const t = await getTranslations('vinted');
   const supabase = await createClient();
 
+  // Unbounded queries go through fetchAllRows — Supabase truncates any
+  // response at 1000 rows, which would silently drop listings/cards here.
   const [forSaleResult, soldResult, collectionResult, pokedexResult, configResult, forSaleLotsResult, soldLotsResult, cardListingsResult, lotListingsResult] = await Promise.all([
-    supabase
-      .from('cards')
-      .select('*')
-      .eq('status', 'for_sale')
-      .order('date_added', { ascending: true }),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('cards')
+        .select('*')
+        .eq('status', 'for_sale')
+        .order('date_added', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
     // Cap sold cards to the 40 most recent — the full history can be hundreds
     // of rows and bloats the initial HTML payload (→ slow iOS hydration).
     supabase
@@ -29,29 +36,55 @@ export default async function VintedPage() {
       .limit(40),
     // Collection cards drive the per-row "stock count" chip in /vinted —
     // they're the extra physical copies of cards the user is also selling.
-    supabase
-      .from('cards')
-      .select('*')
-      .eq('status', 'collection')
-      .order('date_added', { ascending: true }),
-    supabase
-      .from('cards')
-      .select('pokemon_number')
-      .eq('status', 'pokedex'),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('cards')
+        .select('*')
+        .eq('status', 'collection')
+        .order('date_added', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('cards')
+        .select('pokemon_number')
+        .eq('status', 'pokedex')
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
     supabase.from('config').select('*'),
-    supabase
-      .from('lots')
-      .select('*')
-      .eq('status', 'for_sale')
-      .order('date_added', { ascending: true }),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('lots')
+        .select('*')
+        .eq('status', 'for_sale')
+        .order('date_added', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
     supabase
       .from('lots')
       .select('*')
       .eq('status', 'sold')
       .order('date_sold', { ascending: false })
       .limit(20),
-    supabase.from('card_listings').select('card_id, user_id, listed_at, vinted_listing_id, vinted_posted_at'),
-    supabase.from('lot_listings').select('lot_id, user_id, listed_at, vinted_listing_id, vinted_posted_at'),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('card_listings')
+        .select('card_id, user_id, listed_at, vinted_listing_id, vinted_posted_at')
+        .order('card_id', { ascending: true })
+        .order('user_id', { ascending: true })
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('lot_listings')
+        .select('lot_id, user_id, listed_at, vinted_listing_id, vinted_posted_at')
+        .order('lot_id', { ascending: true })
+        .order('user_id', { ascending: true })
+        .range(from, to),
+    ),
   ]);
 
   const fetchError =

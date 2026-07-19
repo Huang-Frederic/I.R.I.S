@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
+import { fetchAllRows } from '@/lib/api/fetch-all';
 import StockList from '@/components/stock/StockList';
 import PageTitle from '@/components/layout/PageTitle';
 import type { Card } from '@/lib/types';
@@ -27,20 +28,34 @@ export default async function StockPage() {
   // The user wants Stock rows ordered "oldest first" so the original entry
   // sits at the top of each group's history (date_added ASC). Grouping
   // happens client-side.
+  // Paginated: Supabase truncates any response at 1000 rows, which would
+  // silently hide collection cards / Pokédex badges as the tables grow.
   const [collectionResult, forSaleResult, pokedexResult] = await Promise.all([
-    supabase
-      .from('cards')
-      .select('*')
-      .eq('status', 'collection')
-      .order('date_added', { ascending: true }),
-    supabase
-      .from('cards')
-      .select('card_id_tcg, language, condition, variant')
-      .eq('status', 'for_sale'),
-    supabase
-      .from('cards')
-      .select('pokemon_number')
-      .eq('status', 'pokedex'),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('cards')
+        .select('*')
+        .eq('status', 'collection')
+        .order('date_added', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('cards')
+        .select('card_id_tcg, language, condition, variant')
+        .eq('status', 'for_sale')
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('cards')
+        .select('pokemon_number')
+        .eq('status', 'pokedex')
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
   ]);
 
   const fetchError = collectionResult.error ?? forSaleResult.error ?? pokedexResult.error;

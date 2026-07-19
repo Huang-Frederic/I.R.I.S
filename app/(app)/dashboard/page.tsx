@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
+import { fetchAllRows } from '@/lib/api/fetch-all';
 import {
   buildRarityCounts,
   buildRarityValues,
@@ -92,23 +93,42 @@ export default async function DashboardPage({
     { data: lastPokedexAdds },
     { data: vintedPostedToday },
   ] = await Promise.all([
-    supabase
-      .from('cards')
-      .select('id, status, rarity, cm_price_avg, cm_price_trend, cm_price_low, card_name, pokemon_name, pokemon_number, image_url, tcg_image_url')
-      .in('status', ['for_sale', 'collection', 'pokedex']),
-    supabase
-      .from('ocr_usage_log')
-      .select('created_at, engine, cost_eur')
-      .gte('created_at', sincePeriod)
-      .order('created_at', { ascending: true }),
-    supabase
-      .from('ocr_usage_log')
-      .select('created_at, engine, cost_eur, tokens_in, tokens_out')
-      .gte('created_at', since24w),
-    supabase
-      .from('cards')
-      .select('date_added')
-      .gte('date_added', since24w),
+    // Unbounded queries below go through fetchAllRows: past 1000 rows Supabase
+    // silently truncates the response, which skewed KPIs / heatmap / totals.
+    fetchAllRows((from, to) =>
+      supabase
+        .from('cards')
+        .select('id, status, rarity, cm_price_avg, cm_price_trend, cm_price_low, card_name, pokemon_name, pokemon_number, image_url, tcg_image_url')
+        .in('status', ['for_sale', 'collection', 'pokedex'])
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('ocr_usage_log')
+        .select('created_at, engine, cost_eur')
+        .gte('created_at', sincePeriod)
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('ocr_usage_log')
+        .select('created_at, engine, cost_eur, tokens_in, tokens_out')
+        .gte('created_at', since24w)
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('cards')
+        .select('date_added')
+        .gte('date_added', since24w)
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
     supabase
       .from('cards')
       .select('id, card_name, pokemon_name, image_url, tcg_image_url, rarity, sold_price, date_sold, sold_by_user_id')
@@ -122,30 +142,52 @@ export default async function DashboardPage({
       .eq('status', 'sold')
       .order('date_sold', { ascending: false, nullsFirst: false })
       .limit(10),
-    // All-time totals for the LastSalesList header
-    supabase
-      .from('cards')
-      .select('sold_price, sold_by_user_id')
-      .eq('status', 'sold'),
-    supabase
-      .from('lots')
-      .select('sold_price, sold_by_user_id')
-      .eq('status', 'sold'),
+    // All-time totals for the LastSalesList header — sold rows grow forever,
+    // so these must paginate past the 1000-row cap.
+    fetchAllRows((from, to) =>
+      supabase
+        .from('cards')
+        .select('sold_price, sold_by_user_id')
+        .eq('status', 'sold')
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('lots')
+        .select('sold_price, sold_by_user_id')
+        .eq('status', 'sold')
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
     // Period totals for the KPI tiles (sales by user in selected period)
-    supabase
-      .from('cards')
-      .select('sold_price, sold_by_user_id')
-      .eq('status', 'sold')
-      .gte('date_sold', sincePeriod),
-    supabase
-      .from('lots')
-      .select('sold_price, sold_by_user_id')
-      .eq('status', 'sold')
-      .gte('date_sold', sincePeriod),
-    supabase
-      .from('cards')
-      .select('pokemon_number', { head: false })
-      .eq('status', 'pokedex'),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('cards')
+        .select('sold_price, sold_by_user_id')
+        .eq('status', 'sold')
+        .gte('date_sold', sincePeriod)
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('lots')
+        .select('sold_price, sold_by_user_id')
+        .eq('status', 'sold')
+        .gte('date_sold', sincePeriod)
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
+    // 1025 possible slots > 1000-row cap: a near-complete Pokédex would truncate.
+    fetchAllRows((from, to) =>
+      supabase
+        .from('cards')
+        .select('pokemon_number', { head: false })
+        .eq('status', 'pokedex')
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
     supabase
       .from('cards')
       .select('id, card_name, pokemon_name, pokemon_number, image_url, tcg_image_url, rarity, date_added')

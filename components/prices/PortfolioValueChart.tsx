@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { createClient } from '@/lib/supabase/client';
+import { fetchAllRows, chunkArray } from '@/lib/api/fetch-all';
 
 const PERIOD_OPTIONS = [30, 90, 365, 'all'] as const;
 type Period = (typeof PERIOD_OPTIONS)[number];
@@ -52,12 +53,17 @@ export function PortfolioValueChart() {
         snapQuery = snapQuery.gte('date', cutoff);
       }
 
-      // 2. All currently priceable cards (to detect which ones are new)
-      const cardQuery = supabase
-        .from('cards')
-        .select('id, status, cm_price_avg')
-        .in('status', ['for_sale', 'collection', 'pokedex'])
-        .not('cm_price_avg', 'is', null);
+      // 2. All currently priceable cards (to detect which ones are new).
+      // Paginated: this set can exceed Supabase's 1000-row response cap.
+      const cardQuery = fetchAllRows<CardEntry>((from, to) =>
+        supabase
+          .from('cards')
+          .select('id, status, cm_price_avg')
+          .in('status', ['for_sale', 'collection', 'pokedex'])
+          .not('cm_price_avg', 'is', null)
+          .order('id', { ascending: true })
+          .range(from, to),
+      );
 
       const [{ data: snapData }, { data: cardData }] = await Promise.all([snapQuery, cardQuery]);
       if (cancelled) return;
@@ -73,17 +79,29 @@ export function PortfolioValueChart() {
       // No date lower bound: we need the absolute earliest entry regardless of
       // the chart window, because a card added 200 days ago with a 90-day chart
       // window should still be treated as "always present" within that window.
-      const { data: histData } = await supabase
-        .from('price_history')
-        .select('card_id, bucket_date, cm_price_avg')
-        .in('card_id', loadedCards.map((c) => c.id))
-        .eq('granularity', 'daily')
-        .order('bucket_date', { ascending: true });
+      // Chunk ids (URL-length limits) and page each chunk past the 1000-row
+      // response cap — otherwise most cards silently lose their backfill entry.
+      // Ordering stays bucket_date ASC within each chunk so the first row seen
+      // per card is still its earliest entry.
+      const histChunks = await Promise.all(
+        chunkArray(loadedCards.map((c) => c.id), 100).map((chunk) =>
+          fetchAllRows<{ card_id: string; bucket_date: string; cm_price_avg: number | null }>((from, to) =>
+            supabase
+              .from('price_history')
+              .select('card_id, bucket_date, cm_price_avg')
+              .in('card_id', chunk)
+              .eq('granularity', 'daily')
+              .order('bucket_date', { ascending: true })
+              .order('card_id', { ascending: true })
+              .range(from, to),
+          ),
+        ),
+      );
 
       if (cancelled) return;
 
       const map = new Map<string, FirstPrice>();
-      for (const row of (histData ?? []) as { card_id: string; bucket_date: string; cm_price_avg: number | null }[]) {
+      for (const row of histChunks.flatMap((r) => r.data ?? [])) {
         if (!map.has(row.card_id) && row.cm_price_avg != null) {
           map.set(row.card_id, { date: row.bucket_date, price: row.cm_price_avg });
         }
