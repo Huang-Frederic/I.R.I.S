@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import type { Card } from '@/lib/types';
@@ -9,13 +10,17 @@ import { displayPokemonName } from '@/lib/utils/format-name';
 interface PokedexCellProps {
   number: number;
   card: Card | null;
-  onClick: () => void;
+  /** Stable callback receiving the cell's number — keeps memo() effective
+   *  (an inline `() => …` closure per cell would defeat it). */
+  onSelect: (number: number) => void;
 }
 
 const SPRITE_BASE =
   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
 
-export default function PokedexCell({ number, card, onClick }: PokedexCellProps) {
+// memo: the grid renders up to 1025 cells; without it every drawer
+// open/close re-renders them all. content-visibility skips offscreen paint.
+export default memo(function PokedexCell({ number, card, onSelect }: PokedexCellProps) {
   const t = useTranslations('pokedex');
   const owned = card !== null;
   const label = card ? displayPokemonName(card) : getPokemonName(number, 'fr');
@@ -23,10 +28,10 @@ export default function PokedexCell({ number, card, onClick }: PokedexCellProps)
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => onSelect(number)}
       aria-label={t('cellAria', { name: label, number })}
       data-pokemon-number={number}
-      className="bg-surface border-border hover:border-red focus:border-red flex flex-col items-center gap-1 rounded border p-2 text-center transition-colors focus:outline-none"
+      className="bg-surface border-border hover:border-red focus:border-red [content-visibility:auto] [contain-intrinsic-size:auto_150px] flex flex-col items-center gap-1 rounded border p-2 text-center transition-colors focus:outline-none"
     >
       <Image
         src={`${SPRITE_BASE}${number}.png`}
@@ -50,4 +55,4 @@ export default function PokedexCell({ number, card, onClick }: PokedexCellProps)
       </span>
     </button>
   );
-}
+});

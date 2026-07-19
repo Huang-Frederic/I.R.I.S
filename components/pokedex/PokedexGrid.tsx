@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useSyncExternalStore, useEffect } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import type { Card, CardRarity } from '@/lib/types';
@@ -91,6 +91,10 @@ export default function PokedexGrid({ cards }: PokedexGridProps) {
     window.dispatchEvent(new Event(VIEW_MODE_CHANGE_EVENT));
   };
 
+  // Stable identity so the memo()'d cells skip re-rendering when the drawer
+  // opens/closes — an inline closure would re-render all 1025 of them.
+  const handleSelect = useCallback((n: number) => setSelectedPokemon(n), []);
+
   // Auto-scroll to selected pokemon when set via URL
   useEffect(() => {
     if (initialPokemonNumber == null) return;
@@ -162,14 +166,14 @@ export default function PokedexGrid({ cards }: PokedexGridProps) {
                 key={n}
                 number={n}
                 card={card}
-                onClick={() => setSelectedPokemon(n)}
+                onSelect={handleSelect}
               />
             ) : (
               <PokedexCell
                 key={n}
                 number={n}
                 card={card}
-                onClick={() => setSelectedPokemon(n)}
+                onSelect={handleSelect}
               />
             );
           })}

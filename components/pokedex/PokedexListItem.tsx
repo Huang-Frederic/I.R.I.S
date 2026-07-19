@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import type { Card } from '@/lib/types';
@@ -9,7 +10,9 @@ import { displayPokemonName, displayCardName } from '@/lib/utils/format-name';
 interface PokedexListItemProps {
   number: number;
   card: Card | null;
-  onClick: () => void;
+  /** Stable callback receiving the item's number — keeps memo() effective
+   *  (an inline `() => …` closure per row would defeat it). */
+  onSelect: (number: number) => void;
 }
 
 const SPRITE_BASE =
@@ -28,7 +31,9 @@ const RARITY_CLASS: Record<string, string> = {
   OTHER: 'text-text-muted',
 };
 
-export default function PokedexListItem({ number, card, onClick }: PokedexListItemProps) {
+// memo: the list renders up to 1025 rows; without it every drawer
+// open/close re-renders them all. content-visibility skips offscreen paint.
+export default memo(function PokedexListItem({ number, card, onSelect }: PokedexListItemProps) {
   const t = useTranslations('pokedex');
   const owned = card !== null;
   const label = card ? displayPokemonName(card) : getPokemonName(number, 'fr');
@@ -36,10 +41,10 @@ export default function PokedexListItem({ number, card, onClick }: PokedexListIt
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => onSelect(number)}
       aria-label={t('cellAria', { name: label, number })}
       data-pokemon-number={number}
-      className="bg-surface border-border hover:border-red focus:border-red flex items-center gap-3 rounded border p-2 text-left transition-colors focus:outline-none"
+      className="bg-surface border-border hover:border-red focus:border-red [content-visibility:auto] [contain-intrinsic-size:auto_76px] flex items-center gap-3 rounded border p-2 text-left transition-colors focus:outline-none"
     >
       <div className="shrink-0">
         <Image
@@ -103,4 +108,4 @@ export default function PokedexListItem({ number, card, onClick }: PokedexListIt
       </div>
     </button>
   );
-}
+});
