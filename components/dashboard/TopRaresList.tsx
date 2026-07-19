@@ -37,14 +37,15 @@ export default async function TopRaresList({ cards }: Props) {
       </h3>
       <ul className="divide-border divide-y">
         {cards.map((c) => {
+          const thumb = c.image_url ?? c.tcg_image_url;
           const inner = (
             <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={c.image_url ?? c.tcg_image_url ?? ''}
-                alt=""
-                className="h-12 w-9 rounded object-cover"
-              />
+              {thumb ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={thumb} alt="" className="h-12 w-9 rounded object-cover" />
+              ) : (
+                <div className="bg-surface-off h-12 w-9 shrink-0 rounded" />
+              )}
               <div className="min-w-0 flex-1">
                 <div className="text-text truncate text-sm font-medium">{displayCardName(c)}</div>
                 <div className="text-text-muted text-xs">

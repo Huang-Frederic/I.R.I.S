@@ -77,14 +77,19 @@ export default async function PokedexCount({ collected, total = 1025, value, add
             {adds.map((c) => {
               const displayName = c.pokemon_number ? displayPokemonName(c) : displayCardName(c);
               const numLabel = c.pokemon_number ? `#${String(c.pokemon_number).padStart(4, '0')}` : '';
+              const thumb = c.image_url ?? c.tcg_image_url;
               return (
                 <li key={c.id}>
                   <Link
                     href={c.pokemon_number ? `/pokedex?pokemon_number=${c.pokemon_number}` : '/pokedex'}
                     className="hover:bg-surface-2 -mx-1 flex items-center gap-3 rounded px-1 py-2 transition-colors"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={c.image_url ?? c.tcg_image_url ?? ''} alt="" className="h-12 w-9 rounded object-cover" />
+                    {thumb ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={thumb} alt="" className="h-12 w-9 rounded object-cover" />
+                    ) : (
+                      <div className="bg-surface-off h-12 w-9 shrink-0 rounded" />
+                    )}
                     <div className="min-w-0 flex-1 text-sm">
                       <div className="text-text truncate font-medium">{displayName}</div>
                       <div className="text-text-muted text-xs mt-0.5">
