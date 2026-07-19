@@ -30,20 +30,27 @@ export async function POST() {
 
   const service = createServiceClient();
 
+  // All tables read in parallel — each one still pages to completion.
+  const results = await Promise.all(
+    Object.entries(TABLES).map(async ([t, orderCols]) => {
+      const { data, error } = await fetchAllRows((from, to) => {
+        let query = service.from(t).select('*');
+        for (const col of orderCols) query = query.order(col, { ascending: true });
+        return query.range(from, to);
+      });
+      return { table: t as keyof ManualDumpTables, data, error };
+    }),
+  );
+
   const tables: Partial<ManualDumpTables> = {};
-  for (const [t, orderCols] of Object.entries(TABLES)) {
-    const { data, error } = await fetchAllRows((from, to) => {
-      let query = service.from(t).select('*');
-      for (const col of orderCols) query = query.order(col, { ascending: true });
-      return query.range(from, to);
-    });
+  for (const { table, data, error } of results) {
     if (error) {
       return apiError('read_failed', {
         status: 500,
-        message: `Failed reading ${t}: ${error.message}`,
+        message: `Failed reading ${table}: ${error.message}`,
       });
     }
-    tables[t as keyof ManualDumpTables] = data ?? [];
+    tables[table] = data ?? [];
   }
 
   const now = new Date();

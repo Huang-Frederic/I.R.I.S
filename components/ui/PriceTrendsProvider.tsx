@@ -52,6 +52,9 @@ export function PriceTrendsProvider({ children }: { children: React.ReactNode })
       });
     } catch (err) {
       console.warn('[PriceTrendsProvider] bulk fetch failed:', err);
+      // Un-mark the failed ids so a later register() can retry — otherwise a
+      // transient network error permanently blanks the arrows until reload.
+      for (const id of toFetch) fetchedRef.current.delete(id);
     } finally {
       setLoading(false);
     }

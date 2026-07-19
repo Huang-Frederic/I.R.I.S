@@ -17,7 +17,7 @@ import type { Card, CardListing, CardWithListings, Lot, LotListing, LotWithListi
 import type { CardGroup } from './group-cards';
 
 /** Test-only narrowing of CardGroup whose head/cards are CardWithListings.
- *  Mirrors the local alias previously defined in vinted-sort.test.ts. */
+ *  Mirrors the alias used by the vinted-filter / vinted-interleave tests. */
 export type CardGroupWithListings = Omit<CardGroup, 'head' | 'cards'> & {
   cards: CardWithListings[];
   head: CardWithListings;

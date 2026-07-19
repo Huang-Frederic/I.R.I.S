@@ -87,8 +87,6 @@ export default async function DashboardPage({
     { data: lastLots },
     { data: allTimeSoldCards },
     { data: allTimeSoldLots },
-    { data: periodSoldCards },
-    { data: periodSoldLots },
     { data: pokedexRows },
     { data: lastPokedexAdds },
     { data: vintedPostedToday },
@@ -143,11 +141,13 @@ export default async function DashboardPage({
       .order('date_sold', { ascending: false, nullsFirst: false })
       .limit(10),
     // All-time totals for the LastSalesList header — sold rows grow forever,
-    // so these must paginate past the 1000-row cap.
+    // so these must paginate past the 1000-row cap. date_sold is included so
+    // the period totals (KPI tiles) derive from the same rows — no extra
+    // filtered queries.
     fetchAllRows((from, to) =>
       supabase
         .from('cards')
-        .select('sold_price, sold_by_user_id')
+        .select('sold_price, sold_by_user_id, date_sold')
         .eq('status', 'sold')
         .order('id', { ascending: true })
         .range(from, to),
@@ -155,27 +155,8 @@ export default async function DashboardPage({
     fetchAllRows((from, to) =>
       supabase
         .from('lots')
-        .select('sold_price, sold_by_user_id')
+        .select('sold_price, sold_by_user_id, date_sold')
         .eq('status', 'sold')
-        .order('id', { ascending: true })
-        .range(from, to),
-    ),
-    // Period totals for the KPI tiles (sales by user in selected period)
-    fetchAllRows((from, to) =>
-      supabase
-        .from('cards')
-        .select('sold_price, sold_by_user_id')
-        .eq('status', 'sold')
-        .gte('date_sold', sincePeriod)
-        .order('id', { ascending: true })
-        .range(from, to),
-    ),
-    fetchAllRows((from, to) =>
-      supabase
-        .from('lots')
-        .select('sold_price, sold_by_user_id')
-        .eq('status', 'sold')
-        .gte('date_sold', sincePeriod)
         .order('id', { ascending: true })
         .range(from, to),
     ),
@@ -244,7 +225,7 @@ export default async function DashboardPage({
     .slice(0, 10);
 
   // All-time sales totals (for LastSalesList header)
-  type SaleRow = { sold_price: number | null; sold_by_user_id: string | null };
+  type SaleRow = { sold_price: number | null; sold_by_user_id: string | null; date_sold: string | null };
   const allTimeRows: SaleRow[] = [
     ...(allTimeSoldCards ?? []),
     ...(allTimeSoldLots ?? []),
@@ -259,13 +240,15 @@ export default async function DashboardPage({
     }
   }
 
-  // Period sales totals per user (for KPI tiles)
-  const periodRows: SaleRow[] = [
-    ...(periodSoldCards ?? []),
-    ...(periodSoldLots ?? []),
-  ];
+  // Period sales totals per user (for KPI tiles) — derived from the all-time
+  // rows (same filter the old dedicated queries used: date_sold >= sincePeriod,
+  // which excludes null dates). Compared as timestamps: Postgres returns
+  // '+00:00' offsets while sincePeriod uses 'Z', so string compare would be
+  // fragile.
+  const sincePeriodMs = Date.parse(sincePeriod);
   const periodByUser: Record<string, number> = {};
-  for (const row of periodRows) {
+  for (const row of allTimeRows) {
+    if (row.date_sold == null || Date.parse(row.date_sold) < sincePeriodMs) continue;
     const amt = Number(row.sold_price ?? 0);
     if (row.sold_by_user_id) {
       periodByUser[row.sold_by_user_id] = (periodByUser[row.sold_by_user_id] ?? 0) + amt;
