@@ -27,6 +27,7 @@ export default function VintedPostButton({ cardId, lotId, userId, hasPrice, onLi
 
   useEffect(() => {
     if (!hasPrice) return;
+    let cancelled = false;
     const supabase = createClient();
     const jobQuery = supabase
       .from('vinted_post_jobs')
@@ -38,15 +39,16 @@ export default function VintedPostButton({ cardId, lotId, userId, hasPrice, onLi
       ? jobQuery.eq('lot_id', lotId!)
       : jobQuery.eq('card_id', cardId!)
     ).maybeSingle().then(async ({ data }) => {
-      if (!data) return;
+      if (cancelled || !data) return;
       if (data.status === 'error') {
         await supabase.from('vinted_post_jobs').delete().eq('id', data.id);
-        setState('idle');
+        if (!cancelled) setState('idle');
       } else {
         setJobId(data.id);
         setState('queued');
       }
     });
+    return () => { cancelled = true; };
   }, [cardId, lotId, userId, hasPrice, isLot]);
 
   useEffect(() => {
