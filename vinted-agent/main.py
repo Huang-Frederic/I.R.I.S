@@ -370,7 +370,7 @@ def build_lot_description(lot: dict) -> str:
 
 async def get_card(supabase: AsyncClient, card_id: str) -> dict | None:
     res = await supabase.table("cards").select(
-        "id,status,card_name,image_url,tcg_image_url,"
+        "id,status,card_name,card_id_tcg,pokemon_name,image_url,tcg_image_url,"
         "suggested_price,cm_price_low,cm_price_avg,"
         "condition,language,variant,set_name,set_code,set_number,notes"
     ).eq("id", card_id).single().execute()
