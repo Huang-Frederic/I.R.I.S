@@ -43,15 +43,19 @@ export function PortfolioValueChart() {
     (async () => {
       const supabase = createClient();
 
-      // 1. Snapshots for the selected period
-      let snapQuery = supabase
-        .from('stock_value_snapshots')
-        .select('date, value_for_sale, value_collection, value_pokedex')
-        .order('date', { ascending: true });
-      if (period !== 'all') {
-        const cutoff = new Date(Date.now() - (period as number) * 86_400_000).toISOString().slice(0, 10);
-        snapQuery = snapQuery.gte('date', cutoff);
-      }
+      // 1. Snapshots for the selected period. Paginated: one snapshot per day
+      // crosses the 1000-row response cap after ~3 years on the "all" period.
+      const snapQuery = fetchAllRows<Snapshot>((from, to) => {
+        let q = supabase
+          .from('stock_value_snapshots')
+          .select('date, value_for_sale, value_collection, value_pokedex')
+          .order('date', { ascending: true });
+        if (period !== 'all') {
+          const cutoff = new Date(Date.now() - (period as number) * 86_400_000).toISOString().slice(0, 10);
+          q = q.gte('date', cutoff);
+        }
+        return q.range(from, to);
+      });
 
       // 2. All currently priceable cards (to detect which ones are new).
       // Paginated: this set can exceed Supabase's 1000-row response cap.

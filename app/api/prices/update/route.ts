@@ -16,6 +16,7 @@ import { lookupByCode } from '@/lib/api/tcg-catalog';
 import { toTCGdexLang } from '@/lib/api/tcgdex';
 import { tcgdexCardId } from '@/lib/api/tcgdex-set-mapping';
 import { lookupCardmarketPricing } from '@/lib/api/cardmarket-pricing';
+import { fetchAllRows } from '@/lib/api/fetch-all';
 import { computeStockValue } from '@/lib/utils/stock-value';
 import { apiError, unauthorizedResponse, notFoundResponse } from '@/lib/utils/api-response';
 import type { Card, CardLanguage } from '@/lib/types';
@@ -121,11 +122,12 @@ async function handleRequest(request: Request): Promise<NextResponse> {
   // endpoint runs in classic cron mode (just the 200 oldest, repeat-friendly).
   const since = url.searchParams.get('since');
   // ?limit=N — cron schedules pass a higher limit (e.g. 700) so 3 runs/day
-  // can cover the whole priceable catalog. Clamped to [1, 2000] to prevent
-  // abuse and overflow. Default stays at BATCH_SIZE (200) so the existing
-  // session-auth "Refresh all" loop keeps its previous batch size.
+  // can cover the whole priceable catalog. Clamped to [1, 1000]: Supabase
+  // caps every response at 1000 rows anyway, so a higher bound would lie.
+  // Default stays at BATCH_SIZE (200) so the existing session-auth
+  // "Refresh all" loop keeps its previous batch size.
   const limitParam = url.searchParams.get('limit');
-  const limit = limitParam ? Math.max(1, Math.min(2000, Number(limitParam))) : BATCH_SIZE;
+  const limit = limitParam ? Math.max(1, Math.min(1000, Number(limitParam))) : BATCH_SIZE;
   return handleBulk(since, limit);
 }
 
@@ -366,10 +368,16 @@ function applyResultToSummary(card: Card, result: CardProcessResult, summary: Up
 
 async function snapshotStockValue(service: ServiceClient): Promise<void> {
   try {
-    const { data, error } = await service
-      .from('cards')
-      .select('status, cm_price_avg, cm_price_trend, cm_price_low')
-      .in('status', ['for_sale', 'collection', 'pokedex']);
+    // Paginated: this set exceeds Supabase's 1000-row response cap — an
+    // unpaginated read silently undervalued the daily stock snapshot.
+    const { data, error } = await fetchAllRows((from, to) =>
+      service
+        .from('cards')
+        .select('status, cm_price_avg, cm_price_trend, cm_price_low')
+        .in('status', ['for_sale', 'collection', 'pokedex'])
+        .order('id', { ascending: true })
+        .range(from, to),
+    );
     if (error) throw error;
     const snapshot = computeStockValue(data ?? []);
     const today = new Date().toISOString().slice(0, 10);
