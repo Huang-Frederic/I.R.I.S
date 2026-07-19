@@ -18,6 +18,17 @@ export default function EditablePriceCell({ cardId, initialPrice, onSaved, endpo
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<string>(initialPrice !== null ? String(initialPrice) : '');
   const [saving, setSaving] = useState(false);
+  const [lastSynced, setLastSynced] = useState(initialPrice);
+
+  // Re-sync when the parent reports a new price (edited via AnnonceModal, or an
+  // SSR refresh). The row is keyed by card identity, so this cell instance is
+  // NOT remounted on a price change — without this it keeps showing the stale
+  // value. Don't clobber the user's in-progress draft while they're editing.
+  if (initialPrice !== lastSynced) {
+    setLastSynced(initialPrice);
+    setPrice(initialPrice);
+    if (!editing) setDraft(initialPrice !== null ? String(initialPrice) : '');
+  }
 
   const commit = async () => {
     setSaving(true);
