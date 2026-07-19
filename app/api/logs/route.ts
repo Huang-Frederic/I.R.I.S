@@ -12,8 +12,12 @@ export async function GET(request: Request) {
   if (!user) return unauthorizedResponse();
 
   const { searchParams } = new URL(request.url);
-  const limit = Math.min(parseInt(searchParams.get('limit') ?? '100', 10), 200);
-  const offset = parseInt(searchParams.get('offset') ?? '0', 10);
+  // parseInt can return NaN on malformed input (?limit=abc); fall back to
+  // defaults and clamp so `.range()` never gets NaN bounds.
+  const limitRaw = parseInt(searchParams.get('limit') ?? '100', 10);
+  const limit = Math.min(Number.isFinite(limitRaw) ? Math.max(1, limitRaw) : 100, 200);
+  const offsetRaw = parseInt(searchParams.get('offset') ?? '0', 10);
+  const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? offsetRaw : 0;
   const actorType = searchParams.get('actor_type') ?? '';
   const action = searchParams.get('action') ?? '';
 
