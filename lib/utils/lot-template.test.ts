@@ -32,12 +32,11 @@ describe('buildLotAnnonce', () => {
     expect(out.title).toBe('Lot de Cartes Pokémon Art Set Complet Shiny Gem Pack Vol 1 - SBB1C [CN]');
   });
 
-  it('preserves a long name in the composed title (UI shows the warning)', () => {
+  it('truncates a long name to the 80-char Vinted limit, keeping the language code', () => {
     const long = 'A'.repeat(120);
     const out = buildLotAnnonce({ ...baseLot, name: long });
-    expect(out.title.startsWith('Lot de Cartes Pokémon ')).toBe(true);
+    expect(out.title.length).toBeLessThanOrEqual(80);
     expect(out.title.endsWith(' [CN]')).toBe(true);
-    expect(out.title).toContain(long);
   });
 
   it('renders the description with the composed title, language and condition mapped', () => {

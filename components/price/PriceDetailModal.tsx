@@ -29,10 +29,15 @@ export function PriceDetailModal({ card, open, onClose, onCardUpdated }: PriceDe
   const [points, setPoints] = useState<PriceHistoryPoint[]>([]);
   const [todayPoint, setTodayPoint] = useState<PriceHistoryPoint | null>(null);
   const [currentCard, setCurrentCard] = useState<Card>(card);
+  const [prevCardProp, setPrevCardProp] = useState<Card>(card);
 
-  useEffect(() => {
+  // Reset the locally-tracked card when the parent passes a different card.
+  // Adjusting state during render (React's "storing info from previous renders"
+  // pattern) is preferred over a syncing effect — no cascading extra render.
+  if (card !== prevCardProp) {
+    setPrevCardProp(card);
     setCurrentCard(card);
-  }, [card]);
+  }
 
   useEffect(() => {
     if (!open) return;

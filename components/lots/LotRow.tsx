@@ -38,7 +38,10 @@ export default function LotRow({
   const myListing = listings.find((l) => l.user_id === myUserId) ?? null;
   const isOnline = myListing?.vinted_listing_id != null;
   const [actionModalOpen, setActionModalOpen] = useState(false);
-  const isStale = myListing?.vinted_posted_at ? Date.now() - new Date(myListing.vinted_posted_at).getTime() > 21 * 24 * 60 * 60 * 1000 : false;
+  // Snapshot "now" once at mount — a staleness badge doesn't need to tick live,
+  // and reading the clock during render violates the purity rule.
+  const [now] = useState(() => Date.now());
+  const isStale = myListing?.vinted_posted_at ? now - new Date(myListing.vinted_posted_at).getTime() > 21 * 24 * 60 * 60 * 1000 : false;
   const thumb = lot.photo_urls.length > 0 ? storagePublicUrl(lot.photo_urls[0]) : null;
 
   return (

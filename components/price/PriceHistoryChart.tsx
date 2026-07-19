@@ -14,6 +14,9 @@ type Period = 7 | 30 | 90 | 365 | 'all';
 export function PriceHistoryChart({ points }: PriceHistoryChartProps) {
   const t = useTranslations('prices.chart');
   const [period, setPeriod] = useState<Period>(30);
+  // Snapshot "now" at mount — the cutoff doesn't need to tick live, and reading
+  // the clock during render (inside useMemo) violates the purity rule.
+  const [now] = useState(() => Date.now());
 
   const periodLabel = (p: Period): string => {
     switch (p) {
@@ -27,9 +30,9 @@ export function PriceHistoryChart({ points }: PriceHistoryChartProps) {
 
   const filtered = useMemo(() => {
     if (period === 'all') return points;
-    const cutoff = Date.now() - period * 86_400_000;
+    const cutoff = now - period * 86_400_000;
     return points.filter((p) => new Date(p.bucket_date + 'T00:00:00Z').getTime() >= cutoff);
-  }, [points, period]);
+  }, [points, period, now]);
 
   const chartData = useMemo(
     () =>

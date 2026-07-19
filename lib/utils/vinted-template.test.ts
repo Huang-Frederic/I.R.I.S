@@ -22,8 +22,10 @@ function makeCard(overrides: Partial<Card> = {}): Card {
 
 describe('buildTitle', () => {
   it('uses the user-specified format when within 80 chars', () => {
+    // CJK is stripped from listing titles (see buildTitle → stripCjk): a French
+    // marketplace title stays Latin-only, so the (ゴウカザル) paren is dropped.
     const t = buildTitle(makeCard());
-    expect(t).toBe('Carte Pokémon Simiabraz (ゴウカザル) - Mascarade Crépusculaire (SV5A 70) [JP]');
+    expect(t).toBe('Carte Pokémon Simiabraz - Mascarade Crépusculaire (SV5A 70) [JP]');
     expect(t.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
   });
 
@@ -88,7 +90,7 @@ describe('buildTitle', () => {
 describe('buildDescription', () => {
   it('matches the user-specified format for a typical JP card', () => {
     const d = buildDescription(makeCard());
-    expect(d).toContain('✨ Carte Pokémon Simiabraz (ゴウカザル) - Mascarade Crépusculaire (SV5A 70) [JP]');
+    expect(d).toContain('✨ Carte Pokémon Simiabraz - Mascarade Crépusculaire (SV5A 70) [JP]');
     expect(d).toContain('📘 Version Japonaise 🇯🇵');
     expect(d).toContain('✅ État : Très bon état (Near Mint).');
     expect(d).toContain('🛡️ Carte envoyée sous sleeve + toploader !');
@@ -112,7 +114,7 @@ describe('buildDescription', () => {
 
   it('inserts the variant in the first line when present', () => {
     const d = buildDescription(makeCard({ variant: 'pokeball' }));
-    expect(d).toContain('Simiabraz (ゴウカザル) Poké Ball - Mascarade');
+    expect(d).toContain('Simiabraz Poké Ball - Mascarade');
   });
 
   it('uses the right language label for each language', () => {

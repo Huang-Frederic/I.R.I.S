@@ -36,8 +36,9 @@ export function composeLotTitle(
   // fallback: drop brand from prefix
   const short = `${typePrefix} ${name} [${code}]`;
   if (short.length <= 80) return short;
-  // last resort: bare name + lang
-  return `${name} [${code}]`.slice(0, 80);
+  // last resort: truncate the name but always keep the language code suffix
+  const suffix = ` [${code}]`;
+  return `${name.slice(0, 80 - suffix.length)}${suffix}`;
 }
 
 const DESCRIPTION_TEMPLATE = `✨ {{title}}

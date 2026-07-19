@@ -30,6 +30,9 @@ export default function VintedActionModal({
   const [confirmingBump, setConfirmingBump] = useState(false);
   const [bumping, setBumping] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Snapshot "now" at mount — the "posted N days ago" label doesn't need to
+  // tick live, and reading the clock during render violates the purity rule.
+  const [now] = useState(() => Date.now());
 
   // iOS Safari doesn't emit click on non-interactive elements unless body scroll
   // is locked — lock body scroll for the modal duration.
@@ -48,7 +51,7 @@ export default function VintedActionModal({
 
   const postedLabel = postedAt
     ? (() => {
-        const d = Math.floor((Date.now() - new Date(postedAt).getTime()) / (1000 * 60 * 60 * 24));
+        const d = Math.floor((now - new Date(postedAt).getTime()) / (1000 * 60 * 60 * 24));
         return d === 0 ? t('today') : t('daysAgo', { count: d });
       })()
     : null;

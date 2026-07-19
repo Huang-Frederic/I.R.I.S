@@ -40,7 +40,7 @@ function pokeApiSprite(n: number | null): string | null {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${n}.png`;
 }
 
-export default function AnnonceModal({ card, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onClose, onPriceSaved, onCardRefreshed }: Props) {
+export default function AnnonceModal({ card, listings, partnerUserId, partnerName, onListingsChanged, onClose, onPriceSaved, onCardRefreshed }: Props) {
   const t = useTranslations('vintedAnnonce');
   const tCommon = useTranslations('common');
   // Dismiss on Escape, lock body scroll while the modal is open. Same pattern

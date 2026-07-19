@@ -24,11 +24,13 @@ export function StatsHeader() {
   const [stats, setStats] = useState<StatsRow | null>(null);
   const [actualPeriod, setActualPeriod] = useState<number>(7);
   const [noData, setNoData] = useState(false);
+  // Period the current stats/noData reflect. While it lags `period` (right after
+  // a switch) we render the loading state — deriving "loading" instead of
+  // synchronously nulling state at the top of the effect.
+  const [fetchedPeriod, setFetchedPeriod] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setStats(null);
-    setNoData(false);
     (async () => {
       const supabase = createClient();
       // Try the selected period; if it returns 0 tracked cards, fall back to
@@ -43,14 +45,25 @@ export function StatsHeader() {
         if (row && (row.cards_up + row.cards_down + row.cards_stable) > 0) {
           setStats(row);
           setActualPeriod(p);
+          setNoData(false);
+          setFetchedPeriod(period);
           return;
         }
       }
       // Either RPC errored or all periods returned 0 tracked cards.
-      if (!cancelled) setNoData(true);
+      if (!cancelled) {
+        setStats(null);
+        setNoData(true);
+        setFetchedPeriod(period);
+      }
     })();
     return () => { cancelled = true; };
   }, [period]);
+
+  // Loading = the fetched results don't yet reflect the selected period.
+  if (fetchedPeriod !== period) {
+    return <div className="border-border rounded border p-3 text-sm text-text-faint">{t('loading')}</div>;
+  }
 
   if (noData) {
     return (

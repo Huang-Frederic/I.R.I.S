@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, ExternalLink } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import VintedLogo from '@/components/ui/VintedLogo';
 
 interface Props {
   cardId?: string;
@@ -17,14 +16,16 @@ interface Props {
 export default function VintedPostButton({ cardId, lotId, userId, hasPrice, onListingsChanged }: Props) {
   const router = useRouter();
   const [state, setState] = useState<'idle' | 'loading' | 'queued' | 'success' | 'error'>('idle');
-  const [mounted, setMounted] = useState(false);
+  // Client-mount guard (avoids an SSR flash before the pending-job lookup runs).
+  // useSyncExternalStore is the no-effect idiom: false on the server, true once
+  // hydrated — no setState-in-effect.
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [listingId, setListingId] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isLot = !!lotId;
 
   useEffect(() => {
-    setMounted(true);
     if (!hasPrice) return;
     const supabase = createClient();
     const jobQuery = supabase

@@ -1,7 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PriceWithTrend } from './PriceWithTrend';
-import { PriceTrendsProvider } from './PriceTrendsProvider';
 
 // PriceWithTrend now calls useTranslations('prices.trend'); pass through the key
 // (e.g. 'ariaUp', 'ariaDown') so we don't need a NextIntlClientProvider in tests.
@@ -25,6 +24,17 @@ vi.mock('./PriceTrendsProvider', async () => {
 });
 
 describe('<PriceWithTrend>', () => {
+  // Freeze the clock next to the fixture's 2026-05-12 point (fake only Date so
+  // Testing Library's scheduling is untouched). The cascade trend window is
+  // relative to "today"; without this the test rots as real time advances.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-05-13T12:00:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('renders the price formatted in EUR', () => {
     render(<PriceWithTrend cardId="x" cmPriceAvg={4.34} variant="inline" />);
     expect(screen.getByText(/4[.,]34/)).toBeInTheDocument();

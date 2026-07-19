@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PriceDetailModal } from './PriceDetailModal';
+import type { Card } from '@/lib/types';
 
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({}),
@@ -35,7 +36,7 @@ const baseCard = {
   cm_price_avg: 4.2,
   cm_updated_at: new Date().toISOString(),
   cardmarket_url: 'https://cardmarket.com/x',
-} as any;
+} as unknown as Card;
 
 describe('<PriceDetailModal>', () => {
   it('renders nothing when closed', () => {

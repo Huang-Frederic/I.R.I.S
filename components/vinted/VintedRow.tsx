@@ -13,7 +13,6 @@ import ListingBadges from './ListingBadges';
 import StockCountChip from './StockCountChip';
 import VintedPostButton from './VintedPostButton';
 import VintedActionModal from '@/components/vinted/VintedActionModal';
-import VintedLogo from '@/components/ui/VintedLogo';
 
 function thumbUrl(card: Card): string {
   if (card.image_url) return card.image_url;
@@ -70,10 +69,13 @@ export default function VintedRow({
   const mine = getMyListing(listings, myUserId);
   const isOnline = mine?.vinted_listing_id != null;
   const variantLabel = card.variant ? (VARIANT_LABEL[card.variant] ?? card.variant) : null;
-  const isStale = mine?.vinted_posted_at
-    ? Date.now() - new Date(mine.vinted_posted_at).getTime() > 21 * 24 * 60 * 60 * 1000
-    : false;
   const [actionModalOpen, setActionModalOpen] = useState(false);
+  // Snapshot "now" at mount — a staleness badge doesn't need to tick live, and
+  // reading the clock during render violates the purity rule.
+  const [now] = useState(() => Date.now());
+  const isStale = mine?.vinted_posted_at
+    ? now - new Date(mine.vinted_posted_at).getTime() > 21 * 24 * 60 * 60 * 1000
+    : false;
 
   return (
     <li className="bg-surface border-border [content-visibility:auto] [contain-intrinsic-size:auto_106px] flex items-stretch gap-2 rounded-lg border p-2 text-sm sm:items-center sm:gap-3 sm:p-3">
