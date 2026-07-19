@@ -298,6 +298,7 @@
     "lotFormErrorPrice": "価格(数値)は必須",
     "lotFormErrorPhotos": "写真が少なくとも 1 枚必要",
     "lotFormErrorServer": "サーバーエラー",
+    "lotFormSuccess": "ロットを作成しました!",
     "lotFormPhotosLabel": "写真 ({count})",
     "lotFormPhotosDropOrClick": "ドロップまたはクリックで追加",
     "lotFormPhotoRemoveAria": "この写真を削除",
@@ -486,7 +487,11 @@
     "partnerCleanupTitle": "{name} に対応が必要",
     "partnerCleanupBodyCard": "このカードは販売済みとしてマークされ、再出品できる別のコピーがありません。",
     "partnerCleanupBodyLot": "このロットは販売済みとしてマークされ、再出品できる別のコピーがありません。",
-    "partnerCleanupNote": "{name} は Vinted の出品を手動で取り下げる必要があります(IRIS は他人のアカウントの出品を削除できません)。"
+    "partnerCleanupBodyMultiple": "これらの商品は販売済みとしてマークされ、再出品できる別のコピーがありません。",
+    "partnerCleanupNote": "{name} は Vinted の出品を手動で取り下げる必要があります(IRIS は他人のアカウントの出品を削除できません)。",
+    "bulkPromoteTitle": "カードを出品する",
+    "bulkPromoteSubtitle": "{count, plural, other {#枚のカードが販売済みの出品と入れ替え可能です}}",
+    "bulkPromoteConfirm": "{count, plural, other {{count}件を出品する}}"
   },
   "listingBadges": {
     "listedByMe": "自分が出品中 · {days}日",
@@ -775,6 +780,7 @@
     "lastSalesTitleCount": "最近の販売 ({count})",
     "lastSalesEmpty": "販売の記録なし。",
     "lastSalesTotal": "合計 €{total}",
+    "lotLabel": "ロット",
     "rarityDonutTitle": "レアリティ内訳",
     "rarityDonutEmpty": "カードはまだありません。",
     "rarityModeCount": "枚数",

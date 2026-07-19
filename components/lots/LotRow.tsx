@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { Tag, Package } from 'lucide-react';
 import type { Lot, LotListing } from '@/lib/types';
+import { STALE_MS } from '@/lib/utils/listing-stale';
 import EditablePriceCell from '@/components/vinted/EditablePriceCell';
 import ListingBadges from '@/components/vinted/ListingBadges';
 import VintedPostButton from '@/components/vinted/VintedPostButton'
@@ -41,7 +42,7 @@ export default function LotRow({
   // Snapshot "now" once at mount — a staleness badge doesn't need to tick live,
   // and reading the clock during render violates the purity rule.
   const [now] = useState(() => Date.now());
-  const isStale = myListing?.vinted_posted_at ? now - new Date(myListing.vinted_posted_at).getTime() > 21 * 24 * 60 * 60 * 1000 : false;
+  const isStale = myListing?.vinted_posted_at ? now - new Date(myListing.vinted_posted_at).getTime() > STALE_MS : false;
   const thumb = lot.photo_urls.length > 0 ? storagePublicUrl(lot.photo_urls[0]) : null;
 
   return (

@@ -298,6 +298,7 @@
     "lotFormErrorPrice": "需要价格(数字)",
     "lotFormErrorPhotos": "至少需要 1 张照片",
     "lotFormErrorServer": "服务器错误",
+    "lotFormSuccess": "套装创建成功!",
     "lotFormPhotosLabel": "照片 ({count})",
     "lotFormPhotosDropOrClick": "拖放或点击添加",
     "lotFormPhotoRemoveAria": "删除此照片",
@@ -486,7 +487,11 @@
     "partnerCleanupTitle": "需要 {name} 的操作",
     "partnerCleanupBodyCard": "此卡片已标记为已售,且没有其他副本可重新上架。",
     "partnerCleanupBodyLot": "此套装已标记为已售,且没有其他副本可重新上架。",
-    "partnerCleanupNote": "{name} 需要手动移除其 Vinted 出售(IRIS 无法删除第三方账户上的出售)。"
+    "partnerCleanupBodyMultiple": "这些商品已标记为已售,且没有其他副本可重新上架。",
+    "partnerCleanupNote": "{name} 需要手动移除其 Vinted 出售(IRIS 无法删除第三方账户上的出售)。",
+    "bulkPromoteTitle": "将卡片上架出售",
+    "bulkPromoteSubtitle": "{count, plural, other {#张卡片可替换已售出的出售}}",
+    "bulkPromoteConfirm": "{count, plural, other {上架{count}张出售}}"
   },
   "listingBadges": {
     "listedByMe": "我上架 · {days}天",
@@ -775,6 +780,7 @@
     "lastSalesTitleCount": "最近销售 ({count})",
     "lastSalesEmpty": "未记录销售。",
     "lastSalesTotal": "总计 €{total}",
+    "lotLabel": "套装",
     "rarityDonutTitle": "稀有度分布",
     "rarityDonutEmpty": "尚无卡片。",
     "rarityModeCount": "数量",

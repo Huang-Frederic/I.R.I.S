@@ -7,6 +7,7 @@ import { BookmarkCheck, Bookmark, Tag } from 'lucide-react';
 import type { Card, CardListing } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
 import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
+import { STALE_MS } from '@/lib/utils/listing-stale';
 import { displayCardName, displaySetName } from '@/lib/utils/format-name';
 import { getMyListing } from '@/lib/utils/listings';
 import ListingBadges from './ListingBadges';
@@ -74,7 +75,7 @@ export default function VintedRow({
   // reading the clock during render violates the purity rule.
   const [now] = useState(() => Date.now());
   const isStale = mine?.vinted_posted_at
-    ? now - new Date(mine.vinted_posted_at).getTime() > 21 * 24 * 60 * 60 * 1000
+    ? now - new Date(mine.vinted_posted_at).getTime() > STALE_MS
     : false;
 
   return (
