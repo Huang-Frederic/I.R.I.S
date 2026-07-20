@@ -94,8 +94,15 @@ export default async function VintedPage() {
     ),
   ]);
 
+  // The traded query is deliberately NOT in the fatal chain: before migration
+  // 20260720100000 lands, the 'traded' enum value doesn't exist and the query
+  // errors — degrade to an empty traded pile instead of taking the page down
+  // (lets the code deploy ahead of the migration).
+  if (tradedResult.error) {
+    console.warn('[vinted] traded query failed (migration pending?):', tradedResult.error.message);
+  }
   const fetchError =
-    forSaleResult.error ?? soldResult.error ?? tradedResult.error ?? collectionResult.error ?? pokedexResult.error ?? configResult.error ?? forSaleLotsResult.error ?? soldLotsResult.error ?? cardListingsResult.error ?? lotListingsResult.error;
+    forSaleResult.error ?? soldResult.error ?? collectionResult.error ?? pokedexResult.error ?? configResult.error ?? forSaleLotsResult.error ?? soldLotsResult.error ?? cardListingsResult.error ?? lotListingsResult.error;
   if (fetchError) {
     return (
       <section>
