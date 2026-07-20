@@ -199,16 +199,27 @@ async function main(): Promise<void> {
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY must be set (.env.local)');
+  const missing: string[] = [];
+  if (!supabaseUrl) {
+    missing.push('NEXT_PUBLIC_SUPABASE_URL   — Supabase dashboard → Settings → API → Project URL');
+  }
+  if (!supabaseKey) {
+    missing.push('SUPABASE_SERVICE_ROLE_KEY  — Supabase dashboard → Settings → API → service_role (secret)');
   }
   if (!process.env.BRIGHTDATA_TOKEN) {
+    missing.push('BRIGHTDATA_TOKEN           — https://brightdata.com/cp/api_tokens (Cardmarket sits behind Cloudflare)');
+  }
+  if (missing.length > 0) {
     throw new Error(
-      'BRIGHTDATA_TOKEN must be set — the Cardmarket dropdowns sit behind Cloudflare.\n' +
-      'Same token as the gallery scraper (see scrapers/cardmarket/README.md).',
+      `Missing env var(s) in ${path.join(ROOT, '.env.local')}:\n\n` +
+      missing.map((m) => `  ${m}`).join('\n') +
+      '\n\nThis machine has no .env.local yet — copy it from your usual dev machine' +
+      ' (WSL), or start from .env.example and fill the keys above.' +
+      ' Optional: BRIGHTDATA_ZONE (default "iris").',
     );
   }
-  const supabase = createClient(supabaseUrl, supabaseKey, {
+  // The missing-vars check above guarantees these — TS can't see through it.
+  const supabase = createClient(supabaseUrl!, supabaseKey!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 

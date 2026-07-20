@@ -6,7 +6,9 @@ import { ArrowLeftRight, ShoppingCart, X } from 'lucide-react';
 interface Props {
   cardCount: number;
   lotCount: number;
-  onConfirm: () => void;
+  /** Opens the bulk-sold modal. Omitted on views where selling doesn't apply
+   *  (e.g. /stock, where the bar is trade-only). */
+  onConfirm?: () => void;
   onCancel: () => void;
   /** Opens the bulk-trade modal. The button only shows for card-only selections
    *  (trades are a card concept — lots stay sell-only). */
@@ -51,20 +53,26 @@ export default function BulkSelectionBottomBar({ cardCount, lotCount, onConfirm,
             <button
               type="button"
               onClick={onTrade}
-              className="bg-surface-2 border-border text-text hover:border-red inline-flex items-center gap-1.5 rounded border px-4 py-1.5 text-sm font-medium"
+              className={
+                onConfirm
+                  ? 'bg-surface-2 border-border text-text hover:border-red inline-flex items-center gap-1.5 rounded border px-4 py-1.5 text-sm font-medium'
+                  : 'bg-red text-bg inline-flex items-center gap-1.5 rounded px-4 py-1.5 text-sm font-medium hover:opacity-90'
+              }
             >
               <ArrowLeftRight className="h-4 w-4" />
               {t('bottomBarTrade', { count: cardCount })}
             </button>
           )}
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="bg-red text-bg inline-flex items-center gap-1.5 rounded px-4 py-1.5 text-sm font-medium hover:opacity-90"
-          >
-            <ShoppingCart className="h-4 w-4" />
-            {t('bottomBarSell', { count: total })}
-          </button>
+          {onConfirm && (
+            <button
+              type="button"
+              onClick={onConfirm}
+              className="bg-red text-bg inline-flex items-center gap-1.5 rounded px-4 py-1.5 text-sm font-medium hover:opacity-90"
+            >
+              <ShoppingCart className="h-4 w-4" />
+              {t('bottomBarSell', { count: total })}
+            </button>
+          )}
         </div>
       </div>
     </div>

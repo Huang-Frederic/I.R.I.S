@@ -36,6 +36,7 @@ import BulkSoldRecapModal from './BulkSoldRecapModal';
 import BulkTradeModal from './BulkTradeModal';
 import TradeRecapModal from './TradeRecapModal';
 import { splitPrice } from '@/lib/utils/split-bulk-price';
+import { uploadTradePhoto } from '@/lib/utils/trade-photo';
 import { translateErrorCode } from '@/lib/utils/translate-error';
 import { useUserContext } from '@/lib/hooks/useUserContext';
 import { useDataSync } from './hooks/useDataSync';
@@ -371,7 +372,9 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     // Always queued upfront; the render gate hides it while PromoteAfterSold
     // is open. If the user promotes successfully, handlePromoted clears it
     // (the new for_sale row replaces the partner's listing semantically).
-    if (partnerListed) {
+    // Split lot sale: copies remain and the partner's ad stays backed by
+    // them — nothing to clean up, skip the notice.
+    if (partnerListed && !info.split) {
       setPartnerCleanup({ itemKind: info.kind, itemDisplayName });
     }
   };
@@ -430,7 +433,9 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           continue;
         }
         soldItems.push(item);
-        partnerListedFlags.push(hadPartnerListing);
+        // Split lot sale (quantity>1): copies remain, the partner's ad stays
+        // valid — never queue a cleanup notice for it.
+        partnerListedFlags.push(hadPartnerListing && !json.split);
         if (item.kind === 'card') {
           setCards((prev) => prev.map((c): CardWithListings => (c.id === id ? { ...c, status: 'sold' as const, sold_price, date_sold: dateSoldIso, sold_by_user_id: myUserId, listings: c.listings.filter((l) => l.user_id !== myUserId) } : c)));
           if (json.restock) restocks.push(json.restock);
@@ -512,14 +517,11 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     // upload aborts (thrown into the modal) so the user can retry or drop it.
     let photoUrl: string | null = null;
     if (photo) {
-      const fd = new FormData();
-      fd.append('image', photo, 'trade.jpg');
-      const res = await fetch('/api/trades/photo', { method: 'POST', body: fd });
-      const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (!res.ok || !json.url) {
-        throw new Error(translateErrorCode(tErrors, json.error) ?? json.error ?? tErrors('unexpected'));
+      const up = await uploadTradePhoto(photo);
+      if (!up.url) {
+        throw new Error(translateErrorCode(tErrors, up.error) ?? up.error ?? tErrors('unexpected'));
       }
-      photoUrl = json.url;
+      photoUrl = up.url;
     }
 
     const restocks: RestockAlert[] = [];

@@ -12,6 +12,12 @@ import ExchangeOnConflictModal, { type ExchangeConflictCard } from '@/components
 import MoveToPokedexModal from '@/components/cards/MoveToPokedexModal';
 import PokedexCompareModal, { type PokedexCompareModalCard } from '@/components/cards/PokedexCompareModal';
 import { PriceDetailModal } from '@/components/price/PriceDetailModal';
+import BulkSelectionBottomBar from '@/components/vinted/BulkSelectionBottomBar';
+import BulkTradeModal from '@/components/vinted/BulkTradeModal';
+import TradeRecapModal from '@/components/vinted/TradeRecapModal';
+import { useSelectionMode } from '@/components/vinted/hooks/useSelectionMode';
+import type { RestockAlert } from '@/lib/utils/restock-detection';
+import { uploadTradePhoto } from '@/lib/utils/trade-photo';
 import { createClient } from '@/lib/supabase/client';
 import { normalizeForSearch } from '@/lib/utils/text-normalize';
 import { translateErrorCode } from '@/lib/utils/translate-error';
@@ -65,6 +71,12 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
   useEffect(() => { setCards(initial); }, [initial]);
   const [filters, setFilters] = useState<StockFilterState>(INITIAL_STOCK_FILTERS);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  // Bulk trade: select group heads (one physical copy per group, FIFO —
+  // same card the row actions target), then mark them traded in one batch.
+  const { selectionMode, selectedIds, toggleSelect, toggleSelectionMode, cancelSelection } =
+    useSelectionMode();
+  const [bulkTradeOpen, setBulkTradeOpen] = useState(false);
+  const [tradeRecap, setTradeRecap] = useState<{ count: number; restocks: RestockAlert[] } | null>(null);
   const [exchangeModal, setExchangeModal] = useState<{
     newCard: { id: string; cardName: string };
     conflictCard: ExchangeConflictCard;
@@ -145,6 +157,59 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
     }
   };
 
+  /**
+   * Stock bulk trade — simpler than the Vinted flow: nothing here is listed,
+   * so there is no listing to prune, no auto-promote, no partner cleanup.
+   * PATCH each selected head to 'traded' (shared photo + date), drop the rows
+   * locally, surface restock alerts in the recap.
+   */
+  async function handleBulkTrade(cardsToTrade: Card[], dateIso: string, photo: Blob | null) {
+    let photoUrl: string | null = null;
+    if (photo) {
+      const up = await uploadTradePhoto(photo);
+      if (!up.url) {
+        throw new Error(translateErrorCode(tErrors, up.error) ?? up.error ?? tErrors('unexpected'));
+      }
+      photoUrl = up.url;
+    }
+
+    const restocks: RestockAlert[] = [];
+    const tradedIds: string[] = [];
+    const errors: string[] = [];
+    for (const card of cardsToTrade) {
+      try {
+        const res = await fetch(`/api/cards/${card.id}`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ status: 'traded', traded_at: dateIso, trade_photo_url: photoUrl }),
+        });
+        const json = (await res.json()) as { error?: string; restock?: RestockAlert | null };
+        if (!res.ok) {
+          const localized = translateErrorCode(tErrors, json.error);
+          errors.push(`${displayCardName(card)}: ${localized ?? json.error ?? tErrors('unexpected')}`);
+          continue;
+        }
+        tradedIds.push(card.id);
+        if (json.restock) restocks.push(json.restock);
+      } catch (e) {
+        errors.push(`${displayCardName(card)}: ${e instanceof Error ? e.message : 'network'}`);
+      }
+    }
+
+    if (tradedIds.length > 0) {
+      const traded = new Set(tradedIds);
+      setCards((prev) => prev.filter((c) => !traded.has(c.id)));
+      setTradeRecap({ count: tradedIds.length, restocks });
+      router.refresh();
+    }
+    if (errors.length > 0) {
+      console.warn(`[stock-trade] ${tradedIds.length} échangées, ${errors.length} échec(s)`, errors);
+      if (tradedIds.length === 0) {
+        alert(errors.join('\n'));
+      }
+    }
+  }
+
   const handleSetCount = async (group: CardGroup, target: number) => {
     if (target < 0) return; // negative not allowed; 0 = wipe (StockRow confirms)
     const diff = target - group.count;
@@ -201,6 +266,8 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
           onChange={setFilters}
           visibleCards={groups.length}
           totalCards={cards.length}
+          selectionMode={selectionMode}
+          onToggleSelectionMode={toggleSelectionMode}
         />
 
         {groups.length === 0 ? (
@@ -223,9 +290,46 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
                 onOpenPriceModal={() => setPriceModalCard(g.head)}
                 onSetCount={handleSetCount}
                 busy={busyKey === g.key}
+                selectionMode={selectionMode}
+                selected={selectedIds.has(g.head.id)}
+                onToggleSelect={() => toggleSelect(g.head.id)}
               />
             ))}
           </ul>
+        )}
+
+        {selectionMode && (() => {
+          const selectedCards = cards.filter((c) => selectedIds.has(c.id));
+          return (
+            <BulkSelectionBottomBar
+              cardCount={selectedCards.length}
+              lotCount={0}
+              onCancel={cancelSelection}
+              onTrade={() => setBulkTradeOpen(true)}
+            />
+          );
+        })()}
+
+        {bulkTradeOpen && (
+          <BulkTradeModal
+            cards={cards.filter((c) => selectedIds.has(c.id))}
+            onClose={() => setBulkTradeOpen(false)}
+            onConfirm={async (dateIso, photo) => {
+              const selectedCards = cards.filter((c) => selectedIds.has(c.id));
+              await handleBulkTrade(selectedCards, dateIso, photo);
+              setBulkTradeOpen(false);
+              cancelSelection();
+            }}
+          />
+        )}
+
+        {tradeRecap && (
+          <TradeRecapModal
+            count={tradeRecap.count}
+            autoPromoted={0}
+            restocks={tradeRecap.restocks}
+            onClose={() => setTradeRecap(null)}
+          />
         )}
 
         {exchangeModal && (

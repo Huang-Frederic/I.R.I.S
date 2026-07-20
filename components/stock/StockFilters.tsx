@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Search, PackageCheck, PackageOpen, ChevronDown } from 'lucide-react';
+import { Search, PackageCheck, PackageOpen, ChevronDown, CheckSquare, Square } from 'lucide-react';
 import { UI_LANGUAGES, type CardLanguage, type CardRarity } from '@/lib/types';
 
 export interface StockFilterState {
@@ -40,9 +40,11 @@ interface Props {
   onChange: (next: StockFilterState) => void;
   visibleCards: number;
   totalCards: number;
+  selectionMode: boolean;
+  onToggleSelectionMode: () => void;
 }
 
-export default function StockFilters({ value, onChange, visibleCards, totalCards }: Props) {
+export default function StockFilters({ value, onChange, visibleCards, totalCards, selectionMode, onToggleSelectionMode }: Props) {
   const t = useTranslations('stock');
   const tScanner = useTranslations('scanner');
   const [expanded, setExpanded] = useState(false);
@@ -60,6 +62,19 @@ export default function StockFilters({ value, onChange, visibleCards, totalCards
             className="bg-surface-2 border-border focus:border-red w-full rounded border py-1.5 pl-8 pr-3 text-sm outline-none"
           />
         </div>
+        <button
+          type="button"
+          onClick={onToggleSelectionMode}
+          className={`inline-flex items-center gap-1.5 rounded px-2 py-1.5 text-xs ${
+            selectionMode
+              ? 'bg-red text-bg'
+              : 'bg-surface-2 text-text-muted hover:text-text'
+          }`}
+          title={selectionMode ? t('selectionCancelTitle') : t('selectionEnableTitle')}
+        >
+          {selectionMode ? <CheckSquare className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
+          {selectionMode ? t('selectionCancel') : t('selectionEnable')}
+        </button>
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}

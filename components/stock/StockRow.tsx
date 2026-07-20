@@ -31,6 +31,10 @@ interface Props {
   /** Apply a target count for this group. Caller diffs against group.count and clones / deletes accordingly. */
   onSetCount: (group: CardGroup, target: number) => void;
   busy?: boolean;
+  /** When true, show a checkbox and disable the row actions (bulk trade). */
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 export default function StockRow({
@@ -43,6 +47,9 @@ export default function StockRow({
   onOpenPriceModal,
   onSetCount,
   busy = false,
+  selectionMode = false,
+  selected = false,
+  onToggleSelect,
 }: Props) {
   const t = useTranslations('stock');
   const card = group.head;
@@ -81,6 +88,16 @@ export default function StockRow({
 
   return (
     <li className="bg-surface border-border flex items-stretch gap-2 rounded-lg border p-2 text-sm sm:items-center sm:gap-3 sm:p-3">
+      {selectionMode && (
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggleSelect}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={selected ? t('deselectAria') : t('selectAria')}
+          className="accent-red h-5 w-5 shrink-0 cursor-pointer self-center"
+        />
+      )}
       <button
         type="button"
         onClick={() => setZoomSrc(thumbUrl(card))}
@@ -187,7 +204,7 @@ export default function StockRow({
               type="number"
               min={0}
               value={draftCount}
-              disabled={busy}
+              disabled={busy || selectionMode}
               onChange={(e) => setDraftCount(e.target.value)}
               onBlur={commitCount}
               onKeyDown={(e) => {
@@ -206,7 +223,7 @@ export default function StockRow({
           <button
             type="button"
             onClick={() => onListForSaleClick(card)}
-            disabled={busy || hasForSaleSibling}
+            disabled={busy || hasForSaleSibling || selectionMode}
             title={hasForSaleSibling ? t('listForSaleConflictTitle') : undefined}
             className="bg-red text-bg shrink-0 rounded px-2 py-1 text-[10px] font-medium hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 sm:py-1.5 sm:text-xs"
           >
