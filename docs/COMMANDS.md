@@ -35,7 +35,8 @@ Your daily dev workflow lives here. Defined in [`package.json`](../package.json)
 
 | Command | Purpose |
 |---|---|
-| `npm run upload-cardmarket-dumps` | Pull the latest Cardmarket S3 dumps (products + pricing) and bulk-upsert into Supabase. ~30s. Runs daily via GitHub Action. |
+| `npm run upload-cardmarket-dumps` | Pull the latest Cardmarket S3 dumps (products + pricing) and bulk-upsert into Supabase. ~30s. Runs daily via GitHub Action. Warns loudly when the dump contains expansion ids missing from `cardmarket_expansions.json` (→ run `update-expansions`). |
+| `npm run update-expansions` | **The "new set just dropped" command.** Fetches the CM expansion dropdowns (FR/EN/JA via BrightData), merges new ids into `cardmarket_expansions.json` (commit it!), upserts the expansion rows + names, loads products/pricing for the new sets from the dumps, then runs the gallery scraper to fill `cardmarket_card_index` + `set_prefix` so the scanner resolves the set. Flags: `--dry-run`, `--no-scrape`, `--rescrape-missing[=minId]`. |
 | `npm run scrape-cardmarket -- <args>` | **Wheel-set fallback only** — `cardmarket_card_index` is populated primarily by the BrightData scraper at [`scrapers/cardmarket/`](../scrapers/cardmarket/) (see [`docs/CARDMARKET_MAPPING.md`](CARDMARKET_MAPPING.md)). This Playwright scraper is the third-line fallback for wheel-type promo sets when BrightData isn't available. See dedicated section below. |
 | `npm run build-cardmarket-input` | Build the BrightData scraper's input JSON from `cardmarket_expansions.json`. Used to seed a one-shot or partial run. |
 | `npm run probe-cardmarket -- <slug>` | One-shot debug: open one Cardmarket page, dump the HTML to disk, print quick stats. Used for inspecting page structure before changing the scraper. |

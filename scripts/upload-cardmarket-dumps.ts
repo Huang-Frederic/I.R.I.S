@@ -127,9 +127,26 @@ async function main(): Promise<void> {
   }));
 
   // Drop products whose expansion isn't in our dropdown — would FK-violate.
-  // Cardmarket keeps very old expansions in the catalog forever; harmless.
+  // Cardmarket keeps very old expansions in the catalog forever; harmless —
+  // EXCEPT when the unknown id is a freshly released set. Surface those
+  // loudly so a new set doesn't sit priceless for weeks.
   const validExpansionIds = new Set(expansionRows.map((e) => e.id_expansion));
-  const droppedProducts = catalog.products.filter((p) => !validExpansionIds.has(p.idExpansion)).length;
+  const droppedByExpansion = new Map<number, number>();
+  for (const p of catalog.products) {
+    if (!validExpansionIds.has(p.idExpansion)) {
+      droppedByExpansion.set(p.idExpansion, (droppedByExpansion.get(p.idExpansion) ?? 0) + 1);
+    }
+  }
+  const droppedProducts = [...droppedByExpansion.values()].reduce((a, b) => a + b, 0);
+  if (droppedByExpansion.size > 0) {
+    console.warn(
+      `\n⚠ ${droppedByExpansion.size} expansion id(s) in the dump are missing from cardmarket_expansions.json` +
+      ` (${droppedProducts} products dropped).`,
+    );
+    const recent = [...droppedByExpansion.entries()].sort((a, b) => b[0] - a[0]).slice(0, 8);
+    for (const [id, count] of recent) console.warn(`    id_expansion ${id}: ${count} products`);
+    console.warn('  → run `npm run update-expansions` to pick up newly released sets.\n');
+  }
 
   const productRows: ProductRow[] = catalog.products
     .filter((p) => validExpansionIds.has(p.idExpansion))
