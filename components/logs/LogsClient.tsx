@@ -70,7 +70,9 @@ function LogRow({ log }: { log: AuditLog }) {
   }
 
   function actionLabel(action: string): string {
-    const key = `actions.${action}` as Parameters<typeof t>[0];
+    // Audit actions are dot-namespaced (card.created) but next-intl reserves
+    // "." for nesting — the message keys use "_" instead (card_created).
+    const key = `actions.${action.replace(/\./g, '_')}` as Parameters<typeof t>[0];
     try {
       const label = t(key);
       return label !== key ? label : action;
