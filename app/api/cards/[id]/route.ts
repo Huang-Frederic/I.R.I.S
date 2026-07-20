@@ -18,6 +18,8 @@ interface PatchBody {
   status?: CardStatus;
   sold_price?: number | null;
   date_sold?: string | null;
+  traded_at?: string | null;
+  trade_photo_url?: string | null;
   suggested_price?: number | null;
   cm_price_low?: number | null;
   cm_price_trend?: number | null;
@@ -29,6 +31,7 @@ const ALLOWED_STATUSES: ReadonlySet<CardStatus> = new Set([
   'for_sale',
   'collection',
   'sold',
+  'traded',
   'pokedex',
 ]);
 
@@ -72,6 +75,13 @@ export async function PATCH(
     if (body.status === 'sold') {
       update.date_sold = body.date_sold ?? new Date().toISOString();
       update.sold_by_user_id = user.id;
+    }
+    if (body.status === 'traded') {
+      update.traded_at = body.traded_at ?? new Date().toISOString();
+      update.traded_by_user_id = user.id;
+      if (typeof body.trade_photo_url === 'string' && body.trade_photo_url.length > 0) {
+        update.trade_photo_url = body.trade_photo_url;
+      }
     }
   }
 
@@ -224,6 +234,7 @@ export async function PATCH(
         variant: (updated as Record<string, unknown>).variant ?? null,
         suggested_price: (updated as Record<string, unknown>).suggested_price,
         ...(body.sold_price !== undefined && { sold_price: body.sold_price }),
+        ...(body.status === 'traded' && { trade_photo: Boolean(update.trade_photo_url) }),
       },
     });
   } else if (body.suggested_price !== undefined || body.sold_price !== undefined) {
@@ -381,9 +392,11 @@ export async function PATCH(
     }
   }
 
-  // Restock check only when this update marked the card sold
+  // Restock check when this update marked the card sold OR traded — either
+  // way the physical copy left the collection, potentially exposing the
+  // Pokédex slot.
   let restock = null;
-  if (update.status === 'sold' && updated.pokemon_number) {
+  if ((update.status === 'sold' || update.status === 'traded') && updated.pokemon_number) {
     const [{ data: stillForSale }, { data: stillInStock }, { data: pokedex }] = await Promise.all([
       supabase
         .from('cards')
@@ -426,9 +439,11 @@ export async function PATCH(
     }
   }
 
-  // Promote check: if just sold AND a stock copy of the same group exists, suggest promotion.
+  // Promote check: if just sold/traded AND a stock copy of the same group
+  // exists, suggest promotion. For trades the client auto-accepts it (the
+  // Vinted ads are still live — a stock copy silently takes over).
   let promote: PromoteCandidate | null = null;
-  if (update.status === 'sold' && updated.card_id_tcg) {
+  if ((update.status === 'sold' || update.status === 'traded') && updated.card_id_tcg) {
     const { data: stockCandidates } = await supabase
       .from('cards')
       .select('*')

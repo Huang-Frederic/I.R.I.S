@@ -13,6 +13,7 @@
  * union of fresh + stale), and "En ligne" alone shows just the fresh ones.
  *
  *   - showSold (Vendus) → status = sold (handled separately by caller).
+ *   - showTraded (Échangés) → status = traded (handled separately by caller).
  *
  * Edge cases:
  *   - All three state chips false → "Tous" implicit, every for_sale passes.
@@ -30,6 +31,7 @@ export interface ChipState {
   showOffline: boolean;
   showStale: boolean;
   showSold: boolean;
+  showTraded: boolean;
 }
 
 /**
@@ -63,11 +65,11 @@ export function passesStateChips(
 
 /**
  * Decides whether the for_sale pile should be shown at all. It's hidden only
- * when the user has activated `Vendus` AND no other state chip — a "show me
- * just my sold history" view.
+ * when the user has activated `Vendus` and/or `Échangés` AND no other state
+ * chip — a "show me just my sold/traded history" view.
  */
 export function shouldHideForSalePile(chips: ChipState): boolean {
-  return chips.showSold && !chips.showOnline && !chips.showOffline && !chips.showStale;
+  return (chips.showSold || chips.showTraded) && !chips.showOnline && !chips.showOffline && !chips.showStale;
 }
 
 export type MultiUserChip = 'all' | 'mine' | 'partner' | 'cross' | 'none' | 'to_delete';

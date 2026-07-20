@@ -68,9 +68,10 @@ const STATUS_COLOR_CLASSES: Record<CardStatus, { border: string; button: string 
   for_sale: { border: 'border-blue-500', button: 'bg-blue-600 hover:bg-blue-700' },
   collection: { border: 'border-amber-600', button: 'bg-amber-600 hover:bg-amber-700' },
   pokedex: { border: 'border-red', button: 'bg-red hover:bg-[#c44545]' },
-  // 'sold' isn't user-selectable in the scanner, but CardStatus includes it —
-  // fall back to the for_sale palette to keep the type total.
+  // 'sold' / 'traded' aren't user-selectable in the scanner, but CardStatus
+  // includes them — fall back to the for_sale palette to keep the type total.
   sold: { border: 'border-blue-500', button: 'bg-blue-600 hover:bg-blue-700' },
+  traded: { border: 'border-blue-500', button: 'bg-blue-600 hover:bg-blue-700' },
 };
 
 type Phase = 'idle' | 'scanning' | 'reviewing' | 'saving' | 'success' | 'error';

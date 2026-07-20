@@ -1,16 +1,19 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { ShoppingCart, X } from 'lucide-react';
+import { ArrowLeftRight, ShoppingCart, X } from 'lucide-react';
 
 interface Props {
   cardCount: number;
   lotCount: number;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Opens the bulk-trade modal. The button only shows for card-only selections
+   *  (trades are a card concept — lots stay sell-only). */
+  onTrade?: () => void;
 }
 
-export default function BulkSelectionBottomBar({ cardCount, lotCount, onConfirm, onCancel }: Props) {
+export default function BulkSelectionBottomBar({ cardCount, lotCount, onConfirm, onCancel, onTrade }: Props) {
   const t = useTranslations('vintedSold');
   const tCommon = useTranslations('common');
   const total = cardCount + lotCount;
@@ -44,6 +47,16 @@ export default function BulkSelectionBottomBar({ cardCount, lotCount, onConfirm,
             <X className="h-4 w-4" />
             {tCommon('cancel')}
           </button>
+          {onTrade && cardCount > 0 && lotCount === 0 && (
+            <button
+              type="button"
+              onClick={onTrade}
+              className="bg-surface-2 border-border text-text hover:border-red inline-flex items-center gap-1.5 rounded border px-4 py-1.5 text-sm font-medium"
+            >
+              <ArrowLeftRight className="h-4 w-4" />
+              {t('bottomBarTrade', { count: cardCount })}
+            </button>
+          )}
           <button
             type="button"
             onClick={onConfirm}

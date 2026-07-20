@@ -19,7 +19,7 @@ export type UILanguage = (typeof UI_LANGUAGES)[number];
 
 export type CardCondition = 'NM' | 'EX' | 'GD' | 'PL' | 'PO';
 
-export type CardStatus = 'pokedex' | 'for_sale' | 'collection' | 'sold';
+export type CardStatus = 'pokedex' | 'for_sale' | 'collection' | 'sold' | 'traded';
 
 export type CardRarity =
   | 'SAR'
@@ -73,6 +73,12 @@ export interface Card {
   /** auth.users.id of the user who marked this card sold.
    * NULL for items sold before per-user attribution existed, or never sold. */
   sold_by_user_id: string | null;
+  /** When the card left via a trade (status='traded'). NULL otherwise. */
+  traded_at: string | null;
+  /** auth.users.id of the user who recorded the trade. Mirror of sold_by_user_id. */
+  traded_by_user_id: string | null;
+  /** Photo of the trade batch — same URL on every card of one bulk trade. */
+  trade_photo_url: string | null;
   notes: string | null;
   variant: string | null;
 }

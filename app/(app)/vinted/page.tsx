@@ -16,7 +16,7 @@ export default async function VintedPage() {
 
   // Unbounded queries go through fetchAllRows — Supabase truncates any
   // response at 1000 rows, which would silently drop listings/cards here.
-  const [forSaleResult, soldResult, collectionResult, pokedexResult, configResult, forSaleLotsResult, soldLotsResult, cardListingsResult, lotListingsResult] = await Promise.all([
+  const [forSaleResult, soldResult, tradedResult, collectionResult, pokedexResult, configResult, forSaleLotsResult, soldLotsResult, cardListingsResult, lotListingsResult] = await Promise.all([
     fetchAllRows((from, to) =>
       supabase
         .from('cards')
@@ -33,6 +33,13 @@ export default async function VintedPage() {
       .select('*')
       .eq('status', 'sold')
       .order('date_sold', { ascending: false })
+      .limit(40),
+    // Traded cards — same cap rationale as sold.
+    supabase
+      .from('cards')
+      .select('*')
+      .eq('status', 'traded')
+      .order('traded_at', { ascending: false })
       .limit(40),
     // Collection cards drive the per-row "stock count" chip in /vinted —
     // they're the extra physical copies of cards the user is also selling.
@@ -88,7 +95,7 @@ export default async function VintedPage() {
   ]);
 
   const fetchError =
-    forSaleResult.error ?? soldResult.error ?? collectionResult.error ?? pokedexResult.error ?? configResult.error ?? forSaleLotsResult.error ?? soldLotsResult.error ?? cardListingsResult.error ?? lotListingsResult.error;
+    forSaleResult.error ?? soldResult.error ?? tradedResult.error ?? collectionResult.error ?? pokedexResult.error ?? configResult.error ?? forSaleLotsResult.error ?? soldLotsResult.error ?? cardListingsResult.error ?? lotListingsResult.error;
   if (fetchError) {
     return (
       <section>
@@ -101,6 +108,7 @@ export default async function VintedPage() {
   const cards = [
     ...(forSaleResult.data ?? []),
     ...(soldResult.data ?? []),
+    ...(tradedResult.data ?? []),
   ] as Card[];
   const collectionCards = (collectionResult.data ?? []) as Card[];
   const lots = [

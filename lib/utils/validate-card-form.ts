@@ -16,7 +16,7 @@ export interface ParsedCardForm {
   language: CardLanguage;
   rarity: CardRarity;
   condition: CardCondition;
-  status: Exclude<CardStatus, 'sold'>;
+  status: Exclude<CardStatus, 'sold' | 'traded'>;
 }
 
 export type ValidateCardFormResult =
@@ -62,7 +62,7 @@ export function validateCardForm(formData: FormData): ValidateCardFormResult {
   }
 
   const status = (str(formData, 'status') as CardStatus | null) ?? 'for_sale';
-  if (!STATUSES.has(status) || status === 'sold') {
+  if (!STATUSES.has(status) || status === 'sold' || status === 'traded') {
     return { valid: false, error: 'status invalide', status: 400 };
   }
 
@@ -83,7 +83,7 @@ export function validateCardForm(formData: FormData): ValidateCardFormResult {
       language,
       rarity,
       condition,
-      status: status as Exclude<CardStatus, 'sold'>,
+      status: status as Exclude<CardStatus, 'sold' | 'traded'>,
     },
   };
 }

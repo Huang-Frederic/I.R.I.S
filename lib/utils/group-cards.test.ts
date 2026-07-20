@@ -92,4 +92,13 @@ describe('groupCards', () => {
     const groups = groupCards([sold, stock1, stock2]);
     expect(groups[0].count).toBe(2);
   });
+
+  it('count excludes traded rows the same way as sold', () => {
+    const traded = makeCard({ id: 'traded', status: 'traded', date_added: '2026-01-01T00:00:00Z' });
+    const forSale = makeCard({ id: 'fs', status: 'for_sale', date_added: '2026-02-01T00:00:00Z' });
+    const groups = groupCards([traded, forSale]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].head.id).toBe('fs');
+    expect(groups[0].count).toBe(1);
+  });
 });

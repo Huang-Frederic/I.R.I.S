@@ -10,6 +10,7 @@ import { getPartnerListing } from '@/lib/utils/listings';
 import VintedFilters, { INITIAL_FILTERS, type VintedFilterState } from './VintedFilters';
 import VintedRow from './VintedRow';
 import SoldRow from './SoldRow';
+import TradedRow from './TradedRow';
 import EditablePriceCell from './EditablePriceCell';
 import SoldModal, { type SoldEntity } from './SoldModal';
 import RestockToast from './RestockToast';
@@ -32,6 +33,8 @@ import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
 import BulkSelectionBottomBar from './BulkSelectionBottomBar';
 import BulkSoldModal, { type BulkSoldItem } from './BulkSoldModal';
 import BulkSoldRecapModal from './BulkSoldRecapModal';
+import BulkTradeModal from './BulkTradeModal';
+import TradeRecapModal from './TradeRecapModal';
 import { splitPrice } from '@/lib/utils/split-bulk-price';
 import { translateErrorCode } from '@/lib/utils/translate-error';
 import { useUserContext } from '@/lib/hooks/useUserContext';
@@ -110,6 +113,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
   const router = useRouter();
   const t = useTranslations('vinted');
   const tSold = useTranslations('vintedSold');
+  const tTrade = useTranslations('vintedTrade');
   const tErrors = useTranslations('errors');
   const tNav = useTranslations('nav');
   const { myUserId, partnerUserId, partnerName } = useUserContext();
@@ -181,6 +185,13 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
   const { selectionMode, selectedIds, toggleSelect, toggleSelectionMode, cancelSelection } =
     useSelectionMode();
   const [bulkSoldOpen, setBulkSoldOpen] = useState(false);
+  const [bulkTradeOpen, setBulkTradeOpen] = useState(false);
+  const [tradeRecap, setTradeRecap] = useState<{
+    count: number;
+    autoPromoted: number;
+    restocks: RestockAlert[];
+  } | null>(null);
+  const [tradePhotoZoom, setTradePhotoZoom] = useState<string | null>(null);
 
   const { stockCountByGroup, stockBusyKeys, handleSetStockCount } = useStockCount(
     collectionCards,
@@ -451,6 +462,124 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     }
   }
 
+  /**
+   * Bulk trade — the exchange happened OFF Vinted, so both users' ads are
+   * still live for the card group. Per card:
+   *   - PATCH status='traded' (+ shared trade photo URL, uploaded once).
+   *   - stock copy available → silently promote it: the server migrates every
+   *     real listing to the new row, so nothing visibly changes except the
+   *     stock count ("ça bouge pas, ça enlève juste du stock").
+   *   - no stock copy → my listing comes down, and if the partner had one
+   *     they get the usual cleanup notice.
+   */
+  async function handleBulkTrade(cardsToTrade: CardWithListings[], dateIso: string, photo: Blob | null) {
+    // Upload the trade photo once — its URL is stamped on every card. A failed
+    // upload aborts (thrown into the modal) so the user can retry or drop it.
+    let photoUrl: string | null = null;
+    if (photo) {
+      const fd = new FormData();
+      fd.append('image', photo, 'trade.jpg');
+      const res = await fetch('/api/trades/photo', { method: 'POST', body: fd });
+      const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (!res.ok || !json.url) {
+        throw new Error(translateErrorCode(tErrors, json.error) ?? json.error ?? tErrors('unexpected'));
+      }
+      photoUrl = json.url;
+    }
+
+    const restocks: RestockAlert[] = [];
+    const failedPromotes: PromoteCandidate[] = [];
+    const cleanupQueue: Array<{ itemKind: 'card' | 'lot'; itemDisplayName: string }> = [];
+    let okCount = 0;
+    let autoPromoted = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    for (const card of cardsToTrade) {
+      const hadPartnerListing = getPartnerListing(card.listings ?? [], partnerUserId) !== null;
+      try {
+        const res = await fetch(`/api/cards/${card.id}`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ status: 'traded', traded_at: dateIso, trade_photo_url: photoUrl }),
+        });
+        const json = (await res.json()) as {
+          error?: string;
+          restock?: RestockAlert | null;
+          promote?: PromoteCandidate | null;
+        };
+        if (!res.ok) {
+          failCount += 1;
+          const localized = translateErrorCode(tErrors, json.error);
+          errors.push(`${card.card_name}: ${localized ?? json.error ?? tErrors('unexpected')}`);
+          continue;
+        }
+        okCount += 1;
+        setCards((prev) =>
+          prev.map((c): CardWithListings =>
+            c.id === card.id
+              ? {
+                  ...c,
+                  status: 'traded' as const,
+                  traded_at: dateIso,
+                  traded_by_user_id: myUserId,
+                  trade_photo_url: photoUrl,
+                  listings: c.listings.filter((l) => l.user_id !== myUserId),
+                }
+              : c,
+          ),
+        );
+        if (json.restock) restocks.push(json.restock);
+
+        let promoted = false;
+        if (json.promote) {
+          const promoteRes = await fetch(`/api/cards/${json.promote.cardId}`, {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ status: 'for_sale' }),
+          });
+          if (promoteRes.ok) {
+            promoted = true;
+            autoPromoted += 1;
+          } else {
+            // Rare (e.g. concurrent for_sale conflict) — fall back to the
+            // manual BulkPromoteModal. Keep my listing so the migration can
+            // still carry it over when the user resolves it.
+            failedPromotes.push(json.promote);
+          }
+        }
+        if (!promoted) {
+          if (!json.promote) {
+            fetch(`/api/listings/card/${card.id}`, { method: 'DELETE' }).catch(() => {
+              // Silent — best-effort
+            });
+          }
+          if (hadPartnerListing) {
+            cleanupQueue.push({ itemKind: 'card', itemDisplayName: card.card_name });
+          }
+        }
+      } catch (e) {
+        failCount += 1;
+        errors.push(`${card.card_name}: ${e instanceof Error ? e.message : 'network'}`);
+      }
+    }
+
+    if (cleanupQueue.length > 0) setPartnerCleanupQueue(cleanupQueue);
+    if (failedPromotes.length > 0) setBulkPromoteCandidates(failedPromotes);
+
+    if (failCount > 0) {
+      console.warn(`[bulk-trade] ${okCount} échangées, ${failCount} échec(s)`, errors);
+    }
+
+    if (okCount > 0) {
+      setTradeRecap({ count: okCount, autoPromoted, restocks });
+      // Re-sync stock counts + migrated listings written server-side.
+      router.refresh();
+    } else if (failCount > 0) {
+      alert(tTrade('bulkAlertNoSuccess', { failCount, errors: errors.join('\n') }));
+    }
+  }
+
   // After the bulk recap modal closes, open the BulkPromoteModal with all
   // promote candidates at once instead of draining them one-by-one.
   function dismissBulkRecap() {
@@ -460,7 +589,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     if (queue.length > 0) setBulkPromoteCandidates(queue);
   }
 
-  const { forSaleRows, soldRows, soldLotsList, totalVisible } = useMemo(() => {
+  const { forSaleRows, soldRows, tradedRows, soldLotsList, totalVisible } = useMemo(() => {
     // Cards are always Pokémon — hide them when a non-Pokémon brand is selected.
     const showCards = filters.kindFilter === 'cards'
       || (filters.kindFilter === 'all' && (filters.lotBrand === 'all' || filters.lotBrand === 'pokemon'));
@@ -480,6 +609,8 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     const forSale = cards.filter(inActionPile);
     // Sold pile excludes items also in the action pile (no double-rendering).
     const sold = cards.filter((c) => c.status === 'sold' && !inActionPile(c));
+    // Traded pile — same exclusion rule as sold.
+    const traded = cards.filter((c) => c.status === 'traded' && !inActionPile(c));
 
     // Common: search + attribute filters apply to every pile.
     const passesCommon = (c: CardWithListings) =>
@@ -499,6 +630,13 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
       : sold
           .filter(passesCommon)
           .sort((a, b) => (b.date_sold ?? '').localeCompare(a.date_sold ?? ''));
+
+    // Traded pile — gated by the Échangés chip, most recent trades first.
+    const tradedSubset = !showCards || !filters.showTraded
+      ? []
+      : traded
+          .filter(passesCommon)
+          .sort((a, b) => (b.traded_at ?? '').localeCompare(a.traded_at ?? ''));
 
     // Lots: same logic as cards. Any non-for_sale status with my listing up
     // belongs to the action pile (À retirer), not the sold pile. Lots only
@@ -530,13 +668,14 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     return {
       forSaleRows,
       soldRows: soldSubset,
+      tradedRows: tradedSubset,
       soldLotsList,
-      totalVisible: finalForSale.length + soldSubset.length + forSaleLots.length + soldLotsList.length,
+      totalVisible: finalForSale.length + soldSubset.length + tradedSubset.length + forSaleLots.length + soldLotsList.length,
     };
   }, [cards, lots, filters, now, myUserId, partnerUserId]);
 
   const isEmpty =
-    forSaleRows.length === 0 && soldRows.length === 0 && soldLotsList.length === 0;
+    forSaleRows.length === 0 && soldRows.length === 0 && tradedRows.length === 0 && soldLotsList.length === 0;
 
   return (
     <div>
@@ -616,6 +755,14 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           {soldRows.map((c) => (
             <SoldRow key={c.id} card={c} onAnnonceClick={(card) => setAnnonceTarget(card)} />
           ))}
+          {tradedRows.map((c) => (
+            <TradedRow
+              key={c.id}
+              card={c}
+              onImageClick={(card) => setZoomCard(card)}
+              onTradePhotoClick={(url) => setTradePhotoZoom(url)}
+            />
+          ))}
           {soldLotsList.map((l) => (
             <LotSoldRow
               key={`sold-lot-${l.id}`}
@@ -636,6 +783,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
             lotCount={selectedLots.length}
             onCancel={cancelSelection}
             onConfirm={() => setBulkSoldOpen(true)}
+            onTrade={() => setBulkTradeOpen(true)}
           />
         );
       })()}
@@ -659,6 +807,28 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           />
         );
       })()}
+
+      {bulkTradeOpen && (
+        <BulkTradeModal
+          cards={cards.filter((c) => c.status === 'for_sale' && selectedIds.has(c.id))}
+          onClose={() => setBulkTradeOpen(false)}
+          onConfirm={async (dateIso, photo) => {
+            const selectedCards = cards.filter((c) => c.status === 'for_sale' && selectedIds.has(c.id));
+            await handleBulkTrade(selectedCards, dateIso, photo);
+            setBulkTradeOpen(false);
+            cancelSelection();
+          }}
+        />
+      )}
+
+      {tradeRecap && (
+        <TradeRecapModal
+          count={tradeRecap.count}
+          autoPromoted={tradeRecap.autoPromoted}
+          restocks={tradeRecap.restocks}
+          onClose={() => setTradeRecap(null)}
+        />
+      )}
 
       {bulkRecap && (
         <BulkSoldRecapModal
@@ -712,7 +882,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
         and bulk-promote queue both finish. Same modal as the single-item
         flow, surfaced for each unreplaced sold item that had a partner
         listing. */}
-      {!bulkRecap && bulkPromoteCandidates.length === 0 && partnerCleanupQueue.length > 0 && partnerName && (
+      {!bulkRecap && !tradeRecap && bulkPromoteCandidates.length === 0 && partnerCleanupQueue.length > 0 && partnerName && (
         <PartnerCleanupModal
           partnerName={partnerName}
           items={partnerCleanupQueue.map((e) => ({ displayName: e.itemDisplayName, kind: e.itemKind }))}
@@ -762,6 +932,13 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           src={cardImageUrl(zoomCard)}
           alt={zoomCard.card_name}
           onClose={() => setZoomCard(null)}
+        />
+      )}
+      {tradePhotoZoom && (
+        <CardZoomModal
+          src={tradePhotoZoom}
+          alt={tTrade('photoPreviewAlt')}
+          onClose={() => setTradePhotoZoom(null)}
         />
       )}
       {comparePair && (

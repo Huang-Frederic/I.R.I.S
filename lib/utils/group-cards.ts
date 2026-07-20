@@ -61,10 +61,10 @@ export function groupCards(cards: Card[]): CardGroup[] {
     // and the partner's stale listing) when it should render as the active
     // for-sale row. Falls back to oldest when no for_sale is present.
     const activeForSale = bucket.find((c) => c.status === 'for_sale');
-    // Count = active rows only (exclude sold history). Otherwise a group
-    // with [1 sold, 1 for_sale] would display "x2" when only 1 copy is
+    // Count = active rows only (exclude sold/traded history). Otherwise a
+    // group with [1 sold, 1 for_sale] would display "x2" when only 1 copy is
     // actually present right now.
-    const activeCount = bucket.filter((c) => c.status !== 'sold').length;
+    const activeCount = bucket.filter((c) => c.status !== 'sold' && c.status !== 'traded').length;
     groups.push({
       key,
       cards: bucket,

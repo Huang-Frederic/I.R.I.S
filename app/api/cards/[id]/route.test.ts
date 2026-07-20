@@ -177,6 +177,45 @@ describe('PATCH /api/cards/[id]', () => {
     expect(json.restock).toBeNull();
   });
 
+  it('marks traded with photo + date and fires the same restock detection as sold', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    const traded = { id: 'abc', status: 'traded', pokemon_number: 25, pokemon_name: 'Pikachu' };
+    const updSingle = vi.fn().mockResolvedValue({ data: traded, error: null });
+    const update = vi.fn((_payload: Record<string, unknown>) => ({ eq: () => ({ select: () => ({ single: updSingle }) }) }));
+
+    const forSaleEq2 = vi.fn(() => Promise.resolve({ data: [], error: null }));
+    const forSaleSelect = vi.fn(() => ({ eq: () => ({ eq: forSaleEq2 }) }));
+    const stockEq2 = vi.fn(() => Promise.resolve({ data: [], error: null }));
+    const stockSelect = vi.fn(() => ({ eq: () => ({ eq: stockEq2 }) }));
+    const pokedexMaybe = vi.fn(() => Promise.resolve({ data: { pokemon_name: 'Pikachu' }, error: null }));
+    const pokedexSelect = vi.fn(() => ({ eq: () => ({ eq: () => ({ maybeSingle: pokedexMaybe }) }) }));
+
+    supabaseMock.from
+      .mockReturnValueOnce({ update })
+      .mockReturnValueOnce({ select: forSaleSelect })
+      .mockReturnValueOnce({ select: stockSelect })
+      .mockReturnValueOnce({ select: pokedexSelect });
+
+    const res = await PATCH(
+      makeRequest({ status: 'traded', traded_at: '2026-07-01T12:00:00Z', trade_photo_url: 'https://x/photo.jpg' }),
+      ctx('abc'),
+    );
+    const json = await res.json();
+    expect(res.status).toBe(200);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'traded',
+        traded_at: '2026-07-01T12:00:00Z',
+        traded_by_user_id: 'u',
+        trade_photo_url: 'https://x/photo.jpg',
+      }),
+    );
+    // A trade must never stamp the sold fields.
+    expect(update.mock.calls[0][0]).not.toHaveProperty('sold_by_user_id');
+    expect(update.mock.calls[0][0]).not.toHaveProperty('date_sold');
+    expect(json.restock).toEqual({ pokemon_number: 25, pokemon_name: 'Pikachu' });
+  });
+
   it('returns 404 when the row does not exist', async () => {
     supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
     const single = vi.fn().mockResolvedValue({

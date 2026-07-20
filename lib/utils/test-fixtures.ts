@@ -51,6 +51,9 @@ const CARD_DEFAULTS: Card = {
   date_sold: null,
   sold_price: null,
   sold_by_user_id: null,
+  traded_at: null,
+  traded_by_user_id: null,
+  trade_photo_url: null,
   notes: null,
   variant: null,
 };

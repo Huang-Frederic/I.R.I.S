@@ -203,7 +203,7 @@ export default function VintedRow({
 
           {isOnline && !selectionMode && (
             <>
-              {group.head.status !== 'sold' && (
+              {group.head.status !== 'sold' && group.head.status !== 'traded' && (
                 <button
                   type="button"
                   onClick={onSoldClick}

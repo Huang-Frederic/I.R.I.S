@@ -11,6 +11,7 @@ const NONE: ChipState = {
   showOffline: false,
   showStale: false,
   showSold: false,
+  showTraded: false,
 };
 
 const offline = null;
@@ -111,6 +112,17 @@ describe('shouldHideForSalePile', () => {
   it('returns false when only state chips (no showSold) are active', () => {
     expect(shouldHideForSalePile({ ...NONE, showOnline: true })).toBe(false);
     expect(shouldHideForSalePile({ ...NONE, showStale: true })).toBe(false);
+  });
+
+  it('showTraded alone (or with showSold) hides the pile — history-only views', () => {
+    expect(shouldHideForSalePile({ ...NONE, showTraded: true })).toBe(true);
+    expect(shouldHideForSalePile({ ...NONE, showTraded: true, showSold: true })).toBe(true);
+  });
+
+  it('returns false when showTraded combines with any state chip', () => {
+    expect(shouldHideForSalePile({ ...NONE, showTraded: true, showOnline: true })).toBe(false);
+    expect(shouldHideForSalePile({ ...NONE, showTraded: true, showOffline: true })).toBe(false);
+    expect(shouldHideForSalePile({ ...NONE, showTraded: true, showStale: true })).toBe(false);
   });
 });
 

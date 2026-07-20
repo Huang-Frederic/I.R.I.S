@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Search, Globe, GlobeLock, Tag, RefreshCw, CheckSquare, Square, User, ChevronDown, ArrowUpNarrowWide, ArrowDownNarrowWide } from 'lucide-react';
+import { Search, Globe, GlobeLock, Tag, RefreshCw, CheckSquare, Square, User, ChevronDown, ArrowUpNarrowWide, ArrowDownNarrowWide, ArrowLeftRight } from 'lucide-react';
 import { UI_LANGUAGES, type CardLanguage, type CardRarity } from '@/lib/types';
 import { type MultiUserChip } from '@/lib/utils/vinted-filter';
 import { useUserContext } from '@/lib/hooks/useUserContext';
@@ -21,6 +21,7 @@ export interface VintedFilterState {
   showOnline: boolean;     // include for_sale where I have a listing (fresh)
   showOffline: boolean;    // include for_sale where I have no listing
   showSold: boolean;       // include sold cards (individual rows)
+  showTraded: boolean;     // include traded cards (individual rows)
   showStale: boolean;      // restrict to "à rafraîchir" (>21j)
   multiUserChip: MultiUserChip;
   sortDirection: 'asc' | 'desc';
@@ -36,6 +37,7 @@ export const INITIAL_FILTERS: VintedFilterState = {
   showOnline: false,
   showOffline: false,
   showSold: false,
+  showTraded: false,
   showStale: false,
   multiUserChip: 'all',
   sortDirection: 'asc',
@@ -62,10 +64,10 @@ interface Props {
   hasPartner: boolean;
 }
 
-type ChipKey = 'showOnline' | 'showOffline' | 'showSold' | 'showStale';
+type ChipKey = 'showOnline' | 'showOffline' | 'showSold' | 'showTraded' | 'showStale';
 interface Chip {
   key: ChipKey;
-  labelKey: 'chipOnline' | 'chipOffline' | 'chipSold' | 'chipStale';
+  labelKey: 'chipOnline' | 'chipOffline' | 'chipSold' | 'chipTraded' | 'chipStale';
   icon: React.ComponentType<{ className?: string }>;
 }
 
@@ -73,6 +75,7 @@ const CHIPS: Chip[] = [
   { key: 'showOnline', labelKey: 'chipOnline', icon: Globe },
   { key: 'showOffline', labelKey: 'chipOffline', icon: GlobeLock },
   { key: 'showSold', labelKey: 'chipSold', icon: Tag },
+  { key: 'showTraded', labelKey: 'chipTraded', icon: ArrowLeftRight },
   { key: 'showStale', labelKey: 'chipStale', icon: RefreshCw },
 ];
 
