@@ -6,6 +6,18 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-07-20 — v1.2.0: agrégateur d'événements Pokémon des boutiques locales
+
+Le localisateur officiel Play! Pokémon est protégé par un anti-bot Imperva + hCaptcha (rejouer son API → 403, et les événements boutique exigent un login) — inexploitable proprement. À la place, IRIS agrège directement les sites des boutiques, chacun via son propre **extracteur isolé**, tous normalisés vers un format commun.
+
+- **Architecture ouverte/fermée** — `scripts/store-events/` : `core.ts` (le moteur, lit la liste et écrit en base), `types.ts` (le format `StoreEvent` commun), `sources.ts` (LA LISTE : chaque boutique + son extracteur), et `extractors/` (un fichier par boutique). **Ajouter une boutique = 1 nouveau fichier + 1 ligne dans `sources.ts`** ; le moteur, les types et les autres extracteurs ne sont jamais touchés. Le core remplace les lignes d'une source à chaque passe **réussie** (une boutique momentanément en panne ne vide jamais ses événements).
+- **2 extracteurs de départ, prouvés en live** — Loufoque (Shopify `products.json`) et Les Gentlemen du Jeu (PrestaShop, JSON-LD `ItemList` — sa règle : `?resultsPerPage=99999` + un `Accept` HTML pour éviter la variante AJAX allégée). 13 vrais événements remontés, tous datés et classés (ligues, tournois, avant-premières ME05 « Nuit Noire »). Troll2Jeux / Play-in / Parkage identifiés comme extracteurs suivants (Troll2Jeux étant en rendu JS, il demandera un extracteur navigateur).
+- **Parseur de dates FR** (`lib/parse-french-date.ts`, pur + testé) — les boutiques mettent la date dans le titre (« Jeudi 23 Juillet 2026 », « 02/07/2026 à 18h30 », « (11/07 à 20h) ») ; gère les formats avec/sans année (inférée) et heure. Classificateur de type d'événement partagé.
+- **Table `store_events`** (RLS lecture authentifiée, upsert par `external_id`), **page `/events`** dans IRIS (tri par date, filtres type/ville, recherche), item de nav « Événements », **cron GitHub Action quotidien** (`store-events.yml`, comme la pipeline Cardmarket). i18n ×4 langues.
+- 554 tests verts, typecheck + lint propres.
+
+---
+
 ## 2026-07-20 — v1.1.0: système d'échange, quantité + stock sur les lots, pipeline prix réparée, onboarding des nouveaux sets
 
 - **Pipeline prix Cardmarket réparée** — le commit du 19/07 avait retiré l'entrée `@swc/helpers` du lockfile (« benign optional-dep dedup ») : `npm ci` échouait depuis avec `Missing: @swc/helpers@0.5.23 from lock file`, tuant l'Action GitHub quotidienne (runs 74-75, mails d'échec). Reproduit en local avec un `npm ci` propre sur le lockfile committé ; l'entrée est restaurée, l'Action repasse au vert au prochain run.

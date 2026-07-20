@@ -38,6 +38,7 @@
     "prices": "価格",
     "scanner": "スキャナー",
     "stock": "在庫",
+    "events": "イベント",
     "vinted": "Vinted",
     "agentOnline": "エージェント接続中",
     "agentOffline": "エージェント未接続",
@@ -432,6 +433,25 @@
     "badgeNotPokedex": "ポケデックス未登録",
     "badgeNotPokedexTitle": "このカードをポケデックスに追加",
     "sellerSelf": "自分"
+  },
+  "events": {
+    "metaTitle": "イベント",
+    "pageTitle": "イベント",
+    "pageSubtitle": "今後のイベント {count} 件",
+    "loadError": "読み込みエラー: {message}",
+    "empty": "まだイベントがありません。次回のスクレイピングで取得されます。",
+    "emptyFiltered": "この条件に合うイベントはありません。",
+    "searchPlaceholder": "検索（タイトル・店舗・都市）…",
+    "filterAllTypes": "すべて",
+    "filterAllCities": "すべての都市",
+    "filterCityAria": "都市で絞り込み",
+    "type_prerelease": "先行発売",
+    "type_tournament": "トーナメント",
+    "type_league_cup": "リーグカップ",
+    "type_league_challenge": "リーグチャレンジ",
+    "type_league": "リーグ",
+    "count": "{total} 件中 {visible} 件",
+    "dateOnly": "終日"
   },
   "vintedAnnonce": {
     "modalTitle": "Vinted 出品",

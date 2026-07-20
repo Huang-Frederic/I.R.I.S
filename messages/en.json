@@ -38,6 +38,7 @@
     "prices": "Prices",
     "scanner": "Scanner",
     "stock": "Stock",
+    "events": "Events",
     "vinted": "Vinted",
     "agentOnline": "Agent online",
     "agentOffline": "Agent offline",
@@ -432,6 +433,25 @@
     "badgeNotPokedex": "Not in Pokédex",
     "badgeNotPokedexTitle": "Add this card to the Pokédex",
     "sellerSelf": "Me"
+  },
+  "events": {
+    "metaTitle": "Events",
+    "pageTitle": "Events",
+    "pageSubtitle": "{count} upcoming event(s)",
+    "loadError": "Load error: {message}",
+    "empty": "No events yet. The scraper will pull them on its next run.",
+    "emptyFiltered": "No event matches these filters.",
+    "searchPlaceholder": "Search (title, shop, city)…",
+    "filterAllTypes": "All",
+    "filterAllCities": "All cities",
+    "filterCityAria": "Filter by city",
+    "type_prerelease": "Prerelease",
+    "type_tournament": "Tournament",
+    "type_league_cup": "League Cup",
+    "type_league_challenge": "League Challenge",
+    "type_league": "League",
+    "count": "{visible} of {total}",
+    "dateOnly": "all day"
   },
   "vintedAnnonce": {
     "modalTitle": "Vinted listing",

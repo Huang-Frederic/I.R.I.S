@@ -123,6 +123,23 @@ export interface RarityRank {
   label: string;
 }
 
+export type StoreEventType = 'league' | 'tournament' | 'prerelease' | 'league_cup' | 'league_challenge';
+
+/** A shop event aggregated by the store-events scraper (see scripts/store-events/). */
+export interface StoreEventRow {
+  id: string;
+  source: string;
+  shop_name: string;
+  city: string;
+  title: string;
+  event_type: StoreEventType | null;
+  starts_at: string | null;
+  url: string;
+  price: number | null;
+  external_id: string;
+  scraped_at: string;
+}
+
 /* ----- OCR / enrichment payloads exchanged with the /api routes ----- */
 
 /**

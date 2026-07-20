@@ -38,6 +38,7 @@
     "prices": "价格",
     "scanner": "扫描器",
     "stock": "库存",
+    "events": "活动",
     "vinted": "Vinted",
     "agentOnline": "代理已连接",
     "agentOffline": "代理未连接",
@@ -432,6 +433,25 @@
     "badgeNotPokedex": "未入图鉴",
     "badgeNotPokedexTitle": "将此卡牌加入图鉴",
     "sellerSelf": "我"
+  },
+  "events": {
+    "metaTitle": "活动",
+    "pageTitle": "活动",
+    "pageSubtitle": "{count} 个即将举行的活动",
+    "loadError": "加载错误：{message}",
+    "empty": "暂无活动。抓取程序将在下次运行时获取。",
+    "emptyFiltered": "没有符合这些筛选条件的活动。",
+    "searchPlaceholder": "搜索（标题、商店、城市）…",
+    "filterAllTypes": "全部",
+    "filterAllCities": "所有城市",
+    "filterCityAria": "按城市筛选",
+    "type_prerelease": "前发布赛",
+    "type_tournament": "锦标赛",
+    "type_league_cup": "联赛杯",
+    "type_league_challenge": "联赛挑战",
+    "type_league": "联赛",
+    "count": "{total} 中的 {visible}",
+    "dateOnly": "全天"
   },
   "vintedAnnonce": {
     "modalTitle": "Vinted 出售",

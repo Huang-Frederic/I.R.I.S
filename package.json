@@ -26,6 +26,7 @@
     "build-cardmarket-input": "tsx scripts/build-cardmarket-input.ts",
     "scrape-cm-expansion-names": "tsx scripts/scrape-cardmarket-expansion-names.ts",
     "update-expansions": "tsx scripts/update-cardmarket-expansions.ts",
+    "scrape-events": "tsx scripts/store-events/core.ts",
     "reenrich-cards": "tsx scripts/reenrich-existing-cards.ts"
   },
   "dependencies": {

@@ -1,0 +1,33 @@
+# .github/workflows/store-events.yml
+#
+# Daily scrape of local Pokémon shop events into the store_events table.
+# Reads THE LIST (scripts/store-events/sources.ts), runs each extractor, and
+# replaces each source's rows on success. The IRIS /events page reads the table.
+
+name: Scrape store events
+
+on:
+  schedule:
+    - cron: '20 5 * * *' # 05:20 UTC every day
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Scrape events → Supabase
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run scrape-events
