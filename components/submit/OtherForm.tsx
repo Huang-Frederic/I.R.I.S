@@ -36,6 +36,8 @@ export default function OtherForm() {
   const [brand, setBrand] = useState<Brand>(BRANDS[0]);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [dest, setDest] = useState<'for_sale' | 'collection'>('for_sale');
+  const [quantity, setQuantity] = useState('1');
   const [language, setLanguage] = useState<CardLanguage>('JP');
   const [condition, setCondition] = useState<CardCondition>('NM');
   const [extraDescription, setExtraDescription] = useState('');
@@ -104,6 +106,8 @@ export default function OtherForm() {
     if (!name.trim()) return setError(t('errorName'));
     if (price && !Number.isFinite(Number(price.replace(',', '.')))) return setError(t('errorPrice'));
     if (photos.length === 0) return setError(t('errorPhoto'));
+    const qty = parseInt(quantity, 10);
+    if (!Number.isInteger(qty) || qty < 1) return setError(t('errorQuantity'));
 
     setSubmitting(true);
     try {
@@ -115,6 +119,8 @@ export default function OtherForm() {
       if (extraDescription.trim()) fd.set('extra_description', extraDescription.trim());
       fd.set('catalog_id', String(isLot ? CARD_LOTS_CATALOG_ID : CARDS_CATALOG_ID));
       fd.set('is_lot', String(isLot));
+      fd.set('status', dest);
+      fd.set('quantity', String(qty));
       fd.set('brand_id', String(brand.id));
       fd.set('brand_name', brand.vintedName);
       fd.set('brand_label', brand.label === 'Autre' ? '' : brand.label);
@@ -131,6 +137,7 @@ export default function OtherForm() {
       setCondition('NM');
       setExtraDescription('');
       setPhotos([]);
+      setQuantity('1');
       setSubmitting(false);
       setSubmitted(true);
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -220,6 +227,40 @@ export default function OtherForm() {
             className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none"
           />
         </label>
+
+        {/* Destination + quantity */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <span className="text-text-muted mb-1 block text-xs">{t('destLabel')}</span>
+            <div className="flex gap-2">
+              {(['for_sale', 'collection'] as const).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDest(d)}
+                  className={`flex-1 rounded border px-2 py-1.5 text-xs transition-colors ${
+                    dest === d
+                      ? 'border-red bg-red/10 text-text font-medium'
+                      : 'border-border text-text-muted hover:border-red/50'
+                  }`}
+                >
+                  {d === 'for_sale' ? t('destVinted') : t('destStock')}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="block">
+            <span className="text-text-muted text-xs">{t('quantityLabel')}</span>
+            <input
+              type="number"
+              min={1}
+              max={99}
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none"
+            />
+          </label>
+        </div>
 
         {/* Language + Condition */}
         <div className="grid grid-cols-2 gap-3">

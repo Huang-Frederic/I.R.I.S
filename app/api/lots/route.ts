@@ -58,6 +58,18 @@ export async function POST(request: Request): Promise<NextResponse> {
   const brand_label_raw = (formData.get('brand_label') as string | null) ?? null;
   const brand_label = brand_label_raw?.trim() || null;
 
+  // Destination — a lot can be created straight into Stock ('collection').
+  const statusRaw = (formData.get('status') as string | null) ?? 'for_sale';
+  if (statusRaw !== 'for_sale' && statusRaw !== 'collection') {
+    return validationResponse('Field "status" must be for_sale or collection');
+  }
+
+  const quantityRaw = formData.get('quantity') as string | null;
+  const quantity = quantityRaw ? parseInt(quantityRaw, 10) : 1;
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    return validationResponse('Field "quantity" must be an integer >= 1');
+  }
+
   const photos = formData.getAll('photos').filter((p): p is File => p instanceof File && p.size > 0);
   if (photos.length === 0) return validationResponse('At least one photo is required');
 
@@ -70,7 +82,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       condition: condition as CardCondition,
       extra_description,
       price,
-      status: 'for_sale',
+      status: statusRaw,
+      quantity,
       is_lot,
       ...(catalog_id != null && { catalog_id }),
       ...(brand_id != null && { brand_id }),

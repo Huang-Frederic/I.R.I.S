@@ -14,9 +14,11 @@ interface Props {
   onClose: () => void;
   onPriceSaved: (lotId: string, newPrice: number | null) => void;
   onLotDeleted: () => void;
+  /** Called after the lot moved to Stock (status='collection'). */
+  onMovedToStock?: () => void;
 }
 
-export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPriceSaved, onLotDeleted }: Props) {
+export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPriceSaved, onLotDeleted, onMovedToStock }: Props) {
   const t = useTranslations('lots');
   const tCommon = useTranslations('common');
   const initial = buildLotAnnonce({
@@ -35,6 +37,8 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [confirmDeleteLot, setConfirmDeleteLot] = useState(false);
   const [deletingLot, setDeletingLot] = useState(false);
+  const [confirmMoveToStock, setConfirmMoveToStock] = useState(false);
+  const [movingToStock, setMovingToStock] = useState(false);
 
   // Editable price
   const [priceDraft, setPriceDraft] = useState(lot.price !== null ? String(lot.price) : '');
@@ -126,6 +130,32 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
     } finally {
       setDeletingLot(false);
       setConfirmDeleteLot(false);
+    }
+  }
+
+  async function moveToStock() {
+    if (movingToStock) return;
+    setMovingToStock(true);
+    try {
+      // My Vinted ad doesn't survive the move — take the listing down first
+      // (best-effort; the endpoint only ever deletes MY row).
+      await fetch(`/api/listings/lot/${lot.id}`, { method: 'DELETE' }).catch(() => {});
+      const res = await fetch(`/api/lots/${lot.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status: 'collection' }),
+      });
+      if (!res.ok) {
+        console.error(`PATCH /api/lots/${lot.id} status=collection failed (${res.status})`);
+        return;
+      }
+      onMovedToStock?.();
+      onClose();
+    } catch (e) {
+      console.error('moveToStock network error:', e);
+    } finally {
+      setMovingToStock(false);
+      setConfirmMoveToStock(false);
     }
   }
 
@@ -282,7 +312,7 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
             </div>
           </div>
 
-          <div className="border-border col-span-full flex justify-start border-t pt-4 md:col-span-2">
+          <div className="border-border col-span-full flex items-center justify-start gap-4 border-t pt-4 md:col-span-2">
             <button
               type="button"
               onClick={() => setConfirmDeleteLot(true)}
@@ -291,6 +321,16 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
             >
               {t('removeLotLink')}
             </button>
+            {lot.status === 'for_sale' && (
+              <button
+                type="button"
+                onClick={() => setConfirmMoveToStock(true)}
+                disabled={movingToStock}
+                className="text-text-muted hover:text-text hover:underline text-sm disabled:opacity-50"
+              >
+                {t('moveToStockLink')}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -304,6 +344,16 @@ export default function LotAnnonceModal({ lot, storagePublicUrl, onClose, onPric
           busy={deletingLot}
           onConfirm={deleteLot}
           onCancel={() => setConfirmDeleteLot(false)}
+        />
+      )}
+      {confirmMoveToStock && (
+        <ConfirmDialog
+          title={t('moveToStockConfirmTitle')}
+          body={t('moveToStockConfirmBody')}
+          confirmLabel={t('moveToStockConfirmAction')}
+          busy={movingToStock}
+          onConfirm={moveToStock}
+          onCancel={() => setConfirmMoveToStock(false)}
         />
       )}
     </div>

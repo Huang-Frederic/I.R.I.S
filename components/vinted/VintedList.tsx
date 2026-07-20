@@ -209,6 +209,10 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     setLots((prev) => prev.map((l): LotWithListings => (l.id === lotId ? { ...l, price: newPrice } : l)));
   };
 
+  const updateLotQuantity = (lotId: string, quantity: number) => {
+    setLots((prev) => prev.map((l): LotWithListings => (l.id === lotId ? { ...l, quantity } : l)));
+  };
+
   const onListingsChanged = () => router.refresh();
 
   const [soldTarget, setSoldTarget] = useState<SoldEntity | null>(null);
@@ -286,6 +290,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     kind: 'card' | 'lot';
     restock: RestockAlert | null;
     promote: PromoteCandidate | null;
+    split?: { remaining: Lot; soldLot: Lot } | null;
   }) => {
     // Capture partner-listing-state at sale time so we can prompt the user
     // to ask the partner to clean up their Vinted listing if no replacement
@@ -319,6 +324,20 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
       );
       if (info.restock) setRestockAlert(info.restock);
       if (info.promote) setPromoteCandidate(info.promote);
+    } else if (info.split) {
+      // Lot with quantity>1: the server split off a sold clone and decremented
+      // the original. The original keeps its row (and the partner's listing);
+      // my ad was consumed by the sale so prune my listing. The clone joins
+      // the Vendus pile.
+      const { remaining, soldLot } = info.split;
+      setLots((prev) => [
+        ...prev.map((l): LotWithListings =>
+          l.id === info.soldId
+            ? { ...l, ...remaining, listings: l.listings.filter((l2) => l2.user_id !== myUserId) }
+            : l,
+        ),
+        { ...soldLot, listings: [] },
+      ]);
     } else {
       // Lot branch: same optimistic listing-prune so the row leaves the
       // for-sale pile right after sold.
@@ -399,6 +418,9 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           error?: string;
           restock?: RestockAlert | null;
           promote?: PromoteCandidate | null;
+          split?: boolean;
+          lot?: Lot;
+          soldLot?: Lot;
         };
         if (!res.ok) {
           failCount += 1;
@@ -413,6 +435,19 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           setCards((prev) => prev.map((c): CardWithListings => (c.id === id ? { ...c, status: 'sold' as const, sold_price, date_sold: dateSoldIso, sold_by_user_id: myUserId, listings: c.listings.filter((l) => l.user_id !== myUserId) } : c)));
           if (json.restock) restocks.push(json.restock);
           if (json.promote) promotes.push(json.promote);
+        } else if (json.split && json.lot && json.soldLot) {
+          // Quantity>1 lot: original decremented (keeps partner listing), sold
+          // clone appended — see handleSold for the single-item rationale.
+          const remaining = json.lot;
+          const soldClone = json.soldLot;
+          setLots((prev) => [
+            ...prev.map((l): LotWithListings =>
+              l.id === id
+                ? { ...l, ...remaining, listings: l.listings.filter((l2) => l2.user_id !== myUserId) }
+                : l,
+            ),
+            { ...soldClone, listings: [] },
+          ]);
         } else {
           setLots((prev) => prev.map((l): LotWithListings => (l.id === id ? { ...l, status: 'sold' as const, sold_price, date_sold: dateSoldIso, sold_by_user_id: myUserId, listings: l.listings.filter((l2) => l2.user_id !== myUserId) } : l)));
         }
@@ -738,6 +773,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
                 onAnnonceClick={(lot) => setLotAnnonceTarget(lot)}
                 onSoldClick={(lot) => setSoldTarget({ kind: 'lot', lot })}
                 onPriceSaved={updateLotPrice}
+                onQuantitySaved={updateLotQuantity}
                 listings={row.lot.listings ?? []}
                 myUserId={myUserId}
                 partnerUserId={partnerUserId}
@@ -922,6 +958,11 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
             setLotAnnonceTarget((prev) => (prev && prev.id === lotId ? { ...prev, price: newPrice } : prev));
           }}
           onLotDeleted={() => {
+            setLots((prev) => prev.filter((l) => l.id !== lotAnnonceTarget.id));
+            router.refresh();
+          }}
+          onMovedToStock={() => {
+            // The lot left the Vinted pile for /stock — drop it locally.
             setLots((prev) => prev.filter((l) => l.id !== lotAnnonceTarget.id));
             router.refresh();
           }}

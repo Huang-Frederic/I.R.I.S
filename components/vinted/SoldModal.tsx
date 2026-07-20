@@ -21,6 +21,9 @@ interface Props {
     kind: 'card' | 'lot';
     restock: RestockAlert | null;
     promote: PromoteCandidate | null;
+    /** Lot with quantity>1: the server split off a sold clone and decremented
+     *  the original (which keeps its listings and stays for_sale). */
+    split?: { remaining: Lot; soldLot: Lot } | null;
   }) => void;
 }
 
@@ -79,6 +82,7 @@ export default function SoldModal({ entity, onClose, onSold }: Props) {
         kind: entity.kind,
         restock: json.restock ?? null,
         promote: json.promote ?? null,
+        split: json.split ? { remaining: json.lot as Lot, soldLot: json.soldLot as Lot } : null,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

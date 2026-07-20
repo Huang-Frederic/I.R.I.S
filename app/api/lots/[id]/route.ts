@@ -17,10 +17,13 @@ interface PatchBody {
   condition?: CardCondition;
   extra_description?: string | null;
   price?: number | null;
-  status?: 'for_sale' | 'sold';
+  status?: 'for_sale' | 'collection' | 'sold';
+  quantity?: number;
   date_sold?: string | null;
   sold_price?: number | null;
 }
+
+const ALLOWED_LOT_STATUSES: ReadonlySet<string> = new Set(['for_sale', 'collection', 'sold']);
 
 function sanitizeNumber(v: unknown): number | null | undefined {
   if (v === undefined) return undefined;
@@ -64,8 +67,15 @@ export async function PATCH(
     return apiError('invalid_number', { status: 400, message: 'invalid number' });
   }
 
+  if (body.quantity !== undefined) {
+    if (!Number.isInteger(body.quantity) || body.quantity < 1) {
+      return apiError('invalid_number', { status: 400, message: 'quantity must be an integer >= 1' });
+    }
+    update.quantity = body.quantity;
+  }
+
   if (body.status !== undefined) {
-    if (body.status !== 'for_sale' && body.status !== 'sold') {
+    if (!ALLOWED_LOT_STATUSES.has(body.status)) {
       return apiError('invalid_status', { status: 400, message: 'invalid status' });
     }
     update.status = body.status;
@@ -80,6 +90,84 @@ export async function PATCH(
 
   if (Object.keys(update).length === 0) {
     return apiError('no_fields', { status: 400, message: 'no fields to update' });
+  }
+
+  // Selling ONE copy of a quantity>1 lot splits the row: a quantity-1 sold
+  // clone keeps the sale history, the original decrements and stays for_sale
+  // with its listings intact (the partner's ad is still live; mine gets
+  // deleted by the client as usual since that ad was consumed by the sale).
+  if (body.status === 'sold') {
+    const { data: current, error: curErr } = await supabase
+      .from('lots')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (curErr) return apiError('update_failed', { status: 500, message: curErr.message });
+    if (!current) return notFoundResponse('lot');
+
+    const currentQty = (current as { quantity?: number | null }).quantity ?? 1;
+    if (currentQty > 1) {
+      const c = current as Record<string, unknown>;
+      const soldClone = {
+        name: c.name,
+        language: c.language,
+        condition: c.condition,
+        extra_description: c.extra_description,
+        price: c.price,
+        status: 'sold',
+        quantity: 1,
+        date_sold: (update.date_sold as string | undefined) ?? body.date_sold ?? new Date().toISOString(),
+        sold_price: (update.sold_price as number | null | undefined) ?? null,
+        sold_by_user_id: user.id,
+        // Shared storage paths — DELETE guards against removing files still
+        // referenced by another row (see below).
+        photo_url: c.photo_url,
+        photo_urls: c.photo_urls,
+        date_added: c.date_added,
+        catalog_id: c.catalog_id,
+        brand_id: c.brand_id,
+        brand_name: c.brand_name,
+        brand_label: c.brand_label,
+        is_lot: c.is_lot,
+      };
+      const { data: soldLot, error: cloneErr } = await supabase
+        .from('lots')
+        .insert(soldClone)
+        .select('*')
+        .single();
+      if (cloneErr || !soldLot) {
+        return apiError('update_failed', { status: 500, message: cloneErr?.message ?? 'clone failed' });
+      }
+      const { data: remaining, error: decErr } = await supabase
+        .from('lots')
+        .update({ quantity: currentQty - 1 })
+        .eq('id', id)
+        .select('*')
+        .single();
+      if (decErr || !remaining) {
+        return apiError('update_failed', { status: 500, message: decErr?.message ?? 'decrement failed' });
+      }
+
+      void auditLog({
+        actor_type: 'user',
+        actor_user_id: user.id,
+        action: 'lot.status_changed',
+        entity_type: 'lot',
+        entity_id: (soldLot as { id: string }).id,
+        details: {
+          to: 'sold',
+          name: c.name,
+          language: c.language,
+          condition: c.condition,
+          price: c.price,
+          ...(body.sold_price !== undefined && { sold_price: body.sold_price }),
+          split_from: id,
+          remaining_quantity: currentQty - 1,
+        },
+      });
+
+      return NextResponse.json({ lot: remaining, soldLot, split: true });
+    }
   }
 
   const { data: updated, error } = await supabase
@@ -147,12 +235,25 @@ export async function DELETE(
     .eq('id', id)
     .maybeSingle();
 
-  // Best-effort photo deletion (don't block if it fails)
+  // Best-effort photo deletion (don't block if it fails). Split-sold clones
+  // share the original row's storage paths — skip the removal when another
+  // lot row still references the same first path, otherwise deleting the
+  // sold history row would strip the photos off the live lot (or vice versa).
   if (lot && Array.isArray((lot as { photo_urls: unknown }).photo_urls)) {
     const paths = (lot as { photo_urls: string[] }).photo_urls;
     if (paths.length > 0) {
-      const { error: rmErr } = await supabase.storage.from('lot-photos').remove(paths);
-      if (rmErr) console.warn('lot photo delete failed', rmErr);
+      const { data: sharers } = await supabase
+        .from('lots')
+        .select('id')
+        .neq('id', id)
+        .contains('photo_urls', JSON.stringify([paths[0]]))
+        .limit(1);
+      if (sharers && sharers.length > 0) {
+        console.log(`lot ${id}: photos shared with ${sharers[0].id}, skipping storage removal`);
+      } else {
+        const { error: rmErr } = await supabase.storage.from('lot-photos').remove(paths);
+        if (rmErr) console.warn('lot photo delete failed', rmErr);
+      }
     }
   }
 

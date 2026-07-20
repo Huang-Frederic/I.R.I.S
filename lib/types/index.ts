@@ -94,7 +94,10 @@ export interface Lot {
   condition: CardCondition;
   extra_description: string | null;
   price: number | null;
-  status: 'for_sale' | 'sold';
+  /** 'collection' = in Stock (same vocabulary as cards; the UI says "Stock"). */
+  status: 'for_sale' | 'collection' | 'sold';
+  /** Number of identical physical copies. Selling one splits a sold clone off the row. */
+  quantity: number;
   date_sold: string | null;
   sold_price: number | null;
   /** auth.users.id of the user who marked this lot sold. NULL on lots sold before per-user attribution existed. */

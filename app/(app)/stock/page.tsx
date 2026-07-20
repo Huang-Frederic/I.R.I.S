@@ -2,8 +2,9 @@ import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { fetchAllRows } from '@/lib/api/fetch-all';
 import StockList from '@/components/stock/StockList';
+import StockLotSection from '@/components/lots/StockLotSection';
 import PageTitle from '@/components/layout/PageTitle';
-import type { Card } from '@/lib/types';
+import type { Card, Lot } from '@/lib/types';
 
 export async function generateMetadata() {
   const t = await getTranslations('stock');
@@ -30,7 +31,7 @@ export default async function StockPage() {
   // happens client-side.
   // Paginated: Supabase truncates any response at 1000 rows, which would
   // silently hide collection cards / Pokédex badges as the tables grow.
-  const [collectionResult, forSaleResult, pokedexResult] = await Promise.all([
+  const [collectionResult, forSaleResult, pokedexResult, stockLotsResult] = await Promise.all([
     fetchAllRows((from, to) =>
       supabase
         .from('cards')
@@ -56,9 +57,16 @@ export default async function StockPage() {
         .order('id', { ascending: true })
         .range(from, to),
     ),
+    // Lots parked in Stock (status='collection') — rendered in their own
+    // section below the card list.
+    supabase
+      .from('lots')
+      .select('*')
+      .eq('status', 'collection')
+      .order('date_added', { ascending: true }),
   ]);
 
-  const fetchError = collectionResult.error ?? forSaleResult.error ?? pokedexResult.error;
+  const fetchError = collectionResult.error ?? forSaleResult.error ?? pokedexResult.error ?? stockLotsResult.error;
   if (fetchError) {
     return (
       <section>
@@ -69,6 +77,7 @@ export default async function StockPage() {
   }
 
   const cards = (collectionResult.data ?? []) as Card[];
+  const stockLots = (stockLotsResult.data ?? []) as Lot[];
   const forSaleKeys = new Set<string>(
     ((forSaleResult.data ?? []) as ForSaleKeyRow[]).map(makeKey),
   );
@@ -86,6 +95,7 @@ export default async function StockPage() {
       />
       <div className="mt-6">
         <StockList cards={cards} forSaleKeys={forSaleKeys} registered={registered} />
+        <StockLotSection lots={stockLots} />
       </div>
     </section>
   );

@@ -106,6 +106,7 @@ const LOT_DEFAULTS: Lot = {
   extra_description: null,
   price: null,
   status: 'for_sale',
+  quantity: 1,
   date_sold: null,
   sold_price: null,
   sold_by_user_id: null,

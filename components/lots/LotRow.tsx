@@ -10,6 +10,7 @@ import EditablePriceCell from '@/components/vinted/EditablePriceCell';
 import ListingBadges from '@/components/vinted/ListingBadges';
 import VintedPostButton from '@/components/vinted/VintedPostButton'
 import VintedActionModal from '@/components/vinted/VintedActionModal';
+import LotQuantityChip from './LotQuantityChip';
 
 interface Props {
   lot: Lot;
@@ -17,6 +18,7 @@ interface Props {
   onAnnonceClick: (lot: Lot) => void;
   onSoldClick: (lot: Lot) => void;
   onPriceSaved: (lotId: string, newPrice: number | null) => void;
+  onQuantitySaved: (lotId: string, quantity: number) => void;
   listings: LotListing[];
   myUserId: string;
   partnerUserId: string | null;
@@ -33,7 +35,7 @@ interface Props {
 }
 
 export default function LotRow({
-  lot, storagePublicUrl, onAnnonceClick, onSoldClick, onPriceSaved, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onBumpQueued, isBumping, onImageClick, selectionMode, selected, onToggleSelect, vintedEnabled,
+  lot, storagePublicUrl, onAnnonceClick, onSoldClick, onPriceSaved, onQuantitySaved, listings, myUserId, partnerUserId, partnerName, onListingsChanged, onBumpQueued, isBumping, onImageClick, selectionMode, selected, onToggleSelect, vintedEnabled,
 }: Props) {
   const t = useTranslations('lots');
   const myListing = listings.find((l) => l.user_id === myUserId) ?? null;
@@ -112,6 +114,7 @@ export default function LotRow({
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
+        <LotQuantityChip lotId={lot.id} quantity={lot.quantity ?? 1} onSaved={onQuantitySaved} />
         <div className="shrink-0">
           <EditablePriceCell
             cardId={lot.id}
