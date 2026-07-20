@@ -38,13 +38,16 @@ export default function BulkSelectionBottomBar({ cardCount, lotCount, onConfirm,
 
   return (
     <div className="bg-surface border-border fixed inset-x-0 bottom-0 z-40 border-t shadow-lg md:left-[220px]">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 p-3">
-        <p className="text-text text-sm font-medium">{counterText}</p>
-        <div className="flex items-center gap-2">
+      {/* flex-wrap: with three buttons (Annuler / Échanger / Vendre) the row
+          overflows a phone viewport — let the actions drop below the counter
+          instead of clipping off-screen. */}
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 p-2.5 sm:gap-3 sm:p-3">
+        <p className="text-text text-xs font-medium sm:text-sm">{counterText}</p>
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="text-text-muted hover:text-text inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-sm"
+            className="text-text-muted hover:text-text inline-flex items-center gap-1 rounded px-2 py-1.5 text-xs sm:gap-1.5 sm:px-3 sm:text-sm"
           >
             <X className="h-4 w-4" />
             {tCommon('cancel')}
@@ -55,8 +58,8 @@ export default function BulkSelectionBottomBar({ cardCount, lotCount, onConfirm,
               onClick={onTrade}
               className={
                 onConfirm
-                  ? 'bg-surface-2 border-border text-text hover:border-red inline-flex items-center gap-1.5 rounded border px-4 py-1.5 text-sm font-medium'
-                  : 'bg-red text-bg inline-flex items-center gap-1.5 rounded px-4 py-1.5 text-sm font-medium hover:opacity-90'
+                  ? 'bg-surface-2 border-border text-text hover:border-red inline-flex items-center gap-1 rounded border px-2.5 py-1.5 text-xs font-medium sm:gap-1.5 sm:px-4 sm:text-sm'
+                  : 'bg-red text-bg inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-xs font-medium hover:opacity-90 sm:gap-1.5 sm:px-4 sm:text-sm'
               }
             >
               <ArrowLeftRight className="h-4 w-4" />
@@ -67,7 +70,7 @@ export default function BulkSelectionBottomBar({ cardCount, lotCount, onConfirm,
             <button
               type="button"
               onClick={onConfirm}
-              className="bg-red text-bg inline-flex items-center gap-1.5 rounded px-4 py-1.5 text-sm font-medium hover:opacity-90"
+              className="bg-red text-bg inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-xs font-medium hover:opacity-90 sm:gap-1.5 sm:px-4 sm:text-sm"
             >
               <ShoppingCart className="h-4 w-4" />
               {t('bottomBarSell', { count: total })}
