@@ -1,26 +1,29 @@
 /**
- * THE LIST — every shop, its info, and its associated extractor.
+ * THE LIST — the shops that actually get scraped, each paired with its extractor.
  *
- * Adding a shop = (1) create extractors/<shop>.ts, (2) add one line here.
+ * Shop display info (name, city, events URL) lives in the shared directory
+ * lib/data/event-sources.ts. Here we only wire the extractors:
+ *
+ *   Adding a shop = (1) create extractors/<shop>.ts, (2) add its id → extractor
+ *   below (and set scraped:true for it in lib/data/event-sources.ts).
+ *
  * You never touch core.ts, types.ts, or the other extractors.
  */
-import type { Source } from './types';
+import { EVENT_SOURCES } from '../../lib/data/event-sources';
+import type { Extractor, Source } from './types';
 import { loufoque } from './extractors/loufoque';
 import { gentlemen } from './extractors/gentlemen';
 
-export const SOURCES: Source[] = [
-  {
-    id: 'loufoque',
-    name: 'Boutique Loufoque',
-    city: 'Paris',
-    url: 'https://shop.loufoque.fr/collections/tournois-pokemon',
-    extract: loufoque,
-  },
-  {
-    id: 'gentlemen',
-    name: 'Les Gentlemen du Jeu',
-    city: 'Paris',
-    url: 'https://lesgentlemendujeu.com/104-evenements-pokemon',
-    extract: gentlemen,
-  },
-];
+/** id → its extractor. Only shops listed here are scraped. */
+const EXTRACTORS: Record<string, Extractor> = {
+  loufoque,
+  gentlemen,
+};
+
+export const SOURCES: Source[] = EVENT_SOURCES.filter((s) => s.id in EXTRACTORS).map((s) => ({
+  id: s.id,
+  name: s.name,
+  city: s.city,
+  url: s.eventsUrl,
+  extract: EXTRACTORS[s.id],
+}));

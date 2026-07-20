@@ -451,7 +451,14 @@
     "type_league_challenge": "League Challenge",
     "type_league": "Ligue",
     "count": "{visible} sur {total}",
-    "dateOnly": "journée"
+    "dateOnly": "journée",
+    "viewCalendar": "Calendrier",
+    "viewList": "Liste",
+    "calendarPrevMonth": "Mois précédent",
+    "calendarNextMonth": "Mois suivant",
+    "legendTitle": "Boutiques suivies",
+    "legendCount": "{count} évén.",
+    "legendSoon": "à venir"
   },
   "vintedAnnonce": {
     "modalTitle": "Annonce Vinted",

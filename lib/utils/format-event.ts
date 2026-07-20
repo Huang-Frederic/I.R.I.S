@@ -9,6 +9,15 @@ export const EVENT_TYPE_COLOR: Record<StoreEventType, string> = {
   league: 'bg-rarity-uc/20 text-rarity-uc',
 };
 
+/** Solid dot background per event type — for the calendar day markers + legend. */
+export const EVENT_TYPE_DOT: Record<StoreEventType, string> = {
+  prerelease: 'bg-rarity-sar',
+  league_cup: 'bg-rarity-ar',
+  league_challenge: 'bg-rarity-ar',
+  tournament: 'bg-rarity-r',
+  league: 'bg-rarity-uc',
+};
+
 /**
  * Format a store event's UTC `starts_at` for display. Built via Date.UTC by the
  * scraper, so we read it back in UTC to keep the calendar day/time stable.

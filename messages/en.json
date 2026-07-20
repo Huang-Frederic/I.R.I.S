@@ -451,7 +451,14 @@
     "type_league_challenge": "League Challenge",
     "type_league": "League",
     "count": "{visible} of {total}",
-    "dateOnly": "all day"
+    "dateOnly": "all day",
+    "viewCalendar": "Calendar",
+    "viewList": "List",
+    "calendarPrevMonth": "Previous month",
+    "calendarNextMonth": "Next month",
+    "legendTitle": "Tracked shops",
+    "legendCount": "{count} event(s)",
+    "legendSoon": "soon"
   },
   "vintedAnnonce": {
     "modalTitle": "Vinted listing",

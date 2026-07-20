@@ -451,7 +451,14 @@
     "type_league_challenge": "リーグチャレンジ",
     "type_league": "リーグ",
     "count": "{total} 件中 {visible} 件",
-    "dateOnly": "終日"
+    "dateOnly": "終日",
+    "viewCalendar": "カレンダー",
+    "viewList": "リスト",
+    "calendarPrevMonth": "前の月",
+    "calendarNextMonth": "次の月",
+    "legendTitle": "追跡中の店舗",
+    "legendCount": "{count} 件",
+    "legendSoon": "近日"
   },
   "vintedAnnonce": {
     "modalTitle": "Vinted 出品",

@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import PageTitle from '@/components/layout/PageTitle';
-import EventsList from '@/components/events/EventsList';
+import EventsView from '@/components/events/EventsView';
 import type { StoreEventRow } from '@/lib/types';
 
 export async function generateMetadata() {
@@ -40,7 +40,7 @@ export default async function EventsPage() {
     <section>
       <PageTitle title={t('pageTitle')} subtitle={t('pageSubtitle', { count: events.length })} />
       <div className="mt-6">
-        <EventsList events={events} />
+        <EventsView events={events} />
       </div>
     </section>
   );

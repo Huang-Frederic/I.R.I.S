@@ -451,7 +451,14 @@
     "type_league_challenge": "联赛挑战",
     "type_league": "联赛",
     "count": "{total} 中的 {visible}",
-    "dateOnly": "全天"
+    "dateOnly": "全天",
+    "viewCalendar": "日历",
+    "viewList": "列表",
+    "calendarPrevMonth": "上个月",
+    "calendarNextMonth": "下个月",
+    "legendTitle": "关注的商店",
+    "legendCount": "{count} 个活动",
+    "legendSoon": "即将"
   },
   "vintedAnnonce": {
     "modalTitle": "Vinted 出售",
