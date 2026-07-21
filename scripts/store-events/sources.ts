@@ -17,6 +17,9 @@ import type { Extractor, Source } from './types';
 import { loufoque } from './extractors/loufoque';
 import { gentlemen } from './extractors/gentlemen';
 import { playin } from './extractors/playin';
+import { parkage } from './extractors/parkage';
+import { troll2jeux } from './extractors/troll2jeux';
+import { coinDesBarons } from './extractors/coin-des-barons';
 
 /** id → its extractor (+ whether it needs a browser). Only shops listed here are scraped. */
 const EXTRACTORS: Record<string, { fn: Extractor; needsBrowser?: boolean }> = {
@@ -24,6 +27,9 @@ const EXTRACTORS: Record<string, { fn: Extractor; needsBrowser?: boolean }> = {
   gentlemen: { fn: gentlemen },
   'playin-bnf': { fn: playin, needsBrowser: true },
   'playin-rivoli': { fn: playin, needsBrowser: true },
+  parkage: { fn: parkage, needsBrowser: true },
+  troll2jeux: { fn: troll2jeux, needsBrowser: true },
+  'coin-des-barons': { fn: coinDesBarons }, // manual (Instagram poster)
 };
 
 export const SOURCES: Source[] = EVENT_SOURCES.filter((s) => s.id in EXTRACTORS).map((s) => ({

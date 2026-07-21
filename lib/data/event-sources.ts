@@ -64,15 +64,15 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
     name: 'Troll2Jeux',
     city: '',
     eventsUrl: 'https://troll2jeux.com/calendrier?category=10002446',
-    scraped: false,
+    scraped: true,
     color: '#a78bfa', // violet
   },
   {
     id: 'parkage',
-    name: 'Parkage',
-    city: '',
+    name: 'Paris EDB', // the shop behind the Parkage link (shop_id=6)
+    city: 'Paris',
     eventsUrl: 'https://www.parkage.com/en/tournaments-and-events?shop_id=6&category_id=4',
-    scraped: false,
+    scraped: true,
     color: '#f472b6', // pink
   },
   {
@@ -82,6 +82,17 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
     eventsUrl: 'https://shop.cafemeisia.com/events/',
     scraped: false,
     color: '#2dd4bf', // teal
+  },
+  {
+    id: 'coin-des-barons',
+    name: 'Le Coin des Barons',
+    city: 'Paris',
+    // Manual source: their planning is a monthly Instagram poster, so the link
+    // is their Instagram (per Fred's request). Events are transcribed by hand
+    // in extractors/coin-des-barons.ts when a new poster is provided.
+    eventsUrl: 'https://www.instagram.com/lecoindesbaronstcg/',
+    scraped: true,
+    color: '#818cf8', // indigo
   },
 ];
 
