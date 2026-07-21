@@ -72,3 +72,10 @@ export function initialMonth(events: StoreEventRow[], now: Date = new Date()): s
   const months = monthsWithEvents(events);
   return months[0] ?? monthKey(now.getUTCFullYear(), now.getUTCMonth());
 }
+
+/** YYYY-MM-DD of a date in LOCAL time — for the calendar's "today" marker.
+ *  (Day cells are keyed on the UTC day-slice of starts_at; for a FR user the
+ *  two line up, which is all the highlight needs.) */
+export function localDayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}

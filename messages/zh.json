@@ -458,7 +458,8 @@
     "calendarNextMonth": "下个月",
     "legendTitle": "关注的商店",
     "legendCount": "{count} 个活动",
-    "legendSoon": "即将"
+    "legendSoon": "即将",
+    "noEventsThatDay": "当天没有活动。"
   },
   "vintedAnnonce": {
     "modalTitle": "Vinted 出售",

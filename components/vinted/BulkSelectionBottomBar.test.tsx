@@ -19,9 +19,17 @@ describe('<BulkSelectionBottomBar>', () => {
     expect(screen.getByText('bottomBarSell')).toBeInTheDocument();
   });
 
-  it('hides the trade button as soon as a lot is selected (trades are cards-only)', () => {
+  it('still shows the trade button when a lot is also selected (trade acts on the cards only)', () => {
     render(
       <BulkSelectionBottomBar cardCount={3} lotCount={1} onCancel={noop} onConfirm={noop} onTrade={noop} />,
+    );
+    expect(screen.getByText('bottomBarTrade')).toBeInTheDocument();
+    expect(screen.getByText('bottomBarSell')).toBeInTheDocument();
+  });
+
+  it('hides the trade button when only lots are selected (no card to trade)', () => {
+    render(
+      <BulkSelectionBottomBar cardCount={0} lotCount={2} onCancel={noop} onConfirm={noop} onTrade={noop} />,
     );
     expect(screen.queryByText('bottomBarTrade')).toBeNull();
     expect(screen.getByText('bottomBarSell')).toBeInTheDocument();

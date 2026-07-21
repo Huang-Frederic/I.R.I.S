@@ -458,7 +458,8 @@
     "calendarNextMonth": "Mois suivant",
     "legendTitle": "Boutiques suivies",
     "legendCount": "{count} évén.",
-    "legendSoon": "à venir"
+    "legendSoon": "à venir",
+    "noEventsThatDay": "Aucun événement ce jour-là."
   },
   "vintedAnnonce": {
     "modalTitle": "Annonce Vinted",

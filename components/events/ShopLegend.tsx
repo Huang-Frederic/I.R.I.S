@@ -33,6 +33,12 @@ export default function ShopLegend({ events }: { events: StoreEventRow[] }) {
                 rel="noopener noreferrer"
                 className="bg-surface-2 hover:border-red border-border group flex items-center gap-2 rounded border px-3 py-2 text-sm transition-colors"
               >
+                {/* Color swatch — matches this shop's calendar pins */}
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full"
+                  style={{ background: s.color }}
+                  aria-hidden
+                />
                 <span className="min-w-0 flex-1">
                   <span className="text-text block truncate font-medium">{s.name}</span>
                   {s.city && <span className="text-text-muted text-xs">{s.city}</span>}

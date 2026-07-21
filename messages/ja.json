@@ -458,7 +458,8 @@
     "calendarNextMonth": "次の月",
     "legendTitle": "追跡中の店舗",
     "legendCount": "{count} 件",
-    "legendSoon": "近日"
+    "legendSoon": "近日",
+    "noEventsThatDay": "この日にイベントはありません。"
   },
   "vintedAnnonce": {
     "modalTitle": "Vinted 出品",

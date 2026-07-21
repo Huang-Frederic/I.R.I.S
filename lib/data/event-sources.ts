@@ -21,6 +21,9 @@ export interface EventSourceInfo {
   eventsUrl: string;
   /** True once a live extractor feeds this shop into store_events. */
   scraped: boolean;
+  /** Distinct color for this shop — the calendar pins + legend swatch. Hex so
+   *  it survives Tailwind purge (inline style, not a dynamic class). */
+  color: string;
 }
 
 export const EVENT_SOURCES: EventSourceInfo[] = [
@@ -30,6 +33,7 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
     city: 'Paris',
     eventsUrl: 'https://shop.loufoque.fr/collections/tournois-pokemon',
     scraped: true,
+    color: '#38bdf8', // sky
   },
   {
     id: 'gentlemen',
@@ -37,6 +41,7 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
     city: 'Paris',
     eventsUrl: 'https://lesgentlemendujeu.com/104-evenements-pokemon',
     scraped: true,
+    color: '#34d399', // emerald
   },
   {
     id: 'playin-bnf',
@@ -44,6 +49,7 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
     city: 'Paris',
     eventsUrl: 'https://www.play-in.com/fr/evenements/1/paris-bnf?category=12',
     scraped: false,
+    color: '#fbbf24', // amber
   },
   {
     id: 'playin-rivoli',
@@ -51,6 +57,7 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
     city: 'Paris',
     eventsUrl: 'https://www.play-in.com/fr/evenements/3/paris-rivoli?category=12',
     scraped: false,
+    color: '#fb923c', // orange
   },
   {
     id: 'troll2jeux',
@@ -58,6 +65,7 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
     city: '',
     eventsUrl: 'https://troll2jeux.com/calendrier?category=10002446',
     scraped: false,
+    color: '#a78bfa', // violet
   },
   {
     id: 'parkage',
@@ -65,6 +73,7 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
     city: '',
     eventsUrl: 'https://www.parkage.com/en/tournaments-and-events?shop_id=6&category_id=4',
     scraped: false,
+    color: '#f472b6', // pink
   },
   {
     id: 'cafemeisia',
@@ -72,8 +81,14 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
     city: 'Paris',
     eventsUrl: 'https://shop.cafemeisia.com/events/',
     scraped: false,
+    color: '#2dd4bf', // teal
   },
 ];
+
+/** id → hex color, for the calendar pins and legend swatches. */
+export const SHOP_COLORS: Record<string, string> = Object.fromEntries(
+  EVENT_SOURCES.map((s) => [s.id, s.color]),
+);
 
 export function eventSourceById(id: string): EventSourceInfo | undefined {
   return EVENT_SOURCES.find((s) => s.id === id);

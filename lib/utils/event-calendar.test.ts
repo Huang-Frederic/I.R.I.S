@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildMonthGrid, monthsWithEvents, initialMonth } from './event-calendar';
+import { buildMonthGrid, monthsWithEvents, initialMonth, localDayKey } from './event-calendar';
 import type { StoreEventRow } from '@/lib/types';
 
 function ev(starts_at: string | null, id = starts_at ?? 'x'): StoreEventRow {
@@ -53,5 +53,12 @@ describe('initialMonth', () => {
   });
   it('falls back to the current month when nothing is dated', () => {
     expect(initialMonth([ev(null, 'u')], new Date('2026-07-20T00:00:00Z'))).toBe('2026-07');
+  });
+});
+
+describe('localDayKey', () => {
+  it('formats a date as YYYY-MM-DD with zero-padding', () => {
+    expect(localDayKey(new Date(2026, 6, 5))).toBe('2026-07-05'); // month is 0-indexed
+    expect(localDayKey(new Date(2026, 11, 31))).toBe('2026-12-31');
   });
 });

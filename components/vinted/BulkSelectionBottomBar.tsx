@@ -10,8 +10,9 @@ interface Props {
    *  (e.g. /stock, where the bar is trade-only). */
   onConfirm?: () => void;
   onCancel: () => void;
-  /** Opens the bulk-trade modal. The button only shows for card-only selections
-   *  (trades are a card concept — lots stay sell-only). */
+  /** Opens the bulk-trade modal. Shows whenever at least one card is selected
+   *  (the trade flow only ever acts on the selected cards; any selected lots
+   *  are left untouched — lots stay sell-only). */
   onTrade?: () => void;
 }
 
@@ -52,7 +53,7 @@ export default function BulkSelectionBottomBar({ cardCount, lotCount, onConfirm,
             <X className="h-4 w-4" />
             {tCommon('cancel')}
           </button>
-          {onTrade && cardCount > 0 && lotCount === 0 && (
+          {onTrade && cardCount > 0 && (
             <button
               type="button"
               onClick={onTrade}

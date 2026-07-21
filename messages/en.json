@@ -458,7 +458,8 @@
     "calendarNextMonth": "Next month",
     "legendTitle": "Tracked shops",
     "legendCount": "{count} event(s)",
-    "legendSoon": "soon"
+    "legendSoon": "soon",
+    "noEventsThatDay": "No event that day."
   },
   "vintedAnnonce": {
     "modalTitle": "Vinted listing",
