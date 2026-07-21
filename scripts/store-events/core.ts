@@ -22,6 +22,9 @@ import { SOURCES } from './sources';
 import type { Source, StoreEvent } from './types';
 
 const DRY_RUN = process.argv.includes('--dry-run');
+// CI (GitHub Action) passes --no-browser: skip the JS-rendered shops that need
+// a headless browser. Those run on the WSL box alongside the Vinted agent.
+const NO_BROWSER = process.argv.includes('--no-browser');
 
 function toRow(e: StoreEvent) {
   return {
@@ -67,6 +70,10 @@ async function main(): Promise<void> {
   let failSources = 0;
 
   for (const source of SOURCES) {
+    if (source.needsBrowser && NO_BROWSER) {
+      console.log(`↷ ${source.name}: ignoré (--no-browser)`);
+      continue;
+    }
     try {
       const events = await source.extract(source);
       const dated = events.filter((e) => e.startsAt !== null).length;

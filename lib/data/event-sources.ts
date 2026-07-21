@@ -48,7 +48,7 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
     name: 'Playin Paris BNF',
     city: 'Paris',
     eventsUrl: 'https://www.play-in.com/fr/evenements/1/paris-bnf?category=12',
-    scraped: false,
+    scraped: true,
     color: '#fbbf24', // amber
   },
   {
@@ -56,7 +56,7 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
     name: 'Playin Paris Rivoli',
     city: 'Paris',
     eventsUrl: 'https://www.play-in.com/fr/evenements/3/paris-rivoli?category=12',
-    scraped: false,
+    scraped: true,
     color: '#fb923c', // orange
   },
   {

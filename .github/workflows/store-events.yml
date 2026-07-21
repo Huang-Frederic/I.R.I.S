@@ -26,8 +26,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Scrape events → Supabase
+      # --no-browser: skip JS-rendered shops (Play-in, …) that need a headless
+      # browser. Those run on the WSL box alongside the Vinted agent (which
+      # already drives a browser). CI only does the plain-fetch shops.
+      - name: Scrape fetch-based events → Supabase
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npm run scrape-events
+        run: npm run scrape-events -- --no-browser

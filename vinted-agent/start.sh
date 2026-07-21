@@ -48,5 +48,12 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# ── 5. Lance l'agent ─────────────────────────────────────────────────────────
+# ── 5. Rafraîchit les événements boutiques (incl. Play-in via navigateur) ────
+# Idempotent (remplace par source) — non bloquant si un site est down.
+# Le cron GitHub fait déjà les boutiques à fetch simple ; ici on fait TOUT,
+# navigateur compris, puisque cette machine a Chromium.
+echo "🗓  Scraping des événements boutiques..."
+( cd .. && npm run scrape-events ) || echo "⚠  scrape-events a échoué (non bloquant), on continue"
+
+# ── 6. Lance l'agent ─────────────────────────────────────────────────────────
 python3 main.py
