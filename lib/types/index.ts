@@ -135,6 +135,7 @@ export interface StoreEventRow {
   event_type: StoreEventType | null;
   starts_at: string | null;
   ends_at: string | null;
+  spots_left: number | null;
   url: string;
   price: number | null;
   external_id: string;

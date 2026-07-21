@@ -16,8 +16,8 @@ describe('parsePlayinEvents', () => {
 
   it('extracts every timed event under its date header, with the end time', () => {
     expect(events).toHaveLength(4);
-    expect(events[0]).toMatchObject({ dateHeader: 'Mercredi 22 Juillet', hh: 14, mm: 30, endHh: 19, endMm: 0, name: 'Pokémon Coloriage', priceText: 'Gratuit' });
-    expect(events[2]).toMatchObject({ dateHeader: 'Mercredi 22 Juillet', hh: 15, mm: 0, endHh: 19, endMm: 0, name: 'Pokémon Initiation', priceText: '5,00 €' });
+    expect(events[0]).toMatchObject({ dateHeader: 'Mercredi 22 Juillet', hh: 14, mm: 30, endHh: 19, endMm: 0, name: 'Pokémon Coloriage', priceText: 'Gratuit', spotsLeft: null });
+    expect(events[2]).toMatchObject({ dateHeader: 'Mercredi 22 Juillet', hh: 15, mm: 0, endHh: 19, endMm: 0, name: 'Pokémon Initiation', priceText: '5,00 €', spotsLeft: 8 });
   });
 
   it('carries the date header across events until the next one', () => {

@@ -39,6 +39,7 @@ export const parkage: Extractor = async (meta) => {
       title: r.name,
       eventType: classifyEventType(r.name),
       startsAt,
+      spotsLeft: r.spotsLeft,
       url: meta.url,
       price: parseParkagePrice(r.priceText),
       externalId: `${meta.id}:${startsAt.slice(0, 10)}-${r.hh}${r.mm}-${slug}`,

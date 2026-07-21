@@ -459,7 +459,9 @@
     "legendTitle": "Tracked shops",
     "legendCount": "{count} event(s)",
     "legendSoon": "soon",
-    "noEventsThatDay": "No event that day."
+    "noEventsThatDay": "No event that day.",
+    "spotsLeft": "{count} spot(s)",
+    "full": "Full"
   },
   "vintedAnnonce": {
     "modalTitle": "Vinted listing",

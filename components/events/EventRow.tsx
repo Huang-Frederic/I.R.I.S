@@ -62,6 +62,11 @@ export default function EventRow({ event, hideDate = false }: Props) {
           {event.price != null && event.price > 0 && (
             <span className="font-mono">{event.price.toFixed(2)} €</span>
           )}
+          {event.spots_left != null && (
+            <span className={event.spots_left === 0 ? 'text-red font-medium' : 'text-rarity-uc font-medium'}>
+              {event.spots_left === 0 ? t('full') : t('spotsLeft', { count: event.spots_left })}
+            </span>
+          )}
         </div>
       </div>
 

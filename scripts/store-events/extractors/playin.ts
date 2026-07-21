@@ -50,6 +50,7 @@ export const playin: Extractor = async (meta) => {
       eventType: classifyEventType(title),
       startsAt,
       endsAt,
+      spotsLeft: r.spotsLeft,
       url: href ? `${origin}${href}` : meta.url,
       price: parsePlayinPrice(r.priceText),
       externalId: `${meta.id}:${nativeId}`,

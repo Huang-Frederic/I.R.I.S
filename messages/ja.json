@@ -459,7 +459,9 @@
     "legendTitle": "追跡中の店舗",
     "legendCount": "{count} 件",
     "legendSoon": "近日",
-    "noEventsThatDay": "この日にイベントはありません。"
+    "noEventsThatDay": "この日にイベントはありません。",
+    "spotsLeft": "残り {count} 席",
+    "full": "満席"
   },
   "vintedAnnonce": {
     "modalTitle": "Vinted 出品",

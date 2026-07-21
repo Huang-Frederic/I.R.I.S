@@ -28,6 +28,8 @@ export interface RawPlayinEvent {
   name: string;
   /** Raw price cell text ("Gratuit" / "5,00 €"), or null. */
   priceText: string | null;
+  /** Remaining spots ("8 places restantes" → 8), or null when not shown. */
+  spotsLeft: number | null;
 }
 
 export function parsePlayinEvents(lines: string[]): RawPlayinEvent[] {
@@ -49,8 +51,10 @@ export function parsePlayinEvents(lines: string[]): RawPlayinEvent[] {
       nameParts.push(lines[j]);
       j += 1;
     }
-    // Price is the line right after "Voir la description".
+    // Price is the line right after "Voir la description"; the (optional)
+    // "N places restantes" is the line after that.
     const priceText = /^Voir la description/i.test(lines[j] ?? '') ? (lines[j + 1] ?? null) : null;
+    const spotsMatch = (lines[j + 2] ?? '').match(/(\d+)\s+places?\s+restantes?/i);
 
     if (nameParts.length > 0) {
       out.push({
@@ -61,6 +65,7 @@ export function parsePlayinEvents(lines: string[]): RawPlayinEvent[] {
         endMm: tm[4] != null ? Number(tm[4]) : null,
         name: nameParts.join(' ').trim(),
         priceText,
+        spotsLeft: spotsMatch ? Number(spotsMatch[1]) : null,
       });
     }
     i = j; // resume after the name block

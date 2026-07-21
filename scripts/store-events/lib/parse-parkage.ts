@@ -28,6 +28,8 @@ export interface RawParkageEvent {
   mm: number;
   name: string;
   priceText: string | null;
+  /** Remaining tickets ("13 tickets available" → 13), or null. */
+  spotsLeft: number | null;
 }
 
 export function parseParkageEvents(lines: string[]): RawParkageEvent[] {
@@ -43,11 +45,12 @@ export function parseParkageEvents(lines: string[]): RawParkageEvent[] {
     }
     const tm = lines[i].match(TIME);
     if (!tm || !month) continue;
-    // A time row is followed by: name, then price.
+    // A time row is followed by: name, price, then "N tickets available".
     const name = (lines[i + 1] ?? '').trim();
     const priceText = lines[i + 2]?.includes('€') ? lines[i + 2] : null;
+    const spotsMatch = (lines[i + 3] ?? '').match(/(\d+)\s+tickets?\s+available/i);
     if (name && !/€/.test(name)) {
-      out.push({ day, month, hh: Number(tm[1]), mm: Number(tm[2]), name, priceText });
+      out.push({ day, month, hh: Number(tm[1]), mm: Number(tm[2]), name, priceText, spotsLeft: spotsMatch ? Number(spotsMatch[1]) : null });
     }
   }
   return out;

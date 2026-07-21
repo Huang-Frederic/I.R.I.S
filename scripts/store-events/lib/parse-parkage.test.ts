@@ -14,8 +14,8 @@ describe('parseParkageEvents', () => {
 
   it('extracts each event under its EN date header', () => {
     expect(events).toHaveLength(3);
-    expect(events[0]).toMatchObject({ day: 21, month: 7, hh: 18, mm: 30, name: 'Construit BO1', priceText: '10,00 €' });
-    expect(events[1]).toMatchObject({ day: 22, month: 7, hh: 17, mm: 0, name: 'Séance de Ligue', priceText: '0,00 €' });
+    expect(events[0]).toMatchObject({ day: 21, month: 7, hh: 18, mm: 30, name: 'Construit BO1', priceText: '10,00 €', spotsLeft: 0 });
+    expect(events[1]).toMatchObject({ day: 22, month: 7, hh: 17, mm: 0, name: 'Séance de Ligue', priceText: '0,00 €', spotsLeft: 13 });
     expect(events[2]).toMatchObject({ day: 28, month: 7, name: 'Tournoi de Ligue' });
   });
 });

@@ -26,6 +26,8 @@ export interface StoreEvent {
   startsAt: string | null;
   /** Optional end (ISO UTC) — e.g. Play-in "De 14:30 à 19:00". Most extractors leave it undefined. */
   endsAt?: string | null;
+  /** Remaining spots when the source exposes it (Play-in, Parkage). 0 = full. */
+  spotsLeft?: number | null;
   /** Deep link to the event / registration page. */
   url: string;
   price: number | null;

@@ -459,7 +459,9 @@
     "legendTitle": "关注的商店",
     "legendCount": "{count} 个活动",
     "legendSoon": "即将",
-    "noEventsThatDay": "当天没有活动。"
+    "noEventsThatDay": "当天没有活动。",
+    "spotsLeft": "剩 {count} 位",
+    "full": "已满"
   },
   "vintedAnnonce": {
     "modalTitle": "Vinted 出售",

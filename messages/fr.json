@@ -459,7 +459,9 @@
     "legendTitle": "Boutiques suivies",
     "legendCount": "{count} évén.",
     "legendSoon": "à venir",
-    "noEventsThatDay": "Aucun événement ce jour-là."
+    "noEventsThatDay": "Aucun événement ce jour-là.",
+    "spotsLeft": "{count} place(s)",
+    "full": "Complet"
   },
   "vintedAnnonce": {
     "modalTitle": "Annonce Vinted",

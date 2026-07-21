@@ -35,6 +35,7 @@ function toRow(e: StoreEvent) {
     event_type: e.eventType,
     starts_at: e.startsAt,
     ends_at: e.endsAt ?? null,
+    spots_left: e.spotsLeft ?? null,
     url: e.url,
     price: e.price,
     external_id: e.externalId,

@@ -5,7 +5,7 @@ import type { StoreEventRow } from '@/lib/types';
 function ev(starts_at: string | null, id = starts_at ?? 'x'): StoreEventRow {
   return {
     id, source: 's', shop_name: 'S', city: 'Paris', title: 'E', event_type: 'league',
-    starts_at, ends_at: null, url: 'https://x', price: null, external_id: `s:${id}`, scraped_at: '2026-07-01T00:00:00Z',
+    starts_at, ends_at: null, spots_left: null, url: 'https://x', price: null, external_id: `s:${id}`, scraped_at: '2026-07-01T00:00:00Z',
   };
 }
 
