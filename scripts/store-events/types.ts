@@ -24,6 +24,8 @@ export interface StoreEvent {
   eventType: EventType | null;
   /** ISO UTC timestamp, or null when the date couldn't be parsed. */
   startsAt: string | null;
+  /** Optional end (ISO UTC) — e.g. Play-in "De 14:30 à 19:00". Most extractors leave it undefined. */
+  endsAt?: string | null;
   /** Deep link to the event / registration page. */
   url: string;
   price: number | null;

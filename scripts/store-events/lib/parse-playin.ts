@@ -14,13 +14,17 @@
  * them into StoreEvent (date parsing, classify, url) is the extractor's job.
  */
 const WEEKDAY = /^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+\d{1,2}\s+\S/i;
-const TIME = /^De\s+(\d{1,2}):(\d{2})\s+à/i;
+// "De 14:30 à 19:00" — capture both start and (optional) end time.
+const TIME = /^De\s+(\d{1,2}):(\d{2})(?:\s+à\s+(\d{1,2}):(\d{2}))?/i;
 
 export interface RawPlayinEvent {
   /** e.g. "Mercredi 22 Juillet" — no year (extractor infers it). */
   dateHeader: string;
   hh: number;
   mm: number;
+  /** End time on the same day, when the "à HH:MM" part is present. */
+  endHh: number | null;
+  endMm: number | null;
   name: string;
   /** Raw price cell text ("Gratuit" / "5,00 €"), or null. */
   priceText: string | null;
@@ -49,7 +53,15 @@ export function parsePlayinEvents(lines: string[]): RawPlayinEvent[] {
     const priceText = /^Voir la description/i.test(lines[j] ?? '') ? (lines[j + 1] ?? null) : null;
 
     if (nameParts.length > 0) {
-      out.push({ dateHeader: currentDate, hh: Number(tm[1]), mm: Number(tm[2]), name: nameParts.join(' ').trim(), priceText });
+      out.push({
+        dateHeader: currentDate,
+        hh: Number(tm[1]),
+        mm: Number(tm[2]),
+        endHh: tm[3] != null ? Number(tm[3]) : null,
+        endMm: tm[4] != null ? Number(tm[4]) : null,
+        name: nameParts.join(' ').trim(),
+        priceText,
+      });
     }
     i = j; // resume after the name block
   }

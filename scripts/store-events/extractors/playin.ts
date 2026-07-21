@@ -34,6 +34,11 @@ export const playin: Extractor = async (meta) => {
     const title = r.name.replace(/^[^\p{L}\p{N}]+/u, '').trim();
     // Reuse the tested FR date parser: feed it "date à HHhMM" so it gets both.
     const startsAt = parseFrenchDate(`${r.dateHeader} à ${r.hh}h${String(r.mm).padStart(2, '0')}`);
+    // End time (same day): reuse the parsed start day, swap the hours/minutes.
+    const endsAt =
+      startsAt && r.endHh != null
+        ? new Date(new Date(startsAt).setUTCHours(r.endHh, r.endMm ?? 0, 0, 0)).toISOString()
+        : null;
     const href = hrefs[i] ?? '';
     const idMatch = href.match(/\/evenement\/(\d+)/);
     const nativeId = idMatch ? idMatch[1] : `${startsAt ?? r.dateHeader}-${r.hh}${r.mm}-${title.slice(0, 24)}`;
@@ -44,6 +49,7 @@ export const playin: Extractor = async (meta) => {
       title,
       eventType: classifyEventType(title),
       startsAt,
+      endsAt,
       url: href ? `${origin}${href}` : meta.url,
       price: parsePlayinPrice(r.priceText),
       externalId: `${meta.id}:${nativeId}`,

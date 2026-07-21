@@ -30,3 +30,20 @@ export function formatEventDate(iso: string | null): { day: string; time: string
   const time = h === 0 && m === 0 ? null : `${String(h).padStart(2, '0')}h${String(m).padStart(2, '0')}`;
   return { day, time };
 }
+
+function hhmm(d: Date): string {
+  return `${String(d.getUTCHours()).padStart(2, '0')}h${String(d.getUTCMinutes()).padStart(2, '0')}`;
+}
+
+/**
+ * The "→ end" label when an event has an `ends_at`. Same day → just the end
+ * time ("→ 19h00"); a different day → the end date + time.
+ */
+export function formatEventEnd(startsAt: string | null, endsAt: string | null): string | null {
+  if (!endsAt) return null;
+  const end = new Date(endsAt);
+  const sameDay = startsAt != null && startsAt.slice(0, 10) === endsAt.slice(0, 10);
+  if (sameDay) return `→ ${hhmm(end)}`;
+  const day = end.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', timeZone: 'UTC' });
+  return `→ ${day} ${hhmm(end)}`;
+}

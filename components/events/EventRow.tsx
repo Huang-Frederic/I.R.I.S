@@ -1,9 +1,10 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { MapPin, ExternalLink, CalendarDays } from 'lucide-react';
+import { ExternalLink, CalendarDays } from 'lucide-react';
 import type { StoreEventRow, StoreEventType } from '@/lib/types';
-import { EVENT_TYPE_COLOR, formatEventDate } from '@/lib/utils/format-event';
+import { EVENT_TYPE_COLOR, formatEventDate, formatEventEnd } from '@/lib/utils/format-event';
+import { SHOP_COLORS } from '@/lib/data/event-sources';
 
 interface Props {
   event: StoreEventRow;
@@ -15,6 +16,8 @@ interface Props {
 export default function EventRow({ event, hideDate = false }: Props) {
   const t = useTranslations('events');
   const date = formatEventDate(event.starts_at);
+  const endLabel = formatEventEnd(event.starts_at, event.ends_at);
+  const shopColor = SHOP_COLORS[event.source] ?? '#888';
   const typeLabel = (ty: StoreEventType) => t(`type_${ty}`);
 
   return (
@@ -25,6 +28,9 @@ export default function EventRow({ event, hideDate = false }: Props) {
             <>
               <span className="text-text text-xs font-semibold leading-tight" suppressHydrationWarning>{date.day}</span>
               <span className="text-red mt-0.5 font-mono text-[11px]" suppressHydrationWarning>{date.time ?? t('dateOnly')}</span>
+              {endLabel && (
+                <span className="text-text-muted font-mono text-[10px] leading-tight" suppressHydrationWarning>{endLabel}</span>
+              )}
             </>
           ) : (
             <CalendarDays className="text-text-faint h-5 w-5" />
@@ -32,19 +38,27 @@ export default function EventRow({ event, hideDate = false }: Props) {
         </div>
       )}
 
+      {/* Shop color tag — a vertical accent matching the calendar/legend colors */}
+      <span
+        className="w-1 shrink-0 self-stretch rounded-full"
+        style={{ background: shopColor }}
+        aria-hidden
+      />
+
       <div className="min-w-0 flex-1">
         <p className="text-text truncate text-xs font-medium sm:text-sm">{event.title}</p>
         <div className="text-text-muted mt-1 flex flex-wrap items-center gap-1.5 text-[10px] sm:text-xs">
-          {hideDate && date?.time && <span className="text-red font-mono">{date.time}</span>}
+          {hideDate && date?.time && (
+            <span className="text-red font-mono">
+              {date.time}{endLabel ? ` ${endLabel}` : ''}
+            </span>
+          )}
           {event.event_type && (
             <span className={`rounded px-1.5 py-0.5 font-medium ${EVENT_TYPE_COLOR[event.event_type]}`}>
               {typeLabel(event.event_type)}
             </span>
           )}
-          <span className="inline-flex items-center gap-1">
-            <MapPin className="h-3 w-3" />
-            {event.shop_name}{event.city ? ` · ${event.city}` : ''}
-          </span>
+          <span>{event.shop_name}{event.city ? ` · ${event.city}` : ''}</span>
           {event.price != null && event.price > 0 && (
             <span className="font-mono">{event.price.toFixed(2)} €</span>
           )}

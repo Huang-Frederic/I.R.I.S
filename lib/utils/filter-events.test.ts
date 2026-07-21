@@ -5,7 +5,7 @@ import type { StoreEventRow } from '@/lib/types';
 function ev(overrides: Partial<StoreEventRow>): StoreEventRow {
   return {
     id: 'x', source: 's', shop_name: 'Boutique', city: 'Paris', title: 'Tournoi',
-    event_type: 'tournament', starts_at: '2026-07-20T10:00:00.000Z', url: 'https://x',
+    event_type: 'tournament', starts_at: '2026-07-20T10:00:00.000Z', ends_at: null, url: 'https://x',
     price: null, external_id: 's:1', scraped_at: '2026-07-20T00:00:00.000Z', ...overrides,
   };
 }
