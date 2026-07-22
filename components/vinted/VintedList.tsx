@@ -503,6 +503,53 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
   }
 
   /**
+   * Bulk Push/Bump — for every selected for-sale item: publish it if it's
+   * offline, or repost it (delete + republish, to bump it up Vinted's search)
+   * if it's already online. Reuses the per-item bump spinner + job polling.
+   */
+  async function handleBulkPushBump() {
+    const selCards = cards.filter((c) => c.status === 'for_sale' && selectedIds.has(c.id));
+    const selLots = lots.filter((l) => l.status === 'for_sale' && selectedIds.has(l.id));
+    const items = [
+      ...selCards.map((c) => ({ kind: 'card' as const, id: c.id, listings: c.listings as BaseListing[], label: c.card_name })),
+      ...selLots.map((l) => ({ kind: 'lot' as const, id: l.id, listings: l.listings as BaseListing[], label: l.name })),
+    ];
+    let pushed = 0;
+    let bumped = 0;
+    let failed = 0;
+    const errors: string[] = [];
+    for (const it of items) {
+      const online = getMyListing(it.listings ?? [], myUserId)?.vinted_listing_id != null;
+      const endpoint = online ? '/api/vinted/bump-job' : '/api/vinted/post-job';
+      const body = it.kind === 'card' ? { card_id: it.id } : { lot_id: it.id };
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (res.status === 201) {
+          const { job_id } = (await res.json()) as { job_id: string };
+          onBumpQueued(it.id, job_id); // spinner badge + poll + refresh on done
+          if (online) bumped += 1;
+          else pushed += 1;
+        } else {
+          failed += 1;
+          const json = (await res.json().catch(() => ({}))) as { error?: string };
+          errors.push(`${it.label}: ${translateErrorCode(tErrors, json.error) ?? json.error ?? res.status}`);
+        }
+      } catch (e) {
+        failed += 1;
+        errors.push(`${it.label}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+    cancelSelection();
+    if (failed > 0) {
+      alert(tSold('pushBumpResult', { pushed, bumped, failed }) + (errors.length ? `\n\n${errors.join('\n')}` : ''));
+    }
+  }
+
+  /**
    * Bulk trade — the exchange happened OFF Vinted, so both users' ads are
    * still live for the card group. Per card:
    *   - PATCH status='traded' (+ shared trade photo URL, uploaded once).
@@ -822,6 +869,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
             onCancel={cancelSelection}
             onConfirm={() => setBulkSoldOpen(true)}
             onTrade={() => setBulkTradeOpen(true)}
+            onPushBump={handleBulkPushBump}
           />
         );
       })()}

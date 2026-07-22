@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { ArrowLeftRight, ShoppingCart, X } from 'lucide-react';
+import { ArrowLeftRight, Rocket, ShoppingCart, X } from 'lucide-react';
 
 interface Props {
   cardCount: number;
@@ -14,9 +14,12 @@ interface Props {
    *  (the trade flow only ever acts on the selected cards; any selected lots
    *  are left untouched — lots stay sell-only). */
   onTrade?: () => void;
+  /** Push (publish offline items) / Bump (repost online items) the whole
+   *  selection in one go. Acts on both cards and lots. */
+  onPushBump?: () => void;
 }
 
-export default function BulkSelectionBottomBar({ cardCount, lotCount, onConfirm, onCancel, onTrade }: Props) {
+export default function BulkSelectionBottomBar({ cardCount, lotCount, onConfirm, onCancel, onTrade, onPushBump }: Props) {
   const t = useTranslations('vintedSold');
   const tCommon = useTranslations('common');
   const total = cardCount + lotCount;
@@ -53,6 +56,16 @@ export default function BulkSelectionBottomBar({ cardCount, lotCount, onConfirm,
             <X className="h-4 w-4" />
             {tCommon('cancel')}
           </button>
+          {onPushBump && (
+            <button
+              type="button"
+              onClick={onPushBump}
+              className="bg-surface-2 border-border text-text hover:border-red inline-flex items-center gap-1 rounded border px-2.5 py-1.5 text-xs font-medium sm:gap-1.5 sm:px-4 sm:text-sm"
+            >
+              <Rocket className="h-4 w-4" />
+              {t('bottomBarPushBump', { count: total })}
+            </button>
+          )}
           {onTrade && cardCount > 0 && (
             <button
               type="button"

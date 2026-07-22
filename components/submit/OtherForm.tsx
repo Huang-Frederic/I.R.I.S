@@ -33,12 +33,12 @@ export default function OtherForm() {
   const tErrors = useTranslations('errors');
 
   const [isLot, setIsLot] = useState(true);
-  const [brand, setBrand] = useState<Brand>(BRANDS[0]);
+  const [brand, setBrand] = useState<Brand>(() => BRANDS.find((b) => b.label === 'Pokémon') ?? BRANDS[0]);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [dest, setDest] = useState<'for_sale' | 'collection'>('for_sale');
   const [quantity, setQuantity] = useState('1');
-  const [language, setLanguage] = useState<CardLanguage>('JP');
+  const [language, setLanguage] = useState<CardLanguage>('FR');
   const [condition, setCondition] = useState<CardCondition>('NM');
   const [extraDescription, setExtraDescription] = useState('');
   const [photos, setPhotos] = useState<File[]>([]);

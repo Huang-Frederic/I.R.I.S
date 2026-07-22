@@ -2,22 +2,22 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ScanLine, Package, Box } from 'lucide-react';
-import CardScanForm from './CardScanForm';
+import { ScanLine, Box } from 'lucide-react';
 import BatchForm from './BatchForm';
 import OtherForm from './OtherForm';
 
-type Tab = 'mobile' | 'other' | 'batch';
+type Tab = 'batch' | 'other';
 
-const TAB_DEFS: { id: Tab; labelKey: 'tabMobile' | 'tabOther' | 'tabBatch'; icon: typeof ScanLine }[] = [
-  { id: 'mobile', labelKey: 'tabMobile', icon: ScanLine },
+// "Scanner" (batch flow) is the primary tab, shown first + selected by default.
+// "Autre & Lot" (manual lot/single form) sits to its right.
+const TAB_DEFS: { id: Tab; labelKey: 'tabBatch' | 'tabOther'; icon: typeof ScanLine }[] = [
+  { id: 'batch', labelKey: 'tabBatch', icon: ScanLine },
   { id: 'other', labelKey: 'tabOther', icon: Box },
-  { id: 'batch', labelKey: 'tabBatch', icon: Package },
 ];
 
 export default function SubmitTabs() {
   const t = useTranslations('scanner');
-  const [tab, setTab] = useState<Tab>('mobile');
+  const [tab, setTab] = useState<Tab>('batch');
 
   return (
     <div className="flex flex-col gap-6 lg:h-full">
@@ -44,9 +44,8 @@ export default function SubmitTabs() {
       </div>
 
       <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-3">
-        {tab === 'mobile' && <CardScanForm />}
-        {tab === 'other' && <OtherForm />}
         {tab === 'batch' && <BatchForm />}
+        {tab === 'other' && <OtherForm />}
       </div>
     </div>
   );
