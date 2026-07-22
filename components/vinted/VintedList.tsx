@@ -35,6 +35,7 @@ import BulkSoldModal, { type BulkSoldItem } from './BulkSoldModal';
 import BulkSoldRecapModal from './BulkSoldRecapModal';
 import BulkTradeModal from './BulkTradeModal';
 import TradeRecapModal from './TradeRecapModal';
+import PushBumpSentModal from './PushBumpSentModal';
 import { splitPrice } from '@/lib/utils/split-bulk-price';
 import { uploadTradePhoto } from '@/lib/utils/trade-photo';
 import { translateErrorCode } from '@/lib/utils/translate-error';
@@ -193,6 +194,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     restocks: RestockAlert[];
   } | null>(null);
   const [tradePhotoZoom, setTradePhotoZoom] = useState<string | null>(null);
+  const [pushBumpNotif, setPushBumpNotif] = useState<{ pushed: number; bumped: number; failed: number; errors: string[] } | null>(null);
 
   const { stockCountByGroup, stockBusyKeys, handleSetStockCount } = useStockCount(
     collectionCards,
@@ -544,9 +546,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
       }
     }
     cancelSelection();
-    if (failed > 0) {
-      alert(tSold('pushBumpResult', { pushed, bumped, failed }) + (errors.length ? `\n\n${errors.join('\n')}` : ''));
-    }
+    setPushBumpNotif({ pushed, bumped, failed, errors });
   }
 
   /**
@@ -913,6 +913,16 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           autoPromoted={tradeRecap.autoPromoted}
           restocks={tradeRecap.restocks}
           onClose={() => setTradeRecap(null)}
+        />
+      )}
+
+      {pushBumpNotif && (
+        <PushBumpSentModal
+          pushed={pushBumpNotif.pushed}
+          bumped={pushBumpNotif.bumped}
+          failed={pushBumpNotif.failed}
+          errors={pushBumpNotif.errors}
+          onClose={() => setPushBumpNotif(null)}
         />
       )}
 

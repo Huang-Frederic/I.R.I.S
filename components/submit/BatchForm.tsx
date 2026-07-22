@@ -35,6 +35,9 @@ export default function BatchForm() {
   const [progress, setProgress] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [results, setResults] = useState<SaveResult[]>([]);
+  // "Stamp Mode": seeds every reviewed card with the Stamp variant + Stock
+  // destination (still editable per card). Kept for the whole batch.
+  const [stampMode, setStampMode] = useState(false);
 
   function addPhotos(files: FileList | File[]) {
     const arr = Array.from(files)
@@ -179,6 +182,7 @@ export default function BatchForm() {
           initialEnrich={item.enrich}
           onSaved={handleSaved}
           onCancel={handleCancelCurrent}
+          stampMode={stampMode}
         />
       </div>
     );
@@ -197,6 +201,16 @@ export default function BatchForm() {
   return (
     <div className="space-y-4">
       <PhotoDropzone photos={photos} onAdd={addPhotos} onRemove={(i) => setPhotos((prev) => prev.filter((_, j) => j !== i))} />
+      <label className="border-border bg-surface-2 flex cursor-pointer items-center gap-2.5 rounded border p-2.5 text-sm">
+        <input
+          type="checkbox"
+          checked={stampMode}
+          onChange={(e) => setStampMode(e.target.checked)}
+          className="accent-red h-4 w-4 shrink-0"
+        />
+        <span className="font-medium">{t('stampMode')}</span>
+        <span className="text-text-faint text-xs">{t('stampModeHint')}</span>
+      </label>
       <button
         type="button"
         onClick={analyze}
@@ -236,11 +250,11 @@ function PhotoDropzone({
           setDragging(false);
           if (e.dataTransfer.files.length) onAdd(e.dataTransfer.files);
         }}
-        className={`bg-surface-2 mt-2 flex cursor-pointer items-center justify-center rounded border border-dashed p-4 text-sm ${dragging ? 'border-red' : 'border-border'}`}
+        className={`bg-surface-2 mt-2 flex min-h-56 cursor-pointer flex-col items-center justify-center gap-2.5 rounded border border-dashed p-4 text-sm ${dragging ? 'border-red' : 'border-border'}`}
       >
         <input type="file" accept="image/*" multiple onChange={(e) => e.target.files && onAdd(e.target.files)} className="hidden" />
-        <span className="text-text-muted flex items-center gap-2">
-          <Upload className="h-4 w-4" />
+        <span className="text-text-muted flex flex-col items-center gap-2 text-center">
+          <Upload className="h-8 w-8" />
           {t('dropOrClickAdd', { max: MAX_PHOTOS })}
         </span>
       </label>

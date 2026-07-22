@@ -186,6 +186,12 @@ export interface CardScanFormProps {
   initialPhotoFilename?: string;
   initialOcr?: OcrResult;
   initialEnrich?: EnrichResult;
+  /**
+   * "Stamp Mode" (batch): pre-select the Stamp variant + Stock (collection)
+   * destination on every prefilled card, and skip the for_sale/pokédex
+   * suggestion. Still editable per card — it only seeds the defaults.
+   */
+  stampMode?: boolean;
 }
 
 export default function CardScanForm({
@@ -198,6 +204,7 @@ export default function CardScanForm({
   initialPhotoFilename,
   initialOcr,
   initialEnrich,
+  stampMode = false,
 }: CardScanFormProps) {
   const t = useTranslations('scanner');
   const tCommon = useTranslations('common');
@@ -377,6 +384,10 @@ export default function CardScanForm({
         baseForm.pokemon_number = String(lockedPokemonNumber);
         baseForm.pokemon_name = getPokemonName(lockedPokemonNumber, 'fr');
       }
+      if (stampMode) {
+        baseForm.variant = 'stamp';
+        baseForm.status = 'collection';
+      }
       setForm(baseForm);
       setPhase('reviewing');
       return () => URL.revokeObjectURL(previewURL);
@@ -411,9 +422,14 @@ export default function CardScanForm({
       prefill.pokemon_name = getPokemonName(lockedPokemonNumber, 'fr');
     }
 
-    // Fetch suggestion. For non-Pokémon cards (no pokemon_number), set the
-    // banner directly so the user sees "non-Pokémon, pas de slot Pokédex".
-    if (match?.pokemon_number) {
+    // Stamp Mode: force the Stamp variant + Stock (collection) destination, and
+    // skip the for_sale/pokédex suggestion entirely (the user already decided).
+    // Otherwise: fetch the suggestion; for non-Pokémon cards set the banner
+    // directly so the user sees "non-Pokémon, pas de slot Pokédex".
+    if (stampMode) {
+      prefill.variant = 'stamp';
+      prefill.status = 'collection';
+    } else if (match?.pokemon_number) {
       void fetchSuggestion({
         pokemon_number: match.pokemon_number,
         pokemon_name: match.pokemon_name,
