@@ -114,7 +114,11 @@ export default function LotRow({
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
-        <LotQuantityChip lotId={lot.id} quantity={lot.quantity ?? 1} onSaved={onQuantitySaved} />
+        {/* Hide the quantity chip when there's no stock (quantity 0) — a lot
+            still listed with 0 copies shouldn't show "× 0". */}
+        {(lot.quantity ?? 1) > 0 && (
+          <LotQuantityChip lotId={lot.id} quantity={lot.quantity ?? 1} onSaved={onQuantitySaved} />
+        )}
         <div className="shrink-0">
           <EditablePriceCell
             cardId={lot.id}
@@ -160,32 +164,22 @@ export default function LotRow({
 
         {vintedEnabled && isOnline && !selectionMode && myListing?.vinted_listing_id && (
           myListing.vinted_posted_at ? (
-            // Posted via IRIS — active: stale badge + clickable logo opens modal
-            <>
-              {isStale && (
-                <button
-                  type="button"
-                  onClick={() => setActionModalOpen(true)}
-                  className="bg-rarity-ar/20 text-rarity-ar shrink-0 rounded px-1.5 py-0.5 text-[10px] sm:text-xs"
-                  title="Annonce stale — cliquer pour bumper"
-                >
-                  ⏰ Stale
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setActionModalOpen(true)}
-                className="shrink-0 hover:opacity-70 transition-opacity"
-                title="Voir ou bumper l'annonce Vinted"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/vinted-logo.jpeg"
-                  alt="Vinted"
-                  className={`h-6 w-6 rounded sm:h-7 sm:w-7 object-cover ${isStale ? 'ring-2 ring-rarity-ar' : ''}`}
-                />
-              </button>
-            </>
+            // Posted via IRIS — clickable logo opens the bump modal. Stale state
+            // is shown by the orange ring on the logo (the old "⏰ Stale" badge
+            // was a redundant duplicate of that).
+            <button
+              type="button"
+              onClick={() => setActionModalOpen(true)}
+              className="shrink-0 hover:opacity-70 transition-opacity"
+              title="Voir ou bumper l'annonce Vinted"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/vinted-logo.jpeg"
+                alt="Vinted"
+                className={`h-6 w-6 rounded sm:h-7 sm:w-7 object-cover ${isStale ? 'ring-2 ring-rarity-ar' : ''}`}
+              />
+            </button>
           ) : (
             // Posted externally (no vinted_posted_at) — greyed logo, no modal
             // eslint-disable-next-line @next/next/no-img-element
