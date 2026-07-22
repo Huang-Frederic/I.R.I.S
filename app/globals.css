@@ -48,6 +48,15 @@
   /* Vinted brand */
   --color-vinted: #005e68;
 
+  /* Pokéball bottom-nav mark — inverted: a dark cap over a red base, in the
+     site palette. The dark half is fixed to the dark-theme menu surface so it
+     reads as "noir rouge" on either theme; only --color-bar-edge (the nav's
+     notch rim) follows the theme. */
+  --pokeball-dark: #161614; /* upper cap — the dark menu surface */
+  --pokeball-line: #34322f; /* equator band + outline */
+  --pokeball-hub: #e8e6e3; /* centre button */
+  --color-bar-edge: #4a4844; /* nav top edge + the curved notch rim */
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -63,6 +72,10 @@
   --color-text-muted: #6a6862;
   --color-text-faint: #95938e;
   --color-red-bg: #fde8e8;
+
+  /* Pokéball itself stays "noir rouge" in light mode (its dark cap is fixed);
+     only the nav's notch rim follows the theme. */
+  --color-bar-edge: #cfcdc8;
 }
 
 html {
@@ -74,6 +87,39 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Pokéball bubble nav (mobile) — panel pop + staggered item reveal.
+   Kept translateX-free so the centering wrapper (-translate-x-1/2) is untouched. */
+@keyframes iris-bubble-panel {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes iris-bubble-item {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Respect the OS setting: no pop-in, no spin — just show/hide. */
+  [data-iris-bubble-panel],
+  [data-iris-bubble-item] {
+    animation: none !important;
+  }
+  [data-iris-pokeball] {
+    transition: none !important;
+  }
 }
 
 /** Hide the scrollbar visually while keeping the element scrollable. */
