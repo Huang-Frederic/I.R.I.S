@@ -17,26 +17,21 @@ PROXY_PID=$!
 ngrok tcp 1080 --log=stdout > /tmp/ngrok-vinted.log 2>&1 &
 NGROK_PID=$!
 
-# ── 3. Récupère l'URL ngrok via son API locale ───────────────────────────────
+# ── 3. Récupère l'URL ngrok depuis son log ───────────────────────────────
 echo "En attente de ngrok..."
 NGROK_URL=""
 for i in $(seq 1 15); do
     sleep 1
-    NGROK_URL=$(curl -s localhost:4040/api/tunnels 2>/dev/null \
-        | python3 -c "
-import sys, json
-try:
-    tunnels = json.load(sys.stdin).get('tunnels', [])
-    if tunnels:
-        print(tunnels[0]['public_url'].replace('tcp://', 'http://'))
-except Exception:
-    pass
-" 2>/dev/null)
+    # On lit l'URL directement dans le log ngrok (pas via l'API 4040, souvent
+    # déjà prise p.ex. par un IDE JetBrains — c'était la cause de l'échec).
+    NGROK_URL=$(grep -o 'url=tcp://[^ "]*' /tmp/ngrok-vinted.log 2>/dev/null | head -1 | sed 's|url=tcp://|http://|')
     [ -n "$NGROK_URL" ] && break
 done
 
 if [ -z "$NGROK_URL" ]; then
-    echo "❌  ngrok n'a pas démarré (vérifie ton authtoken : ngrok config add-authtoken <token>)"
+    echo "❌  ngrok n'a pas démarré. Dernières lignes du log :"
+    tail -n 5 /tmp/ngrok-vinted.log 2>/dev/null | sed 's/^/    /'
+    echo "   (authtoken manquant ? : ngrok config add-authtoken <token>)"
     kill $PROXY_PID $NGROK_PID 2>/dev/null
     exit 1
 fi
