@@ -42,7 +42,9 @@
     "vinted": "Vinted",
     "agentOnline": "Agent online",
     "agentOffline": "Agent offline",
-    "logs": "Activity"
+    "logs": "Activity",
+    "more": "More",
+    "close": "Close"
   },
   "auth": {
     "credentialsRequired": "Email and password required.",

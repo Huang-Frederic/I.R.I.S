@@ -42,7 +42,9 @@
     "vinted": "Vinted",
     "agentOnline": "エージェント接続中",
     "agentOffline": "エージェント未接続",
-    "logs": "アクティビティ"
+    "logs": "アクティビティ",
+    "more": "その他",
+    "close": "閉じる"
   },
   "auth": {
     "credentialsRequired": "メールアドレスとパスワードが必要です。",

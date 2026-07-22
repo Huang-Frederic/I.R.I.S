@@ -42,7 +42,9 @@
     "vinted": "Vinted",
     "agentOnline": "Agent connecté",
     "agentOffline": "Agent déconnecté",
-    "logs": "Activité"
+    "logs": "Activité",
+    "more": "Plus",
+    "close": "Fermer"
   },
   "auth": {
     "credentialsRequired": "Email et mot de passe requis.",

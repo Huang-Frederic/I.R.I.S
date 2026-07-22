@@ -42,7 +42,9 @@
     "vinted": "Vinted",
     "agentOnline": "代理已连接",
     "agentOffline": "代理未连接",
-    "logs": "活动记录"
+    "logs": "活动记录",
+    "more": "更多",
+    "close": "关闭"
   },
   "auth": {
     "credentialsRequired": "需要邮箱和密码。",
