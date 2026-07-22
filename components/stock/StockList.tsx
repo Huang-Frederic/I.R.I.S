@@ -70,6 +70,15 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setCards(initial); }, [initial]);
   const [filters, setFilters] = useState<StockFilterState>(INITIAL_STOCK_FILTERS);
+  // Client-side paging: render only a window of the (up to ~500) stock rows so
+  // mobile Safari isn't asked to paint the whole list. Filters/selection still
+  // operate on the full set.
+  const [visibleCount, setVisibleCount] = useState(60);
+  useEffect(() => {
+    // Reset the window when filters change so a fresh view starts from the top.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVisibleCount(60);
+  }, [filters]);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   // Bulk trade: select group heads (one physical copy per group, FIFO —
   // same card the row actions target), then mark them traded in one batch.
@@ -278,7 +287,7 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
           </div>
         ) : (
           <ul className="space-y-2">
-            {groups.map((g) => (
+            {groups.slice(0, visibleCount).map((g) => (
               <StockRow
                 key={g.key}
                 group={g}
@@ -295,6 +304,17 @@ export default function StockList({ cards: initial, forSaleKeys, registered }: S
                 onToggleSelect={() => toggleSelect(g.head.id)}
               />
             ))}
+            {groups.length > visibleCount && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((n) => n + 60)}
+                  className="bg-surface-2 border-border text-text-muted hover:text-text w-full rounded border py-2.5 text-sm font-medium transition-colors"
+                >
+                  {t('loadMore', { count: groups.length - visibleCount })}
+                </button>
+              </li>
+            )}
           </ul>
         )}
 

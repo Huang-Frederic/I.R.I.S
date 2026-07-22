@@ -330,6 +330,7 @@
     "conditionPo": "差 (Poor)"
   },
   "stock": {
+    "loadMore": "加载更多 ({count})",
     "metaTitle": "库存 — I.R.I.S",
     "pageTitle": "库存",
     "pageSubtitle": "{count, plural, =0 {收藏中无卡片(未出售)} =1 {收藏中 1 张卡片(未出售)} other {收藏中 # 张卡片(未出售)}}",
@@ -377,6 +378,7 @@
     "deleteFailed": "删除失败 ({status})"
   },
   "vinted": {
+    "loadMore": "加载更多 ({count})",
     "metaTitle": "Vinted — I.R.I.S",
     "pageTitle": "Vinted",
     "pageSubtitle": "{count, plural, =0 {无卡片 — FIFO 排序} =1 {1 张卡片 — FIFO 排序} other {# 张卡片 — FIFO 排序}}",

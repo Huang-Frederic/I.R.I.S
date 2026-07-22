@@ -129,6 +129,15 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
 
   const [filters, setFilters] = useState<VintedFilterState>(INITIAL_FILTERS);
   const [now] = useState(() => Date.now());
+  // Client-side paging: render only a window of the (up to ~600) for-sale rows
+  // so mobile Safari isn't asked to paint the whole list at once. Filters and
+  // selection still operate on the full set.
+  const [visibleForSale, setVisibleForSale] = useState(60);
+  useEffect(() => {
+    // Reset the window when filters change so a fresh view starts from the top.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVisibleForSale(60);
+  }, [filters]);
 
   // Track items with a queued bump (repost) job so the row can show a badge.
   const [bumpingIds, setBumpingIds] = useState<Map<string, string>>(new Map());
@@ -779,7 +788,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
         </div>
       ) : (
         <ul className="space-y-2">
-          {forSaleRows.map((row) =>
+          {forSaleRows.slice(0, visibleForSale).map((row) =>
             row.kind === 'card' ? (
               <VintedRow
                 key={row.group.key}
@@ -836,6 +845,17 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
                 vintedEnabled={vintedEnabled}
               />
             ),
+          )}
+          {forSaleRows.length > visibleForSale && (
+            <li>
+              <button
+                type="button"
+                onClick={() => setVisibleForSale((n) => n + 60)}
+                className="bg-surface-2 border-border text-text-muted hover:text-text w-full rounded border py-2.5 text-sm font-medium transition-colors"
+              >
+                {t('loadMore', { count: forSaleRows.length - visibleForSale })}
+              </button>
+            </li>
           )}
           {soldRows.map((c) => (
             <SoldRow key={c.id} card={c} onAnnonceClick={(card) => setAnnonceTarget(card)} />

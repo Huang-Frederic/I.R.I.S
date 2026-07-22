@@ -330,6 +330,7 @@
     "conditionPo": "Poor"
   },
   "stock": {
+    "loadMore": "Load more ({count})",
     "metaTitle": "Stock — I.R.I.S",
     "pageTitle": "Stock",
     "pageSubtitle": "{count, plural, =0 {No cards in collection (not for sale)} =1 {1 card in collection (not for sale)} other {# cards in collection (not for sale)}}",
@@ -377,6 +378,7 @@
     "deleteFailed": "Delete failed ({status})"
   },
   "vinted": {
+    "loadMore": "Load more ({count})",
     "metaTitle": "Vinted — I.R.I.S",
     "pageTitle": "Vinted",
     "pageSubtitle": "{count, plural, =0 {No cards — FIFO sort} =1 {1 card — FIFO sort} other {# cards — FIFO sort}}",

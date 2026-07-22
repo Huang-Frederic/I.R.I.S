@@ -330,6 +330,7 @@
     "conditionPo": "Mauvais état (Poor)"
   },
   "stock": {
+    "loadMore": "Charger plus ({count})",
     "metaTitle": "Stock — I.R.I.S",
     "pageTitle": "Stock",
     "pageSubtitle": "{count, plural, =0 {Aucune carte en collection (pas en vente)} =1 {1 carte en collection (pas en vente)} other {# cartes en collection (pas en vente)}}",
@@ -377,6 +378,7 @@
     "deleteFailed": "Suppression échouée ({status})"
   },
   "vinted": {
+    "loadMore": "Charger plus ({count})",
     "metaTitle": "Vinted — I.R.I.S",
     "pageTitle": "Vinted",
     "pageSubtitle": "{count, plural, =0 {Aucune carte — tri FIFO} =1 {1 carte — tri FIFO} other {# cartes — tri FIFO}}",
