@@ -6,3 +6,4 @@ __pycache__/
 .pytest_cache/
 login.py
 start_chrome_debug.bat
+cookies.json

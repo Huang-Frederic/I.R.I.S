@@ -89,3 +89,6 @@ docs/screenshots/*.mp4
 # Vinted mitmproxy captures
 vinted_capture.txt
 vinted_ress/
+
+# Machine-transfer bundle (secrets: envs + cookies) — never commit
+iris-mac-transfer/

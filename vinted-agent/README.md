@@ -1,5 +1,32 @@
 # Vinted Agent — Setup
 
+## Onboarder une nouvelle machine (Mac / Windows)
+
+Depuis une machine où tu as exporté tes envs dans un dossier `iris-mac-transfer/`
+à la racine du repo (`env.local`, `vinted-agent.env`, `vinted_users.json`,
+`cookies*.json`) :
+
+**macOS**
+```bash
+cd vinted-agent
+./setup-mac.sh        # une fois : place les envs + installe tout (venv, pproxy, npm, chromium)
+./start-mac.sh        # chaque soir : proxy + ngrok + scraping événements + agent
+```
+
+**Windows** (PowerShell natif, sans WSL)
+```powershell
+cd vinted-agent
+powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1
+powershell -ExecutionPolicy Bypass -File .\start-windows.ps1
+```
+
+Prérequis communs : `ngrok` installé + `ngrok config add-authtoken <token>`.
+Les scripts placent `env.local`→`.env.local`, `vinted-agent.env`→`.env`, et les
+cookies/`vinted_users.json` dans `vinted-agent/`. Supprime `iris-mac-transfer/`
+après (il contient tes secrets — il est gitignoré, jamais committé).
+
+Sur WSL, le launcher historique reste `./start.sh`.
+
 ## Prerequisites
 - Python 3.12 in WSL
 - `pip install -r requirements.txt` done
