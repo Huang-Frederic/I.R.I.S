@@ -76,11 +76,11 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
     color: '#f472b6', // pink
   },
   {
-    id: 'cafemeisia',
-    name: 'Café Meisia',
+    id: 'atmos-arena',
+    name: 'Atmos Arena',
     city: 'Paris',
-    eventsUrl: 'https://shop.cafemeisia.com/events/',
-    scraped: false,
+    eventsUrl: 'https://www.atmos-arena.com/',
+    scraped: false, // WordPress custom events — extractor navigateur à faire
     color: '#2dd4bf', // teal
   },
   {

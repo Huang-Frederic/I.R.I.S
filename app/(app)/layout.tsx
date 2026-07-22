@@ -1,6 +1,5 @@
 import Sidebar from '@/components/layout/Sidebar';
 import BottomNav from '@/components/layout/BottomNav';
-import RouteChangeRefresher from '@/components/layout/RouteChangeRefresher';
 import InstallPrompt from '@/components/layout/InstallPrompt';
 import { UserContextProvider, type UserContextValue } from '@/lib/hooks/useUserContext';
 import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
@@ -35,7 +34,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <UserContextProvider value={userContextValue}>
       <PriceTrendsProvider>
-        <RouteChangeRefresher />
         <div className="min-h-screen overflow-x-hidden">
           <Sidebar />
           {/* env(safe-area-inset-*) are 0 on desktop and on non-standalone browser;

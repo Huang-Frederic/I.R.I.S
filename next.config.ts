@@ -8,6 +8,14 @@ const nextConfig: NextConfig = {
   // Lots can have up to ~10 photos at ~2-3MB each from a phone camera.
   experimental: {
     proxyClientMaxBodySize: '25mb',
+    // Router Cache freshness. dynamic:0 → a revisited dynamic page is refetched
+    // once on navigation (fresh data), which replaces the old
+    // RouteChangeRefresher's manual router.refresh() — that one fired AFTER
+    // every navigation, causing a double server round-trip per page change.
+    staleTimes: {
+      dynamic: 0,
+      static: 180,
+    },
   },
   images: {
     remotePatterns: [

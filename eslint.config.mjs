@@ -23,6 +23,10 @@ const eslintConfig = defineConfig([
     'coverage/**',
     'next-env.d.ts',
     'env/**',
+    // Python virtualenvs (e.g. vinted-agent/.venv from setup-mac.sh) bundle a
+    // Node driver with thousands of .js files — never lint them.
+    '**/.venv/**',
+    '**/venv/**',
     'supabase/.temp/**',
   ]),
 ]);
