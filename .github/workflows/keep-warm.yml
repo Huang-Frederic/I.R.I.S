@@ -1,0 +1,35 @@
+# .github/workflows/keep-warm.yml
+#
+# Pings the deployed app during active hours so Vercel's serverless function
+# stays warm — cuts the ~2-3s cold-start you feel when opening the PWA after
+# a while. Free-tier Vercel spins the function down after inactivity.
+#
+# SETUP (once): add a repo variable APP_URL = your production URL
+#   GitHub → Settings → Secrets and variables → Actions → Variables → New
+#   e.g. https://iris.vercel.app   (NOT the vercel.com dashboard URL)
+
+name: Keep app warm
+
+on:
+  schedule:
+    # Every 10 min, 06:00–23:59 UTC (≈ 08:00–01:59 Paris) — your active hours.
+    # Skips the middle of the night to avoid pointless pings.
+    - cron: '*/10 6-23 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping the app
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "⚠ APP_URL variable not set — add it in repo Settings → Variables. Skipping."
+            exit 0
+          fi
+          # Hit /login (public, light) — enough to wake the function + middleware.
+          code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 30 "$APP_URL/login" || echo "000")
+          echo "GET $APP_URL/login → HTTP $code"
