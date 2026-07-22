@@ -79,8 +79,8 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
     id: 'atmos-arena',
     name: 'Atmos Arena',
     city: 'Paris',
-    eventsUrl: 'https://www.atmos-arena.com/',
-    scraped: false, // WordPress custom events — extractor navigateur à faire
+    eventsUrl: 'https://event.atmos-arena.com/atmosarena/?filtered=1&attr%5Btcg_name%5D=POKEMON',
+    scraped: true, // pretix event list (static HTML, Pokémon-filtered)
     color: '#2dd4bf', // teal
   },
   {

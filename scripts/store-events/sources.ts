@@ -20,6 +20,7 @@ import { playin } from './extractors/playin';
 import { parkage } from './extractors/parkage';
 import { troll2jeux } from './extractors/troll2jeux';
 import { coinDesBarons } from './extractors/coin-des-barons';
+import { atmos } from './extractors/atmos';
 
 /** id → its extractor (+ whether it needs a browser). Only shops listed here are scraped. */
 const EXTRACTORS: Record<string, { fn: Extractor; needsBrowser?: boolean }> = {
@@ -30,6 +31,7 @@ const EXTRACTORS: Record<string, { fn: Extractor; needsBrowser?: boolean }> = {
   parkage: { fn: parkage, needsBrowser: true },
   troll2jeux: { fn: troll2jeux, needsBrowser: true },
   'coin-des-barons': { fn: coinDesBarons }, // manual (Instagram poster)
+  'atmos-arena': { fn: atmos }, // pretix static HTML — no browser needed
 };
 
 export const SOURCES: Source[] = EVENT_SOURCES.filter((s) => s.id in EXTRACTORS).map((s) => ({
