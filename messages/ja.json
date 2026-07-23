@@ -547,6 +547,7 @@
     "bottomBarSell": "選択を販売 ({count})",
     "bottomBarTrade": "選択を交換 ({count})",
     "bottomBarPushBump": "Push / Bump ({count})",
+    "pushBumpSending": "送信中…",
     "pushBumpSentTitle": "送信しました！",
     "pushBumpSentBody": "{pushed}件公開、{bumped}件再投稿。エージェントがバックグラウンドで処理します。",
     "pushBumpFailed": "{count}件失敗",

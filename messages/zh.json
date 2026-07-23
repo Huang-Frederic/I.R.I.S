@@ -547,6 +547,7 @@
     "bottomBarSell": "出售选择 ({count})",
     "bottomBarTrade": "交换所选 ({count})",
     "bottomBarPushBump": "Push / Bump ({count})",
+    "pushBumpSending": "发送中…",
     "pushBumpSentTitle": "已发送！",
     "pushBumpSentBody": "{pushed}个已发布，{bumped}个已重发。代理正在后台处理队列。",
     "pushBumpFailed": "{count}个失败",

@@ -36,6 +36,7 @@ import BulkSoldRecapModal from './BulkSoldRecapModal';
 import BulkTradeModal from './BulkTradeModal';
 import TradeRecapModal from './TradeRecapModal';
 import PushBumpSentModal from './PushBumpSentModal';
+import Modal from '@/components/ui/Modal';
 import { splitPrice } from '@/lib/utils/split-bulk-price';
 import { uploadTradePhoto } from '@/lib/utils/trade-photo';
 import { translateErrorCode } from '@/lib/utils/translate-error';
@@ -204,6 +205,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
   } | null>(null);
   const [tradePhotoZoom, setTradePhotoZoom] = useState<string | null>(null);
   const [pushBumpNotif, setPushBumpNotif] = useState<{ pushed: number; bumped: number; failed: number; errors: string[] } | null>(null);
+  const [pushBumpBusy, setPushBumpBusy] = useState(false);
 
   const { stockCountByGroup, stockBusyKeys, handleSetStockCount } = useStockCount(
     collectionCards,
@@ -519,43 +521,50 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
    * if it's already online. Reuses the per-item bump spinner + job polling.
    */
   async function handleBulkPushBump() {
+    if (pushBumpBusy) return; // guard against double-clicks while the queue is being filled
     const selCards = cards.filter((c) => c.status === 'for_sale' && selectedIds.has(c.id));
     const selLots = lots.filter((l) => l.status === 'for_sale' && selectedIds.has(l.id));
     const items = [
       ...selCards.map((c) => ({ kind: 'card' as const, id: c.id, listings: c.listings as BaseListing[], label: c.card_name })),
       ...selLots.map((l) => ({ kind: 'lot' as const, id: l.id, listings: l.listings as BaseListing[], label: l.name })),
     ];
+    if (items.length === 0) return;
+    setPushBumpBusy(true); // blocks the UI (loading modal) + re-entry until every job is queued
     let pushed = 0;
     let bumped = 0;
     let failed = 0;
     const errors: string[] = [];
-    for (const it of items) {
-      const online = getMyListing(it.listings ?? [], myUserId)?.vinted_listing_id != null;
-      const endpoint = online ? '/api/vinted/bump-job' : '/api/vinted/post-job';
-      const body = it.kind === 'card' ? { card_id: it.id } : { lot_id: it.id };
-      try {
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        if (res.status === 201) {
-          const { job_id } = (await res.json()) as { job_id: string };
-          onBumpQueued(it.id, job_id); // spinner badge + poll + refresh on done
-          if (online) bumped += 1;
-          else pushed += 1;
-        } else {
+    try {
+      for (const it of items) {
+        const online = getMyListing(it.listings ?? [], myUserId)?.vinted_listing_id != null;
+        const endpoint = online ? '/api/vinted/bump-job' : '/api/vinted/post-job';
+        const body = it.kind === 'card' ? { card_id: it.id } : { lot_id: it.id };
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (res.status === 201) {
+            const { job_id } = (await res.json()) as { job_id: string };
+            onBumpQueued(it.id, job_id); // spinner badge + poll + refresh on done
+            if (online) bumped += 1;
+            else pushed += 1;
+          } else {
+            failed += 1;
+            const json = (await res.json().catch(() => ({}))) as { error?: string };
+            errors.push(`${it.label}: ${translateErrorCode(tErrors, json.error) ?? json.error ?? res.status}`);
+          }
+        } catch (e) {
           failed += 1;
-          const json = (await res.json().catch(() => ({}))) as { error?: string };
-          errors.push(`${it.label}: ${translateErrorCode(tErrors, json.error) ?? json.error ?? res.status}`);
+          errors.push(`${it.label}: ${e instanceof Error ? e.message : String(e)}`);
         }
-      } catch (e) {
-        failed += 1;
-        errors.push(`${it.label}: ${e instanceof Error ? e.message : String(e)}`);
       }
+      cancelSelection();
+      setPushBumpNotif({ pushed, bumped, failed, errors });
+    } finally {
+      setPushBumpBusy(false);
     }
-    cancelSelection();
-    setPushBumpNotif({ pushed, bumped, failed, errors });
   }
 
   /**
@@ -934,6 +943,18 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           restocks={tradeRecap.restocks}
           onClose={() => setTradeRecap(null)}
         />
+      )}
+
+      {pushBumpBusy && (
+        <Modal
+          open
+          onClose={() => {}}
+          ariaLabel={tSold('pushBumpSending')}
+          className="bg-surface border-border flex items-center gap-3 rounded-lg border px-6 py-5 shadow-xl"
+        >
+          <span className="border-red h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-t-transparent" aria-hidden />
+          <p className="text-sm font-medium">{tSold('pushBumpSending')}</p>
+        </Modal>
       )}
 
       {pushBumpNotif && (

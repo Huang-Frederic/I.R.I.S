@@ -547,6 +547,7 @@
     "bottomBarSell": "Vendre la sélection ({count})",
     "bottomBarTrade": "Échanger ({count})",
     "bottomBarPushBump": "Push / Bump ({count})",
+    "pushBumpSending": "Envoi en cours…",
     "pushBumpSentTitle": "C'est envoyé !",
     "pushBumpSentBody": "{pushed} publiée(s), {bumped} repostée(s). L'agent traite la file en arrière-plan.",
     "pushBumpFailed": "{count} échec(s)",

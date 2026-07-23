@@ -547,6 +547,7 @@
     "bottomBarSell": "Sell selection ({count})",
     "bottomBarTrade": "Trade selection ({count})",
     "bottomBarPushBump": "Push / Bump ({count})",
+    "pushBumpSending": "Sending…",
     "pushBumpSentTitle": "Sent!",
     "pushBumpSentBody": "{pushed} published, {bumped} reposted. The agent is processing the queue in the background.",
     "pushBumpFailed": "{count} failed",
