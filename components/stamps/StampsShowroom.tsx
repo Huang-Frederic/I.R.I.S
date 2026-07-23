@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Search } from 'lucide-react';
 import { UI_LANGUAGES, type CardLanguage, type CardRarity } from '@/lib/types';
 import { RARITY_COLOR } from '@/lib/utils/labels';
+import CardZoomModal from '@/components/vinted/CardZoomModal';
 
 export interface StampCard {
   id: string;
@@ -32,6 +33,7 @@ export default function StampsShowroom({ cards }: { cards: StampCard[] }) {
   const [search, setSearch] = useState('');
   const [language, setLanguage] = useState<CardLanguage | 'all'>('all');
   const [rarity, setRarity] = useState<CardRarity | 'all'>('all');
+  const [zoomed, setZoomed] = useState<StampCard | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -83,7 +85,12 @@ export default function StampsShowroom({ cards }: { cards: StampCard[] }) {
             const src = c.image_url ?? c.tcg_image_url;
             return (
               <li key={c.id} className="group">
-                <div className="border-border bg-surface-2 relative aspect-[63/88] overflow-hidden rounded-lg border shadow-sm transition-transform duration-150 group-hover:-translate-y-0.5 group-hover:shadow-md">
+                <button
+                  type="button"
+                  onClick={() => src && setZoomed(c)}
+                  aria-label={c.card_name}
+                  className={`border-border bg-surface-2 relative block aspect-[63/88] w-full overflow-hidden rounded-lg border shadow-sm transition-transform duration-150 group-hover:-translate-y-0.5 group-hover:shadow-md ${src ? 'cursor-zoom-in' : 'cursor-default'}`}
+                >
                   {src ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={src} alt={c.card_name} loading="lazy" className="h-full w-full object-cover" />
@@ -98,11 +105,19 @@ export default function StampsShowroom({ cards }: { cards: StampCard[] }) {
                       <span> · {c.language}</span>
                     </p>
                   </div>
-                </div>
+                </button>
               </li>
             );
           })}
         </ul>
+      )}
+
+      {zoomed && (zoomed.image_url ?? zoomed.tcg_image_url) && (
+        <CardZoomModal
+          src={(zoomed.image_url ?? zoomed.tcg_image_url)!}
+          alt={zoomed.card_name}
+          onClose={() => setZoomed(null)}
+        />
       )}
     </div>
   );
