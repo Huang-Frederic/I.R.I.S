@@ -37,6 +37,7 @@
     "pokedex": "宝可梦图鉴",
     "prices": "价格",
     "scanner": "扫描器",
+    "stamps": "Stamps",
     "stock": "库存",
     "events": "活动",
     "vinted": "Vinted",
@@ -328,6 +329,19 @@
     "conditionGd": "良好 (Good)",
     "conditionPl": "已玩 (Played)",
     "conditionPo": "差 (Poor)"
+  },
+  "stamps": {
+    "metaTitle": "Stamps — I.R.I.S",
+    "pageTitle": "Stamps",
+    "pageSubtitle": "你的 Stamp 卡片展示厅 — {count}",
+    "searchPlaceholder": "搜索: 名称、套装…",
+    "language": "语言",
+    "rarity": "稀有度",
+    "allLanguages": "所有语言",
+    "allRarities": "所有稀有度",
+    "count": "{total} 中的 {shown}",
+    "empty": "暂无 Stamp 卡片。",
+    "emptyFiltered": "无卡片匹配筛选条件。"
   },
   "stock": {
     "loadMore": "加载更多 ({count})",

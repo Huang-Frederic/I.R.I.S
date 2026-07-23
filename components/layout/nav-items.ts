@@ -1,9 +1,9 @@
-import { ScanLine, BookOpen, Package, Tag, Settings, BarChart3, TrendingUp, Activity, CalendarDays, type LucideIcon } from 'lucide-react';
+import { ScanLine, BookOpen, Package, Tag, Settings, BarChart3, TrendingUp, Activity, CalendarDays, Stamp, type LucideIcon } from 'lucide-react';
 
 export interface NavItem {
   href: string;
   /** Translation key under the `nav` namespace (e.g. 'dashboard'). */
-  labelKey: 'dashboard' | 'scanner' | 'pokedex' | 'stock' | 'vinted' | 'prices' | 'events' | 'options' | 'logs';
+  labelKey: 'dashboard' | 'scanner' | 'pokedex' | 'stock' | 'vinted' | 'prices' | 'events' | 'options' | 'logs' | 'stamps';
   icon: LucideIcon;
 }
 
@@ -11,6 +11,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', labelKey: 'dashboard', icon: BarChart3 },
   { href: '/prices', labelKey: 'prices', icon: TrendingUp },
   { href: '/pokedex', labelKey: 'pokedex', icon: BookOpen },
+  { href: '/stamps', labelKey: 'stamps', icon: Stamp },
   { href: '/submit', labelKey: 'scanner', icon: ScanLine },
   { href: '/vinted', labelKey: 'vinted', icon: Tag },
   { href: '/stock', labelKey: 'stock', icon: Package },

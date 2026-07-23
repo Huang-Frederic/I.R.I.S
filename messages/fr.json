@@ -37,6 +37,7 @@
     "pokedex": "Pokédex",
     "prices": "Prix",
     "scanner": "Scanner",
+    "stamps": "Stamps",
     "stock": "Stock",
     "events": "Événements",
     "vinted": "Vinted",
@@ -328,6 +329,19 @@
     "conditionGd": "Bon état (Good)",
     "conditionPl": "Joué (Played)",
     "conditionPo": "Mauvais état (Poor)"
+  },
+  "stamps": {
+    "metaTitle": "Stamps — I.R.I.S",
+    "pageTitle": "Stamps",
+    "pageSubtitle": "Le showroom de tes cartes Stamp — {count}",
+    "searchPlaceholder": "Recherche : nom, set…",
+    "language": "Langue",
+    "rarity": "Rareté",
+    "allLanguages": "Toutes langues",
+    "allRarities": "Toutes raretés",
+    "count": "{shown} sur {total}",
+    "empty": "Aucune carte Stamp pour l'instant.",
+    "emptyFiltered": "Aucune carte ne correspond aux filtres."
   },
   "stock": {
     "loadMore": "Charger plus ({count})",

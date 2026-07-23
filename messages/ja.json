@@ -37,6 +37,7 @@
     "pokedex": "ポケモン図鑑",
     "prices": "価格",
     "scanner": "スキャナー",
+    "stamps": "Stamps",
     "stock": "在庫",
     "events": "イベント",
     "vinted": "Vinted",
@@ -328,6 +329,19 @@
     "conditionGd": "Good",
     "conditionPl": "Played",
     "conditionPo": "Poor"
+  },
+  "stamps": {
+    "metaTitle": "Stamps — I.R.I.S",
+    "pageTitle": "Stamps",
+    "pageSubtitle": "スタンプカードのショールーム — {count}",
+    "searchPlaceholder": "検索: 名前、セット…",
+    "language": "言語",
+    "rarity": "レアリティ",
+    "allLanguages": "全ての言語",
+    "allRarities": "全てのレアリティ",
+    "count": "{total}件中{shown}件",
+    "empty": "スタンプカードはまだありません。",
+    "emptyFiltered": "フィルターに一致するカードなし。"
   },
   "stock": {
     "loadMore": "さらに読み込む ({count})",
