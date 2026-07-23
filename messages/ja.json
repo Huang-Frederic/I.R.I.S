@@ -333,6 +333,7 @@
   "stamps": {
     "metaTitle": "Stamps — I.R.I.S",
     "pageTitle": "Stamps",
+    "loadMore": "さらに読み込む ({count})",
     "pageSubtitle": "スタンプカードのショールーム — {count}",
     "searchPlaceholder": "検索: 名前、セット…",
     "language": "言語",

@@ -333,6 +333,7 @@
   "stamps": {
     "metaTitle": "Stamps — I.R.I.S",
     "pageTitle": "Stamps",
+    "loadMore": "Charger plus ({count})",
     "pageSubtitle": "Le showroom de tes cartes Stamp — {count}",
     "searchPlaceholder": "Recherche : nom, set…",
     "language": "Langue",

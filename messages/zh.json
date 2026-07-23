@@ -333,6 +333,7 @@
   "stamps": {
     "metaTitle": "Stamps — I.R.I.S",
     "pageTitle": "Stamps",
+    "loadMore": "加载更多 ({count})",
     "pageSubtitle": "你的 Stamp 卡片展示厅 — {count}",
     "searchPlaceholder": "搜索: 名称、套装…",
     "language": "语言",

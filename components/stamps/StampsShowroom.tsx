@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Search } from 'lucide-react';
 import { UI_LANGUAGES, type CardLanguage, type CardRarity } from '@/lib/types';
@@ -34,6 +34,13 @@ export default function StampsShowroom({ cards }: { cards: StampCard[] }) {
   const [language, setLanguage] = useState<CardLanguage | 'all'>('all');
   const [rarity, setRarity] = useState<CardRarity | 'all'>('all');
   const [zoomed, setZoomed] = useState<StampCard | null>(null);
+  // Client-side paging: render a window of 50 cards + a "load more" button.
+  const [visibleCount, setVisibleCount] = useState(50);
+  useEffect(() => {
+    // Reset the window whenever a filter changes so a fresh view starts full.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVisibleCount(50);
+  }, [search, language, rarity]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -81,7 +88,7 @@ export default function StampsShowroom({ cards }: { cards: StampCard[] }) {
         </div>
       ) : (
         <ul className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8">
-          {filtered.map((c) => {
+          {filtered.slice(0, visibleCount).map((c) => {
             const src = c.image_url ?? c.tcg_image_url;
             return (
               <li key={c.id} className="group">
@@ -109,6 +116,17 @@ export default function StampsShowroom({ cards }: { cards: StampCard[] }) {
               </li>
             );
           })}
+          {filtered.length > visibleCount && (
+            <li className="col-span-full">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((n) => n + 50)}
+                className="bg-surface-2 border-border text-text-muted hover:text-text w-full rounded border py-2.5 text-sm font-medium transition-colors"
+              >
+                {t('loadMore', { count: filtered.length - visibleCount })}
+              </button>
+            </li>
+          )}
         </ul>
       )}
 
