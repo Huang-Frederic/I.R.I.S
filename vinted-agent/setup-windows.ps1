@@ -1,4 +1,4 @@
-# One-time bootstrap of the IRIS Vinted agent + events scraper on Windows.
+﻿# One-time bootstrap of the IRIS Vinted agent + events scraper on Windows.
 # Places the exported env/cookies, then installs every dependency.
 #
 #   powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1 [chemin\vers\iris-mac-transfer]

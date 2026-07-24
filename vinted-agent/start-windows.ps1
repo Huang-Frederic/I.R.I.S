@@ -1,4 +1,4 @@
-# Windows launcher — mirror of start.sh (WSL). Proxy + ngrok, refresh the store
+﻿# Windows launcher — mirror of start.sh (WSL). Proxy + ngrok, refresh the store
 # events, then run the Vinted agent. Run .\setup-windows.ps1 once first.
 #
 #   powershell -ExecutionPolicy Bypass -File .\start-windows.ps1
