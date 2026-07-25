@@ -313,6 +313,41 @@ export interface PtcgAnalysisRow {
 }
 
 /**
+ * A self-contained game file: everything needed to store and replay one game,
+ * in a single upload. Produced outside the app (parser + analysis), then handed
+ * to /api/ptcg/games, which validates it before touching the database.
+ *
+ * Self-contained on purpose: the app never re-parses and never calls TCGdex on
+ * the import path, so an upload either is accepted whole or is rejected whole.
+ */
+export interface PtcgBundle {
+  bundleVersion: 1;
+  generatedAt: string;
+  game: {
+    played_at: string;
+    me: string;
+    opponent: string;
+    result: 'win' | 'loss' | 'tie';
+    prizes_me: number;
+    prizes_opponent: number;
+    turns: number;
+    my_archetype: string | null;
+    opponent_archetype: string | null;
+    raw_log: string;
+    log_hash: string;
+    parser_version: string;
+    state: { snapshots: PtcgSnapshot[]; turns: PtcgTurnIndex[] };
+    validation: PtcgValidationReport;
+  };
+  /** Gameplay data for every card seen, upserted into ptcg_cards. */
+  cards: PtcgCardRow[];
+  analysis: Pick<
+    PtcgAnalysisRow,
+    'schema_version' | 'source' | 'model' | 'verdict' | 'moments' | 'patterns' | 'checklist'
+  >;
+}
+
+/**
  * What gets handed to the analysis step. Deliberately *not* the full snapshot
  * list: that is ~500 KB and mostly redundant. `available` is the important part
  * — what was possible and did not happen — because it cannot be re-derived

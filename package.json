@@ -28,7 +28,8 @@
     "update-expansions": "tsx scripts/update-cardmarket-expansions.ts",
     "scrape-events": "tsx scripts/store-events/core.ts",
     "reenrich-cards": "tsx scripts/reenrich-existing-cards.ts",
-    "ptcg-digest": "tsx scripts/ptcg-digest.ts"
+    "ptcg-digest": "tsx scripts/ptcg-digest.ts",
+    "ptcg-bundle": "tsx scripts/ptcg-bundle.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
