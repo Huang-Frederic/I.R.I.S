@@ -329,6 +329,21 @@ export function buildStates(tokens: PtcgTokenizeResult): PtcgBuildResult {
         break;
       }
 
+      case 'discard-opponent-hand': {
+        // Hand disruption. `ev.player` is whose hand is hit, not who played it.
+        // These cards land in the discard like any other, so anything scaling
+        // on the discard pile counts them.
+        const victim = P(ev.player as string);
+        if (ev.cards?.length) {
+          for (const c of ev.cards) victim.discard.push(takeFromHand(ev.player as string, c));
+        } else {
+          for (let i = 0; i < (ev.count as number); i++) {
+            if (victim.unknownHand > 0) victim.unknownHand--;
+          }
+        }
+        break;
+      }
+
       case 'discard-attached':
         break; // already handled by the preceding knockout; used by validate.ts
 

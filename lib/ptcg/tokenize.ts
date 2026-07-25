@@ -194,7 +194,50 @@ export function tokenize(raw: string): PtcgTokenizeResult {
       (m) => ({ player: m[1], card: null }),
     ],
 
+    // Mulligans. The opponent reveals their whole hand, which is the one moment
+    // their cards are visible — worth keeping, it hints at their archetype.
+    [
+      'mulligan',
+      new RegExp(`^(${P}) a déclaré (une|\\d+) misères?\\.$`),
+      (m) => ({ player: m[1], count: m[2] === 'une' ? 1 : +m[2] }),
+    ],
+    [
+      'mulligan-bonus-draw',
+      new RegExp(
+        `^(${P}) a pioché une carte supplémentaire car (${P}) a déclaré au moins une misère\\.$`,
+      ),
+      (m) => ({ player: m[1], because: m[2] }),
+    ],
+
+    // A card discarded from a Pokémon outside a knockout (an attack cost paid
+    // after the fact). Same shape as the sub-event, but at top level.
+    [
+      'discard-attached',
+      new RegExp(`^La carte ${C} a été défaussée de ${C} de (${P})\\.$`),
+      (m) => ({
+        count: 1,
+        cards: [{ id: m[1], name: m[2] }],
+        from: { id: m[3], name: m[4] },
+        player: m[5],
+      }),
+    ],
+
+    // Activating a Stadium already in play. No card id, and no leading "(" —
+    // which is what separates it from playing a Trainer. Must stay after the
+    // play-* rules so it only catches what they did not.
+    [
+      'use-stadium',
+      new RegExp(`^(${P}) a joué ([^(].*)\\.$`),
+      (m) => ({ player: m[1], stadium: m[2] }),
+    ],
+
     ['end-turn', new RegExp(`^(${P}) a mis fin à son tour\\.$`), (m) => ({ player: m[1] })],
+    // Two spellings, depending on which side won.
+    [
+      'game-end',
+      new RegExp(`^Toutes les cartes Récompense ont été récupérées\\. (${P}) gagne\\.$`),
+      (m) => ({ winner: m[1] }),
+    ],
     [
       'game-end',
       new RegExp(`^L['’]adversaire a récupéré toutes ses cartes Récompense\\. (${P}) gagne\\.$`),
@@ -204,6 +247,17 @@ export function tokenize(raw: string): PtcgTokenizeResult {
 
   const sub: Rule[] = [
     ['damage-analysis', /^Analyse des dégâts :$/, () => ({ entries: [] })],
+
+    ['mulligan-reveal', /^Cartes montrées à la suite de la misère (\d+)\.$/, (m) => ({ n: +m[1] })],
+
+    // Hand disruption: the attacker sends cards from the *other* player's hand
+    // to the discard. Named when it is our hand, so they can be removed exactly
+    // — and they still count for anything that scales on the discard pile.
+    [
+      'discard-opponent-hand',
+      new RegExp(`^(${P}) a déplacé (\\d+) cartes de (${P}) vers la pile de défausse\\.$`),
+      (m) => ({ actor: m[1], count: +m[2], player: m[3] }),
+    ],
 
     ['opening-hand-count', /^(\d+) cartes piochées\.$/, (m) => ({ count: +m[1] })],
 
@@ -352,7 +406,10 @@ export function tokenize(raw: string): PtcgTokenizeResult {
     // Level 2: bullets. Either a card list, or a damage-analysis row.
     if (line.startsWith('•')) {
       const body = line.slice(1).trim();
-      const dmg = /^(.+?)\s*:\s*(\d+)\s+dégâts$/.exec(body);
+      // Negative rows exist: a damage-reduction ability shows as "-10 dégâts".
+      // Dropping them silently makes the itemised rows stop summing to the
+      // total, which the oracle then reports as a reconstruction failure.
+      const dmg = /^(.+?)\s*:\s*(-?\d+)\s+dégâts$/.exec(body);
       if (lastSub?.type === 'damage-analysis' && dmg) {
         lastSub.entries ??= [];
         lastSub.entries.push({ label: dmg[1].trim(), damage: +dmg[2] });

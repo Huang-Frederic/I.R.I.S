@@ -8,6 +8,12 @@ const FIXTURE = readFileSync(
   'utf8',
 );
 
+/** Second real game — mulligan, stadium activation, hand disruption, a win. */
+const FIXTURE_2 = readFileSync(
+  join(process.cwd(), 'lib/ptcg/fixtures/minotaupe-2026-07-26.txt'),
+  'utf8',
+);
+
 const countTypes = (events: ReturnType<typeof tokenize>['events']) => {
   const counts: Record<string, number> = {};
   const walk = (e: (typeof events)[number]) => {
@@ -75,6 +81,59 @@ describe('tokenize', () => {
     const detail = opening.children!.find((c) => c.type === 'opening-hand-count')!;
     expect(detail.cards).toHaveLength(7);
     expect(detail.cards!.map((c) => c.id)).toContain('sv10_33');
+  });
+
+  it('recognises every line of a second, different game', () => {
+    // This game introduced six phrasings the first one never produced. Each was
+    // found by `unknown` rather than by silently mis-parsing the game.
+    expect(tokenize(FIXTURE_2).unknown).toEqual([]);
+  });
+
+  it('reads a mulligan and the hand it reveals', () => {
+    const evs = tokenize(FIXTURE_2).events;
+    const mulligan = evs.find((e) => e.type === 'mulligan')!;
+    expect(mulligan).toMatchObject({ player: 'Fumpky', count: 1 });
+    // The one moment the opponent's hand is visible — it hints at their deck.
+    const reveal = evs.flatMap((e) => e.children ?? []).find((c) => c.type === 'mulligan-reveal')!;
+    expect(reveal.cards).toHaveLength(7);
+    expect(evs.some((e) => e.type === 'mulligan-bonus-draw')).toBe(true);
+  });
+
+  it('separates activating a Stadium from playing a card', () => {
+    // "Fumpky a joué Carrière Fossile." — no card id, so it is the Stadium in
+    // play being used, not a Trainer being played from hand.
+    const evs = tokenize(FIXTURE_2).events;
+    expect(evs.find((e) => e.type === 'use-stadium')).toMatchObject({
+      player: 'Fumpky',
+      stadium: 'Carrière Fossile',
+    });
+    // The Stadium being played from hand still parses as a Stadium.
+    expect(evs.some((e) => e.type === 'play-stadium')).toBe(true);
+  });
+
+  it('reads cards forced out of the opponent hand', () => {
+    const disruption = tokenize(FIXTURE_2)
+      .events.flatMap((e) => e.children ?? [])
+      .find((c) => c.type === 'discard-opponent-hand')!;
+    expect(disruption).toMatchObject({ actor: 'Fumpky', player: 'Hisshiden', count: 2 });
+    expect(disruption.cards).toHaveLength(2);
+  });
+
+  it('parses a negative damage row', () => {
+    // A damage-reduction ability shows as "-10 dégâts". Dropping it makes the
+    // rows stop summing to the total, which the oracle reports as a failure.
+    const analysis = tokenize(FIXTURE_2)
+      .events.flatMap((e) => e.children ?? [])
+      .find((c) => c.entries?.some((x) => x.damage < 0))!;
+    expect(analysis.entries).toContainEqual({ label: 'Armure Protectrice (talent)', damage: -10 });
+  });
+
+  it('recognises the winning-side spelling of the end of game', () => {
+    // "Toutes les cartes Récompense ont été récupérées. X gagne." is only ever
+    // emitted when the exporting player wins; losing produces a different line.
+    expect(tokenize(FIXTURE_2).events.find((e) => e.type === 'game-end')).toMatchObject({
+      winner: 'Hisshiden',
+    });
   });
 
   it('keeps the announced owner of damage counters without trusting it', () => {

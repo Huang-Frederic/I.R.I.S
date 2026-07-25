@@ -67,6 +67,35 @@ describe('validate', () => {
   });
 });
 
+describe('validate — second game', () => {
+  const FIXTURE_2 = readFileSync(
+    join(process.cwd(), 'lib/ptcg/fixtures/minotaupe-2026-07-26.txt'),
+    'utf8',
+  );
+
+  it('passes on a win with damage reduction in play', () => {
+    expect(run(FIXTURE_2).checks.filter((c) => c.ok === false)).toEqual([]);
+  });
+
+  it('reconciles a breakdown containing a negative row', () => {
+    // 40 base − 10 (Armure Protectrice) + 180 (discard) = 210. Before the fix
+    // the negative row was dropped and the sum came out at 220.
+    const check = run(FIXTURE_2).checks.find(
+      (c) => c.kind === 'damage-sum' && c.detail.includes('= 210'),
+    );
+    expect(check?.ok).toBe(true);
+  });
+
+  it('reads the winner from the other end-of-game spelling', () => {
+    expect(parseGame(FIXTURE_2)).toMatchObject({
+      me: 'Hisshiden',
+      result: 'win',
+      prizesMe: 6,
+      prizesOpponent: 1,
+    });
+  });
+});
+
 describe('parseGame', () => {
   it('derives the game summary from the reconstruction', () => {
     const g = parseGame(FIXTURE);

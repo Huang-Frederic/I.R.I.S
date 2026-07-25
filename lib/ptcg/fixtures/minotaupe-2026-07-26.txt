@@ -1,0 +1,212 @@
+Préparation
+Hisshiden a choisi pile pour le lancer de pièce initial.
+Fumpky a gagné le lancer de pièce.
+Fumpky a décidé de jouer en second.
+Hisshiden a pioché 7 cartes pour sa main de départ.
+- 7 cartes piochées.
+   • (sv6_207) Soutien de Néphie, (sv6_163) Boîte à Secrets, (sv3_230) Énergie Feu de base, (me1_167) Poffin Copain-Copain, (sv10_32) Héricendre de Luth, (sv1_196) Hyper Ball, (sv10_33) Feurisson de Luth
+Fumpky a pioché 7 cartes pour sa main de départ.
+- 7 cartes piochées.
+Fumpky a déclaré une misère.
+- Cartes montrées à la suite de la misère 1.
+   • (sv6-5_61) Civière Nocturne, (me5_76_ph) Carrière Fossile, (sv10_176) Lambda de la Team Rocket, (me5_64_ph) Archéodong, (sv5_145) Décodage de Décryptomane, (sv7_133) Rubépin, (me4_79_ph) Gypso
+Hisshiden a pioché une carte supplémentaire car Fumpky a déclaré au moins une misère.
+- Hisshiden a pioché (me1_175) Super Bonbon.
+Hisshiden a joué (sv10_32) Héricendre de Luth sur le Poste Actif.
+Fumpky a joué (me5_46) Rototaupe sur le Poste Actif.
+
+Tour de Hisshiden
+Hisshiden a pioché (rsv10-5_80) Bracelet Vaillant.
+Hisshiden a joué (me1_167) Poffin Copain-Copain.
+- Hisshiden a pioché 2 cartes et les a jouées sur le Banc.
+   • (sv8-5_71) Fantyrm, (sv10_32) Héricendre de Luth
+- Hisshiden a mélangé son deck.
+Hisshiden a attaché (sv3_230) Énergie Feu de base à (sv10_32) Héricendre de Luth sur le Banc.
+Hisshiden a mis fin à son tour.
+
+Tour de Fumpky
+Fumpky a pioché une carte.
+Fumpky a joué (me5_76_ph) Carrière Fossile comme Stade.
+Fumpky a joué (sv10_176) Lambda de la Team Rocket.
+- Fumpky a pioché (sv4-5_91) Hyper Ball.
+- Fumpky a mélangé son deck.
+Fumpky a attaché (me4_85) Énergie Métal Magnétique à (me5_46) Rototaupe sur le Poste Actif.
+Fumpky a joué Carrière Fossile.
+- Fumpky a pioché 2 cartes et les a jouées sur le Banc.
+   • (me5_72_ph) Fossile Armure Ancien, (me5_72_ph) Fossile Armure Ancien
+- Fumpky a mélangé son deck.
+(me5_46) Rototaupe de Fumpky a utilisé Appel à la Famille.
+- Fumpky a pioché 2 cartes et les a jouées sur le Banc.
+   • (me5_60_ph) Airmure, (me5_46) Rototaupe
+- Fumpky a mélangé son deck.
+
+Tour de Hisshiden
+Hisshiden a pioché (me4_113) Carton Rouge Spécial.
+Hisshiden a fait évoluer (sv10_32) Héricendre de Luth en (sv10_33) Feurisson de Luth sur le Banc.
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Unis par le Voyage.
+- Hisshiden a pioché (sv10_221) Aventure de Luth.
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv6_163) Boîte à Secrets.
+- Hisshiden a défaussé 3 cartes.
+   • (me4_113) Carton Rouge Spécial, (rsv10-5_80) Bracelet Vaillant, (me1_175) Super Bonbon
+- Hisshiden a pioché 4 cartes.
+   • (sv9_156) Billet à Échanger, (me5_104) Bracelet Vaillant, (me1_169) Détermination de Lilie, (sv8_250) Montagne Gravité
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv8_250) Montagne Gravité comme Stade.
+- Hisshiden a défaussé (me5_76_ph) Carrière Fossile.
+Hisshiden a joué (sv10_221) Aventure de Luth.
+- Hisshiden a pioché 3 cartes.
+   • (sv3_230) Énergie Feu de base, (sv10_32) Héricendre de Luth, (sv10_34) Typhlosion de Luth
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv10_32) Héricendre de Luth sur le Banc.
+Hisshiden a joué (sv1_196) Hyper Ball.
+- Hisshiden a défaussé 2 cartes.
+   • (me5_104) Bracelet Vaillant, (sv9_156) Billet à Échanger
+- Hisshiden a pioché (sv8-5_72) Dispareptil.
+- Hisshiden a mélangé son deck.
+Hisshiden a fait évoluer (sv8-5_71) Fantyrm en (sv8-5_72) Dispareptil sur le Banc.
+(sv8-5_72) Dispareptil de Hisshiden a utilisé Ordre de Reconnaissance.
+- Hisshiden a pioché (me3_81) Poké Registre.
+Hisshiden a joué (me3_81) Poké Registre.
+- Hisshiden a pioché (sv10_33) Feurisson de Luth.
+- Hisshiden a mélangé son deck.
+Hisshiden a fait évoluer (sv10_32) Héricendre de Luth en (sv10_33) Feurisson de Luth sur le Poste Actif.
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Unis par le Voyage.
+- Hisshiden a pioché (sv10_221) Aventure de Luth.
+- Hisshiden a mélangé son deck.
+Hisshiden a attaché (sv3_230) Énergie Feu de base à (sv10_33) Feurisson de Luth sur le Poste Actif.
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Fournaise sur (me5_46) Rototaupe de Fumpky et a infligé 40 dégâts.
+
+Tour de Fumpky
+Fumpky a pioché une carte.
+Fumpky a joué (sv4-5_91) Hyper Ball.
+- Fumpky a défaussé 2 cartes.
+   • (sv7_133) Rubépin, (me4_110) Gypso
+- Fumpky a pioché (me5_65) Méga-Minotaupe-ex.
+- Fumpky a mélangé son deck.
+Fumpky a fait évoluer (me5_46) Rototaupe en (me5_65) Méga-Minotaupe-ex sur le Poste Actif.
+Fumpky a attaché (me4_85) Énergie Métal Magnétique à (me5_65) Méga-Minotaupe-ex sur le Poste Actif.
+(me5_65) Méga-Minotaupe-ex de Fumpky a utilisé Sape Souterraine sur (sv10_33) Feurisson de Luth de Hisshiden et a infligé 90 dégâts.
+- Fumpky a déplacé 2 cartes de Hisshiden vers la pile de défausse.
+   • (sv10_33) Feurisson de Luth, (me1_173) Civière Nocturne
+
+Tour de Hisshiden
+Hisshiden a pioché (me3_81) Poké Registre.
+Hisshiden a fait évoluer (sv10_33) Feurisson de Luth en (sv10_34) Typhlosion de Luth sur le Poste Actif.
+Hisshiden a joué (me3_81) Poké Registre.
+- Hisshiden a pioché (sv10_32) Héricendre de Luth.
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv10_32) Héricendre de Luth sur le Banc.
+(sv8-5_72) Dispareptil de Hisshiden a utilisé Ordre de Reconnaissance.
+- Hisshiden a pioché (sv2_172) Ordres du Boss.
+Hisshiden a joué (sv10_221) Aventure de Luth.
+- Hisshiden a pioché 3 cartes.
+   • (sv3_230) Énergie Feu de base, (sv3_230) Énergie Feu de base, (sv10_34) Typhlosion de Luth
+- Hisshiden a mélangé son deck.
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Unis par le Voyage.
+- Hisshiden a pioché (sv10_221) Aventure de Luth.
+- Hisshiden a mélangé son deck.
+Hisshiden a attaché (sv3_230) Énergie Feu de base à (sv10_32) Héricendre de Luth sur le Banc.
+(sv10_34) Typhlosion de Luth de Hisshiden a utilisé Explosion Partenaire sur (me5_65) Méga-Minotaupe-ex de Fumpky et a infligé 320 dégâts. (me5_65) Méga-Minotaupe-ex de Fumpky a reçu 160 dégâts supplémentaires à cause de sa Faiblesse face au type Feu.
+- Analyse des dégâts :
+   • Dégâts de base : 40 dégâts
+   • (2) cartes dans la pile de défausse : 120 dégâts
+   • Faiblesse face au type Feu : 160 dégâts
+   • Total de dégâts : 320 dégâts
+
+(me5_65) Méga-Minotaupe-ex de Fumpky a été mis K.O. !
+- 3 cartes ont été défaussées de (me5_65) Méga-Minotaupe-ex de Fumpky.
+   • (me4_85) Énergie Métal Magnétique, (me4_85) Énergie Métal Magnétique, (me5_46) Rototaupe
+Hisshiden a récupéré 3 cartes Récompense.
+La carte (sv2_172) Ordres du Boss a été ajoutée à la main de Hisshiden.
+La carte (sv8_250) Montagne Gravité a été ajoutée à la main de Hisshiden.
+La carte (sv10_34) Typhlosion de Luth a été ajoutée à la main de Hisshiden.
+(me5_60_ph) Airmure de Fumpky est maintenant sur le Poste Actif.
+
+Tour de Fumpky
+Fumpky a pioché une carte.
+Fumpky a joué (sv10_176) Lambda de la Team Rocket.
+- Fumpky a pioché (me1_119) Détermination de Lilie.
+- Fumpky a mélangé son deck.
+Fumpky a attaché (me4_85) Énergie Métal Magnétique à (me5_60_ph) Airmure sur le Poste Actif.
+Fumpky a mis fin à son tour.
+
+Tour de Hisshiden
+Hisshiden a pioché (sv6_206) Kassis.
+(sv8-5_72) Dispareptil de Hisshiden a utilisé Ordre de Reconnaissance.
+- Hisshiden a pioché (sv10_168) Cendre Sacrée.
+Hisshiden a fait évoluer (sv10_33) Feurisson de Luth en (sv10_34) Typhlosion de Luth sur le Banc.
+Hisshiden a joué (sv10_221) Aventure de Luth.
+- Hisshiden a pioché (sv3_230) Énergie Feu de base.
+- Hisshiden a mélangé son deck.
+(sv10_34) Typhlosion de Luth de Hisshiden a utilisé Explosion Partenaire sur (me5_60_ph) Airmure de Fumpky et a infligé 220 dégâts.
+- Analyse des dégâts :
+   • Dégâts de base : 40 dégâts
+   • (3) cartes dans la pile de défausse : 180 dégâts
+   • Total de dégâts : 220 dégâts
+
+(me5_60_ph) Airmure de Fumpky a été mis K.O. !
+La carte (me4_85) Énergie Métal Magnétique a été défaussée de (me5_60_ph) Airmure de Fumpky.
+Hisshiden a récupéré une carte Récompense.
+La carte (me1_175) Super Bonbon a été ajoutée à la main de Hisshiden.
+(me5_72_ph) Fossile Armure Ancien de Fumpky est maintenant sur le Poste Actif.
+
+Tour de Fumpky
+Fumpky a pioché une carte.
+Fumpky a joué (me1_119) Détermination de Lilie.
+- Fumpky a mélangé 2 cartes avec son deck.
+- Fumpky a pioché 8 cartes.
+Fumpky a joué (me5_63_ph) Archéomire sur le Banc.
+Fumpky a joué (me5_76_ph) Carrière Fossile comme Stade.
+- Fumpky a défaussé (sv8_250) Montagne Gravité.
+Fumpky a attaché (mee_8) Énergie Métal de base à (me5_46) Rototaupe sur le Banc.
+Fumpky a mis fin à son tour.
+
+Tour de Hisshiden
+Hisshiden a pioché (me1_173) Civière Nocturne.
+(sv10_34) Typhlosion de Luth de Hisshiden a utilisé Explosion Partenaire sur (me5_72_ph) Fossile Armure Ancien de Fumpky et a infligé 210 dégâts.
+- Analyse des dégâts :
+   • Dégâts de base : 40 dégâts
+   • Armure Protectrice (talent) : -10 dégâts
+   • (3) cartes dans la pile de défausse : 180 dégâts
+   • Total de dégâts : 210 dégâts
+
+(me5_72_ph) Fossile Armure Ancien de Fumpky a été mis K.O. !
+Hisshiden a récupéré une carte Récompense.
+La carte (sv10_33) Feurisson de Luth a été ajoutée à la main de Hisshiden.
+(me5_46) Rototaupe de Fumpky est maintenant sur le Poste Actif.
+
+Tour de Fumpky
+Fumpky a pioché une carte.
+Fumpky a joué (sv6-5_61) Civière Nocturne.
+- Fumpky a déplacé (me5_65) Méga-Minotaupe-ex de Fumpky vers sa main.
+Fumpky a fait évoluer (me5_46) Rototaupe en (me5_65) Méga-Minotaupe-ex sur le Poste Actif.
+Fumpky a joué (sv7_133) Rubépin.
+- Fumpky a pioché (mee_8) Énergie Métal de base.
+Fumpky a attaché (mee_8) Énergie Métal de base à (me5_65) Méga-Minotaupe-ex sur le Poste Actif.
+(me5_65) Méga-Minotaupe-ex de Fumpky a utilisé Sape Souterraine sur (sv10_34) Typhlosion de Luth de Hisshiden et a infligé 90 dégâts.
+- Fumpky a déplacé 2 cartes de Hisshiden vers la pile de défausse.
+   • (me1_167) Poffin Copain-Copain, (sv8_21) Victini
+(sv10_34) Typhlosion de Luth de Hisshiden a été mis K.O. !
+- 3 cartes ont été défaussées de (sv10_34) Typhlosion de Luth de Hisshiden.
+   • (sv3_230) Énergie Feu de base, (sv10_33) Feurisson de Luth, (sv10_32) Héricendre de Luth
+Fumpky a récupéré une carte Récompense.
+La carte Une carte a été ajoutée à la main de Fumpky.
+(sv10_34) Typhlosion de Luth de Hisshiden est maintenant sur le Poste Actif.
+
+Tour de Hisshiden
+Hisshiden a pioché (me1_169) Détermination de Lilie.
+Hisshiden a joué (sv2_172) Ordres du Boss.
+- (me5_63_ph) Archéomire de Fumpky a été échangé contre (me5_65) Méga-Minotaupe-ex de Fumpky pour devenir le Pokémon Actif.
+(me5_63_ph) Archéomire de Fumpky est maintenant sur le Poste Actif.
+(sv10_34) Typhlosion de Luth de Hisshiden a utilisé Explosion Partenaire sur (me5_63_ph) Archéomire de Fumpky et a infligé 440 dégâts. (me5_63_ph) Archéomire de Fumpky a reçu 220 dégâts supplémentaires à cause de sa Faiblesse face au type Feu.
+- Analyse des dégâts :
+   • Dégâts de base : 40 dégâts
+   • (3) cartes dans la pile de défausse : 180 dégâts
+   • Faiblesse face au type Feu : 220 dégâts
+   • Total de dégâts : 440 dégâts
+
+(me5_63_ph) Archéomire de Fumpky a été mis K.O. !
+Hisshiden a récupéré une carte Récompense.
+La carte (sv8-5_71) Fantyrm a été ajoutée à la main de Hisshiden.
+Toutes les cartes Récompense ont été récupérées. Hisshiden gagne.
