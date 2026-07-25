@@ -739,6 +739,14 @@ async def _dispatch_job(supabase: AsyncClient, record: dict) -> None:
                 item_id = record.get("card_id") or record.get("lot_id")
                 await _fail_job(supabase, record["id"], item_id, "Session expirée — relance import_cookies.py",
                                 entity_type="lot" if record.get("lot_id") else "card")
+                # Cooldown on the failure path too. Without it a queue of N jobs
+                # fires N auth attempts back-to-back the moment a session dies —
+                # observed in the wild: 5 jobs in 5s, the last two answered with
+                # HTTP 429. That burst is exactly what DataDome flags, so an
+                # expired cookie would escalate into a rate-limited IP.
+                delay = random.uniform(45, 90)
+                log.info("⏳  %s ~%.0fs avant prochain job…", tag, delay)
+                await asyncio.sleep(delay)
                 return
             if record.get("lot_id"):
                 await process_lot_job(supabase, vinted, record)
