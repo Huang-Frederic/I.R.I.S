@@ -30,7 +30,12 @@ Write-Host "  OK  venv Python + dépendances agent (+ pproxy)"
 # 3. Node + Chromium pour le scraper d'événements
 Push-Location $Root
 npm install --silent
-npx playwright install chromium | Out-Null
+# PAS `npx playwright` : rebrowser-playwright (dep du scraper Vinted) expose lui
+# aussi un bin `playwright` qui le masque dans node_modules/.bin, donc npx résout
+# vers 1.52.0 et installe le mauvais build Chromium — le scraper d'événements
+# échoue ensuite sur "Executable doesn't exist". On appelle le CLI local direct.
+# Sortie volontairement visible : le `| Out-Null` d'avant masquait l'échec.
+node node_modules\playwright\cli.js install chromium
 Pop-Location
 Write-Host "  OK  npm install + Chromium (scraper événements)"
 
