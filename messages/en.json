@@ -45,7 +45,8 @@
     "agentOffline": "Agent offline",
     "logs": "Activity",
     "more": "More",
-    "close": "Close"
+    "close": "Close",
+    "ptcg": "Games"
   },
   "auth": {
     "credentialsRequired": "Email and password required.",
@@ -938,7 +939,9 @@
     "upload_failed": "Upload failed.",
     "upsert_failed": "Upsert failed.",
     "validation": "Validation error.",
-    "variant_kept_manual": "Variants (Poké Ball, Master Ball, etc.) keep their manual price."
+    "variant_kept_manual": "Variants (Poké Ball, Master Ball, etc.) keep their manual price.",
+    "ptcg_invalid_bundle": "This game file did not pass validation.",
+    "ptcg_already_imported": "This game has already been imported."
   },
   "staleness": {
     "fresh": "<1d",
@@ -1009,5 +1012,42 @@
       "system_restock_detected": "Restock detected",
       "system_promote_detected": "Promotion detected"
     }
+  },
+  "ptcg": {
+    "metaTitle": "Game analysis",
+    "pageTitle": "Games",
+    "pageSubtitle": "{count} games analysed",
+    "loadError": "Could not load games: {message}",
+    "dropzone": "Drop a game file here",
+    "dropzoneHint": "The .bundle.json produced from your battle log",
+    "uploading": "Importing…",
+    "empty": "No games yet. Drop a game file above to start.",
+    "noAnalysis": "No analysis attached",
+    "versus": "vs {opponent}",
+    "findings": "{count} notes",
+    "patternsTitle": "Recurring mistakes",
+    "patternsHint": "Counted once per game, ranked by how often they come back.",
+    "patternCount": "{games} games · {rate}%",
+    "mistake_ability_unused": "A once-per-turn ability was available and never used",
+    "mistake_bench_liability": "An ex was benched while the opponent was close to winning",
+    "mistake_missed_lethal": "An attack fell short of a knockout that was reachable",
+    "mistake_supporter_unplayed": "A turn ended without playing a Supporter",
+    "mistake_energy_unattached": "A turn ended without attaching an energy",
+    "mistake_discard_fuel_missed": "A discard cost was paid without feeding the attack",
+    "mistake_promote_misplay": "The wrong Pokémon was promoted after a knockout",
+    "setup": "Setup",
+    "you": "you",
+    "stadium": "Stadium: {name} ({owner})",
+    "noStadium": "No stadium",
+    "yourHand": "Your hand — {count} cards",
+    "yourDiscard": "Your discard: {count}",
+    "opponentHand": "Opponent hand: {count} (hidden)",
+    "prizes": "Prizes left — you {me} / them {opponent}",
+    "turnLog": "Turn log",
+    "turnAnalysis": "Analysis for this turn",
+    "nothingThisTurn": "Nothing to flag this turn.",
+    "previous": "Previous event",
+    "next": "Next event",
+    "checklist": "For next time"
   }
 }

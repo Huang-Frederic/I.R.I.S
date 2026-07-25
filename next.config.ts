@@ -21,6 +21,9 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       // Pokémon TCG official card images
       { protocol: 'https', hostname: 'images.pokemontcg.io' },
+      // TCGdex card art, used by the game replay (lib/ptcg/). The stored
+      // image_url has no extension: the size and format are appended at render.
+      { protocol: 'https', hostname: 'assets.tcgdex.net' },
       // PokeAPI sprites (used for Pokédex grid)
       { protocol: 'https', hostname: 'raw.githubusercontent.com', pathname: '/PokeAPI/**' },
       // Cardmarket product images (Strategy 0 + cross-validate cardmarket fallback)

@@ -19,6 +19,7 @@ import type {
   PtcgPokemonState,
   PtcgSnapshot,
 } from '@/lib/types';
+import { eventLabel } from '@/lib/utils/ptcg-event-label';
 import type { PtcgParsedGame } from './index';
 
 /** Abilities usable once per turn — the ones worth reporting as skipped. */
@@ -26,46 +27,6 @@ const ONCE_PER_TURN = /une fois pendant votre tour/i;
 
 const inPlay = (s: PtcgGameState, player: string): PtcgPokemonState[] =>
   [s.players[player].active, ...s.players[player].bench].filter(Boolean) as PtcgPokemonState[];
-
-function label(ev: Record<string, unknown>): string {
-  const n = (c: unknown) => (c as { name?: string } | null)?.name ?? '';
-  switch (ev.type) {
-    case 'turn-start':
-      return `début du tour de ${ev.player}`;
-    case 'draw-known':
-      return `pioche ${n(ev.card)}`;
-    case 'draw-hidden':
-      return `pioche ${ev.count} carte(s)`;
-    case 'play-pokemon':
-      return `pose ${n(ev.card)} (${ev.zone})`;
-    case 'play-trainer':
-      return `joue ${n(ev.card)}`;
-    case 'play-stadium':
-      return `pose le stade ${n(ev.card)}`;
-    case 'evolve':
-      return `fait évoluer ${n(ev.from)} → ${n(ev.to)}`;
-    case 'attach':
-      return `attache ${n(ev.card)} à ${n(ev.target)}`;
-    case 'retreat':
-      return `retraite ${n(ev.card)}`;
-    case 'promote':
-      return `${n(ev.card)} passe Actif`;
-    case 'use':
-      return `${n(ev.source)} utilise ${ev.move}`;
-    case 'attack':
-      return `${n(ev.source)} — ${ev.move} → ${ev.damage} dégâts`;
-    case 'ko':
-      return `${n(ev.card)} est mis K.O.`;
-    case 'take-prize':
-      return `${ev.player} prend ${ev.count} récompense(s)`;
-    case 'end-turn':
-      return 'fin du tour';
-    case 'game-end':
-      return `${ev.winner} gagne`;
-    default:
-      return String(ev.type);
-  }
-}
 
 /**
  * Once-per-turn abilities that were in play during the turn and never fired.
@@ -204,7 +165,7 @@ export function buildDigest(
       start: snaps[0].state,
       actions: snaps.map((s) => ({
         line: s.line,
-        label: label(s.event as Record<string, unknown>),
+        label: eventLabel(s.event as Record<string, unknown>, me, opponent),
       })),
       end: snaps[snaps.length - 1].state,
       available: availability(snaps, owner, owner === me ? opponent : me, cards),

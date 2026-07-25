@@ -45,7 +45,8 @@
     "agentOffline": "代理未连接",
     "logs": "活动记录",
     "more": "更多",
-    "close": "关闭"
+    "close": "关闭",
+    "ptcg": "对战"
   },
   "auth": {
     "credentialsRequired": "需要邮箱和密码。",
@@ -938,7 +939,9 @@
     "upload_failed": "上传失败。",
     "upsert_failed": "Upsert 失败。",
     "validation": "验证错误。",
-    "variant_kept_manual": "变体(精灵球、大师球等)保留手动价格。"
+    "variant_kept_manual": "变体(精灵球、大师球等)保留手动价格。",
+    "ptcg_invalid_bundle": "该对战文件未通过校验。",
+    "ptcg_already_imported": "该对战已经导入过了。"
   },
   "staleness": {
     "fresh": "<1天",
@@ -1009,5 +1012,42 @@
       "system_restock_detected": "检测到补货",
       "system_promote_detected": "检测到升级"
     }
+  },
+  "ptcg": {
+    "metaTitle": "对战分析",
+    "pageTitle": "对战",
+    "pageSubtitle": "已分析 {count} 场对战",
+    "loadError": "无法加载对战：{message}",
+    "dropzone": "将对战文件拖到这里",
+    "dropzoneHint": "由战斗日志生成的 .bundle.json",
+    "uploading": "导入中…",
+    "empty": "暂无对战。请在上方拖入文件开始。",
+    "noAnalysis": "没有附带分析",
+    "versus": "对阵 {opponent}",
+    "findings": "{count} 条点评",
+    "patternsTitle": "反复出现的失误",
+    "patternsHint": "每场只计一次，按重复出现的频率排序。",
+    "patternCount": "{games} 场 · {rate}%",
+    "mistake_ability_unused": "每回合一次的特性可用却未使用",
+    "mistake_bench_liability": "对手接近获胜时仍把 ex 放上备战区",
+    "mistake_missed_lethal": "本可击倒却差了一点伤害",
+    "mistake_supporter_unplayed": "回合结束时没有使用支援者",
+    "mistake_energy_unattached": "回合结束时没有附加能量",
+    "mistake_discard_fuel_missed": "支付了弃牌代价却没有喂给招式",
+    "mistake_promote_misplay": "击倒后选错了替补上场的宝可梦",
+    "setup": "准备",
+    "you": "你",
+    "stadium": "竞技场：{name}（{owner}）",
+    "noStadium": "没有竞技场",
+    "yourHand": "你的手牌 — {count} 张",
+    "yourDiscard": "你的弃牌区：{count}",
+    "opponentHand": "对手手牌：{count} 张（隐藏）",
+    "prizes": "剩余奖赏卡 — 你 {me} / 对手 {opponent}",
+    "turnLog": "回合流程",
+    "turnAnalysis": "本回合分析",
+    "nothingThisTurn": "本回合没有需要指出的地方。",
+    "previous": "上一个事件",
+    "next": "下一个事件",
+    "checklist": "下次注意"
   }
 }

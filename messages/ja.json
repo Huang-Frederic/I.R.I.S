@@ -45,7 +45,8 @@
     "agentOffline": "エージェント未接続",
     "logs": "アクティビティ",
     "more": "その他",
-    "close": "閉じる"
+    "close": "閉じる",
+    "ptcg": "対戦"
   },
   "auth": {
     "credentialsRequired": "メールアドレスとパスワードが必要です。",
@@ -938,7 +939,9 @@
     "upload_failed": "アップロードに失敗しました。",
     "upsert_failed": "アップサートに失敗しました。",
     "validation": "バリデーションエラー。",
-    "variant_kept_manual": "バリアント(モンスターボール、マスターボールなど)は手動価格を維持します。"
+    "variant_kept_manual": "バリアント(モンスターボール、マスターボールなど)は手動価格を維持します。",
+    "ptcg_invalid_bundle": "この対戦ファイルは検証に通りませんでした。",
+    "ptcg_already_imported": "この対戦はすでに取り込まれています。"
   },
   "staleness": {
     "fresh": "<1日",
@@ -1009,5 +1012,42 @@
       "system_restock_detected": "再入荷検知",
       "system_promote_detected": "昇格検知"
     }
+  },
+  "ptcg": {
+    "metaTitle": "対戦分析",
+    "pageTitle": "対戦",
+    "pageSubtitle": "{count} 件の対戦を分析",
+    "loadError": "対戦を読み込めませんでした: {message}",
+    "dropzone": "対戦ファイルをここにドロップ",
+    "dropzoneHint": "バトルログから生成した .bundle.json",
+    "uploading": "取り込み中…",
+    "empty": "対戦がありません。上にファイルをドロップしてください。",
+    "noAnalysis": "分析なし",
+    "versus": "vs {opponent}",
+    "findings": "{count} 件の指摘",
+    "patternsTitle": "繰り返しのミス",
+    "patternsHint": "1 試合につき 1 回として数え、頻度順に並べています。",
+    "patternCount": "{games} 試合 · {rate}%",
+    "mistake_ability_unused": "1 ターンに 1 回の特性が使えたのに未使用",
+    "mistake_bench_liability": "相手の勝利が近い場面で ex をベンチに出した",
+    "mistake_missed_lethal": "届いたはずのきぜつを逃した",
+    "mistake_supporter_unplayed": "サポートを使わずにターンを終えた",
+    "mistake_energy_unattached": "エネルギーを付けずにターンを終えた",
+    "mistake_discard_fuel_missed": "トラッシュのコストを技に活かせなかった",
+    "mistake_promote_misplay": "きぜつ後に出すポケモンの選択を誤った",
+    "setup": "準備",
+    "you": "あなた",
+    "stadium": "スタジアム: {name} ({owner})",
+    "noStadium": "スタジアムなし",
+    "yourHand": "手札 — {count} 枚",
+    "yourDiscard": "トラッシュ: {count}",
+    "opponentHand": "相手の手札: {count} 枚（非公開）",
+    "prizes": "残りサイド — あなた {me} / 相手 {opponent}",
+    "turnLog": "ターンの流れ",
+    "turnAnalysis": "このターンの分析",
+    "nothingThisTurn": "このターンに指摘はありません。",
+    "previous": "前のイベント",
+    "next": "次のイベント",
+    "checklist": "次回への確認事項"
   }
 }
