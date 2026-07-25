@@ -142,6 +142,223 @@ export interface StoreEventRow {
   scraped_at: string;
 }
 
+/* ----- Pokémon TCG Live — post-game analysis (see lib/ptcg/) ----- */
+
+/** A card as the battle log names it: internal client id plus printed name. */
+export interface PtcgCardRef {
+  /** Client-internal id, e.g. `sv10_34`. Maps to TCGdex `sv10-034`. */
+  id: string;
+  name: string;
+}
+
+/** Gameplay reference data, cached from TCGdex into `ptcg_cards`. */
+export interface PtcgCardRow {
+  ptcgl_id: string;
+  language: CardLanguage;
+  tcgdex_id: string;
+  set_code: string;
+  set_number: string;
+  name: string;
+  /** `Pokémon` | `Dresseur` | `Énergie` */
+  category: string;
+  /** `Objet` | `Supporter` | `Stade` | `Outil Pokémon` — null for non-trainers. */
+  trainer_type: string | null;
+  stage: string | null;
+  hp: number | null;
+  types: string[] | null;
+  weaknesses: { type: string; value: string }[] | null;
+  retreat: number | null;
+  abilities: { name: string; effect: string | null }[];
+  attacks: { name: string; cost: string[]; damage: string | null; effect: string | null }[];
+  /** Trainer card text. Null for Pokémon. */
+  effect: string | null;
+  image_url: string | null;
+  fetched_at: string;
+}
+
+/**
+ * One Pokémon in play. `uid` is assigned by the parser and stays stable across
+ * evolutions — it is what lets us say "this Feurisson", not "a Feurisson".
+ */
+export interface PtcgPokemonState {
+  uid: number;
+  cardId: string;
+  name: string;
+  owner: string;
+  zone: 'active' | 'bench';
+  damage: number;
+  /** Energies and tools currently attached. */
+  attached: PtcgCardRef[];
+  /** Evolution cards underneath, oldest first. */
+  stack: PtcgCardRef[];
+  placedTurn: number;
+  evolvedTurn: number | null;
+}
+
+export interface PtcgPlayerState {
+  active: PtcgPokemonState | null;
+  bench: PtcgPokemonState[];
+  /** Known cards. Only the exporting player's hand is visible in the log. */
+  hand: PtcgCardRef[];
+  /** Opponent hand size — the log gives counts, never names. */
+  unknownHand: number;
+  discard: PtcgCardRef[];
+  prizesRemaining: number;
+}
+
+export interface PtcgGameState {
+  turnNumber: number;
+  activePlayer: string | null;
+  stadium: { card: PtcgCardRef; owner: string } | null;
+  winner: string | null;
+  players: Record<string, PtcgPlayerState>;
+}
+
+/**
+ * Recurring mistake categories. Closed vocabulary so that history can be
+ * aggregated across games ("you skipped a once-per-turn ability in 7 of your
+ * last 12 games") — that aggregate is the whole reason to keep a history.
+ *
+ * Populated today by the analysis step, not by code: which mistakes actually
+ * recur is not yet known, so writing detectors would be guessing. Once enough
+ * analyses exist, the frequent codes become the spec for automating them.
+ */
+export type PtcgMistakeCode =
+  | 'ability_unused' // a once-per-turn ability was available and never used
+  | 'bench_liability' // an ex was benched while the opponent needed ≤2 prizes
+  | 'missed_lethal' // the attack fell short of a KO that was reachable
+  | 'supporter_unplayed' // the turn ended without playing a Supporter
+  | 'energy_unattached' // the turn ended without the energy attachment
+  | 'discard_fuel_missed' // a discard cost could have fed a discard-counting attack
+  | 'promote_misplay'; // the wrong Pokémon was promoted after a knockout
+
+/** A row of `ptcg_games`. `state` and `validation` are parser output. */
+export interface PtcgGameRow {
+  id: string;
+  user_id: string;
+  played_at: string;
+  me: string;
+  opponent: string;
+  result: 'win' | 'loss' | 'tie';
+  /** Prizes *taken*, not remaining. */
+  prizes_me: number;
+  prizes_opponent: number;
+  turns: number;
+  my_archetype: string | null;
+  opponent_archetype: string | null;
+  raw_log: string;
+  log_hash: string;
+  parser_version: string;
+  state: { snapshots: PtcgSnapshot[]; turns: PtcgTurnIndex[] };
+  validation: PtcgValidationReport;
+  created_at: string;
+}
+
+export interface PtcgSnapshot {
+  /** 1-based line in the raw log. */
+  line: number;
+  turnNumber: number;
+  event: Record<string, unknown>;
+  state: PtcgGameState;
+}
+
+export interface PtcgTurnIndex {
+  number: number;
+  player: string | null;
+  /** Indices into `snapshots`. */
+  events: number[];
+}
+
+/**
+ * Output of the damage oracle: the log's own "Analyse des dégâts" blocks
+ * replayed against our reconstruction. A failing report must block any report —
+ * a confident analysis built on a wrong state is worse than none.
+ */
+export interface PtcgValidationReport {
+  ok: boolean;
+  checks: { ok: boolean | null; kind: string; detail: string; expected?: unknown; got?: unknown }[];
+}
+
+/* ----- The analysis contract ----- */
+
+export type PtcgSeverity = 'error' | 'warning' | 'good' | 'note';
+
+export interface PtcgMoment {
+  line: number;
+  turn: number;
+  severity: PtcgSeverity;
+  category: PtcgMistakeCode | 'matchup' | 'sequencing' | 'resource';
+  title: string;
+  /** Short markdown. Rendered, never parsed. */
+  body: string;
+  /** Quantified cost when computable. */
+  cost?: { damage?: number; prizes?: number };
+  /** Log lines that back the claim. */
+  evidence: number[];
+}
+
+/** A row of `ptcg_analyses`. */
+export interface PtcgAnalysisRow {
+  id: string;
+  game_id: string;
+  schema_version: number;
+  source: 'rules' | 'llm' | 'manual';
+  model: string | null;
+  verdict: { summary: string; matchup?: string; deckAdvice?: string };
+  moments: PtcgMoment[];
+  /** Aggregated across games to surface recurring mistakes. */
+  patterns: { code: PtcgMistakeCode; occurrences: number; severity: PtcgSeverity }[];
+  checklist: string[];
+  created_at: string;
+}
+
+/**
+ * What gets handed to the analysis step. Deliberately *not* the full snapshot
+ * list: that is ~500 KB and mostly redundant. `available` is the important part
+ * — what was possible and did not happen — because it cannot be re-derived
+ * downstream without redoing the whole reconstruction.
+ */
+export interface PtcgDigest {
+  meta: {
+    gameId: string;
+    playedAt: string;
+    me: string;
+    opponent: string;
+    winner: string | null;
+    prizesTaken: { me: number; opponent: number };
+    turns: number;
+  };
+  /** Only the cards actually seen in this game. */
+  cards: Record<string, PtcgCardRow>;
+  turns: PtcgDigestTurn[];
+  /** Validation must pass before a digest is handed out — see PtcgValidationReport. */
+  validationOk: boolean;
+}
+
+export interface PtcgDigestTurn {
+  n: number;
+  player: 'me' | 'opponent';
+  start: PtcgGameState;
+  actions: { line: number; label: string }[];
+  end: PtcgGameState;
+  available: PtcgAvailability;
+}
+
+export interface PtcgAvailability {
+  /** Once-per-turn abilities in play that were never triggered this turn. */
+  unusedAbilities: { uid: number; card: string; ability: string }[];
+  playableFromHand: string[];
+  supporterPlayed: boolean;
+  energyAttached: boolean;
+  /** Best attack reachable this turn against the current active, if computable. */
+  damageIfAttackNow: {
+    move: string;
+    total: number;
+    targetEffectiveHp: number;
+    targetDamage: number;
+  } | null;
+}
+
 /* ----- OCR / enrichment payloads exchanged with the /api routes ----- */
 
 /**
