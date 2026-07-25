@@ -61,8 +61,16 @@ export default function PtcgView({ games, patterns }: Props) {
         const code = body?.error ?? 'server_error';
         setError(tErrors.has(code) ? tErrors(code) : (body?.message ?? code));
         // Validation failures list exactly what was wrong — worth showing, since
-        // the file has to be regenerated rather than retried.
-        setDetails(Array.isArray(body?.details?.errors) ? body.details.errors : []);
+        // the file has to be regenerated rather than retried. Server failures
+        // carry the underlying message, without which a 500 is undiagnosable
+        // from the browser.
+        setDetails(
+          Array.isArray(body?.details?.errors)
+            ? body.details.errors
+            : body?.details?.underlying
+              ? [String(body.details.underlying)]
+              : [],
+        );
         return;
       }
       router.refresh();
