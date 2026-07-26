@@ -29,7 +29,8 @@
     "scrape-events": "tsx scripts/store-events/core.ts",
     "reenrich-cards": "tsx scripts/reenrich-existing-cards.ts",
     "ptcg-digest": "tsx scripts/ptcg-digest.ts",
-    "ptcg-bundle": "tsx scripts/ptcg-bundle.ts"
+    "ptcg-bundle": "tsx scripts/ptcg-bundle.ts",
+    "skill-zip": "tsx scripts/skill-zip.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
