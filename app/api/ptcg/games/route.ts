@@ -1,14 +1,20 @@
 /**
- * Imports one game bundle (see lib/ptcg/bundle.ts).
+ * Imports one game (see lib/ptcg/bundle.ts).
  *
- * The bundle is produced outside the app — parser, card resolution and analysis
- * — so this route never parses a log and never calls TCGdex. It validates, then
- * writes. A file is accepted whole or rejected whole.
+ * Accepts either a complete .bundle.json — what the CLI produces and what the
+ * dropzone has always taken — or `{ raw, analysis }`, which it assembles first.
+ * The second form exists because a conversation can return an analysis but not
+ * a bundle: assembling one needs the reconstruction, which lives here.
+ *
+ * Either way the same gate runs, and a game is accepted whole or rejected
+ * whole. Only the assembling path parses a log or reaches TCGdex.
  */
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { validateBundle } from '@/lib/ptcg/bundle';
+import { buildBundle, validateBundle } from '@/lib/ptcg/bundle';
+import { parseGame } from '@/lib/ptcg';
+import { collectCardRefs, resolveCards } from '@/lib/ptcg/cards';
 import { keyPokemon } from '@/lib/ptcg/protagonists';
 import { playScore } from '@/lib/ptcg/score';
 import {
@@ -17,9 +23,11 @@ import {
   unauthorizedResponse,
   validationResponse,
 } from '@/lib/utils/api-response';
-import type { PtcgBundle } from '@/lib/types';
+import type { PtcgBundle, PtcgCardRow } from '@/lib/types';
 
 export const runtime = 'nodejs';
+/** Assembling from a raw log re-resolves any card not already in ptcg_cards. */
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -33,6 +41,38 @@ export async function POST(request: Request) {
     body = await request.json();
   } catch {
     return validationResponse('Body is not valid JSON.');
+  }
+
+  // Two ways in. A complete .bundle.json is the file the CLI produces and the
+  // dropzone has always accepted. `{ raw, analysis }` is the browser path: the
+  // analysis comes back from a conversation as plain JSON, and the bundle can
+  // only be assembled where the reconstruction lives — which is here.
+  const asPair = body as { raw?: unknown; analysis?: unknown; playedAt?: unknown };
+  if (typeof asPair?.raw === 'string' && asPair.analysis && typeof asPair.analysis === 'object') {
+    try {
+      const parsed = parseGame(asPair.raw);
+      const refs = collectCardRefs(parsed.state);
+      const ids = [...new Set(refs.map((r) => r.id))];
+      const { data: rows } = await supabase.from('ptcg_cards').select('*').in('ptcgl_id', ids);
+      const known = Object.fromEntries(
+        ((rows ?? []) as PtcgCardRow[]).map((c) => [c.ptcgl_id, c]),
+      ) as Record<string, PtcgCardRow>;
+      const { cards } = await resolveCards(refs, { known });
+
+      const playedAt =
+        typeof asPair.playedAt === 'string' && !Number.isNaN(Date.parse(asPair.playedAt))
+          ? new Date(asPair.playedAt).toISOString()
+          : undefined;
+
+      body = buildBundle(asPair.raw, parsed, cards, asPair.analysis as PtcgBundle['analysis'], {
+        playedAt,
+      });
+    } catch (e) {
+      return apiError('ptcg_unparsable_log', {
+        message: 'The log could not be re-parsed to assemble the bundle.',
+        details: { underlying: e instanceof Error ? e.message : String(e) },
+      });
+    }
   }
 
   // The gate. Anchors are checked against the reconstruction, so a fluent but

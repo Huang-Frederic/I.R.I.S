@@ -941,7 +941,10 @@
     "validation": "バリデーションエラー。",
     "variant_kept_manual": "バリアント(モンスターボール、マスターボールなど)は手動価格を維持します。",
     "ptcg_invalid_bundle": "この対戦ファイルは検証に通りませんでした。",
-    "ptcg_already_imported": "この対戦はすでに取り込まれています。"
+    "ptcg_already_imported": "この対戦はすでに取り込まれています。",
+    "ptcg_empty_log": "先にバトルログを貼り付けてください。",
+    "ptcg_unparsable_log": "PTCG Liveのバトルログではないようです。",
+    "ptcg_validation_failed": "再現がログと矛盾しています — ダイジェストは生成されません。"
   },
   "staleness": {
     "fresh": "<1日",
@@ -1055,6 +1058,22 @@
     "costDamage": "{value} ダメージ",
     "costPrizes": "サイド{count}",
     "jumpToMoment": "この場面へ",
-    "setupShort": "コイン"
+    "setupShort": "コイン",
+    "importTitle": "デュエルをインポート",
+    "importSubtitle": "バトルログを貼り、分析し、結果を戻す。",
+    "importStep1": "バトルログを貼り付け",
+    "importStep2": "ダイジェストをClaudeへ",
+    "importStep3": "分析を戻す",
+    "importPlaceholder": "対戦終了時にPTCG Liveがコピーした内容をここに貼り付け。",
+    "importPlayedAt": "対戦日",
+    "importParse": "ログを読む",
+    "importParsing": "読み込み中…",
+    "importChecksPassed": "{count}件の検証に合格",
+    "importUnknownLines": "{count}行を認識できませんでした — その部分は再現に含まれません",
+    "importUnresolved": "TCGdexで見つからないカード: {cards}",
+    "importDownload": "ダイジェストをダウンロード",
+    "importDropAnalysis": "分析JSONをドロップ",
+    "importDigestHint": "このファイルをptcg-coachスキルの会話に添付してください。分析JSONが返るので、下に戻します。",
+    "importBadJson": "有効なJSONではありません。"
   }
 }

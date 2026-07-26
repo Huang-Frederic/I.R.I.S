@@ -941,7 +941,10 @@
     "validation": "Validation error.",
     "variant_kept_manual": "Variants (Poké Ball, Master Ball, etc.) keep their manual price.",
     "ptcg_invalid_bundle": "This game file did not pass validation.",
-    "ptcg_already_imported": "This game has already been imported."
+    "ptcg_already_imported": "This game has already been imported.",
+    "ptcg_empty_log": "Paste the battle log first.",
+    "ptcg_unparsable_log": "That does not look like a PTCG Live battle log.",
+    "ptcg_validation_failed": "The reconstruction disagrees with the log — no digest was produced."
   },
   "staleness": {
     "fresh": "<1d",
@@ -1055,6 +1058,22 @@
     "costDamage": "{value} damage",
     "costPrizes": "{count, plural, one {# prize} other {# prizes}}",
     "jumpToMoment": "Show me",
-    "setupShort": "Coin"
+    "setupShort": "Coin",
+    "importTitle": "Import a duel",
+    "importSubtitle": "Paste the battle log, get it analysed, bring the analysis back.",
+    "importStep1": "Paste the exported battle log",
+    "importStep2": "Send the digest to Claude",
+    "importStep3": "Bring back the analysis",
+    "importPlaceholder": "Paste here what PTCG Live copied to your clipboard at the end of the game.",
+    "importPlayedAt": "Played on",
+    "importParse": "Read the log",
+    "importParsing": "Reading…",
+    "importChecksPassed": "{count, plural, one {# check passed} other {# checks passed}}",
+    "importUnknownLines": "{count, plural, one {# line was not recognised — that part of the game is missing from the reconstruction} other {# lines were not recognised — those parts of the game are missing from the reconstruction}}",
+    "importUnresolved": "Cards not found on TCGdex: {cards}",
+    "importDownload": "Download the digest",
+    "importDropAnalysis": "Drop the analysis JSON",
+    "importDigestHint": "Attach this file to a conversation with the ptcg-coach skill. It answers with an analysis JSON — bring that back below.",
+    "importBadJson": "That file is not valid JSON."
   }
 }

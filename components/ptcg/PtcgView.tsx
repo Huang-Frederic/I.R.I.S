@@ -134,6 +134,14 @@ export default function PtcgView({ games }: { games: PtcgGameCard[] }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-end gap-3">
+        {/* The paste-a-log route needs no checkout and no CLI — it is the way
+            in from any machine, so it leads rather than hides behind the drop. */}
+        <Link
+          href="/ptcg/import"
+          className="border-border bg-surface hover:bg-surface-2 mr-auto rounded-lg border px-3 py-1.5 text-xs font-semibold"
+        >
+          {t('importTitle')}
+        </Link>
         <p className="text-text-muted text-xs">{busy ? t('uploading') : t('dropAnywhere')}</p>
         <button
           type="button"
