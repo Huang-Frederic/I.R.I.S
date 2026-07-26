@@ -1027,11 +1027,9 @@
     "stadium": "スタジアム: {name} ({owner})",
     "noStadium": "スタジアムなし",
     "yourHand": "手札 — {count} 枚",
-    "yourDiscard": "トラッシュ: {count}",
-    "opponentHand": "相手の手札: {count} 枚（非公開）",
-    "prizes": "残りサイド — あなた {me} / 相手 {opponent}",
+    "yourDiscard": "トラッシュ{count}",
+    "opponentHand": "手札{count}",
     "turnLog": "ターンの流れ",
-    "turnAnalysis": "このターンの分析",
     "nothingThisTurn": "このターンに指摘はありません。",
     "previous": "前のイベント",
     "next": "次のイベント",
@@ -1049,6 +1047,13 @@
     "statScore": "評価",
     "statTurns": "ターン",
     "statAnalysis": "分析",
-    "statDate": "対戦日"
+    "statDate": "対戦日",
+    "turnHeading": "ターン{number} · {player}",
+    "previousTurn": "前のターン",
+    "nextTurn": "次のターン",
+    "prizesLeft": "サイド残り{count}",
+    "costDamage": "{value} ダメージ",
+    "costPrizes": "サイド{count}",
+    "jumpToMoment": "この場面へ"
   }
 }

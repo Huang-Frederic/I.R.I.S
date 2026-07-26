@@ -1027,11 +1027,9 @@
     "stadium": "Stadium: {name} ({owner})",
     "noStadium": "No stadium",
     "yourHand": "Your hand — {count} cards",
-    "yourDiscard": "Your discard: {count}",
-    "opponentHand": "Opponent hand: {count} (hidden)",
-    "prizes": "Prizes left — you {me} / them {opponent}",
+    "yourDiscard": "{count, plural, one {# in discard} other {# in discard}}",
+    "opponentHand": "{count, plural, one {# in hand} other {# in hand}}",
     "turnLog": "Turn log",
-    "turnAnalysis": "Analysis for this turn",
     "nothingThisTurn": "Nothing to flag this turn.",
     "previous": "Previous event",
     "next": "Next event",
@@ -1049,6 +1047,13 @@
     "statScore": "Score",
     "statTurns": "Turns",
     "statAnalysis": "Analysis",
-    "statDate": "Played"
+    "statDate": "Played",
+    "turnHeading": "Turn {number} · {player}",
+    "previousTurn": "Previous turn",
+    "nextTurn": "Next turn",
+    "prizesLeft": "{count, plural, one {# prize left} other {# prizes left}}",
+    "costDamage": "{value} damage",
+    "costPrizes": "{count, plural, one {# prize} other {# prizes}}",
+    "jumpToMoment": "Show me"
   }
 }

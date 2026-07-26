@@ -1027,11 +1027,9 @@
     "stadium": "竞技场：{name}（{owner}）",
     "noStadium": "没有竞技场",
     "yourHand": "你的手牌 — {count} 张",
-    "yourDiscard": "你的弃牌区：{count}",
-    "opponentHand": "对手手牌：{count} 张（隐藏）",
-    "prizes": "剩余奖赏卡 — 你 {me} / 对手 {opponent}",
+    "yourDiscard": "弃牌区 {count}",
+    "opponentHand": "手牌 {count}",
     "turnLog": "回合流程",
-    "turnAnalysis": "本回合分析",
     "nothingThisTurn": "本回合没有需要指出的地方。",
     "previous": "上一个事件",
     "next": "下一个事件",
@@ -1049,6 +1047,13 @@
     "statScore": "评分",
     "statTurns": "回合",
     "statAnalysis": "分析",
-    "statDate": "日期"
+    "statDate": "日期",
+    "turnHeading": "回合 {number} · {player}",
+    "previousTurn": "上一回合",
+    "nextTurn": "下一回合",
+    "prizesLeft": "剩余奖赏 {count}",
+    "costDamage": "{value} 伤害",
+    "costPrizes": "奖赏 {count}",
+    "jumpToMoment": "跳到此处"
   }
 }

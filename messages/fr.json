@@ -1027,11 +1027,9 @@
     "stadium": "Stade : {name} ({owner})",
     "noStadium": "Aucun stade",
     "yourHand": "Ta main — {count} cartes",
-    "yourDiscard": "Ta défausse : {count}",
-    "opponentHand": "Main adverse : {count} (cachée)",
-    "prizes": "Récompenses restantes — toi {me} / adv {opponent}",
+    "yourDiscard": "{count, plural, one {# en défausse} other {# en défausse}}",
+    "opponentHand": "{count, plural, one {# en main} other {# en main}}",
     "turnLog": "Déroulé du tour",
-    "turnAnalysis": "Analyse de ce tour",
     "nothingThisTurn": "Rien à signaler sur ce tour.",
     "previous": "Événement précédent",
     "next": "Événement suivant",
@@ -1049,6 +1047,13 @@
     "statScore": "Score",
     "statTurns": "Tours",
     "statAnalysis": "Analyse",
-    "statDate": "Jouée"
+    "statDate": "Jouée",
+    "turnHeading": "Tour {number} · {player}",
+    "previousTurn": "Tour précédent",
+    "nextTurn": "Tour suivant",
+    "prizesLeft": "{count, plural, one {# récompense} other {# récompenses}}",
+    "costDamage": "{value} dégâts",
+    "costPrizes": "{count, plural, one {# récompense} other {# récompenses}}",
+    "jumpToMoment": "Montre-moi"
   }
 }
