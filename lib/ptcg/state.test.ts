@@ -151,3 +151,78 @@ describe('promotion confirmée après un déplacement forcé', () => {
     expect(active.attached.map((a) => a.id)).toEqual(['c_9']);
   });
 });
+
+describe('promotion parmi plusieurs copies', () => {
+  it('promotes the copy that can act, not the first in the array', () => {
+    // Array order is no tiebreak: retreating pushes the outgoing Pokémon to the
+    // end of the bench, so a freshly evolved copy can sit ahead of the one that
+    // was built. A player promotes something that can attack.
+    const log = [
+      'Préparation',
+      'A a joué (c_1) Pikachu sur le Poste Actif.',
+      'B a joué (c_2) Rattata sur le Poste Actif.',
+      'B a joué (c_3) Zubat sur le Banc.',
+      'B a joué (c_3) Zubat sur le Banc.',
+      '',
+      'Tour de B',
+      'B a attaché (c_9) Énergie à (c_3) Zubat sur le Banc.',
+      'B a mis fin à son tour.',
+      '',
+      'Tour de A',
+      'A a mis fin à son tour.',
+      '',
+      'Tour de B',
+      'B a fait battre en retraite (c_2) Rattata sur le Banc.',
+      '(c_3) Zubat de B est maintenant sur le Poste Actif.',
+      'B a mis fin à son tour.',
+    ].join('\n');
+
+    const built = buildStates(tokenize(log));
+    expect(built.final.players.B.active!.attached.map((a) => a.id)).toEqual(['c_9']);
+  });
+});
+
+describe('retour de cartes en main', () => {
+  const base = (recovery: string) =>
+    [
+      'Préparation',
+      'A a joué (c_1) Pikachu sur le Poste Actif.',
+      'B a joué (c_2) Rattata sur le Poste Actif.',
+      '',
+      'Tour de A',
+      'A a attaché (c_9) Énergie à (c_1) Pikachu sur le Poste Actif.',
+      'A a mis fin à son tour.',
+      '',
+      'Tour de B',
+      'B a mis fin à son tour.',
+      '',
+      'Tour de A',
+      recovery,
+      '- A a déplacé (c_9) Énergie de A vers sa main.',
+      'A a mis fin à son tour.',
+    ].join('\n');
+
+  it('takes from the discard rather than stripping a Pokémon in play', () => {
+    // Civière Nocturne recovers from the DISCARD. Searching the board first
+    // pulled the Energy off the Active, and that Pokémon then went down
+    // carrying one card too few — which the knockout oracle reported.
+    const withDiscard = buildStates(
+      tokenize(
+        base(
+          [
+            'A a joué (c_7) Hyper Ball.',
+            '- A a défaussé (c_9) Énergie.',
+            'A a joué (c_8) Civière Nocturne.',
+          ].join('\n'),
+        ),
+      ),
+    );
+    expect(withDiscard.final.players.A.active!.attached.map((a) => a.id)).toEqual(['c_9']);
+  });
+
+  it('still detaches when the discard holds no copy', () => {
+    // The fallback has to stay: some cards really do return an attached card.
+    const built = buildStates(tokenize(base('A a joué (c_8) Civière Nocturne.')));
+    expect(built.final.players.A.active!.attached).toHaveLength(0);
+  });
+});

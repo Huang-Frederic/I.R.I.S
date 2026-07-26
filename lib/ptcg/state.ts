@@ -315,17 +315,44 @@ export function buildStates(tokens: PtcgTokenizeResult): PtcgBuildResult {
       }
 
       case 'move-to-hand': {
-        const card = ev.card as PtcgCardRef;
-        for (const k of inPlay(ev.player as string)) {
-          const i = k.attached.findIndex((a) => a.id === card.id);
-          if (i >= 0) {
-            pl!.hand.push(...k.attached.splice(i, 1));
-            return;
-          }
+        // Either one named card, or a counted batch whose cards arrive in the
+        // bullet list (Soutien de Néphie recovers three at once). Both are the
+        // same operation per card; only the source of the list differs.
+        const moved = (ev.cards as PtcgCardRef[] | undefined) ?? [ev.card as PtcgCardRef];
+
+        // Where the card comes from depends on what caused the move, and both
+        // spellings are identical. An attack effect takes it off the board —
+        // Hélice Ninja returns its own Water Energy. A Trainer takes it from
+        // the discard — Civière Nocturne and Soutien de Néphie both say "de
+        // votre pile de défausse". Guessing one order for both is wrong half
+        // the time: searching the board first stripped the Active of an Energy
+        // the log meant to recover from the discard, and that Pokémon went
+        // down carrying one card too few.
+        const fromBoardFirst = parent.type === 'attack' || parent.type === 'use';
+
+        const takeAttached = (card: PtcgCardRef) => {
+          const holder = inPlay(ev.player as string).find((k) =>
+            k.attached.some((a) => a.id === card.id),
+          );
+          if (!holder) return false;
+          const j = holder.attached.findIndex((a) => a.id === card.id);
+          pl!.hand.push(...holder.attached.splice(j, 1));
+          return true;
+        };
+        const takeDiscarded = (card: PtcgCardRef) => {
+          const i = pl!.discard.findIndex((c) => c.id === card.id);
+          if (i < 0) return false;
+          pl!.hand.push(...pl!.discard.splice(i, 1));
+          return true;
+        };
+
+        for (const card of moved) {
+          if (!card) continue;
+          const order = fromBoardFirst
+            ? [takeAttached, takeDiscarded]
+            : [takeDiscarded, takeAttached];
+          if (!order[0](card) && !order[1](card)) pl!.hand.push(card);
         }
-        const i = pl!.discard.findIndex((c) => c.id === card.id);
-        if (i >= 0) pl!.hand.push(...pl!.discard.splice(i, 1));
-        else pl!.hand.push(card);
         break;
       }
 
@@ -483,9 +510,27 @@ export function buildStates(tokens: PtcgTokenizeResult): PtcgBuildResult {
         // the discard two knockouts later.
         if (pl!.active?.cardId === card.id) break;
 
+        // Several copies can share the name, and the log never says which was
+        // promoted. Array order is not a tiebreak — a swap earlier in the game
+        // reorders the bench, which is how a fresh Malvalame-ex was promoted
+        // ahead of the one that had been built. A player promotes something
+        // that can act, so the copy carrying energy wins, then the one that
+        // has been in play longest.
+        const matches = pl!.bench.filter((b) => b.cardId === card.id);
+        if (matches.length > 1) {
+          ambiguities.push({
+            line: ev.line,
+            kind: 'promote-target',
+            card: card.name,
+            candidates: matches.length,
+            chosen: matches[0].uid,
+          });
+        }
         const k =
-          pl!.bench.find((b) => b.cardId === card.id) ??
-          resolve(ev.player as string, card, { line: ev.line });
+          [...matches].sort(
+            (a, b) =>
+              b.attached.length - a.attached.length || a.placedTurn - b.placedTurn || a.uid - b.uid,
+          )[0] ?? resolve(ev.player as string, card, { line: ev.line });
         if (k) {
           pl!.bench = pl!.bench.filter((b) => b !== k);
           if (pl!.active && pl!.active !== k) {

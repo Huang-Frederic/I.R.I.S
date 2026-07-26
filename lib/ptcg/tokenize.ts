@@ -400,6 +400,36 @@ export function tokenize(raw: string): PtcgTokenizeResult {
       (m) => ({ player: m[1], count: +m[2] }),
     ],
 
+    // Singular forms. The log switches to "une carte" for exactly one, which
+    // the digit-only patterns above miss — Billet à Échanger with one prize
+    // left produces both of these in a row.
+    [
+      'deck-to-prizes',
+      new RegExp(`^(${P}) a déplacé une carte de (${P}) vers les cartes Récompense\\.$`),
+      (m) => ({ player: m[2], count: 1 }),
+    ],
+    [
+      'prizes-under-deck',
+      new RegExp(`^(${P}) a placé une carte au-dessous de son deck\\.$`),
+      (m) => ({ player: m[1], count: 1 }),
+    ],
+
+    // Cards recovered from the discard in bulk (Soutien de Néphie). The named
+    // singular already exists; this is the counted form, whose cards arrive in
+    // the bullet list underneath.
+    [
+      'move-to-hand',
+      new RegExp(`^(${P}) a déplacé (\\d+) cartes de (${P}) vers sa main\\.$`),
+      (m) => ({ player: m[3], count: +m[2] }),
+    ],
+
+    // A hidden draw spelled as a sub-line, under whatever caused it.
+    [
+      'draw-hidden',
+      new RegExp(`^(${P}) a pioché une carte\\.$`),
+      (m) => ({ player: m[1], count: 1 }),
+    ],
+
     [
       'discard-attached',
       new RegExp(`^(\\d+) cartes ont été défaussées de ${C} de (${P})\\.$`),

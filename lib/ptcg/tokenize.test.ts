@@ -40,6 +40,16 @@ const FIXTURE_5 = readFileSync(
   'utf8',
 );
 
+/**
+ * Sixth real game — singular prize shuffling, a bulk recovery from the discard,
+ * a hidden draw as a sub-line, and two Malvalame-ex where a swap had reordered
+ * the bench.
+ */
+const FIXTURE_6 = readFileSync(
+  join(process.cwd(), 'lib/ptcg/fixtures/malvalame-2026-07-26.txt'),
+  'utf8',
+);
+
 const countTypes = (events: ReturnType<typeof tokenize>['events']) => {
   const counts: Record<string, number> = {};
   const walk = (e: (typeof events)[number]) => {
@@ -275,5 +285,26 @@ describe('tokenize — cinquième partie (Team Rocket)', () => {
     const thin = FIXTURE_5.replace(/ ([:!?;])/g, ' $1');
     expect(tokenize(thin).unknown).toEqual([]);
     expect(tokenize(thin).events.length).toBe(tokenize(FIXTURE_5).events.length);
+  });
+});
+
+describe('tokenize — sixième partie (Malvalame)', () => {
+  it('leaves nothing unrecognised', () => {
+    expect(tokenize(FIXTURE_6).unknown).toEqual([]);
+  });
+
+  it('reads the singular prize forms', () => {
+    // Billet à Échanger with one prize left prints "une carte" twice, which the
+    // digit-only patterns miss.
+    const subs = tokenize(FIXTURE_6).events.flatMap((e) => e.children ?? []);
+    expect(subs.some((c) => c.type === 'prizes-under-deck' && c.count === 1)).toBe(true);
+    expect(subs.some((c) => c.type === 'deck-to-prizes' && c.count === 1)).toBe(true);
+  });
+
+  it('reads a bulk recovery from the discard', () => {
+    const bulk = tokenize(FIXTURE_6)
+      .events.flatMap((e) => e.children ?? [])
+      .find((c) => c.type === 'move-to-hand' && c.count === 3)!;
+    expect(bulk.cards).toHaveLength(3);
   });
 });
