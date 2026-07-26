@@ -83,7 +83,11 @@ export async function POST(request: Request) {
 
   const { cards, unresolved } = await resolveCards(refs, { known });
 
-  const fresh = Object.values(cards).filter((c) => !known[c.ptcgl_id]);
+  // New cards, plus any cached row whose energy type was just derived from its
+  // name — otherwise the repair happens in memory on every single parse.
+  const fresh = Object.values(cards).filter(
+    (c) => !known[c.ptcgl_id] || known[c.ptcgl_id].types !== c.types,
+  );
   if (fresh.length) {
     const { error } = await supabase
       .from('ptcg_cards')

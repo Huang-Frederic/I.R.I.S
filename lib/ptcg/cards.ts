@@ -115,7 +115,7 @@ function toRow(c: TcgdexCard, ptcglId: string, language: CardLanguage): PtcgCard
     trainer_type: c.trainerType ?? null,
     stage: c.stage ?? null,
     hp: c.hp ?? null,
-    types: c.types ?? null,
+    types: c.types ?? energyTypeFromName(c.category, c.name),
     weaknesses: c.weaknesses ?? null,
     retreat: c.retreat ?? null,
     abilities: (c.abilities ?? []).map((a) => ({ name: a.name, effect: a.effect ?? null })),
@@ -129,6 +129,60 @@ function toRow(c: TcgdexCard, ptcglId: string, language: CardLanguage): PtcgCard
     image_url: c.image ?? null,
     fetched_at: new Date().toISOString(),
   };
+}
+
+/**
+ * The elemental type of a basic Energy, read off its name.
+ *
+ * TCGdex leaves `types` empty on most basic Energy cards — its `energyType`
+ * field says "De base" (basic vs special), not Fire or Fighting — so the name
+ * is the only carrier. Without this, anything that reasons about energy costs
+ * has to give up the moment one is attached, which is most turns.
+ *
+ * Its own naming is inconsistent ("Énergie Fire de base" alongside "Énergie
+ * Combat"), so both spellings are listed. An unrecognised name yields null
+ * rather than a guess: a wrong type would let an attack look payable when it
+ * is not, which is the failure this exists to prevent.
+ */
+const ENERGY_TYPES: Record<string, string> = {
+  feu: 'Feu',
+  fire: 'Feu',
+  eau: 'Eau',
+  water: 'Eau',
+  plante: 'Plante',
+  grass: 'Plante',
+  électrique: 'Électrique',
+  electrique: 'Électrique',
+  lightning: 'Électrique',
+  psy: 'Psy',
+  psychic: 'Psy',
+  combat: 'Combat',
+  fighting: 'Combat',
+  obscurité: 'Obscurité',
+  obscurite: 'Obscurité',
+  darkness: 'Obscurité',
+  métal: 'Métal',
+  metal: 'Métal',
+  fée: 'Fée',
+  fee: 'Fée',
+  fairy: 'Fée',
+  dragon: 'Dragon',
+  incolore: 'Incolore',
+  colorless: 'Incolore',
+};
+
+export function energyTypeFromName(category?: string, name?: string): string[] | null {
+  if (category !== 'Énergie' || !name) return null;
+  const words = name
+    .toLowerCase()
+    .replace(/^énergie\s+/, '')
+    .replace(/\s+de\s+base$/, '')
+    .split(/\s+/);
+  for (const w of words) {
+    const type = ENERGY_TYPES[w];
+    if (type) return [type];
+  }
+  return null;
 }
 
 async function fetchOne(id: string): Promise<TcgdexCard | null> {
@@ -147,9 +201,22 @@ async function fetchOne(id: string): Promise<TcgdexCard | null> {
  */
 export async function resolveCards(
   refs: PtcgCardRef[],
-  { known = {}, language = 'FR' as CardLanguage } = {},
+  {
+    known = {},
+    language = 'FR' as CardLanguage,
+  }: { known?: Record<string, PtcgCardRow>; language?: CardLanguage } = {},
 ): Promise<{ cards: Record<string, PtcgCardRow>; unresolved: string[] }> {
-  const cards: Record<string, PtcgCardRow> = { ...known };
+  // Rows cached before energy types were derived carry types: null, and a
+  // cached row is never re-fetched — so repairing only new cards would leave
+  // every deck already seen unable to answer whether an attack is payable.
+  // The name is already in hand, so this costs no request.
+  const cards: Record<string, PtcgCardRow> = {};
+  for (const [id, row] of Object.entries(known)) {
+    cards[id] =
+      row.types == null && row.category === 'Énergie'
+        ? { ...row, types: energyTypeFromName(row.category, row.name) }
+        : row;
+  }
   const unresolved: string[] = [];
 
   const wanted = new Map<string, string>();

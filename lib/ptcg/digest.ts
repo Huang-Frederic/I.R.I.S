@@ -20,6 +20,7 @@ import type {
   PtcgSnapshot,
 } from '@/lib/types';
 import { eventLabel } from '@/lib/utils/ptcg-event-label';
+import { canPayCost, energyPool } from './energy-cost';
 import type { PtcgParsedGame } from './index';
 
 /** Abilities usable once per turn — the ones worth reporting as skipped. */
@@ -107,7 +108,15 @@ function damageIfAttackNow(
   const targetCard = cards[theirs.cardId];
   if (!targetCard?.hp) return null;
 
+  // Only attacks whose cost is actually attached. Without this the biggest
+  // attack on the card was reported whatever was in play, so a Pokémon with no
+  // energy still advertised damage — and an analysis reading that would accuse
+  // the player of passing up a hit they could not have made.
+  const pool = energyPool(mine.attached, cards);
+  if (pool === null) return null;
+
   const best = (cards[mine.cardId]?.attacks ?? [])
+    .filter((a) => canPayCost(a.cost, pool))
     .map((a) => ({ move: a.name, total: Number(a.damage) }))
     .filter((a) => Number.isInteger(a.total) && a.total > 0)
     .sort((a, b) => b.total - a.total)[0];

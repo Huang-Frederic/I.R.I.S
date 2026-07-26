@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { candidateIds, looseNameMatch, normaliseName } from './cards';
+import { candidateIds, energyTypeFromName, looseNameMatch, normaliseName } from './cards';
 
 describe('candidateIds', () => {
   it('pads the card number to three digits', () => {
@@ -64,5 +64,38 @@ describe('looseNameMatch', () => {
 
   it('still rejects a different card', () => {
     expect(looseNameMatch(normaliseName('Ludvina'), normaliseName('Majaspic-ex'))).toBe(false);
+  });
+});
+
+describe('energyTypeFromName', () => {
+  it('reads a basic energy type off its French name', () => {
+    // TCGdex leaves `types` empty here; energyType says "De base", not Combat.
+    expect(energyTypeFromName('Énergie', 'Énergie Combat')).toEqual(['Combat']);
+    expect(energyTypeFromName('Énergie', 'Énergie Eau de base')).toEqual(['Eau']);
+  });
+
+  it('accepts the English type words TCGdex mixes in', () => {
+    // Real row: "Énergie Fire de base" — its own naming is not consistent.
+    expect(energyTypeFromName('Énergie', 'Énergie Fire de base')).toEqual(['Feu']);
+  });
+
+  it('handles accents both ways', () => {
+    expect(energyTypeFromName('Énergie', 'Énergie Électrique')).toEqual(['Électrique']);
+    expect(energyTypeFromName('Énergie', 'Energie Obscurite de base')).toEqual(['Obscurité']);
+  });
+
+  it('ignores anything that is not an Energy card', () => {
+    // A Trainer named after a type must never look like an energy source.
+    expect(energyTypeFromName('Dresseur', 'Gong de Combat')).toBeNull();
+    expect(energyTypeFromName('Pokémon', 'Feurisson de Luth')).toBeNull();
+  });
+
+  it('returns null on an unknown energy rather than guessing', () => {
+    // A wrong type would make an attack look payable when it is not.
+    expect(energyTypeFromName('Énergie', 'Énergie Double Turbo')).toBeNull();
+  });
+
+  it('returns null without a name', () => {
+    expect(energyTypeFromName('Énergie', undefined)).toBeNull();
   });
 });
