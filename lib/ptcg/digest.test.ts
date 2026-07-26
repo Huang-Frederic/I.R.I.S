@@ -48,6 +48,19 @@ const CARDS: Record<string, PtcgCardRow> = Object.fromEntries(
       attacks: [{ name: 'Fournaise', cost: ['Feu'], damage: '40', effect: null }],
     }),
     card({
+      ptcgl_id: 'sv6-5_38',
+      name: 'Favianos-ex',
+      hp: 210,
+      // Once-per-turn, but only after one of your Pokémon was knocked out.
+      abilities: [
+        {
+          name: 'Renverser la Tendance',
+          effect:
+            "Une fois pendant votre tour, si l'un de vos Pokémon a été mis K.O. pendant le dernier tour de votre adversaire, vous pouvez piocher 3 cartes.",
+        },
+      ],
+    }),
+    card({
       ptcgl_id: 'sv8_21',
       name: 'Victini',
       hp: 70,
@@ -119,6 +132,30 @@ describe('buildDigest', () => {
     const skipped = turn(5).available.unusedAbilities;
     expect(skipped).toHaveLength(1);
     expect(skipped[0]).toMatchObject({ card: 'Feurisson de Luth', ability: 'Unis par le Voyage' });
+  });
+
+  it('marks a conditional ability so it is not read as a missed opportunity', () => {
+    // Favianos-ex only fires after one of your Pokémon was knocked out, so it
+    // reads as "unused" on every quiet turn. In the Lucario game that happened
+    // three times — reporting them as mistakes would be three false
+    // accusations in a single analysis.
+    const lucario = buildDigest(
+      parseGame(
+        readFileSync(join(process.cwd(), 'lib/ptcg/fixtures/lucario-2026-07-26.txt'), 'utf8'),
+      ),
+      CARDS,
+      { gameId: 'test', playedAt: '2026-07-26T00:00:00Z' },
+    );
+    const unused = lucario.turns.flatMap((t) => t.available.unusedAbilities);
+
+    const conditional = unused.filter((a) => a.ability === 'Renverser la Tendance');
+    expect(conditional.length).toBeGreaterThan(0);
+    expect(conditional.every((a) => a.conditional)).toBe(true);
+
+    // An unconditional one stays unflagged, so the distinction is usable.
+    const plain = unused.filter((a) => a.ability === 'Unis par le Voyage');
+    expect(plain.length).toBeGreaterThan(0);
+    expect(plain.every((a) => a.conditional)).toBe(false);
   });
 
   it('does not flag a passive ability as skipped', () => {

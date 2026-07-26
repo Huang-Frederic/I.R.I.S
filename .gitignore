@@ -92,3 +92,8 @@ vinted_ress/
 
 # Machine-transfer bundle (secrets: envs + cookies) — never commit
 iris-mac-transfer/
+
+# PTCG coach — per-game logs and bundles, plus the TCGdex card cache.
+# All regenerable from the raw log; the fixtures under lib/ptcg/ are tracked.
+/games/
+/scripts/data/ptcg-cards-cache.json

@@ -25,6 +25,14 @@ import type { PtcgParsedGame } from './index';
 /** Abilities usable once per turn — the ones worth reporting as skipped. */
 const ONCE_PER_TURN = /une fois pendant votre tour/i;
 
+/**
+ * An ability whose text carries a precondition. Being untriggered proves
+ * nothing about these — Favianos-ex's "Renverser la Tendance" only works after
+ * one of your Pokémon was knocked out, so it shows up as "unused" on every
+ * quiet turn. Flagged rather than dropped: the condition may well have held.
+ */
+const CONDITIONAL = /\bsi\b|\bs['’]il\b|\blorsque\b|\bà condition\b/i;
+
 const inPlay = (s: PtcgGameState, player: string): PtcgPokemonState[] =>
   [s.players[player].active, ...s.players[player].bench].filter(Boolean) as PtcgPokemonState[];
 
@@ -44,7 +52,7 @@ function unusedAbilities(
   player: string,
   cards: Record<string, PtcgCardRow>,
 ): PtcgAvailability['unusedAbilities'] {
-  const opportunities = new Map<string, { uid: number; card: string; ability: string }>();
+  const opportunities = new Map<string, PtcgAvailability['unusedAbilities'][number]>();
 
   for (const s of snaps) {
     for (const k of inPlay(s.state, player)) {
@@ -54,6 +62,8 @@ function unusedAbilities(
           uid: k.uid,
           card: cards[k.cardId]?.name ?? k.name,
           ability: a.name,
+          effect: a.effect,
+          conditional: CONDITIONAL.test(a.effect),
         });
       }
     }

@@ -348,14 +348,19 @@ export function buildStates(tokens: PtcgTokenizeResult): PtcgBuildResult {
         break; // already handled by the preceding knockout; used by validate.ts
 
       case 'shuffle-into-deck':
+        // Hand first, discard second. Most cards that shuffle into the deck
+        // take the hand (Détermination de Lilie and friends); only a few take
+        // the discard (Cendre Sacrée). Searching the discard first silently
+        // removed a card that was in fact in hand, which then under-counted
+        // every attack scaling on the discard pile — caught by the oracle.
         for (const c of ev.cards ?? []) {
-          const i = pl!.discard.findIndex((d) => d.id === c.id);
+          const i = pl!.hand.findIndex((d) => d.id === c.id);
           if (i >= 0) {
-            pl!.discard.splice(i, 1);
+            pl!.hand.splice(i, 1);
             continue;
           }
-          const j = pl!.hand.findIndex((d) => d.id === c.id);
-          if (j >= 0) pl!.hand.splice(j, 1);
+          const j = pl!.discard.findIndex((d) => d.id === c.id);
+          if (j >= 0) pl!.discard.splice(j, 1);
         }
         break;
 

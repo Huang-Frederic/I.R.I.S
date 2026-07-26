@@ -96,6 +96,36 @@ describe('validate — second game', () => {
   });
 });
 
+describe('validate — third game', () => {
+  const FIXTURE_3 = readFileSync(
+    join(process.cwd(), 'lib/ptcg/fixtures/lucario-2026-07-26.txt'),
+    'utf8',
+  );
+
+  it('passes on a game won by concession', () => {
+    expect(run(FIXTURE_3).checks.filter((c) => c.ok === false)).toEqual([]);
+  });
+
+  it('does not require the winner to have taken every prize after a concession', () => {
+    // The game ends wherever the score happens to be — here 2-1, with four
+    // prizes still on the table. Asserting zero would be wrong.
+    const check = run(FIXTURE_3).checks.find((c) => c.kind === 'prizes')!;
+    expect(check.ok).toBeNull();
+    expect(check.detail).toContain('concession');
+  });
+
+  it('does not eat a discard card when a Supporter shuffles the hand', () => {
+    // Détermination de Lilie shuffles the HAND into the deck, and its card list
+    // included an Aventure de Luth. Searching the discard first removed the
+    // wrong copy and under-counted Explosion Partenaire by 60 damage.
+    const check = run(FIXTURE_3).checks.find(
+      (c) => c.kind === 'discard-counter' && c.detail.includes('Explosion Partenaire'),
+    )!;
+    expect(check.ok).toBe(true);
+    expect(check.detail).toContain('3 × 60 = 180');
+  });
+});
+
 describe('parseGame', () => {
   it('derives the game summary from the reconstruction', () => {
     const g = parseGame(FIXTURE);

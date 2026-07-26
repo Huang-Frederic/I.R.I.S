@@ -39,11 +39,18 @@ export function validate(built: PtcgBuildResult, tokens: PtcgTokenizeResult): Pt
     if (ev.type === 'ko' && ev.discarded) validateKnockout(ev);
   }
 
-  // The winner must have taken all six prizes.
+  // The winner must have taken all six prizes — unless the opponent conceded,
+  // which ends the game at whatever the score happened to be.
   if (built.final.winner) {
+    const end = tokens.events.find((e) => e.type === 'game-end');
     const rem = built.final.players[built.final.winner].prizesRemaining;
-    if (rem !== 0) fail('prizes', `winner ${built.final.winner}`, 0, rem);
-    else pass('prizes', `${built.final.winner} at 0 prizes remaining`);
+    if (end?.byConcession) {
+      skip('prizes', `${built.final.winner} won by concession, ${rem} prizes left untaken`);
+    } else if (rem !== 0) {
+      fail('prizes', `winner ${built.final.winner}`, 0, rem);
+    } else {
+      pass('prizes', `${built.final.winner} at 0 prizes remaining`);
+    }
   }
 
   const failed = checks.filter((c) => c.ok === false);

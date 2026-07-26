@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { validateBundle } from '@/lib/ptcg/bundle';
+import { keyPokemon } from '@/lib/ptcg/protagonists';
 import {
   apiError,
   serverErrorResponse,
@@ -53,9 +54,25 @@ export async function POST(request: Request) {
     if (error) return serverErrorResponse(error.message);
   }
 
+  // Derived once here rather than at read time: the history list would
+  // otherwise have to load `state` — about a megabyte per game — just to show
+  // which Pokémon carried each side.
+  const snapshots = bundle.game.state.snapshots;
+  const mine = keyPokemon(snapshots, bundle.game.me);
+  const theirs = keyPokemon(snapshots, bundle.game.opponent);
+
   const { data: game, error: gameError } = await supabase
     .from('ptcg_games')
-    .insert({ ...bundle.game, user_id: user.id })
+    .insert({
+      ...bundle.game,
+      user_id: user.id,
+      my_key_card: mine?.cardId ?? null,
+      opponent_key_card: theirs?.cardId ?? null,
+      // A bundle may carry its own archetype; otherwise name it after the
+      // protagonist, since the player's handle says nothing about the matchup.
+      my_archetype: bundle.game.my_archetype ?? mine?.name ?? null,
+      opponent_archetype: bundle.game.opponent_archetype ?? theirs?.name ?? null,
+    })
     .select('id, played_at, me, opponent, result, prizes_me, prizes_opponent, turns')
     .single();
 

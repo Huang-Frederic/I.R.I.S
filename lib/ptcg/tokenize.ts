@@ -232,11 +232,17 @@ export function tokenize(raw: string): PtcgTokenizeResult {
     ],
 
     ['end-turn', new RegExp(`^(${P}) a mis fin à son tour\\.$`), (m) => ({ player: m[1] })],
-    // Two spellings, depending on which side won.
+    // Three spellings: prizes taken by the opponent, prizes taken by you, and
+    // a concession. Missing one makes the game read as a tie.
     [
       'game-end',
       new RegExp(`^Toutes les cartes Récompense ont été récupérées\\. (${P}) gagne\\.$`),
       (m) => ({ winner: m[1] }),
+    ],
+    [
+      'game-end',
+      new RegExp(`^L['’]adversaire a concédé la partie\\. (${P}) gagne\\.$`),
+      (m) => ({ winner: m[1], byConcession: true }),
     ],
     [
       'game-end',
@@ -281,6 +287,12 @@ export function tokenize(raw: string): PtcgTokenizeResult {
       'bench-from-deck',
       new RegExp(`^(${P}) a pioché (\\d+) cartes et les a jouées sur le Banc\\.$`),
       (m) => ({ player: m[1], count: +m[2] }),
+    ],
+    // Singular form: the card is named inline rather than in a bullet list.
+    [
+      'bench-from-deck',
+      new RegExp(`^(${P}) a pioché la carte ${C} et l['’]a jouée sur le Banc\\.$`),
+      (m) => ({ player: m[1], count: 1, cards: [{ id: m[2], name: m[3] }] }),
     ],
     [
       'draw-hidden',

@@ -14,24 +14,20 @@
 export type CardLanguage = 'JP' | 'EN' | 'FR' | 'DE' | 'IT' | 'ES' | 'KO' | 'PT' | 'ZH' | 'CN';
 
 /** UI-facing subset — what the user can pick in dropdowns. */
-export const UI_LANGUAGES = ['JP', 'EN', 'FR', 'KO', 'CN'] as const satisfies readonly CardLanguage[];
+export const UI_LANGUAGES = [
+  'JP',
+  'EN',
+  'FR',
+  'KO',
+  'CN',
+] as const satisfies readonly CardLanguage[];
 export type UILanguage = (typeof UI_LANGUAGES)[number];
 
 export type CardCondition = 'NM' | 'EX' | 'GD' | 'PL' | 'PO';
 
 export type CardStatus = 'pokedex' | 'for_sale' | 'collection' | 'sold' | 'traded';
 
-export type CardRarity =
-  | 'SAR'
-  | 'AR'
-  | 'SR'
-  | 'CHR'
-  | 'RR'
-  | 'R_HOLO'
-  | 'R'
-  | 'UC'
-  | 'C'
-  | 'OTHER';
+export type CardRarity = 'SAR' | 'AR' | 'SR' | 'CHR' | 'RR' | 'R_HOLO' | 'R' | 'UC' | 'C' | 'OTHER';
 
 export interface Card {
   id: string;
@@ -123,7 +119,12 @@ export interface RarityRank {
   label: string;
 }
 
-export type StoreEventType = 'league' | 'tournament' | 'prerelease' | 'league_cup' | 'league_challenge';
+export type StoreEventType =
+  | 'league'
+  | 'tournament'
+  | 'prerelease'
+  | 'league_cup'
+  | 'league_challenge';
 
 /** A shop event aggregated by the store-events scraper (see scripts/store-events/). */
 export interface StoreEventRow {
@@ -246,6 +247,9 @@ export interface PtcgGameRow {
   turns: number;
   my_archetype: string | null;
   opponent_archetype: string | null;
+  /** ptcgl_id of the Pokémon that dealt the most damage — joins ptcg_cards. */
+  my_key_card: string | null;
+  opponent_key_card: string | null;
   raw_log: string;
   log_hash: string;
   parser_version: string;
@@ -380,8 +384,21 @@ export interface PtcgDigestTurn {
 }
 
 export interface PtcgAvailability {
-  /** Once-per-turn abilities in play that were never triggered this turn. */
-  unusedAbilities: { uid: number; card: string; ability: string }[];
+  /**
+   * Once-per-turn abilities in play that were never triggered this turn.
+   *
+   * `conditional` warns that the ability has a precondition in its text (e.g.
+   * "if one of your Pokémon was Knocked Out during your opponent's last turn").
+   * Those entries are NOT proof of a missed opportunity — the ability may
+   * simply have been unusable. Read `effect` and check before reporting one.
+   */
+  unusedAbilities: {
+    uid: number;
+    card: string;
+    ability: string;
+    effect: string | null;
+    conditional: boolean;
+  }[];
   playableFromHand: string[];
   supporterPlayed: boolean;
   energyAttached: boolean;

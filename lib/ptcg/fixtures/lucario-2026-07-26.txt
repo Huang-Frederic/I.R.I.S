@@ -1,0 +1,150 @@
+Préparation
+Hisshiden a choisi pile pour le lancer de pièce initial.
+MBakes a gagné le lancer de pièce.
+MBakes a décidé de jouer en premier.
+Hisshiden a pioché 7 cartes pour sa main de départ.
+- 7 cartes piochées.
+   • (sv10_32) Héricendre de Luth, (sv1_196) Hyper Ball, (sv10_33) Feurisson de Luth, (sv10_34) Typhlosion de Luth, (sv6-5_38) Favianos-ex, (sv10_32) Héricendre de Luth, (me5_104) Bracelet Vaillant
+MBakes a pioché 7 cartes pour sa main de départ.
+- 7 cartes piochées.
+Hisshiden a joué (sv10_32) Héricendre de Luth sur le Poste Actif.
+Hisshiden a joué (sv10_32) Héricendre de Luth sur le Banc.
+MBakes a joué (me1_76) Riolu sur le Poste Actif.
+MBakes a joué (me1_76) Riolu sur le Banc.
+MBakes a joué (me1_72) Makuhita sur le Banc.
+
+Tour de MBakes
+MBakes a pioché une carte.
+MBakes a attaché (mee_6) Énergie Combat de base à (me1_76) Riolu sur le Poste Actif.
+MBakes a mis fin à son tour.
+
+Tour de Hisshiden
+Hisshiden a pioché (sv10_221) Aventure de Luth.
+Hisshiden a joué (sv10_221) Aventure de Luth.
+- Hisshiden a pioché 3 cartes.
+   • (sv3_230) Énergie Feu de base, (sv10_32) Héricendre de Luth, (sv10_33) Feurisson de Luth
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv10_32) Héricendre de Luth sur le Banc.
+Hisshiden a attaché (sv3_230) Énergie Feu de base à (sv10_32) Héricendre de Luth sur le Banc.
+Hisshiden a mis fin à son tour.
+
+Tour de MBakes
+MBakes a pioché une carte.
+MBakes a attaché (mee_6) Énergie Combat de base à (me1_76) Riolu sur le Banc.
+MBakes a joué (me1_124) Puissance Premium Pro.
+MBakes a joué (me1_124) Puissance Premium Pro.
+(me1_76) Riolu de MBakes a utilisé Poignard Accélérateur sur (sv10_32) Héricendre de Luth de Hisshiden et a infligé 90 dégâts.
+- Analyse des dégâts :
+   • Dégâts de base : 30 dégâts
+   • (me1_124) Puissance Premium Pro (Objet) : 30 dégâts
+   • (me1_124) Puissance Premium Pro (Objet) : 30 dégâts
+   • Total de dégâts : 90 dégâts
+
+(sv10_32) Héricendre de Luth de Hisshiden a été mis K.O. !
+MBakes a récupéré une carte Récompense.
+La carte Une carte a été ajoutée à la main de MBakes.
+(sv10_32) Héricendre de Luth de Hisshiden est maintenant sur le Poste Actif.
+
+Tour de Hisshiden
+Hisshiden a pioché (sv10_168) Cendre Sacrée.
+Hisshiden a fait évoluer (sv10_32) Héricendre de Luth en (sv10_33) Feurisson de Luth sur le Poste Actif.
+Hisshiden a fait évoluer (sv10_32) Héricendre de Luth en (sv10_33) Feurisson de Luth sur le Banc.
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Unis par le Voyage.
+- Hisshiden a pioché (sv10_221) Aventure de Luth.
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv6-5_38) Favianos-ex sur le Banc.
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Unis par le Voyage.
+- Hisshiden a pioché (sv10_221) Aventure de Luth.
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv10_221) Aventure de Luth.
+- Hisshiden a pioché 3 cartes.
+   • (sv3_230) Énergie Feu de base, (sv3_230) Énergie Feu de base, (sv10_34) Typhlosion de Luth
+- Hisshiden a mélangé son deck.
+(sv6-5_38) Favianos-ex de Hisshiden a utilisé Renverser la Tendance.
+- Hisshiden a pioché 3 cartes.
+   • (me1_169) Détermination de Lilie, (sv6_206) Kassis, (sv10_33) Feurisson de Luth
+Hisshiden a attaché (sv3_230) Énergie Feu de base à (sv10_33) Feurisson de Luth sur le Banc.
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Fournaise sur (me1_76) Riolu de MBakes et a infligé 40 dégâts.
+
+Tour de MBakes
+MBakes a pioché une carte.
+MBakes a attaché (mee_6) Énergie Combat de base à (me1_72) Makuhita sur le Banc.
+MBakes a joué (me1_116) Gong de Combat.
+- MBakes a pioché (me1_74) Séléroc.
+- MBakes a mélangé son deck.
+MBakes a joué (me1_74) Séléroc sur le Banc.
+MBakes a mis fin à son tour.
+
+Tour de Hisshiden
+Hisshiden a pioché (me3_81) Poké Registre.
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Unis par le Voyage.
+- Hisshiden a pioché (sv10_221) Aventure de Luth.
+- Hisshiden a mélangé son deck.
+Hisshiden a fait évoluer (sv10_33) Feurisson de Luth en (sv10_34) Typhlosion de Luth sur le Banc.
+Hisshiden a joué (sv10_221) Aventure de Luth.
+- Hisshiden a pioché 2 cartes.
+   • (sv3_230) Énergie Feu de base, (sv10_34) Typhlosion de Luth
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (me3_81) Poké Registre.
+- Hisshiden a pioché (sv8-5_71) Fantyrm.
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv8-5_71) Fantyrm sur le Banc.
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Fournaise sur (me1_76) Riolu de MBakes et a infligé 40 dégâts.
+(me1_76) Riolu de MBakes a été mis K.O. !
+La carte (mee_6) Énergie Combat de base a été défaussée de (me1_76) Riolu de MBakes.
+Hisshiden a récupéré une carte Récompense.
+La carte (me1_169) Détermination de Lilie a été ajoutée à la main de Hisshiden.
+(me1_72) Makuhita de MBakes est maintenant sur le Poste Actif.
+
+Tour de MBakes
+MBakes a pioché une carte.
+MBakes a attaché (mee_6) Énergie Combat de base à (me1_72) Makuhita sur le Poste Actif.
+(me1_72) Makuhita de MBakes a utilisé Confrontation sur (sv10_33) Feurisson de Luth de Hisshiden et a infligé 30 dégâts.
+
+Tour de Hisshiden
+Hisshiden a pioché (sv1_196) Hyper Ball.
+Hisshiden a fait évoluer (sv10_33) Feurisson de Luth en (sv10_34) Typhlosion de Luth sur le Poste Actif.
+Hisshiden a joué (me1_169) Détermination de Lilie.
+- Hisshiden a mélangé 11 cartes avec son deck.
+   • (sv1_196) Hyper Ball, (sv10_34) Typhlosion de Luth, (me5_104) Bracelet Vaillant, (sv10_168) Cendre Sacrée, (sv10_221) Aventure de Luth, (sv3_230) Énergie Feu de base, (me1_169) Détermination de Lilie, (sv6_206) Kassis, (sv10_33) Feurisson de Luth, (sv3_230) Énergie Feu de base, (sv1_196) Hyper Ball
+- Hisshiden a pioché 6 cartes.
+   • (me1_175) Super Bonbon, (sv6_206) Kassis, (me3_81) Poké Registre, (me1_167) Poffin Copain-Copain, (sv6_207) Soutien de Néphie, (sv10_34) Typhlosion de Luth
+Hisshiden a joué (me3_81) Poké Registre.
+- Hisshiden a pioché (sv8-5_72) Dispareptil.
+- Hisshiden a mélangé son deck.
+Hisshiden a fait évoluer (sv8-5_71) Fantyrm en (sv8-5_72) Dispareptil sur le Banc.
+(sv8-5_72) Dispareptil de Hisshiden a utilisé Ordre de Reconnaissance.
+- Hisshiden a pioché (me3_81) Poké Registre.
+Hisshiden a joué (me3_81) Poké Registre.
+- Hisshiden a pioché (sv8_21) Victini.
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv8_21) Victini sur le Banc.
+Hisshiden a joué (me1_167) Poffin Copain-Copain.
+- Hisshiden a pioché la carte (sv8_21) Victini et l’a jouée sur le Banc.
+- Hisshiden a mélangé son deck.
+(sv10_34) Typhlosion de Luth de Hisshiden a utilisé Explosion Partenaire sur (me1_72) Makuhita de MBakes et a infligé 240 dégâts.
+- Analyse des dégâts :
+   • Dégâts de base : 40 dégâts
+   • Cri de Victoire (talent) : 10 dégâts
+   • Cri de Victoire (talent) : 10 dégâts
+   • (3) cartes dans la pile de défausse : 180 dégâts
+   • Total de dégâts : 240 dégâts
+
+(me1_72) Makuhita de MBakes a été mis K.O. !
+- 2 cartes ont été défaussées de (me1_72) Makuhita de MBakes.
+   • (mee_6) Énergie Combat de base, (mee_6) Énergie Combat de base
+Hisshiden a récupéré une carte Récompense.
+La carte (sv9_156) Billet à Échanger a été ajoutée à la main de Hisshiden.
+(me1_76) Riolu de MBakes est maintenant sur le Poste Actif.
+
+Tour de MBakes
+MBakes a pioché une carte.
+MBakes a joué (sv6-5_61) Civière Nocturne.
+- MBakes a déplacé (me1_76) Riolu de MBakes vers sa main.
+MBakes a joué (me1_76) Riolu sur le Banc.
+MBakes a attaché (mee_6) Énergie Combat de base à (me1_76) Riolu sur le Poste Actif.
+(me1_76) Riolu de MBakes a utilisé Poignard Accélérateur sur (sv10_34) Typhlosion de Luth de Hisshiden et a infligé 30 dégâts.
+
+Tour de Hisshiden
+Hisshiden a pioché (rsv10-5_80) Bracelet Vaillant.
+L’adversaire a concédé la partie. Hisshiden gagne.

@@ -14,6 +14,12 @@ const FIXTURE_2 = readFileSync(
   'utf8',
 );
 
+/** Third real game — concession, singular bench search, hand shuffled to deck. */
+const FIXTURE_3 = readFileSync(
+  join(process.cwd(), 'lib/ptcg/fixtures/lucario-2026-07-26.txt'),
+  'utf8',
+);
+
 const countTypes = (events: ReturnType<typeof tokenize>['events']) => {
   const counts: Record<string, number> = {};
   const walk = (e: (typeof events)[number]) => {
@@ -134,6 +140,27 @@ describe('tokenize', () => {
     expect(tokenize(FIXTURE_2).events.find((e) => e.type === 'game-end')).toMatchObject({
       winner: 'Hisshiden',
     });
+  });
+
+  it('recognises every line of a third game', () => {
+    expect(tokenize(FIXTURE_3).unknown).toEqual([]);
+  });
+
+  it('reads a win by concession', () => {
+    // A third end-of-game spelling. Missing it made the game read as a tie.
+    expect(tokenize(FIXTURE_3).events.find((e) => e.type === 'game-end')).toMatchObject({
+      winner: 'Hisshiden',
+      byConcession: true,
+    });
+  });
+
+  it('reads the singular form of searching a Pokémon onto the bench', () => {
+    // "a pioché la carte X et l'a jouée sur le Banc" — the plural form names
+    // the cards in a bullet list, this one names the card inline.
+    const single = tokenize(FIXTURE_3)
+      .events.flatMap((e) => e.children ?? [])
+      .find((c) => c.type === 'bench-from-deck' && c.count === 1)!;
+    expect(single.cards).toEqual([{ id: 'sv8_21', name: 'Victini' }]);
   });
 
   it('keeps the announced owner of damage counters without trusting it', () => {
