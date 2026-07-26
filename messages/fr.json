@@ -46,7 +46,7 @@
     "logs": "Activité",
     "more": "Plus",
     "close": "Fermer",
-    "ptcg": "Parties"
+    "ptcg": "Duels"
   },
   "auth": {
     "credentialsRequired": "Email et mot de passe requis.",
@@ -1014,13 +1014,13 @@
     }
   },
   "ptcg": {
-    "metaTitle": "Analyse de parties",
-    "pageTitle": "Parties",
-    "pageSubtitle": "{count, plural, =0 {Aucune partie} one {# partie analysée} other {# parties analysées}}",
+    "metaTitle": "Analyse de duels",
+    "pageTitle": "Duels",
+    "pageSubtitle": "{count, plural, =0 {Aucun duel} one {# duel analysé} other {# duels analysés}}",
     "loadError": "Impossible de charger les parties : {message}",
-    "dropzone": "Lâche pour importer la partie",
+    "dropzone": "Lâche pour importer le duel",
     "uploading": "Import en cours…",
-    "empty": "Aucune partie. Dépose un fichier ci-dessus pour commencer.",
+    "empty": "Aucun duel. Dépose un fichier de partie ci-dessus pour commencer.",
     "versus": "contre {opponent}",
     "setup": "Préparation",
     "you": "toi",
@@ -1040,7 +1040,7 @@
     "result_loss": "Défaite",
     "result_tie": "Nul",
     "turnsCount": "{count, plural, one {# tour} other {# tours}}",
-    "import": "Importer une partie",
+    "import": "Importer un duel",
     "dropAnywhere": "Dépose un fichier n'importe où",
     "statErrors": "Erreurs",
     "statWarnings": "Fuites",

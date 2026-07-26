@@ -46,7 +46,7 @@
     "logs": "Activity",
     "more": "More",
     "close": "Close",
-    "ptcg": "Games"
+    "ptcg": "Duels"
   },
   "auth": {
     "credentialsRequired": "Email and password required.",
@@ -1014,13 +1014,13 @@
     }
   },
   "ptcg": {
-    "metaTitle": "Game analysis",
-    "pageTitle": "Games",
-    "pageSubtitle": "{count, plural, =0 {No games yet} one {# game analysed} other {# games analysed}}",
+    "metaTitle": "Duel analysis",
+    "pageTitle": "Duels",
+    "pageSubtitle": "{count, plural, =0 {No duels yet} one {# duel analysed} other {# duels analysed}}",
     "loadError": "Could not load games: {message}",
-    "dropzone": "Drop to import the game",
+    "dropzone": "Drop to import the duel",
     "uploading": "Importing…",
-    "empty": "No games yet. Drop a game file above to start.",
+    "empty": "No duels yet. Drop a game file above to start.",
     "versus": "vs {opponent}",
     "setup": "Setup",
     "you": "you",
@@ -1040,7 +1040,7 @@
     "result_loss": "Loss",
     "result_tie": "Tie",
     "turnsCount": "{count, plural, one {# turn} other {# turns}}",
-    "import": "Import a game",
+    "import": "Import a duel",
     "dropAnywhere": "Drop a file anywhere",
     "statErrors": "Mistakes",
     "statWarnings": "Leaks",

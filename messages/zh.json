@@ -46,7 +46,7 @@
     "logs": "活动记录",
     "more": "更多",
     "close": "关闭",
-    "ptcg": "对战"
+    "ptcg": "对决"
   },
   "auth": {
     "credentialsRequired": "需要邮箱和密码。",
@@ -1014,13 +1014,13 @@
     }
   },
   "ptcg": {
-    "metaTitle": "对战分析",
-    "pageTitle": "对战",
-    "pageSubtitle": "{count, plural, =0 {暂无对战} other {已分析 # 场对战}}",
+    "metaTitle": "对决分析",
+    "pageTitle": "对决",
+    "pageSubtitle": "{count, plural, =0 {暂无对决} other {已分析 # 场对决}}",
     "loadError": "无法加载对战：{message}",
-    "dropzone": "松开以导入对战",
+    "dropzone": "松开以导入对决",
     "uploading": "导入中…",
-    "empty": "暂无对战。请在上方拖入文件开始。",
+    "empty": "暂无对决。请在上方拖入文件开始。",
     "versus": "对阵 {opponent}",
     "setup": "准备",
     "you": "你",
@@ -1040,7 +1040,7 @@
     "result_loss": "负",
     "result_tie": "平",
     "turnsCount": "{count} 回合",
-    "import": "导入对战",
+    "import": "导入对决",
     "dropAnywhere": "将文件拖到任意位置",
     "statErrors": "失误",
     "statWarnings": "损失",

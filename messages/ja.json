@@ -46,7 +46,7 @@
     "logs": "アクティビティ",
     "more": "その他",
     "close": "閉じる",
-    "ptcg": "対戦"
+    "ptcg": "デュエル"
   },
   "auth": {
     "credentialsRequired": "メールアドレスとパスワードが必要です。",
@@ -1014,13 +1014,13 @@
     }
   },
   "ptcg": {
-    "metaTitle": "対戦分析",
-    "pageTitle": "対戦",
-    "pageSubtitle": "{count, plural, =0 {対戦なし} other {# 件の対戦を分析}}",
+    "metaTitle": "デュエル分析",
+    "pageTitle": "デュエル",
+    "pageSubtitle": "{count, plural, =0 {デュエルなし} other {# 件のデュエルを分析}}",
     "loadError": "対戦を読み込めませんでした: {message}",
     "dropzone": "ドロップして取り込む",
     "uploading": "取り込み中…",
-    "empty": "対戦がありません。上にファイルをドロップしてください。",
+    "empty": "デュエルがありません。上にファイルをドロップしてください。",
     "versus": "vs {opponent}",
     "setup": "準備",
     "you": "あなた",
@@ -1040,7 +1040,7 @@
     "result_loss": "負け",
     "result_tie": "引き分け",
     "turnsCount": "{count} ターン",
-    "import": "対戦を取り込む",
+    "import": "デュエルを取り込む",
     "dropAnywhere": "どこにでもファイルをドロップ",
     "statErrors": "ミス",
     "statWarnings": "損失",
