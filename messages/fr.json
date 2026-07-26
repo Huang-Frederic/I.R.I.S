@@ -1018,13 +1018,10 @@
     "pageTitle": "Parties",
     "pageSubtitle": "{count, plural, =0 {Aucune partie} one {# partie analysée} other {# parties analysées}}",
     "loadError": "Impossible de charger les parties : {message}",
-    "dropzone": "Dépose un fichier de partie ici pour l'ajouter",
-    "dropzoneHint": "Le .bundle.json produit à partir de ton battle log",
+    "dropzone": "Lâche pour importer la partie",
     "uploading": "Import en cours…",
     "empty": "Aucune partie. Dépose un fichier ci-dessus pour commencer.",
-    "noAnalysis": "Pas d'analyse attachée",
     "versus": "contre {opponent}",
-    "findings": "{count, plural, one {# remarque} other {# remarques}}",
     "setup": "Préparation",
     "you": "toi",
     "stadium": "Stade : {name} ({owner})",
@@ -1042,6 +1039,11 @@
     "result_win": "Victoire",
     "result_loss": "Défaite",
     "result_tie": "Nul",
-    "turnsCount": "{count, plural, one {# tour} other {# tours}}"
+    "turnsCount": "{count, plural, one {# tour} other {# tours}}",
+    "import": "Importer une partie",
+    "dropAnywhere": "Dépose un fichier n'importe où",
+    "statErrors": "Erreurs",
+    "statWarnings": "Fuites",
+    "statGood": "Bons coups"
   }
 }

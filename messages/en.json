@@ -1018,13 +1018,10 @@
     "pageTitle": "Games",
     "pageSubtitle": "{count, plural, =0 {No games yet} one {# game analysed} other {# games analysed}}",
     "loadError": "Could not load games: {message}",
-    "dropzone": "Drop a game file here to add a game",
-    "dropzoneHint": "The .bundle.json produced from your battle log",
+    "dropzone": "Drop to import the game",
     "uploading": "Importing…",
     "empty": "No games yet. Drop a game file above to start.",
-    "noAnalysis": "No analysis attached",
     "versus": "vs {opponent}",
-    "findings": "{count, plural, one {# note} other {# notes}}",
     "setup": "Setup",
     "you": "you",
     "stadium": "Stadium: {name} ({owner})",
@@ -1042,6 +1039,11 @@
     "result_win": "Win",
     "result_loss": "Loss",
     "result_tie": "Tie",
-    "turnsCount": "{count, plural, one {# turn} other {# turns}}"
+    "turnsCount": "{count, plural, one {# turn} other {# turns}}",
+    "import": "Import a game",
+    "dropAnywhere": "Drop a file anywhere",
+    "statErrors": "Mistakes",
+    "statWarnings": "Leaks",
+    "statGood": "Good plays"
   }
 }

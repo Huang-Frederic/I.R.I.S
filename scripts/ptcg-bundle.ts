@@ -39,7 +39,16 @@ async function main() {
   if (unresolved.length) console.warn(`⚠ cartes non résolues : ${unresolved.join(', ')}`);
   writeFileSync(CACHE, JSON.stringify(cards, null, 2));
 
-  const bundle = buildBundle(raw, parsed, cards, analysis);
+  // The log carries no date, so take it from the file name when it starts with
+  // one. Without this every game is stamped with its import time, and a history
+  // sorted by date shows three games "today".
+  const dated = /(\d{4})-(\d{2})-(\d{2})/.exec(logPath.replace(/\\/g, '/').split('/').pop() ?? '');
+  const playedAt = dated
+    ? new Date(`${dated[1]}-${dated[2]}-${dated[3]}T12:00:00Z`).toISOString()
+    : undefined;
+  if (!dated) console.warn('⚠ nom de fichier sans date — la partie sera datée de maintenant');
+
+  const bundle = buildBundle(raw, parsed, cards, analysis, { playedAt });
 
   // Same gate as the import route: fail here rather than on upload.
   const check = validateBundle(bundle);

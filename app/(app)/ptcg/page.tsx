@@ -18,7 +18,7 @@ export default async function PtcgPage() {
   const { data, error } = await supabase
     .from('ptcg_games')
     .select(
-      'id, played_at, opponent, result, prizes_me, prizes_opponent, turns, my_archetype, opponent_archetype, my_key_card, opponent_key_card, ptcg_analyses(verdict, moments)',
+      'id, played_at, opponent, result, prizes_me, prizes_opponent, turns, my_archetype, opponent_archetype, my_key_card, opponent_key_card, ptcg_analyses(moments)',
     )
     .order('played_at', { ascending: false })
     .limit(200);
@@ -58,13 +58,13 @@ export default async function PtcgPage() {
 
   const games: PtcgGameCard[] = rows.map((g) => {
     // Most recent analysis wins when a game has been re-analysed.
-    const analysis = (g.ptcg_analyses ?? [])[0] as
-      | { verdict?: { summary?: string }; moments?: unknown[] }
-      | undefined;
+    const analysis = (g.ptcg_analyses ?? [])[0] as { moments?: { severity: string }[] } | undefined;
+    const moments = analysis?.moments ?? [];
+    const count = (s: string) => moments.filter((m) => m.severity === s).length;
+
     return {
       id: g.id,
       played_at: g.played_at,
-      opponent: g.opponent,
       result: g.result,
       prizes_me: g.prizes_me,
       prizes_opponent: g.prizes_opponent,
@@ -73,8 +73,9 @@ export default async function PtcgPage() {
       // Falls back to the handle only when nothing better is known — a game
       // imported before protagonists were derived.
       theirs: fighter(g.opponent_key_card, g.opponent_archetype ?? g.opponent),
-      summary: analysis?.verdict?.summary ?? null,
-      findings: analysis?.moments?.length ?? 0,
+      errors: count('error'),
+      warnings: count('warning'),
+      good: count('good'),
     };
   });
 

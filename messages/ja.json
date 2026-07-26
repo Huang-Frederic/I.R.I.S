@@ -1018,13 +1018,10 @@
     "pageTitle": "対戦",
     "pageSubtitle": "{count, plural, =0 {対戦なし} other {# 件の対戦を分析}}",
     "loadError": "対戦を読み込めませんでした: {message}",
-    "dropzone": "対戦ファイルをここにドロップして追加",
-    "dropzoneHint": "バトルログから生成した .bundle.json",
+    "dropzone": "ドロップして取り込む",
     "uploading": "取り込み中…",
     "empty": "対戦がありません。上にファイルをドロップしてください。",
-    "noAnalysis": "分析なし",
     "versus": "vs {opponent}",
-    "findings": "{count} 件の指摘",
     "setup": "準備",
     "you": "あなた",
     "stadium": "スタジアム: {name} ({owner})",
@@ -1042,6 +1039,11 @@
     "result_win": "勝ち",
     "result_loss": "負け",
     "result_tie": "引き分け",
-    "turnsCount": "{count} ターン"
+    "turnsCount": "{count} ターン",
+    "import": "対戦を取り込む",
+    "dropAnywhere": "どこにでもファイルをドロップ",
+    "statErrors": "ミス",
+    "statWarnings": "損失",
+    "statGood": "good プレー"
   }
 }
