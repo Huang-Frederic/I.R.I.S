@@ -1054,6 +1054,7 @@
     "prizesLeft": "剩余奖赏 {count}",
     "costDamage": "{value} 伤害",
     "costPrizes": "奖赏 {count}",
-    "jumpToMoment": "跳到此处"
+    "jumpToMoment": "跳到此处",
+    "setupShort": "硬币"
   }
 }

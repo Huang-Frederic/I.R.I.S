@@ -1054,6 +1054,7 @@
     "prizesLeft": "{count, plural, one {# récompense} other {# récompenses}}",
     "costDamage": "{value} dégâts",
     "costPrizes": "{count, plural, one {# récompense} other {# récompenses}}",
-    "jumpToMoment": "Montre-moi"
+    "jumpToMoment": "Montre-moi",
+    "setupShort": "Pile/face"
   }
 }

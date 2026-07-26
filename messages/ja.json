@@ -1054,6 +1054,7 @@
     "prizesLeft": "サイド残り{count}",
     "costDamage": "{value} ダメージ",
     "costPrizes": "サイド{count}",
-    "jumpToMoment": "この場面へ"
+    "jumpToMoment": "この場面へ",
+    "setupShort": "コイン"
   }
 }

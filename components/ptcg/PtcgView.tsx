@@ -278,7 +278,7 @@ export default function PtcgView({ games }: { games: PtcgGameCard[] }) {
       )}
 
       {dragging && (
-        <div className="border-accent bg-surface/85 pointer-events-none fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 border-2 border-dashed backdrop-blur-sm">
+        <div className="border-red bg-surface/85 pointer-events-none fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 border-2 border-dashed backdrop-blur-sm">
           <Pokeball size={56} />
           <p className="text-sm font-medium">{t('dropzone')}</p>
         </div>

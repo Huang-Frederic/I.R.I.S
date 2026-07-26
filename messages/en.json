@@ -1054,6 +1054,7 @@
     "prizesLeft": "{count, plural, one {# prize left} other {# prizes left}}",
     "costDamage": "{value} damage",
     "costPrizes": "{count, plural, one {# prize} other {# prizes}}",
-    "jumpToMoment": "Show me"
+    "jumpToMoment": "Show me",
+    "setupShort": "Coin"
   }
 }

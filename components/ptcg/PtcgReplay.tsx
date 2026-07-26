@@ -133,12 +133,22 @@ export default function PtcgReplay({ me, opponent, snapshots, turns, cards, anal
     return () => removeEventListener('scroll', hide, true);
   }, [preview, hide]);
 
+  // The turn arrows live in the analysis column now, so the timeline has to
+  // follow the cursor by itself — otherwise stepping past the visible turns
+  // silently moves a control that is scrolled off screen.
+  const strip = useRef<HTMLElement>(null);
+  useEffect(() => {
+    strip.current
+      ?.querySelector('[aria-current="step"]')
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }, [turn.number]);
+
   const board = { show, hide, cards };
 
   return (
     <div className="flex flex-col gap-3">
       {/* Whole-game timeline ---------------------------------------------- */}
-      <div className="flex gap-0.5 overflow-x-auto pb-0.5">
+      <nav ref={strip} aria-label={t('turnLog')} className="flex gap-1 overflow-x-auto pb-0.5">
         {allTurns.map((x) => {
           const worst = x.events.reduce<string | null>(
             (w, i) => (byEvent.get(i) === 'error' ? 'error' : (w ?? byEvent.get(i) ?? null)),
@@ -158,25 +168,28 @@ export default function PtcgReplay({ me, opponent, snapshots, turns, cards, anal
               onClick={() => setCursor(x.events[0])}
               title={label}
               aria-label={label}
-              aria-current={current}
-              className={`min-w-11 flex-1 shrink-0 rounded-md border-t-2 px-1 py-1.5 text-xs transition ${
-                x.player === me || x.number === 0 ? 'border-t-accent/70' : 'border-t-text-muted/40'
+              // Only the current step carries the attribute — rendering
+              // aria-current="false" on the other eleven says nothing and is
+              // read out by some screen readers.
+              aria-current={current ? 'step' : undefined}
+              className={`min-w-12 flex-1 shrink-0 rounded-md border-t-2 px-1 py-1.5 text-xs transition ${
+                x.player === me || x.number === 0 ? 'border-t-red/70' : 'border-t-text-muted/40'
               } ${
                 current
-                  ? 'bg-accent text-surface font-semibold'
+                  ? 'bg-red font-semibold text-white'
                   : 'bg-surface hover:bg-surface-2 text-text-muted'
               }`}
             >
-              <span className="tabular-nums">{x.number === 0 ? '·' : x.number}</span>
+              <span className="tabular-nums">{x.number === 0 ? t('setupShort') : x.number}</span>
               {worst && (
                 <span
-                  className={`mx-auto mt-1 block h-1 w-1 rounded-full ${current ? 'bg-surface' : tone(worst).dot}`}
+                  className={`mx-auto mt-1 block h-1 w-1 rounded-full ${current ? 'bg-white' : tone(worst).dot}`}
                 />
               )}
             </button>
           );
         })}
-      </div>
+      </nav>
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
         {/* Board ---------------------------------------------------------- */}
@@ -222,68 +235,58 @@ export default function PtcgReplay({ me, opponent, snapshots, turns, cards, anal
               ))}
             </div>
           </div>
-
-          {/* Step through the turn, right under the board it changes ------- */}
-          <div className="border-border mt-4 flex items-center gap-2 border-t pt-3">
-            <button
-              onClick={() => step(-1)}
-              disabled={cursor === 0}
-              aria-label={t('previous')}
-              className="border-border bg-surface-2 hover:bg-surface rounded-lg border p-2 disabled:opacity-40"
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden />
-            </button>
-            <p className="min-w-0 flex-1 truncate text-center text-xs">
-              {eventLabel(snap.event, me, opponent)}
-            </p>
-            <span className="text-text-muted shrink-0 text-xs tabular-nums">
-              {posInTurn + 1} / {turn.events.length}
-            </span>
-            <button
-              onClick={() => step(1)}
-              disabled={cursor === snapshots.length - 1}
-              aria-label={t('next')}
-              className="border-border bg-surface-2 hover:bg-surface rounded-lg border p-2 disabled:opacity-40"
-            >
-              <ChevronRight className="h-4 w-4" aria-hidden />
-            </button>
-          </div>
         </div>
 
         {/* Analysis ------------------------------------------------------- */}
         <aside className="flex flex-col gap-3 lg:sticky lg:top-4">
-          <div className="border-border bg-surface flex items-center gap-2 rounded-xl border p-2">
-            <button
-              onClick={() => goTurn(-1)}
-              disabled={turnAt <= 0}
-              aria-label={t('previousTurn')}
-              className="border-border bg-surface-2 hover:bg-surface rounded-lg border p-2 disabled:opacity-40"
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden />
-            </button>
-            <p className="flex-1 truncate text-center text-sm font-semibold">{heading}</p>
-            <button
-              onClick={() => goTurn(1)}
-              disabled={turnAt >= allTurns.length - 1}
-              aria-label={t('nextTurn')}
-              className="border-border bg-surface-2 hover:bg-surface rounded-lg border p-2 disabled:opacity-40"
-            >
-              <ChevronRight className="h-4 w-4" aria-hidden />
-            </button>
+          {/* Both grains of navigation, stacked: the turn, then the action
+              inside it. Keeping them together means the eye never leaves the
+              column to move the replay. */}
+          <div className="border-border bg-surface flex flex-col gap-1.5 rounded-xl border p-2">
+            <div className="flex items-center gap-2">
+              <Arrow onClick={() => goTurn(-1)} disabled={turnAt <= 0} label={t('previousTurn')} />
+              <p className="flex-1 truncate text-center text-sm font-semibold">{heading}</p>
+              <Arrow
+                onClick={() => goTurn(1)}
+                disabled={turnAt >= allTurns.length - 1}
+                label={t('nextTurn')}
+                next
+              />
+            </div>
+            <div className="bg-surface-2 flex items-center gap-2 rounded-lg p-1">
+              <Arrow onClick={() => step(-1)} disabled={cursor === 0} label={t('previous')} small />
+              {/* Flex children are blockified, which is what makes
+                  ::first-letter apply — it is a no-op on an inline span. */}
+              <div className="flex min-w-0 flex-1 items-baseline justify-center gap-1.5 text-xs">
+                <span className="text-text-muted shrink-0 tabular-nums">
+                  {posInTurn + 1}/{turn.events.length}
+                </span>
+                <span className="truncate first-letter:uppercase">
+                  {eventLabel(snap.event, me, opponent)}
+                </span>
+              </div>
+              <Arrow
+                onClick={() => step(1)}
+                disabled={cursor === snapshots.length - 1}
+                label={t('next')}
+                small
+                next
+              />
+            </div>
           </div>
 
           {turnMoments.length === 0 ? (
-            <p className="border-border bg-surface text-text-muted rounded-xl border p-4 text-sm">
+            <p className="border-border bg-surface text-text-muted rounded-xl border p-3.5 text-xs">
               {t('nothingThisTurn')}
             </p>
           ) : (
             turnMoments.map((m) => (
               <article
                 key={`${m.line}-${m.title}`}
-                className={`border-border bg-surface rounded-xl rounded-l-none border border-l-4 p-4 ${tone(m.severity).bar}`}
+                className={`border-border bg-surface rounded-xl rounded-l-none border border-l-[3px] p-3.5 ${tone(m.severity).bar}`}
               >
-                <h3 className="text-base leading-snug font-semibold">{m.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed whitespace-pre-line">
+                <h3 className="text-[13px] leading-snug font-semibold">{m.title}</h3>
+                <p className="mt-1.5 text-xs leading-relaxed whitespace-pre-line">
                   {inlineMarkup(m.body).map((s, i) =>
                     s.bold ? (
                       <strong key={i} className="font-semibold">
@@ -296,25 +299,31 @@ export default function PtcgReplay({ me, opponent, snapshots, turns, cards, anal
                     ),
                   )}
                 </p>
-                {m.cost && (
-                  <p className={`mt-2 text-xs font-semibold ${tone(m.severity).text}`}>
-                    {[
-                      m.cost.damage != null && t('costDamage', { value: m.cost.damage }),
-                      m.cost.prizes != null && t('costPrizes', { count: m.cost.prizes }),
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </p>
-                )}
-                <button
-                  onClick={() => {
-                    const i = snapshots.findIndex((s) => s.line === m.line);
-                    if (i >= 0) setCursor(i);
-                  }}
-                  className="text-text-muted hover:text-text mt-3 text-xs underline"
-                >
-                  {t('jumpToMoment')}
-                </button>
+                <div className="mt-2.5 flex items-center justify-between gap-2">
+                  {m.cost ? (
+                    <span
+                      className={`text-[11px] font-semibold tabular-nums ${tone(m.severity).text}`}
+                    >
+                      {[
+                        m.cost.damage != null && t('costDamage', { value: m.cost.damage }),
+                        m.cost.prizes != null && t('costPrizes', { count: m.cost.prizes }),
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  ) : (
+                    <span />
+                  )}
+                  <button
+                    onClick={() => {
+                      const i = snapshots.findIndex((s) => s.line === m.line);
+                      if (i >= 0) setCursor(i);
+                    }}
+                    className="text-text-muted hover:text-text shrink-0 text-[11px] underline"
+                  >
+                    {t('jumpToMoment')}
+                  </button>
+                </div>
               </article>
             ))
           )}
@@ -324,21 +333,30 @@ export default function PtcgReplay({ me, opponent, snapshots, turns, cards, anal
               {t('turnLog')}
             </h2>
             <ol className="max-h-64 overflow-y-auto p-1.5">
-              {turn.events.map((i) => {
+              {turn.events.map((i, n) => {
                 const sev = byEvent.get(i);
+                const here = i === cursor;
                 return (
                   <li key={i}>
                     <button
                       onClick={() => setCursor(i)}
+                      aria-current={here ? 'step' : undefined}
                       className={`flex w-full items-baseline gap-2 rounded px-2 py-1 text-left text-xs transition ${
-                        i === cursor ? 'bg-accent text-surface font-semibold' : 'hover:bg-surface-2'
+                        here ? 'bg-red/15 text-text font-medium' : 'hover:bg-surface-2'
                       }`}
                     >
                       <span
-                        className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${sev ? tone(sev).dot : 'bg-transparent'}`}
+                        className={`w-4 shrink-0 text-right tabular-nums ${here ? 'text-red' : 'text-text-faint'}`}
+                      >
+                        {n + 1}
+                      </span>
+                      <span
+                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${sev ? tone(sev).dot : 'bg-transparent'}`}
                         aria-hidden
                       />
-                      <span>{eventLabel(snapshots[i].event, me, opponent)}</span>
+                      <span className="first-letter:uppercase">
+                        {eventLabel(snapshots[i].event, me, opponent)}
+                      </span>
                     </button>
                   </li>
                 );
@@ -368,6 +386,37 @@ export default function PtcgReplay({ me, opponent, snapshots, turns, cards, anal
 }
 
 /* ------------------------------------------------------------------------- */
+
+/** The four replay controls, so they cannot drift apart from each other. */
+function Arrow({
+  onClick,
+  disabled,
+  label,
+  small = false,
+  next = false,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+  label: string;
+  small?: boolean;
+  next?: boolean;
+}) {
+  const Icon = next ? ChevronRight : ChevronLeft;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={`border-border bg-surface-2 hover:bg-surface focus-visible:ring-red shrink-0 rounded-lg border focus-visible:ring-2 focus-visible:outline-none disabled:opacity-30 ${
+        small ? 'p-1' : 'p-2'
+      }`}
+    >
+      <Icon className={small ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden />
+    </button>
+  );
+}
 
 interface BoardProps {
   cards: Record<string, PtcgCardRow>;
@@ -487,12 +536,12 @@ function CardArt({
           alt={name}
           width={width}
           height={height}
-          className={`rounded transition ${active ? 'ring-accent ring-2' : ''} hover:brightness-110`}
+          className={`rounded transition ${active ? 'ring-red ring-2' : ''} hover:brightness-110`}
           unoptimized
         />
       ) : (
         <div
-          className={`bg-surface-2 rounded ${active ? 'ring-accent ring-2' : ''}`}
+          className={`bg-surface-2 rounded ${active ? 'ring-red ring-2' : ''}`}
           style={{ width, height }}
         />
       )}
