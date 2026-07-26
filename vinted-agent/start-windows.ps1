@@ -1,4 +1,4 @@
-﻿# Windows launcher — mirror of start.sh (WSL). Proxy + ngrok, refresh the store
+# Windows launcher — mirror of start.sh (WSL). Proxy + ngrok, refresh the store
 # events, then run the Vinted agent. Run .\setup-windows.ps1 once first.
 #
 #   powershell -ExecutionPolicy Bypass -File .\start-windows.ps1
@@ -9,12 +9,20 @@ Set-Location $PSScriptRoot
 $PyBin     = if (Test-Path ".\.venv\Scripts\python.exe") { ".\.venv\Scripts\python.exe" } else { "python" }
 $PproxyBin = if (Test-Path ".\.venv\Scripts\pproxy.exe") { ".\.venv\Scripts\pproxy.exe" } else { "pproxy" }
 
-# 1. Proxy SOCKS5 local + 2. tunnel ngrok (background)
-$proxy = Start-Process -FilePath $PproxyBin -ArgumentList "-l","http://:1080" -PassThru -WindowStyle Hidden
-$ngrok = Start-Process -FilePath "ngrok" -ArgumentList "tcp","1080","--log=stdout" `
-                       -PassThru -WindowStyle Hidden -RedirectStandardOutput "$env:TEMP\ngrok-vinted.log"
+# Both launches sit inside the try so the finally always covers them. When they
+# were above it, anything that stopped the second one — Defender quarantining
+# ngrok.exe as a tunnelling PUA, which does happen — left the proxy running and
+# port 1080 held, so the next attempt failed for a different reason than the
+# first. Declared here so the finally can see them whatever went wrong.
+$proxy = $null
+$ngrok = $null
 
 try {
+    # 1. Proxy SOCKS5 local + 2. tunnel ngrok (background)
+    $proxy = Start-Process -FilePath $PproxyBin -ArgumentList "-l","http://:1080" -PassThru -WindowStyle Hidden
+    $ngrok = Start-Process -FilePath "ngrok" -ArgumentList "tcp","1080","--log=stdout" `
+                           -PassThru -WindowStyle Hidden -RedirectStandardOutput "$env:TEMP\ngrok-vinted.log"
+
     # 3. Récupère l'URL ngrok via son API locale
     Write-Host "En attente de ngrok..."
     $NgrokUrl = $null
@@ -26,7 +34,8 @@ try {
         } catch { }
     }
     if (-not $NgrokUrl) {
-        throw "ngrok n'a pas démarré (vérifie ton authtoken : ngrok config add-authtoken <token>)"
+        throw "ngrok n'a pas demarre. Verifie ton authtoken (ngrok config add-authtoken <token>), " +
+              "et que Defender ne l'a pas mis en quarantaine (teste : ngrok version)."
     }
     Write-Host "OK  Proxy pret : $NgrokUrl"
     $env:VINTED_PROXY = $NgrokUrl
@@ -42,5 +51,11 @@ try {
 }
 finally {
     Write-Host "Arret proxy + ngrok"
-    Stop-Process -Id $proxy.Id, $ngrok.Id -ErrorAction SilentlyContinue
+    # One at a time: passing a null Id alongside a real one aborts the whole
+    # call, which is precisely the case where cleanup matters most.
+    foreach ($p in @($proxy, $ngrok)) {
+        if ($p -and -not $p.HasExited) {
+            Stop-Process -Id $p.Id -Force -Confirm:$false -ErrorAction SilentlyContinue
+        }
+    }
 }
