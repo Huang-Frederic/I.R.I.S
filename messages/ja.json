@@ -1044,6 +1044,11 @@
     "dropAnywhere": "どこにでもファイルをドロップ",
     "statErrors": "ミス",
     "statWarnings": "損失",
-    "statGood": "good プレー"
+    "statGood": "good プレー",
+    "scoreLabel": "プレー評価",
+    "statScore": "評価",
+    "statTurns": "ターン",
+    "statAnalysis": "分析",
+    "statDate": "対戦日"
   }
 }

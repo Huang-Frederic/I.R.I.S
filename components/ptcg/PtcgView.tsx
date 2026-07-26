@@ -17,14 +17,11 @@ export interface PtcgGameCard {
   /** Protagonist of each side — name plus TCGdex image base URL. */
   mine: { name: string; image: string | null } | null;
   theirs: { name: string; image: string | null } | null;
-  /** Findings by severity — the match-history stat line. */
+  /** 0–100, derived from the analysis. Null when the game has none. */
+  score: number | null;
   errors: number;
   warnings: number;
   good: number;
-}
-
-interface Props {
-  games: PtcgGameCard[];
 }
 
 const RESULT_TEXT: Record<string, string> = {
@@ -39,7 +36,15 @@ const RESULT_EDGE: Record<string, string> = {
   tie: 'bg-text-muted',
 };
 
-export default function PtcgView({ games }: Props) {
+/** Score bands. Deliberately generous at the top: 100 means "left nothing on
+ *  the table", which is reachable, not a claim of perfect play. */
+function scoreTone(score: number) {
+  if (score >= 80) return { text: 'text-emerald-500', bar: 'bg-emerald-500' };
+  if (score >= 55) return { text: 'text-amber-500', bar: 'bg-amber-500' };
+  return { text: 'text-red', bar: 'bg-red' };
+}
+
+export default function PtcgView({ games }: { games: PtcgGameCard[] }) {
   const t = useTranslations('ptcg');
   const tErrors = useTranslations('errors');
   const router = useRouter();
@@ -123,9 +128,11 @@ export default function PtcgView({ games }: Props) {
     };
   }, [upload]);
 
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+
   return (
     <div className="flex flex-col gap-3">
-      {/* Import — a Pokéball, top right, plus drop-anywhere */}
       <div className="flex items-center justify-end gap-3">
         <p className="text-text-muted text-xs">{busy ? t('uploading') : t('dropAnywhere')}</p>
         <button
@@ -168,54 +175,108 @@ export default function PtcgView({ games }: Props) {
         <p className="text-text-muted py-10 text-center text-sm">{t('empty')}</p>
       ) : (
         <ul className="flex flex-col gap-2.5">
-          {games.map((g) => (
-            <li key={g.id}>
-              <Link
-                href={`/ptcg/${g.id}`}
-                className="border-border bg-surface hover:bg-surface-2 relative block overflow-hidden rounded-xl border py-4 transition"
-              >
-                {/* Result edge, match-history style */}
-                <span
-                  className={`absolute inset-y-0 left-0 w-1 ${RESULT_EDGE[g.result]}`}
-                  aria-hidden
-                />
+          {games.map((g) => {
+            const tone = g.score !== null ? scoreTone(g.score) : null;
+            return (
+              <li key={g.id}>
+                <Link
+                  href={`/ptcg/${g.id}`}
+                  className="border-border bg-surface hover:bg-surface-2 relative block overflow-hidden rounded-xl border transition"
+                >
+                  <span
+                    className={`absolute inset-y-0 left-0 w-1 ${RESULT_EDGE[g.result]}`}
+                    aria-hidden
+                  />
 
-                {/* Matchup — mirrored around the score */}
-                <div className="flex items-center gap-3 px-5 sm:gap-6">
-                  <Fighter side={g.mine} />
-                  <div className="w-20 shrink-0 text-center sm:w-24">
-                    <p className={`text-3xl font-bold tabular-nums ${RESULT_TEXT[g.result]}`}>
-                      {g.prizes_me}–{g.prizes_opponent}
-                    </p>
-                    <p
-                      className={`text-[10px] font-semibold tracking-widest uppercase ${RESULT_TEXT[g.result]}`}
-                    >
-                      {t(`result_${g.result}` as 'result_win')}
-                    </p>
+                  {/* ---------- Mobile: cards facing off, stats in a strip ---------- */}
+                  <div className="px-4 pt-5 pb-3 pl-6 sm:hidden">
+                    <div className="flex items-center justify-center">
+                      <CardArt side={g.mine} width={92} className="-rotate-[4deg]" />
+                      <div className="border-border bg-surface-off z-10 -mx-4 rounded-full border px-4 py-2 text-center shadow-lg">
+                        <p className={`text-xl font-bold tabular-nums ${RESULT_TEXT[g.result]}`}>
+                          {g.prizes_me}–{g.prizes_opponent}
+                        </p>
+                        <p
+                          className={`text-[9px] font-bold tracking-widest uppercase ${RESULT_TEXT[g.result]}`}
+                        >
+                          {t(`result_${g.result}` as 'result_win')}
+                        </p>
+                      </div>
+                      <CardArt side={g.theirs} width={92} className="rotate-[4deg]" />
+                    </div>
+
+                    <div className="border-border mt-4 flex border-t pt-3">
+                      <Cell
+                        value={g.score !== null ? `${g.score}%` : '—'}
+                        label={t('statScore')}
+                        tone={tone?.text}
+                      />
+                      <Cell value={String(g.turns)} label={t('statTurns')} />
+                      <Cell
+                        value={
+                          <span className="inline-flex items-center gap-2">
+                            <Dot n={g.errors} color="bg-red" title={t('statErrors')} />
+                            <Dot n={g.warnings} color="bg-amber-500" title={t('statWarnings')} />
+                            <Dot n={g.good} color="bg-emerald-500" title={t('statGood')} />
+                          </span>
+                        }
+                        label={t('statAnalysis')}
+                      />
+                      <Cell value={fmtDate(g.played_at)} label={t('statDate')} />
+                    </div>
                   </div>
-                  <Fighter side={g.theirs} mirrored />
-                </div>
 
-                {/* Stat line */}
-                <div className="text-text-muted mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-5 text-xs tabular-nums">
-                  <span>
-                    {new Date(g.played_at).toLocaleDateString(undefined, {
-                      day: 'numeric',
-                      month: 'short',
-                    })}
-                  </span>
-                  <span>{t('turnsCount', { count: g.turns })}</span>
-                  <Stat count={g.errors} dot="bg-red" label={t('statErrors')} />
-                  <Stat count={g.warnings} dot="bg-amber-500" label={t('statWarnings')} />
-                  <Stat count={g.good} dot="bg-emerald-500" label={t('statGood')} />
-                </div>
-              </Link>
-            </li>
-          ))}
+                  {/* ---------- Desktop: duel left, score bar right ---------- */}
+                  <div className="hidden items-stretch gap-6 py-4 pr-6 pl-7 sm:flex">
+                    <div className="flex shrink-0 items-center gap-4">
+                      <CardArt side={g.mine} width={100} />
+                      <div className="w-20 text-center">
+                        <p className={`text-2xl font-bold tabular-nums ${RESULT_TEXT[g.result]}`}>
+                          {g.prizes_me}–{g.prizes_opponent}
+                        </p>
+                        <p
+                          className={`text-[10px] font-bold tracking-widest uppercase ${RESULT_TEXT[g.result]}`}
+                        >
+                          {t(`result_${g.result}` as 'result_win')}
+                        </p>
+                      </div>
+                      <CardArt side={g.theirs} width={100} />
+                    </div>
+
+                    <div className="flex min-w-0 flex-1 flex-col justify-center gap-2.5">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-text-muted text-xs">{t('scoreLabel')}</span>
+                        <span className={`text-lg font-bold tabular-nums ${tone?.text ?? ''}`}>
+                          {g.score !== null ? `${g.score}%` : '—'}
+                        </span>
+                      </div>
+                      <div className="bg-surface-off h-[7px] overflow-hidden rounded-full">
+                        {g.score !== null && (
+                          <span
+                            className={`block h-full rounded-full ${tone!.bar}`}
+                            style={{ width: `${g.score}%` }}
+                          />
+                        )}
+                      </div>
+                      <div className="text-text-muted flex items-center justify-between text-xs tabular-nums">
+                        <span className="flex items-center gap-3">
+                          <Dot n={g.errors} color="bg-red" title={t('statErrors')} />
+                          <Dot n={g.warnings} color="bg-amber-500" title={t('statWarnings')} />
+                          <Dot n={g.good} color="bg-emerald-500" title={t('statGood')} />
+                        </span>
+                        <span>
+                          {fmtDate(g.played_at)} · {t('turnsCount', { count: g.turns })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
 
-      {/* Drop overlay — only while a file is over the window */}
       {dragging && (
         <div className="border-accent bg-surface/85 pointer-events-none fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 border-2 border-dashed backdrop-blur-sm">
           <Pokeball size={56} />
@@ -226,45 +287,48 @@ export default function PtcgView({ games }: Props) {
   );
 }
 
-/** One side of the matchup. Mirrored sides hug the score from both directions. */
-function Fighter({
+function CardArt({
   side,
-  mirrored = false,
+  width,
+  className = '',
 }: {
   side: { name: string; image: string | null } | null;
-  mirrored?: boolean;
+  width: number;
+  className?: string;
 }) {
+  const height = Math.round(width * 1.393); // standard card ratio
+  if (!side?.image) {
+    return (
+      <div className={`bg-surface-2 shrink-0 rounded ${className}`} style={{ width, height }} />
+    );
+  }
   return (
-    <div
-      // Both sides use justify-end so each hugs the score. On the mirrored side
-      // row-reverse flips the axis, so "end" lands on the left — which is
-      // exactly the symmetry we want.
-      className={`flex min-w-0 flex-1 items-center justify-end gap-2.5 ${
-        mirrored ? 'flex-row-reverse text-left' : 'text-right'
-      }`}
-    >
-      <p className="min-w-0 truncate text-sm font-medium">{side?.name ?? '—'}</p>
-      {side?.image ? (
-        <Image
-          src={`${side.image}/low.webp`}
-          alt=""
-          width={58}
-          height={81}
-          className="shrink-0 rounded"
-          unoptimized
-        />
-      ) : (
-        <div className="bg-surface-2 h-[81px] w-[58px] shrink-0 rounded" />
-      )}
+    <Image
+      src={`${side.image}/low.webp`}
+      alt={side.name}
+      title={side.name}
+      width={width}
+      height={height}
+      className={`shrink-0 rounded shadow-md ${className}`}
+      unoptimized
+    />
+  );
+}
+
+function Cell({ value, label, tone }: { value: React.ReactNode; label: string; tone?: string }) {
+  return (
+    <div className="border-border flex-1 text-center not-first:border-l">
+      <div className={`text-sm font-semibold tabular-nums ${tone ?? ''}`}>{value}</div>
+      <div className="text-text-muted mt-0.5 text-[9px] tracking-wider uppercase">{label}</div>
     </div>
   );
 }
 
-function Stat({ count, dot, label }: { count: number; dot: string; label: string }) {
+function Dot({ n, color, title }: { n: number; color: string; title: string }) {
   return (
-    <span className="flex items-center gap-1.5" title={label}>
-      <span className={`h-1.5 w-1.5 rounded-full ${dot} ${count === 0 ? 'opacity-30' : ''}`} />
-      <span className={count === 0 ? 'opacity-40' : ''}>{count}</span>
+    <span className={`flex items-center gap-1.5 ${n === 0 ? 'opacity-35' : ''}`} title={title}>
+      <span className={`h-1.5 w-1.5 rounded-full ${color}`} />
+      {n}
     </span>
   );
 }

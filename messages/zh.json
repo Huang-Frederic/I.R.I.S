@@ -1044,6 +1044,11 @@
     "dropAnywhere": "将文件拖到任意位置",
     "statErrors": "失误",
     "statWarnings": "损失",
-    "statGood": "好棋"
+    "statGood": "好棋",
+    "scoreLabel": "对局评分",
+    "statScore": "评分",
+    "statTurns": "回合",
+    "statAnalysis": "分析",
+    "statDate": "日期"
   }
 }

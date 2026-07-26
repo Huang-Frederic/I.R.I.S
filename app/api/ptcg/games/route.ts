@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { validateBundle } from '@/lib/ptcg/bundle';
 import { keyPokemon } from '@/lib/ptcg/protagonists';
+import { playScore } from '@/lib/ptcg/score';
 import {
   apiError,
   serverErrorResponse,
@@ -61,6 +62,13 @@ export async function POST(request: Request) {
   const mine = keyPokemon(snapshots, bundle.game.me);
   const theirs = keyPokemon(snapshots, bundle.game.opponent);
 
+  // Only the player's own turns count — the turn list alternates, and scoring
+  // the opponent's would halve every penalty.
+  const myTurns = bundle.game.state.turns
+    .filter((t) => t.player === bundle.game.me)
+    .map((t) => t.number);
+  const score = playScore(bundle.analysis.moments ?? [], myTurns);
+
   const { data: game, error: gameError } = await supabase
     .from('ptcg_games')
     .insert({
@@ -68,6 +76,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       my_key_card: mine?.cardId ?? null,
       opponent_key_card: theirs?.cardId ?? null,
+      play_score: score?.score ?? null,
       // A bundle may carry its own archetype; otherwise name it after the
       // protagonist, since the player's handle says nothing about the matchup.
       my_archetype: bundle.game.my_archetype ?? mine?.name ?? null,

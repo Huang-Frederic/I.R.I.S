@@ -1044,6 +1044,11 @@
     "dropAnywhere": "Dépose un fichier n'importe où",
     "statErrors": "Erreurs",
     "statWarnings": "Fuites",
-    "statGood": "Bons coups"
+    "statGood": "Bons coups",
+    "scoreLabel": "Score de jeu",
+    "statScore": "Score",
+    "statTurns": "Tours",
+    "statAnalysis": "Analyse",
+    "statDate": "Jouée"
   }
 }

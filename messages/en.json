@@ -1044,6 +1044,11 @@
     "dropAnywhere": "Drop a file anywhere",
     "statErrors": "Mistakes",
     "statWarnings": "Leaks",
-    "statGood": "Good plays"
+    "statGood": "Good plays",
+    "scoreLabel": "Play score",
+    "statScore": "Score",
+    "statTurns": "Turns",
+    "statAnalysis": "Analysis",
+    "statDate": "Played"
   }
 }

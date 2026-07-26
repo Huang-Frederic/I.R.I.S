@@ -250,6 +250,8 @@ export interface PtcgGameRow {
   /** ptcgl_id of the Pokémon that dealt the most damage — joins ptcg_cards. */
   my_key_card: string | null;
   opponent_key_card: string | null;
+  /** 0–100, derived from the analysis at import. See lib/ptcg/score.ts. */
+  play_score: number | null;
   raw_log: string;
   log_hash: string;
   parser_version: string;
