@@ -21,6 +21,7 @@ import type {
 } from '@/lib/types';
 import { eventLabel } from '@/lib/utils/ptcg-event-label';
 import { canPayCost, energyPool } from './energy-cost';
+import { searchExhausted } from './searchable';
 import type { PtcgParsedGame } from './index';
 
 /** Abilities usable once per turn — the ones worth reporting as skipped. */
@@ -65,6 +66,11 @@ function unusedAbilities(
           ability: a.name,
           effect: a.effect,
           conditional: CONDITIONAL.test(a.effect),
+          // A search whose target is all accounted for outside the deck cannot
+          // find anything, so not using it is not a missed opportunity. Taken
+          // at the end of the turn: whether the fourth copy left the deck
+          // before or after the evolution does not change the verdict.
+          exhausted: searchExhausted(a.effect, snaps[snaps.length - 1].state, player, cards),
         });
       }
     }

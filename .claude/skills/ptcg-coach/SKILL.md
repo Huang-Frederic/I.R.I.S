@@ -158,7 +158,19 @@ déclenchés, Supporter joué ou non, énergie attachée ou non, cartes passées
 main. Ton travail est de transformer ces faits en jugements — pas de les recalculer.
 
 `unusedAbilities` est la source la plus productive. Un talent gratuit non utilisé
-est presque toujours une perte sèche.
+est presque toujours une perte sèche — **sauf quand le digest dit le contraire**.
+Deux drapeaux à lire avant d'accuser :
+
+- **`conditional`** — le talent porte une condition. Ne pas l'avoir déclenché ne
+  prouve rien.
+- **`exhausted`** — le talent cherche une carte dont les 4 exemplaires sont déjà
+  hors du deck. Le déclencher ne trouverait **rien**.
+
+Ce second cas a produit une vraie fausse accusation : trois `warning` « tu as
+évolué sans utiliser Unis par le Voyage » sur une partie où les 4 Aventure de
+Luth étaient en défausse depuis le tour 4. Le conseil aurait fait perdre un clic
+à chaque partie. Un deck contient **au maximum 4 exemplaires** d'une carte
+(les Énergies de base exceptées) : compte-les avant de reprocher une recherche.
 
 ### 4. Vérifier le compte de récompenses à chaque pose
 

@@ -400,6 +400,12 @@ export interface PtcgAvailability {
     ability: string;
     effect: string | null;
     conditional: boolean;
+    /**
+     * True when the ability searches the deck for a card of which all four
+     * copies are already visible elsewhere. Triggering it would find nothing,
+     * so leaving it unused is not a missed opportunity.
+     */
+    exhausted: boolean;
   }[];
   playableFromHand: string[];
   supporterPlayed: boolean;

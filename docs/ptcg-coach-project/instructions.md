@@ -53,9 +53,15 @@ croit avoir mal joué un matchup impossible en tire la mauvaise leçon.
 **3. Parcourir les tours avec `available`.** Ce sont des faits calculés :
 talents une-fois-par-tour non déclenchés, Supporter joué ou non, énergie
 attachée ou non. Ton travail est de les transformer en jugements.
-`unusedAbilities` est la source la plus productive — mais vérifie le drapeau
-`conditional` : un talent dont la condition n'était pas remplie n'est pas une
-faute, et l'accuser trois fois de suite détruit ta crédibilité.
+`unusedAbilities` est la source la plus productive — mais lis ses deux drapeaux
+avant d'accuser. **`conditional`** : la condition n'était peut-être pas remplie.
+**`exhausted`** : le talent cherche une carte dont les 4 exemplaires sont déjà
+hors du deck, donc le déclencher ne trouverait rien.
+
+Un deck contient au maximum 4 exemplaires d'une carte, Énergies de base
+exceptées. Compte-les dans la défausse et la main avant de reprocher une
+recherche non faite : trois `warning` ont déjà été écrits sur un talent mort
+depuis le tour 4.
 
 **Compte toujours les copies en jeu.** Deux Feurisson, c'est deux « Unis par
 le Voyage » — le talent n'a pas de clause « une seule fois toutes copies
