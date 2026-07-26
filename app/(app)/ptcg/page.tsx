@@ -20,7 +20,11 @@ export default async function PtcgPage() {
     .select(
       'id, played_at, opponent, result, prizes_me, prizes_opponent, turns, my_archetype, opponent_archetype, my_key_card, opponent_key_card, play_score, ptcg_analyses(moments)',
     )
+    // Import order breaks the tie. Games imported before the form captured a
+    // time all sit at midnight, and equal keys leave the order undefined —
+    // which is exactly how the list looked shuffled.
     .order('played_at', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(200);
 
   if (error) {

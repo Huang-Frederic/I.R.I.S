@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Pokeball from '@/components/ui/Pokeball';
+import { hasRealTime } from '@/lib/utils/local-datetime';
 
 export interface PtcgGameCard {
   id: string;
@@ -131,6 +132,12 @@ export default function PtcgView({ games }: { games: PtcgGameCard[] }) {
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 
+  // Null for the games stored with a placeholder instant — see hasRealTime.
+  const fmtTime = (iso: string) =>
+    hasRealTime(iso)
+      ? new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+      : null;
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-end gap-3">
@@ -230,7 +237,19 @@ export default function PtcgView({ games }: { games: PtcgGameCard[] }) {
                         }
                         label={t('statAnalysis')}
                       />
-                      <Cell value={fmtDate(g.played_at)} label={t('statDate')} />
+                      <Cell
+                        value={
+                          <>
+                            {fmtDate(g.played_at)}
+                            {fmtTime(g.played_at) && (
+                              <span className="text-text-muted ml-1 font-normal">
+                                {fmtTime(g.played_at)}
+                              </span>
+                            )}
+                          </>
+                        }
+                        label={t('statDate')}
+                      />
                     </div>
                   </div>
 
@@ -273,7 +292,9 @@ export default function PtcgView({ games }: { games: PtcgGameCard[] }) {
                           <Dot n={g.good} color="bg-emerald-500" title={t('statGood')} />
                         </span>
                         <span>
-                          {fmtDate(g.played_at)} · {t('turnsCount', { count: g.turns })}
+                          {fmtDate(g.played_at)}
+                          {fmtTime(g.played_at) ? ` ${fmtTime(g.played_at)}` : ''} ·{' '}
+                          {t('turnsCount', { count: g.turns })}
                         </span>
                       </div>
                     </div>

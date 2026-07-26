@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Check, Copy, Download, TriangleAlert } from 'lucide-react';
 import Pokeball from '@/components/ui/Pokeball';
 import { parseJsonLoose } from '@/lib/utils/json-from-text';
+import { fromLocalInputValue, toLocalInputValue } from '@/lib/utils/local-datetime';
 
 /** Survives a refresh: re-exporting a log from PTCG Live is not possible, and
  *  losing a paste to a stray reload would mean losing the game. */
@@ -29,7 +30,10 @@ interface Parsed {
   unresolved: string[];
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+/** Now, in local wall time. A game is imported minutes after it is played, so
+ *  this is right far more often than any date-only default — and it carries the
+ *  time, without which two games on one evening cannot be told apart. */
+const now = () => toLocalInputValue(new Date());
 
 export default function PtcgImport() {
   const t = useTranslations('ptcg');
@@ -37,7 +41,7 @@ export default function PtcgImport() {
   const router = useRouter();
 
   const [raw, setRaw] = useState('');
-  const [playedAt, setPlayedAt] = useState(today());
+  const [playedAt, setPlayedAt] = useState(now());
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [busy, setBusy] = useState<'parse' | 'import' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +56,7 @@ export default function PtcgImport() {
       try {
         const d = JSON.parse(saved) as { raw: string; playedAt: string };
         setRaw(d.raw);
-        setPlayedAt(d.playedAt || today());
+        setPlayedAt(d.playedAt || now());
       } catch {
         sessionStorage.removeItem(DRAFT);
       }
@@ -95,7 +99,7 @@ export default function PtcgImport() {
       const res = await fetch('/api/ptcg/parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ raw, playedAt }),
+        body: JSON.stringify({ raw, playedAt: fromLocalInputValue(playedAt) }),
       });
       if (!res.ok) return void (await fail(res));
       setParsed((await res.json()) as Parsed);
@@ -112,7 +116,7 @@ export default function PtcgImport() {
     const blob = new Blob([JSON.stringify(parsed.digest, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${playedAt}-${parsed.summary.opponent}.digest.json`;
+    a.download = `${playedAt.slice(0, 10)}-${parsed.summary.opponent}.digest.json`;
     a.click();
     URL.revokeObjectURL(a.href);
   };
@@ -148,7 +152,7 @@ export default function PtcgImport() {
         body: JSON.stringify(
           (analysis as { bundleVersion?: string })?.bundleVersion
             ? analysis
-            : { raw, analysis, playedAt },
+            : { raw, analysis, playedAt: fromLocalInputValue(playedAt) },
         ),
       });
       if (!res.ok) return void (await fail(res));
@@ -178,9 +182,9 @@ export default function PtcgImport() {
           <label className="text-text-muted flex items-center gap-2 text-xs">
             {t('importPlayedAt')}
             <input
-              type="date"
+              type="datetime-local"
               value={playedAt}
-              max={today()}
+              max={now()}
               onChange={(e) => setPlayedAt(e.target.value)}
               className="border-border bg-surface-2 rounded-lg border px-2 py-1.5 text-xs"
             />
