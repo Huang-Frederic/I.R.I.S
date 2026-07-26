@@ -55,6 +55,23 @@ describe('playScore', () => {
     expect(playScore([moment(1, 'warning'), moment(1, 'good')], [1])!.score).toBe(97);
   });
 
+  it('caps how much praise can add back', () => {
+    // The analysis aims for a finding per turn, so good plays are plentiful.
+    // Uncapped, ten of them (+50) would lift a lost game from 33 to 83.
+    const good = Array.from({ length: 10 }, (_, i) => moment(i * 2 + 1, 'good'));
+    const turns = good.map((m) => m.turn);
+    expect(playScore(good, turns)!.score).toBe(100);
+    expect(playScore([moment(1, 'error', 2), ...good], [1, ...turns])!.score).toBe(100 - 35 + 12);
+  });
+
+  it('does not let praise absorb a penalty before the cap applies', () => {
+    // Three good plays are +15, above the +12 ceiling. Netting them against
+    // the error first would leave -3 and score 97; capping the credit on its
+    // own gives 94. The ceiling has to bite before the subtraction.
+    const three = [moment(1, 'good'), moment(3, 'good'), moment(5, 'good')];
+    expect(playScore([moment(7, 'error'), ...three], [1, 3, 5, 7])!.score).toBe(94);
+  });
+
   it('floors at zero rather than going negative', () => {
     const wrecked = playScore(
       [moment(1, 'error', 2), moment(3, 'error', 2), moment(5, 'error', 2)],

@@ -32,6 +32,17 @@ const DELTA: Record<string, number> = {
 /** An error that cost prizes outweighs one that cost damage. */
 const LOST_THE_GAME = -35;
 
+/**
+ * Ceiling on what good plays can add back.
+ *
+ * The analysis now aims for at least one finding per turn, so a long game
+ * collects many `good` entries. Uncapped, ten of them add +50 and a game lost
+ * to two decisive blunders climbs from 33 to 83 — praise would be manufacturing
+ * the score rather than nuancing it. Credit can soften a bad game by about one
+ * error's worth; it cannot rewrite it.
+ */
+const MAX_CREDIT = 12;
+
 export interface PtcgPlayScore {
   /** 0–100, rounded. */
   score: number;
@@ -71,6 +82,12 @@ export function playScore(moments: PtcgMoment[], myTurns: number[]): PtcgPlaySco
     return { turn, score: Math.max(0, Math.min(100, 100 + delta)) };
   });
 
-  const total = moments.reduce((sum, m) => sum + deltaOf(m), 0);
+  // Credit and penalties are summed apart so the cap applies to praise only —
+  // netting them first would let a run of good plays quietly absorb an error
+  // before the ceiling ever bit.
+  const credit = moments.reduce((sum, m) => sum + Math.max(0, deltaOf(m)), 0);
+  const penalty = moments.reduce((sum, m) => sum + Math.min(0, deltaOf(m)), 0);
+  const total = Math.min(credit, MAX_CREDIT) + penalty;
+
   return { score: Math.max(0, Math.min(100, 100 + total)), turns };
 }

@@ -85,27 +85,48 @@ export async function POST(request: Request) {
     .select('id, played_at, me, opponent, result, prizes_me, prizes_opponent, turns')
     .single();
 
-  if (gameError) {
-    // Unique (user_id, log_hash): the same export cannot be imported twice.
-    if (gameError.code === '23505') {
-      return apiError('ptcg_already_imported', {
-        status: 409,
-        message: 'This game has already been imported.',
-      });
-    }
-    return serverErrorResponse(gameError.message);
+  // Unique (user_id, log_hash). A second bundle for the same log is not a
+  // mistake to refuse — it is the coach having improved. Re-importing attaches
+  // the new analysis to the existing game and refreshes the derived columns;
+  // the previous analysis row is kept, since the read side takes the most
+  // recent and history is worth more than the row it costs.
+  const duplicate = gameError?.code === '23505';
+  if (gameError && !duplicate) return serverErrorResponse(gameError.message);
+
+  let target = game;
+  if (duplicate) {
+    const { data: existing, error } = await supabase
+      .from('ptcg_games')
+      .update({
+        my_key_card: mine?.cardId ?? null,
+        opponent_key_card: theirs?.cardId ?? null,
+        play_score: score?.score ?? null,
+        my_archetype: bundle.game.my_archetype ?? mine?.name ?? null,
+        opponent_archetype: bundle.game.opponent_archetype ?? theirs?.name ?? null,
+      })
+      .eq('user_id', user.id)
+      .eq('log_hash', bundle.game.log_hash)
+      .select('id, played_at, me, opponent, result, prizes_me, prizes_opponent, turns')
+      .single();
+    if (error || !existing) return serverErrorResponse(error?.message ?? 'game not found');
+    target = existing;
   }
+  if (!target) return serverErrorResponse('insert returned no row');
 
   const { error: analysisError } = await supabase
     .from('ptcg_analyses')
-    .insert({ ...bundle.analysis, game_id: game.id });
+    .insert({ ...bundle.analysis, game_id: target.id });
 
   if (analysisError) {
     // Leaving a game without its analysis would look like a silent success and
-    // block re-import on the hash. Roll back so the file can simply be retried.
-    await supabase.from('ptcg_games').delete().eq('id', game.id);
+    // block re-import on the hash. Roll back so the file can simply be retried
+    // — but only the game this request created, never one that already existed.
+    if (!duplicate) await supabase.from('ptcg_games').delete().eq('id', target.id);
     return serverErrorResponse(analysisError.message);
   }
 
-  return NextResponse.json({ game, warnings: check.warnings }, { status: 201 });
+  return NextResponse.json(
+    { game: target, reanalysed: duplicate, warnings: check.warnings },
+    { status: duplicate ? 200 : 201 },
+  );
 }

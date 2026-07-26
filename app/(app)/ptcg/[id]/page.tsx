@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Target } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import PtcgReplay from '@/components/ptcg/PtcgReplay';
 import type { PtcgCardRow, PtcgGameRow, PtcgAnalysisRow } from '@/lib/types';
@@ -16,7 +16,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     .eq('id', id)
     .single();
   return {
-    title: data ? t('versus', { opponent: data.opponent_archetype ?? data.opponent }) : t('metaTitle'),
+    title: data
+      ? t('versus', { opponent: data.opponent_archetype ?? data.opponent })
+      : t('metaTitle'),
   };
 }
 
@@ -29,7 +31,20 @@ export default async function PtcgGamePage({ params }: { params: Promise<{ id: s
     .from('ptcg_games')
     .select('id, played_at, me, opponent, result, prizes_me, prizes_opponent, turns, state')
     .eq('id', id)
-    .single<Pick<PtcgGameRow, 'id' | 'played_at' | 'me' | 'opponent' | 'result' | 'prizes_me' | 'prizes_opponent' | 'turns' | 'state'>>();
+    .single<
+      Pick<
+        PtcgGameRow,
+        | 'id'
+        | 'played_at'
+        | 'me'
+        | 'opponent'
+        | 'result'
+        | 'prizes_me'
+        | 'prizes_opponent'
+        | 'turns'
+        | 'state'
+      >
+    >();
 
   if (!game) notFound();
 
@@ -58,9 +73,7 @@ export default async function PtcgGamePage({ params }: { params: Promise<{ id: s
     .select('*')
     .in('ptcgl_id', [...seen]);
 
-  const cards = Object.fromEntries(
-    ((cardRows ?? []) as PtcgCardRow[]).map((c) => [c.ptcgl_id, c]),
-  );
+  const cards = Object.fromEntries(((cardRows ?? []) as PtcgCardRow[]).map((c) => [c.ptcgl_id, c]));
 
   return (
     <section>
@@ -80,9 +93,7 @@ export default async function PtcgGamePage({ params }: { params: Promise<{ id: s
           </span>
         </h1>
         {analysis?.verdict?.summary && (
-          <p className="text-text-muted mt-2 max-w-3xl text-sm leading-relaxed">
-            {analysis.verdict.summary}
-          </p>
+          <p className="text-text-muted mt-2 text-sm leading-relaxed">{analysis.verdict.summary}</p>
         )}
       </header>
 
@@ -96,15 +107,29 @@ export default async function PtcgGamePage({ params }: { params: Promise<{ id: s
       />
 
       {analysis?.checklist && analysis.checklist.length > 0 && (
-        <section className="border-border bg-surface mt-4 rounded-xl border p-4">
-          <h2 className="text-text-muted text-xs font-semibold tracking-wide uppercase">
+        <section className="mt-6">
+          <h2 className="text-text-muted mb-2.5 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
+            <Target className="text-red h-4 w-4" aria-hidden />
             {t('checklist')}
           </h2>
-          <ul className="mt-2 flex list-inside list-disc flex-col gap-1.5 text-sm">
-            {analysis.checklist.map((c) => (
-              <li key={c}>{c}</li>
+          {/* Numbered cards rather than bullets: these are things to do in the
+              next game, and a checklist that looks like prose reads like prose. */}
+          <ol className="grid gap-2.5 sm:grid-cols-2">
+            {analysis.checklist.map((c, i) => (
+              <li
+                key={c}
+                className="border-border bg-surface hover:border-red/40 flex gap-3 rounded-xl border p-3.5 transition"
+              >
+                <span
+                  className="bg-red/15 text-red flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums"
+                  aria-hidden
+                >
+                  {i + 1}
+                </span>
+                <span className="text-[13px] leading-relaxed">{c}</span>
+              </li>
             ))}
-          </ul>
+          </ol>
         </section>
       )}
     </section>
