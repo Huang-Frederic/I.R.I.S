@@ -58,10 +58,21 @@ export function validate(built: PtcgBuildResult, tokens: PtcgTokenizeResult): Pt
 
   function validateDamage(ev: PtcgEvent, analysis: PtcgEvent) {
     const entries = analysis.entries ?? [];
-    const total = entries.find((e) => /^Total de dégâts$/i.test(e.label));
-    const parts = entries.filter((e) => e !== total);
+    const listed = entries.find((e) => /^Total de dégâts$/i.test(e.label));
+    const parts = entries.filter((e) => e !== listed);
     const sum = parts.reduce((a, e) => a + e.damage, 0);
     const move = (ev.move as string) ?? '';
+
+    // The Total row is omitted when the damage has a single component — an
+    // attack that only counts Pokémon in play prints one row and stops. The
+    // announced damage on the attack line says the same thing, so it stands in
+    // rather than the whole check being abandoned. Refusing here rejected a
+    // real game whose every analysis block was of that shape.
+    const total =
+      listed ??
+      (ev.type === 'attack' && typeof ev.damage === 'number'
+        ? { label: 'Total de dégâts', damage: ev.damage as number }
+        : undefined);
 
     // The breakdown is NOT exhaustive: optional attack modes (the +80 on Hélice
     // Ninja) are never itemised. A positive residual is therefore expected. A
@@ -79,8 +90,10 @@ export function validate(built: PtcgBuildResult, tokens: PtcgTokenizeResult): Pt
       pass('damage-sum', `L${ev.line} ${move} = ${total.damage}`);
     }
 
-    if (ev.type === 'attack' && total && ev.damage !== total.damage) {
-      fail('declared-damage', `L${ev.line} ${move}`, total.damage, ev.damage);
+    // Only when the log printed the Total itself — comparing the substituted
+    // one against the line it was taken from would always pass and prove nothing.
+    if (ev.type === 'attack' && listed && ev.damage !== listed.damage) {
+      fail('declared-damage', `L${ev.line} ${move}`, listed.damage, ev.damage);
     }
 
     // The core check: bonuses that count cards in the discard.

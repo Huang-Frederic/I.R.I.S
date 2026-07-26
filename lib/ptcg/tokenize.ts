@@ -63,6 +63,25 @@ function parseCardList(text: string): PtcgCardRef[] {
 
 export function tokenize(raw: string): PtcgTokenizeResult {
   const lines = raw.split(/\r?\n/);
+
+  /**
+   * Flattens the invisible differences between two copies of the same log.
+   *
+   * French typography puts a thin no-break space before `: ! ? ;`, and the
+   * patterns here are written with ordinary spaces — a literal space in a
+   * regex does not match U+202F, so a single invisible character turns
+   * "Analyse des dégâts :" into an unrecognised line and takes the whole
+   * damage-analysis block with it. Accents are folded to NFC for the same
+   * reason: a decomposed "é" is two code points and matches nothing.
+   *
+   * Applied to the lines only. The raw log is hashed as it arrived, since that
+   * hash is what makes a re-import recognisable as the same game.
+   */
+  const normaliseSpaces = (s: string) =>
+    s
+      .replace(/[\u00a0\u202f\u2007\u2009\u2060\ufeff]/g, ' ')
+      .normalize('NFC')
+      .trim();
   const players = findPlayers(lines);
   const P = players.map(esc).join('|');
   const C = '\\(([^)]+)\\)\\s(.+?)'; // one card reference
@@ -248,6 +267,24 @@ export function tokenize(raw: string): PtcgTokenizeResult {
       'game-end',
       new RegExp(`^L['’]adversaire a récupéré toutes ses cartes Récompense\\. (${P}) gagne\\.$`),
       (m) => ({ winner: m[1] }),
+    ],
+    // Losing with nothing left to promote. The doubled full stop is the log's,
+    // not a typo here — the sentence already ends in one and the template adds
+    // another.
+    [
+      'game-end',
+      new RegExp(
+        `^L['’]adversaire a mis K\\.O\\. tous vos Pokémon en jeu, et toutes ses cartes Récompense ont été récupérées\\.\\.? (${P}) gagne\\.$`,
+      ),
+      (m) => ({ winner: m[1] }),
+    ],
+
+    // A Special Energy triggering its own effect. No state change here: the
+    // sub-line that follows says where the card went.
+    [
+      'energy-activated',
+      new RegExp(`^La carte ${C} a été activée\\.$`),
+      (m) => ({ card: { id: m[1], name: m[2] } }),
     ],
   ];
 
@@ -457,7 +494,7 @@ export function tokenize(raw: string): PtcgTokenizeResult {
   };
 
   lines.forEach((rawLine, i) => {
-    const line = rawLine.trim();
+    const line = normaliseSpaces(rawLine);
     if (!line) return;
 
     // Level 2: bullets. Either a card list, or a damage-analysis row.

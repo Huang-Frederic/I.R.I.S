@@ -1,0 +1,240 @@
+Préparation
+Hisshiden a choisi pile pour le lancer de pièce initial.
+Kphillips6196 a gagné le lancer de pièce.
+Kphillips6196 a décidé de jouer en premier.
+Hisshiden a pioché 7 cartes pour sa main de départ.
+- 7 cartes piochées.
+   • (sv8-5_72) Dispareptil, (sv10_34) Typhlosion de Luth, (sv1_196) Hyper Ball, (sv10_33) Feurisson de Luth, (sv1_196) Hyper Ball, (sv8_21) Victini, (sv8_250) Montagne Gravité
+Kphillips6196 a pioché 7 cartes pour sa main de départ.
+- 7 cartes piochées.
+Kphillips6196 a déclaré une misère.
+- Cartes montrées à la suite de la misère 1.
+   • (sv10_226) Lambda de la Team Rocket, (sv10_238) Giovanni de la Team Rocket, (me2-5_127_ph2) Corboss de la Team Rocket, (sm10_233) Pokématos 3.0, (sv10_223) Amos de la Team Rocket, (sm10_233) Pokématos 3.0, (sv10_226) Lambda de la Team Rocket
+Hisshiden a pioché une carte supplémentaire car Kphillips6196 a déclaré au moins une misère.
+- Hisshiden a pioché (sv2_172) Ordres du Boss.
+Hisshiden a joué (sv8_21) Victini sur le Poste Actif.
+Kphillips6196 a joué (sv10_200) Cornèbre de la Team Rocket sur le Poste Actif.
+
+Tour de Kphillips6196
+Kphillips6196 a pioché une carte.
+Kphillips6196 a joué (sv8-5_127_sph) Perche à Motismart.
+- Kphillips6196 a pioché 2 cartes.
+   • (sv10_237) Ariane de la Team Rocket, (sv10_238) Giovanni de la Team Rocket
+- Kphillips6196 a mélangé son deck.
+Kphillips6196 a joué (sm10_233) Pokématos 3.0.
+- Kphillips6196 a pioché (sv10_227) Lance de la Team Rocket.
+- Kphillips6196 a mélangé son deck.
+Kphillips6196 a joué (sv10_227) Lance de la Team Rocket.
+- Kphillips6196 a pioché 3 cartes.
+   • (sv10_200) Cornèbre de la Team Rocket, (sv10_200) Cornèbre de la Team Rocket, (sv10_200) Cornèbre de la Team Rocket
+- Kphillips6196 a mélangé son deck.
+Kphillips6196 a joué (sv10_200) Cornèbre de la Team Rocket sur le Banc.
+Kphillips6196 a joué (sv10_200) Cornèbre de la Team Rocket sur le Banc.
+Kphillips6196 a joué (sv10_200) Cornèbre de la Team Rocket sur le Banc.
+Kphillips6196 a attaché (sv10_182_ph) Énergie de la Team Rocket à (sv10_200) Cornèbre de la Team Rocket sur le Poste Actif.
+Kphillips6196 a mis fin à son tour.
+
+Tour de Hisshiden
+Hisshiden a pioché (sv8_250) Montagne Gravité.
+Hisshiden a joué (sv1_196) Hyper Ball.
+- Hisshiden a défaussé 2 cartes.
+   • (sv8_250) Montagne Gravité, (sv1_196) Hyper Ball
+- Hisshiden a pioché (sv10_32) Héricendre de Luth.
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv10_32) Héricendre de Luth sur le Banc.
+Hisshiden a mis fin à son tour.
+
+Tour de Kphillips6196
+Kphillips6196 a pioché une carte.
+Kphillips6196 a joué (sv10_238) Giovanni de la Team Rocket.
+- (sv10_200) Cornèbre de la Team Rocket de Kphillips6196 a été échangé contre (sv10_200) Cornèbre de la Team Rocket de Kphillips6196 pour devenir le Pokémon Actif.
+- (sv10_32) Héricendre de Luth de Hisshiden a été échangé contre (sv8_21) Victini de Hisshiden pour devenir le Pokémon Actif.
+(sv10_200) Cornèbre de la Team Rocket de Kphillips6196 est maintenant sur le Poste Actif.
+(sv10_32) Héricendre de Luth de Hisshiden est maintenant sur le Poste Actif.
+Kphillips6196 a fait évoluer (sv10_200) Cornèbre de la Team Rocket en (me2-5_127_ph2) Corboss de la Team Rocket sur le Poste Actif.
+Kphillips6196 a attaché (me2_124) Énergie Amorce à (me2-5_127_ph2) Corboss de la Team Rocket sur le Poste Actif.
+Kphillips6196 a fait évoluer (sv10_200) Cornèbre de la Team Rocket en (me2-5_127_ph2) Corboss de la Team Rocket sur le Banc.
+Kphillips6196 a joué (sv10_178_ph) Émetteur-Récepteur de la Team Rocket.
+- Kphillips6196 a pioché (sv10_227) Lance de la Team Rocket.
+- Kphillips6196 a mélangé son deck.
+(me2-5_127_ph2) Corboss de la Team Rocket de Kphillips6196 a utilisé Plumes Rocket sur (sv10_32) Héricendre de Luth de Hisshiden et a infligé 120 dégâts.
+- Analyse des dégâts :
+   • 2 Pokémon : 120 dégâts
+
+- Kphillips6196 a défaussé 2 cartes.
+   • (sv10_227) Lance de la Team Rocket, (sv10_238) Giovanni de la Team Rocket
+(sv10_32) Héricendre de Luth de Hisshiden a été mis K.O. !
+Kphillips6196 a récupéré une carte Récompense.
+La carte Une carte a été ajoutée à la main de Kphillips6196.
+(sv8_21) Victini de Hisshiden est maintenant sur le Poste Actif.
+La carte (me2_124) Énergie Amorce a été activée.
+- La carte (me2_124) Énergie Amorce a été défaussée de (me2-5_127_ph2) Corboss de la Team Rocket de Kphillips6196.
+
+Tour de Hisshiden
+Hisshiden a pioché (me1_167) Poffin Copain-Copain.
+Hisshiden a joué (me1_167) Poffin Copain-Copain.
+- Hisshiden a pioché 2 cartes et les a jouées sur le Banc.
+   • (sv8-5_71) Fantyrm, (sv10_32) Héricendre de Luth
+- Hisshiden a mélangé son deck.
+Hisshiden a mis fin à son tour.
+
+Tour de Kphillips6196
+Kphillips6196 a pioché une carte.
+Kphillips6196 a joué (me2-5_238) Mimiqui de la Team Rocket sur le Banc.
+Kphillips6196 a joué (sv10_237) Ariane de la Team Rocket.
+- Kphillips6196 a pioché 7 cartes.
+Kphillips6196 a attaché (me2_124) Énergie Amorce à (me2-5_127_ph2) Corboss de la Team Rocket sur le Poste Actif.
+Kphillips6196 a joué (me3_113) Poké Registre.
+- Kphillips6196 a pioché (me2-5_127_ph2) Corboss de la Team Rocket.
+- Kphillips6196 a mélangé son deck.
+Kphillips6196 a fait évoluer (sv10_200) Cornèbre de la Team Rocket en (me2-5_127_ph2) Corboss de la Team Rocket sur le Banc.
+Kphillips6196 a joué (me3_113) Poké Registre.
+- Kphillips6196 a pioché (me2-5_127_ph2) Corboss de la Team Rocket.
+- Kphillips6196 a mélangé son deck.
+Kphillips6196 a fait évoluer (sv10_200) Cornèbre de la Team Rocket en (me2-5_127_ph2) Corboss de la Team Rocket sur le Banc.
+Kphillips6196 a joué (sv8-5_127_sph) Perche à Motismart.
+- Kphillips6196 a pioché 3 cartes.
+   • (sv7_172) Taro, (sv8-5_175) Taro, (sv10_223) Amos de la Team Rocket
+- Kphillips6196 a mélangé son deck.
+Kphillips6196 a joué (sv10_178_ph) Émetteur-Récepteur de la Team Rocket.
+- Kphillips6196 a pioché (sv10_223) Amos de la Team Rocket.
+- Kphillips6196 a mélangé son deck.
+(me2-5_127_ph2) Corboss de la Team Rocket de Kphillips6196 a utilisé Plumes Rocket sur (sv8_21) Victini de Hisshiden et a infligé 120 dégâts.
+- Analyse des dégâts :
+   • 2 Pokémon : 120 dégâts
+
+- Kphillips6196 a défaussé 2 cartes.
+   • (sv10_227) Lance de la Team Rocket, (sv10_223) Amos de la Team Rocket
+(sv8_21) Victini de Hisshiden a été mis K.O. !
+Kphillips6196 a récupéré une carte Récompense.
+La carte Une carte a été ajoutée à la main de Kphillips6196.
+(sv8-5_71) Fantyrm de Hisshiden est maintenant sur le Poste Actif.
+La carte (me2_124) Énergie Amorce a été activée.
+- La carte (me2_124) Énergie Amorce a été défaussée de (me2-5_127_ph2) Corboss de la Team Rocket de Kphillips6196.
+
+Tour de Hisshiden
+Hisshiden a pioché (sv1_196) Hyper Ball.
+Hisshiden a fait évoluer (sv8-5_71) Fantyrm en (sv8-5_72) Dispareptil sur le Poste Actif.
+(sv8-5_72) Dispareptil de Hisshiden a utilisé Ordre de Reconnaissance.
+- Hisshiden a pioché (sv3_230) Énergie Feu de base.
+Hisshiden a fait évoluer (sv10_32) Héricendre de Luth en (sv10_33) Feurisson de Luth sur le Banc.
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Unis par le Voyage.
+- Hisshiden a pioché (sv10_221) Aventure de Luth.
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv10_221) Aventure de Luth.
+- Hisshiden a pioché 3 cartes.
+   • (sv3_230) Énergie Feu de base, (sv10_32) Héricendre de Luth, (sv10_33) Feurisson de Luth
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv10_32) Héricendre de Luth sur le Banc.
+Hisshiden a attaché (sv3_230) Énergie Feu de base à (sv10_33) Feurisson de Luth sur le Banc.
+Hisshiden a mis fin à son tour.
+
+Tour de Kphillips6196
+Kphillips6196 a pioché une carte.
+Kphillips6196 a joué (sv10_238) Giovanni de la Team Rocket.
+- (me2-5_127_ph2) Corboss de la Team Rocket de Kphillips6196 a été échangé contre (me2-5_127_ph2) Corboss de la Team Rocket de Kphillips6196 pour devenir le Pokémon Actif.
+- (sv10_33) Feurisson de Luth de Hisshiden a été échangé contre (sv8-5_72) Dispareptil de Hisshiden pour devenir le Pokémon Actif.
+(me2-5_127_ph2) Corboss de la Team Rocket de Kphillips6196 est maintenant sur le Poste Actif.
+(sv10_33) Feurisson de Luth de Hisshiden est maintenant sur le Poste Actif.
+Kphillips6196 a joué (sv8-5_127_sph) Perche à Motismart.
+- Kphillips6196 a pioché (sv10_237) Ariane de la Team Rocket.
+- Kphillips6196 a mélangé son deck.
+Kphillips6196 a attaché (me2_124) Énergie Amorce à (me2-5_127_ph2) Corboss de la Team Rocket sur le Poste Actif.
+(me2-5_127_ph2) Corboss de la Team Rocket de Kphillips6196 a utilisé Enfoncement sur (sv10_33) Feurisson de Luth de Hisshiden et a infligé 100 dégâts.
+(sv10_33) Feurisson de Luth de Hisshiden a été mis K.O. !
+- 2 cartes ont été défaussées de (sv10_33) Feurisson de Luth de Hisshiden.
+   • (sv3_230) Énergie Feu de base, (sv10_32) Héricendre de Luth
+Kphillips6196 a récupéré une carte Récompense.
+La carte Une carte a été ajoutée à la main de Kphillips6196.
+(sv10_32) Héricendre de Luth de Hisshiden est maintenant sur le Poste Actif.
+La carte (me2_124) Énergie Amorce a été activée.
+- La carte (me2_124) Énergie Amorce a été défaussée de (me2-5_127_ph2) Corboss de la Team Rocket de Kphillips6196.
+
+Tour de Hisshiden
+Hisshiden a pioché (me4_113) Carton Rouge Spécial.
+Hisshiden a joué (me4_113) Carton Rouge Spécial.
+- Kphillips6196 a mélangé sa main.
+- Hisshiden a déplacé 6 cartes de Hisshiden vers son deck.
+- Hisshiden a pioché 3 cartes.
+(sv8-5_72) Dispareptil de Hisshiden a utilisé Ordre de Reconnaissance.
+- Hisshiden a pioché (sv8-5_71) Fantyrm.
+Hisshiden a joué (sv8-5_71) Fantyrm sur le Banc.
+Hisshiden a fait évoluer (sv10_32) Héricendre de Luth en (sv10_33) Feurisson de Luth sur le Poste Actif.
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Unis par le Voyage.
+- Hisshiden a pioché (sv10_221) Aventure de Luth.
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv10_221) Aventure de Luth.
+- Hisshiden a pioché 3 cartes.
+   • (sv3_230) Énergie Feu de base, (sv3_230) Énergie Feu de base, (sv10_33) Feurisson de Luth
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv1_196) Hyper Ball.
+- Hisshiden a défaussé 2 cartes.
+   • (sv8_250) Montagne Gravité, (sv3_230) Énergie Feu de base
+- Hisshiden a pioché (sv8-5_72) Dispareptil.
+- Hisshiden a mélangé son deck.
+Hisshiden a attaché (sv3_230) Énergie Feu de base à (sv10_33) Feurisson de Luth sur le Poste Actif.
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Fournaise sur (me2-5_127_ph2) Corboss de la Team Rocket de Kphillips6196 et a infligé 40 dégâts.
+
+Tour de Kphillips6196
+Kphillips6196 a pioché une carte.
+Kphillips6196 a attaché (me2_124) Énergie Amorce à (me2-5_127_ph2) Corboss de la Team Rocket sur le Poste Actif.
+Kphillips6196 a joué (sv10_237) Ariane de la Team Rocket.
+- Kphillips6196 a pioché 6 cartes.
+Kphillips6196 a joué (sv8-5_127_sph) Perche à Motismart.
+- Kphillips6196 a pioché 2 cartes.
+   • (sv10_226) Lambda de la Team Rocket, (sv10_238) Giovanni de la Team Rocket
+- Kphillips6196 a mélangé son deck.
+Kphillips6196 a joué (sm10_233) Pokématos 3.0.
+- Kphillips6196 a pioché (sv10_237) Ariane de la Team Rocket.
+- Kphillips6196 a mélangé son deck.
+(me2-5_127_ph2) Corboss de la Team Rocket de Kphillips6196 a utilisé Enfoncement sur (sv10_33) Feurisson de Luth de Hisshiden et a infligé 100 dégâts.
+(sv10_33) Feurisson de Luth de Hisshiden a été mis K.O. !
+- 2 cartes ont été défaussées de (sv10_33) Feurisson de Luth de Hisshiden.
+   • (sv3_230) Énergie Feu de base, (sv10_32) Héricendre de Luth
+Kphillips6196 a récupéré une carte Récompense.
+La carte Une carte a été ajoutée à la main de Kphillips6196.
+(sv8-5_72) Dispareptil de Hisshiden est maintenant sur le Poste Actif.
+La carte (me2_124) Énergie Amorce a été activée.
+- La carte (me2_124) Énergie Amorce a été défaussée de (me2-5_127_ph2) Corboss de la Team Rocket de Kphillips6196.
+
+Tour de Hisshiden
+Hisshiden a pioché (me3_81) Poké Registre.
+Hisshiden a fait évoluer (sv8-5_71) Fantyrm en (sv8-5_72) Dispareptil sur le Banc.
+(sv8-5_72) Dispareptil de Hisshiden a utilisé Ordre de Reconnaissance.
+- Hisshiden a pioché (me1_175) Super Bonbon.
+(sv8-5_72) Dispareptil de Hisshiden a utilisé Ordre de Reconnaissance.
+- Hisshiden a pioché (sv10_34) Typhlosion de Luth.
+Hisshiden a mis fin à son tour.
+
+Tour de Kphillips6196
+Kphillips6196 a pioché une carte.
+Kphillips6196 a attaché (sv10_182_ph) Énergie de la Team Rocket à (me2-5_127_ph2) Corboss de la Team Rocket sur le Banc.
+(me2-5_127_ph2) Corboss de la Team Rocket de Kphillips6196 a utilisé Plumes Rocket sur (sv8-5_72) Dispareptil de Hisshiden et a infligé 120 dégâts.
+- Analyse des dégâts :
+   • 2 Pokémon : 120 dégâts
+
+- Kphillips6196 a défaussé 2 cartes.
+   • (sv10_226) Lambda de la Team Rocket, (sv10_223) Amos de la Team Rocket
+(sv8-5_72) Dispareptil de Hisshiden a été mis K.O. !
+La carte (sv8-5_71) Fantyrm a été défaussée de (sv8-5_72) Dispareptil de Hisshiden.
+Kphillips6196 a récupéré une carte Récompense.
+La carte Une carte a été ajoutée à la main de Kphillips6196.
+(sv8-5_72) Dispareptil de Hisshiden est maintenant sur le Poste Actif.
+
+Tour de Hisshiden
+Hisshiden a pioché (sv6_163) Boîte à Secrets.
+Hisshiden a mis fin à son tour.
+
+Tour de Kphillips6196
+Kphillips6196 a pioché une carte.
+(me2-5_127_ph2) Corboss de la Team Rocket de Kphillips6196 a utilisé Plumes Rocket sur (sv8-5_72) Dispareptil de Hisshiden et a infligé 120 dégâts.
+- Analyse des dégâts :
+   • 2 Pokémon : 120 dégâts
+
+- Kphillips6196 a défaussé 2 cartes.
+   • (sv10_238) Giovanni de la Team Rocket, (sv10_227) Lance de la Team Rocket
+(sv8-5_72) Dispareptil de Hisshiden a été mis K.O. !
+La carte (sv8-5_71) Fantyrm a été défaussée de (sv8-5_72) Dispareptil de Hisshiden.
+Kphillips6196 a récupéré une carte Récompense.
+La carte Une carte a été ajoutée à la main de Kphillips6196.
+L’adversaire a mis K.O. tous vos Pokémon en jeu, et toutes ses cartes Récompense ont été récupérées.. Kphillips6196 gagne.

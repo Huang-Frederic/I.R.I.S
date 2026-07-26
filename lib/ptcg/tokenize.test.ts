@@ -30,6 +30,16 @@ const FIXTURE_4 = readFileSync(
   'utf8',
 );
 
+/**
+ * Fifth real game — a Team Rocket deck. Card names ending in "de la Team
+ * Rocket" next to a handle, a Special Energy activating, a damage analysis with
+ * no Total row, and a loss by having no Pokémon left to promote.
+ */
+const FIXTURE_5 = readFileSync(
+  join(process.cwd(), 'lib/ptcg/fixtures/rocket-2026-07-26.txt'),
+  'utf8',
+);
+
 const countTypes = (events: ReturnType<typeof tokenize>['events']) => {
   const counts: Record<string, number> = {};
   const walk = (e: (typeof events)[number]) => {
@@ -227,5 +237,43 @@ describe('tokenize — quatrième partie (Zacian)', () => {
     );
     expect(prevented.length).toBe(1);
     expect(prevented[0].target).toMatchObject({ id: 'sv8-5_71' });
+  });
+});
+
+describe('tokenize — cinquième partie (Team Rocket)', () => {
+  it('leaves nothing unrecognised', () => {
+    expect(tokenize(FIXTURE_5).unknown).toEqual([]);
+  });
+
+  it('reads a loss with no Pokémon left to promote', () => {
+    // A fourth end-of-game spelling, and the log doubles the full stop.
+    expect(tokenize(FIXTURE_5).events.find((e) => e.type === 'game-end')).toMatchObject({
+      winner: 'Kphillips6196',
+    });
+  });
+
+  it('reads a Special Energy activating', () => {
+    const activated = tokenize(FIXTURE_5).events.filter((e) => e.type === 'energy-activated');
+    expect(activated.length).toBe(4);
+    expect(activated[0].card).toMatchObject({ id: 'me2_124' });
+  });
+
+  it('separates a card name ending in "de la Team Rocket" from the handle', () => {
+    // The hardest case for the handle-injection trick: the card name itself
+    // ends in " de X", immediately before " de <player>".
+    const swap = tokenize(FIXTURE_5)
+      .events.flatMap((e) => e.children ?? [])
+      .find((c) => c.type === 'swap-active')!;
+    expect(swap.incoming).toEqual({ id: 'sv10_200', name: 'Cornèbre de la Team Rocket' });
+    expect(swap.player).toBe('Kphillips6196');
+  });
+
+  it('is unaffected by the thin no-break spaces French typography inserts', () => {
+    // A copy of the same log carrying U+202F before ":" and "!" must parse
+    // identically — one invisible character used to take a whole
+    // damage-analysis block with it.
+    const thin = FIXTURE_5.replace(/ ([:!?;])/g, ' $1');
+    expect(tokenize(thin).unknown).toEqual([]);
+    expect(tokenize(thin).events.length).toBe(tokenize(FIXTURE_5).events.length);
   });
 });
