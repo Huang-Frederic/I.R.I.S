@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Check, Download, TriangleAlert } from 'lucide-react';
+import { Check, Copy, Download, TriangleAlert } from 'lucide-react';
 import Pokeball from '@/components/ui/Pokeball';
+import { parseJsonLoose } from '@/lib/utils/json-from-text';
 
 /** Survives a refresh: re-exporting a log from PTCG Live is not possible, and
  *  losing a paste to a stray reload would mean losing the game. */
@@ -41,6 +42,8 @@ export default function PtcgImport() {
   const [busy, setBusy] = useState<'parse' | 'import' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [details, setDetails] = useState<string[]>([]);
+  const [pasted, setPasted] = useState('');
+  const [copied, setCopied] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -109,18 +112,29 @@ export default function PtcgImport() {
     URL.revokeObjectURL(a.href);
   };
 
-  const importAnalysis = async (file: File) => {
+  const copy = async () => {
+    if (!parsed) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(parsed.digest));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard is blocked outside a secure context; the download still works.
+      setError(t('importCopyFailed'));
+    }
+  };
+
+  const importAnalysis = async (text: string) => {
     setBusy('import');
     setError(null);
     setDetails([]);
     try {
-      let analysis: unknown;
-      try {
-        analysis = JSON.parse(await file.text());
-      } catch {
+      const read = parseJsonLoose(text);
+      if (!read.ok) {
         setError(t('importBadJson'));
         return;
       }
+      const analysis = read.value;
       const res = await fetch('/api/ptcg/games', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -227,14 +241,30 @@ export default function PtcgImport() {
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={download}
-              className="border-border bg-surface-2 hover:bg-surface mt-3 flex w-full items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-semibold"
-            >
-              <Download className="h-4 w-4" aria-hidden />
-              {t('importDownload')}
-            </button>
+            {/* Copy sits beside download for phones, where saving a file and
+                finding it again in a picker is the whole friction. */}
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={download}
+                className="border-border bg-surface-2 hover:bg-surface flex items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-semibold"
+              >
+                <Download className="h-4 w-4" aria-hidden />
+                {t('importDownload')}
+              </button>
+              <button
+                type="button"
+                onClick={copy}
+                className="border-border bg-surface-2 hover:bg-surface flex items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-semibold"
+              >
+                {copied ? (
+                  <Check className="h-4 w-4 text-emerald-500" aria-hidden />
+                ) : (
+                  <Copy className="h-4 w-4" aria-hidden />
+                )}
+                {copied ? t('importCopied') : t('importCopy')}
+              </button>
+            </div>
             <p className="text-text-muted mt-2 text-xs leading-relaxed">{t('importDigestHint')}</p>
           </section>
 
@@ -246,10 +276,10 @@ export default function PtcgImport() {
               type="file"
               accept="application/json,.json"
               className="hidden"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const f = e.target.files?.[0];
-                if (f) void importAnalysis(f);
                 e.target.value = '';
+                if (f) await importAnalysis(await f.text());
               }}
             />
             <button
@@ -262,6 +292,26 @@ export default function PtcgImport() {
               <span className="text-sm font-semibold">
                 {busy === 'import' ? t('uploading') : t('importDropAnalysis')}
               </span>
+            </button>
+
+            {/* Pasting is the only workable path on a phone: the analysis
+                arrives as text in a conversation, and turning that into a file
+                just to hand it back is two detours through a file manager. */}
+            <p className="text-text-muted my-3 text-center text-xs">{t('importOrPaste')}</p>
+            <textarea
+              value={pasted}
+              onChange={(e) => setPasted(e.target.value)}
+              placeholder={t('importPastePlaceholder')}
+              spellCheck={false}
+              className="border-border bg-surface-2 focus:border-red h-24 w-full rounded-lg border p-3 font-mono text-xs outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => void importAnalysis(pasted)}
+              disabled={!pasted.trim() || busy !== null}
+              className="bg-red mt-2 w-full rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+            >
+              {busy === 'import' ? t('uploading') : t('importSubmitPasted')}
             </button>
           </section>
         </>

@@ -1074,6 +1074,12 @@
     "importDownload": "下载摘要",
     "importDropAnalysis": "拖入分析 JSON",
     "importDigestHint": "把该文件附加到启用 ptcg-coach 技能的对话中。它会返回分析 JSON，再带回下方。",
-    "importBadJson": "该文件不是有效的 JSON。"
+    "importBadJson": "该文件不是有效的 JSON。",
+    "importCopy": "复制",
+    "importCopied": "已复制",
+    "importCopyFailed": "无法访问剪贴板 — 请改用下载。",
+    "importOrPaste": "或粘贴",
+    "importPastePlaceholder": "粘贴对话返回的分析 JSON。",
+    "importSubmitPasted": "导入该分析"
   }
 }

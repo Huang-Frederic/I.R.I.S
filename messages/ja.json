@@ -1074,6 +1074,12 @@
     "importDownload": "ダイジェストをダウンロード",
     "importDropAnalysis": "分析JSONをドロップ",
     "importDigestHint": "このファイルをptcg-coachスキルの会話に添付してください。分析JSONが返るので、下に戻します。",
-    "importBadJson": "有効なJSONではありません。"
+    "importBadJson": "有効なJSONではありません。",
+    "importCopy": "コピー",
+    "importCopied": "コピー済み",
+    "importCopyFailed": "クリップボードにアクセスできません — ダウンロードを使ってください。",
+    "importOrPaste": "または貼り付け",
+    "importPastePlaceholder": "会話が返した分析JSONを貼り付け。",
+    "importSubmitPasted": "この分析をインポート"
   }
 }

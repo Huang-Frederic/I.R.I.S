@@ -1074,6 +1074,12 @@
     "importDownload": "Télécharger le digest",
     "importDropAnalysis": "Dépose le JSON d’analyse",
     "importDigestHint": "Attache ce fichier à une conversation avec le skill ptcg-coach. Il répond par un JSON d’analyse — ramène-le ci-dessous.",
-    "importBadJson": "Ce fichier n’est pas du JSON valide."
+    "importBadJson": "Ce fichier n’est pas du JSON valide.",
+    "importCopy": "Copier",
+    "importCopied": "Copié",
+    "importCopyFailed": "Presse-papiers inaccessible — utilise le téléchargement.",
+    "importOrPaste": "ou colle-la",
+    "importPastePlaceholder": "Colle le JSON d’analyse que la conversation t’a donné.",
+    "importSubmitPasted": "Importer cette analyse"
   }
 }
