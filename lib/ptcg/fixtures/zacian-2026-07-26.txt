@@ -1,0 +1,346 @@
+Préparation
+Hisshiden a choisi face pour le lancer de pièce initial.
+Hisshiden a gagné le lancer de pièce.
+Hisshiden a décidé de jouer en second.
+Hisshiden a pioché 7 cartes pour sa main de départ.
+- 7 cartes piochées.
+   • (sv10_33) Feurisson de Luth, (sv8_250) Montagne Gravité, (me1_169) Détermination de Lilie, (sv10_34) Typhlosion de Luth, (sv10_32) Héricendre de Luth, (sv10_33) Feurisson de Luth, (sv10_221) Aventure de Luth
+Luigi0103 a pioché 7 cartes pour sa main de départ.
+- 7 cartes piochées.
+Hisshiden a joué (sv10_32) Héricendre de Luth sur le Poste Actif.
+Luigi0103 a joué (sv8-5_79_ph) Insolourdo sur le Poste Actif.
+Luigi0103 a joué (sv9_186) Zacian-ex de Nabil sur le Banc.
+
+Tour de Luigi0103
+Luigi0103 a pioché une carte.
+Luigi0103 a attaché (sv9_148) Bandeau Choix de Nabil à (sv9_186) Zacian-ex de Nabil sur le Banc.
+Luigi0103 a mis fin à son tour.
+
+Tour de Hisshiden
+Hisshiden a pioché (sv9_156) Billet à Échanger.
+Hisshiden a joué (sv10_221) Aventure de Luth.
+- Hisshiden a pioché 3 cartes.
+   • (sv3_230) Énergie Feu de base, (sv10_32) Héricendre de Luth, (sv10_32) Héricendre de Luth
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv10_32) Héricendre de Luth sur le Banc.
+Hisshiden a joué (sv10_32) Héricendre de Luth sur le Banc.
+Hisshiden a attaché (sv3_230) Énergie Feu de base à (sv10_32) Héricendre de Luth sur le Poste Actif.
+Hisshiden a mis fin à son tour.
+
+Tour de Luigi0103
+Luigi0103 a pioché une carte.
+Luigi0103 a attaché (mee_8) Énergie Métal de base à (sv9_186) Zacian-ex de Nabil sur le Banc.
+Luigi0103 a fait battre en retraite (sv8-5_79_ph) Insolourdo sur le Banc.
+(sv9_186) Zacian-ex de Nabil de Luigi0103 est maintenant sur le Poste Actif.
+Luigi0103 a joué (sv9_154) Paddoxton comme Stade.
+(sv9_186) Zacian-ex de Nabil de Luigi0103 a utilisé Instanta-Frappe sur (sv10_32) Héricendre de Luth de Hisshiden et a infligé 90 dégâts.
+- Analyse des dégâts :
+   • Dégâts de base : 30 dégâts
+   • (sv9_148) Bandeau Choix de Nabil (Outil Pokémon) : 30 dégâts
+   • (sv9_154) Paddoxton (Stade) : 30 dégâts
+   • Total de dégâts : 90 dégâts
+
+- (sv10_32) Héricendre de Luth de Hisshiden a reçu 30 dégâts.
+(sv10_32) Héricendre de Luth de Hisshiden a été mis K.O. !
+La carte (sv3_230) Énergie Feu de base a été défaussée de (sv10_32) Héricendre de Luth de Hisshiden.
+Luigi0103 a récupéré une carte Récompense.
+La carte Une carte a été ajoutée à la main de Luigi0103.
+(sv10_32) Héricendre de Luth de Hisshiden est maintenant sur le Poste Actif.
+
+Tour de Hisshiden
+Hisshiden a pioché (sv3_230) Énergie Feu de base.
+Hisshiden a fait évoluer (sv10_32) Héricendre de Luth en (sv10_33) Feurisson de Luth sur le Poste Actif.
+Hisshiden a fait évoluer (sv10_32) Héricendre de Luth en (sv10_33) Feurisson de Luth sur le Banc.
+Hisshiden a attaché (sv3_230) Énergie Feu de base à (sv10_33) Feurisson de Luth sur le Poste Actif.
+Hisshiden a joué (me1_169) Détermination de Lilie.
+- Hisshiden a mélangé 3 cartes avec son deck.
+   • (sv8_250) Montagne Gravité, (sv10_34) Typhlosion de Luth, (sv9_156) Billet à Échanger
+- Hisshiden a pioché 8 cartes.
+   • (sv9_156) Billet à Échanger, (sv10_221) Aventure de Luth, (sv8-5_72) Dispareptil, (sv10_33) Feurisson de Luth, (sv8-5_71) Fantyrm, (sv8-5_71) Fantyrm, (sv10_32) Héricendre de Luth, (sv6-5_38) Favianos-ex
+Hisshiden a joué (sv8-5_71) Fantyrm sur le Banc.
+Hisshiden a joué (sv6-5_38) Favianos-ex sur le Banc.
+(sv6-5_38) Favianos-ex de Hisshiden a utilisé Renverser la Tendance.
+- Hisshiden a pioché 3 cartes.
+   • (sv10_34) Typhlosion de Luth, (sv1_196) Hyper Ball, (me1_169) Détermination de Lilie
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Unis par le Voyage.
+- Hisshiden a pioché (sv10_221) Aventure de Luth.
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv9_156) Billet à Échanger.
+- Hisshiden a mélangé ses cartes Récompense.
+- Hisshiden a placé 6 cartes au-dessous de son deck.
+- Hisshiden a déplacé 6 cartes de Hisshiden vers les cartes Récompense.
+Hisshiden a joué (sv1_196) Hyper Ball.
+- Hisshiden a défaussé 2 cartes.
+   • (sv10_221) Aventure de Luth, (sv10_221) Aventure de Luth
+- Hisshiden a pioché (sv10_185) Shaymin.
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv10_185) Shaymin sur le Banc.
+Hisshiden a joué (sv10_32) Héricendre de Luth sur le Banc.
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Unis par le Voyage.
+- Hisshiden a pioché (sv10_221) Aventure de Luth.
+- Hisshiden a mélangé son deck.
+(sv10_33) Feurisson de Luth de Hisshiden a utilisé Fournaise sur (sv9_186) Zacian-ex de Nabil de Luigi0103 et a infligé 80 dégâts. (sv9_186) Zacian-ex de Nabil de Luigi0103 a reçu 40 dégâts supplémentaires à cause de sa Faiblesse face au type Feu.
+- Analyse des dégâts :
+   • Dégâts de base : 40 dégâts
+   • Faiblesse face au type Feu : 40 dégâts
+   • Total de dégâts : 80 dégâts
+
+
+Tour de Luigi0103
+Luigi0103 a pioché une carte.
+Luigi0103 a attaché (mee_8) Énergie Métal de base à (sv9_186) Zacian-ex de Nabil sur le Poste Actif.
+Luigi0103 a joué (me3_62) Miaouss-ex sur le Banc.
+(me3_62) Miaouss-ex de Luigi0103 a utilisé Prise Dernier Ressort.
+- Luigi0103 a pioché (me1_119) Détermination de Lilie.
+- Luigi0103 a mélangé son deck.
+Luigi0103 a joué (sv9_117) Ronflex de Nabil sur le Banc.
+(sv9_186) Zacian-ex de Nabil de Luigi0103 a utilisé Instanta-Frappe sur (sv10_33) Feurisson de Luth de Hisshiden et a infligé 120 dégâts.
+- Analyse des dégâts :
+   • Dégâts de base : 30 dégâts
+   • (sv9_148) Bandeau Choix de Nabil (Outil Pokémon) : 30 dégâts
+   • (sv9_154) Paddoxton (Stade) : 30 dégâts
+   • Portions Supplémentaires (talent) : 30 dégâts
+   • Total de dégâts : 120 dégâts
+
+(sv10_185) Shaymin de Hisshiden a utilisé Rideau de Fleurs.
+- Les dégâts infligés à (sv8-5_71) Fantyrm ont été évités.
+(sv10_33) Feurisson de Luth de Hisshiden a été mis K.O. !
+- 2 cartes ont été défaussées de (sv10_33) Feurisson de Luth de Hisshiden.
+   • (sv3_230) Énergie Feu de base, (sv10_32) Héricendre de Luth
+Luigi0103 a récupéré une carte Récompense.
+La carte Une carte a été ajoutée à la main de Luigi0103.
+(sv10_33) Feurisson de Luth de Hisshiden est maintenant sur le Poste Actif.
+
+Tour de Hisshiden
+Hisshiden a pioché (sv8-5_72) Dispareptil.
+Hisshiden a fait évoluer (sv8-5_71) Fantyrm en (sv8-5_72) Dispareptil sur le Banc.
+Hisshiden a fait évoluer (sv10_32) Héricendre de Luth en (sv10_33) Feurisson de Luth sur le Banc.
+Hisshiden a joué (sv10_221) Aventure de Luth.
+- Hisshiden a pioché 3 cartes.
+   • (sv3_230) Énergie Feu de base, (sv10_34) Typhlosion de Luth, (sv10_34) Typhlosion de Luth
+- Hisshiden a mélangé son deck.
+Hisshiden a attaché (sv3_230) Énergie Feu de base à (sv10_33) Feurisson de Luth sur le Poste Actif.
+Hisshiden a fait évoluer (sv10_33) Feurisson de Luth en (sv10_34) Typhlosion de Luth sur le Poste Actif.
+(sv8-5_72) Dispareptil de Hisshiden a utilisé Ordre de Reconnaissance.
+- Hisshiden a pioché (sv10_168) Cendre Sacrée.
+(sv6-5_38) Favianos-ex de Hisshiden a utilisé Renverser la Tendance.
+- Hisshiden a pioché 3 cartes.
+   • (me1_169) Détermination de Lilie, (rsv10-5_80) Bracelet Vaillant, (me1_167) Poffin Copain-Copain
+(sv10_34) Typhlosion de Luth de Hisshiden a utilisé Explosion Partenaire sur (sv9_186) Zacian-ex de Nabil de Luigi0103 et a infligé 560 dégâts. (sv9_186) Zacian-ex de Nabil de Luigi0103 a reçu 280 dégâts supplémentaires à cause de sa Faiblesse face au type Feu.
+- Analyse des dégâts :
+   • Dégâts de base : 40 dégâts
+   • (4) cartes dans la pile de défausse : 240 dégâts
+   • Faiblesse face au type Feu : 280 dégâts
+   • Total de dégâts : 560 dégâts
+
+(sv9_186) Zacian-ex de Nabil de Luigi0103 a été mis K.O. !
+- 3 cartes ont été défaussées de (sv9_186) Zacian-ex de Nabil de Luigi0103.
+   • (mee_8) Énergie Métal de base, (mee_8) Énergie Métal de base, (sv9_148) Bandeau Choix de Nabil
+Hisshiden a récupéré 2 cartes Récompense.
+La carte (me5_104) Bracelet Vaillant a été ajoutée à la main de Hisshiden.
+La carte (sv3_230) Énergie Feu de base a été ajoutée à la main de Hisshiden.
+(sv8-5_79_ph) Insolourdo de Luigi0103 est maintenant sur le Poste Actif.
+
+Tour de Luigi0103
+Luigi0103 a pioché une carte.
+Luigi0103 a joué (sv9_186) Zacian-ex de Nabil sur le Banc.
+Luigi0103 a joué (swsh9_186) Hyper Ball.
+- Luigi0103 a défaussé 2 cartes.
+   • (sv6-5_89) Machinations de Xanthin, (me2-5_183) Ordres du Boss
+- Luigi0103 a pioché (me2-5_177) Nigosier de Nabil.
+- Luigi0103 a mélangé son deck.
+Luigi0103 a joué (me2-5_177) Nigosier de Nabil sur le Banc.
+Luigi0103 a joué (me1_119) Détermination de Lilie.
+- Luigi0103 a mélangé une carte avec son deck.
+- Luigi0103 a pioché 6 cartes.
+Luigi0103 a attaché (sv9_148) Bandeau Choix de Nabil à (me2-5_177) Nigosier de Nabil sur le Banc.
+Luigi0103 a fait battre en retraite (sv8-5_79_ph) Insolourdo sur le Banc.
+(me2-5_177) Nigosier de Nabil de Luigi0103 est maintenant sur le Poste Actif.
+Luigi0103 a attaché (sv5_161) Énergie Brume à (sv9_186) Zacian-ex de Nabil sur le Banc.
+(me2-5_177) Nigosier de Nabil de Luigi0103 a utilisé Crachement Inconstant sur (sv10_34) Typhlosion de Luth de Hisshiden et a infligé 210 dégâts.
+- Analyse des dégâts :
+   • Dégâts de base : 120 dégâts
+   • (sv9_154) Paddoxton (Stade) : 30 dégâts
+   • Portions Supplémentaires (talent) : 30 dégâts
+   • (sv9_148) Bandeau Choix de Nabil (Outil Pokémon) : 30 dégâts
+   • Total de dégâts : 210 dégâts
+
+(sv10_34) Typhlosion de Luth de Hisshiden a été mis K.O. !
+- 3 cartes ont été défaussées de (sv10_34) Typhlosion de Luth de Hisshiden.
+   • (sv3_230) Énergie Feu de base, (sv10_33) Feurisson de Luth, (sv10_32) Héricendre de Luth
+Luigi0103 a récupéré une carte Récompense.
+La carte Une carte a été ajoutée à la main de Luigi0103.
+(sv10_33) Feurisson de Luth de Hisshiden est maintenant sur le Poste Actif.
+
+Tour de Hisshiden
+Hisshiden a pioché (sv1_196) Hyper Ball.
+Hisshiden a fait évoluer (sv10_33) Feurisson de Luth en (sv10_34) Typhlosion de Luth sur le Poste Actif.
+Hisshiden a joué (sv10_168) Cendre Sacrée.
+- Hisshiden a mélangé 5 cartes avec son deck.
+   • (sv10_32) Héricendre de Luth, (sv10_34) Typhlosion de Luth, (sv10_33) Feurisson de Luth, (sv10_32) Héricendre de Luth, (sv10_33) Feurisson de Luth
+Hisshiden a joué (me1_167) Poffin Copain-Copain.
+- Hisshiden a pioché 2 cartes et les a jouées sur le Banc.
+   • (sv10_32) Héricendre de Luth, (sv10_32) Héricendre de Luth
+- Hisshiden a mélangé son deck.
+Hisshiden a attaché (sv3_230) Énergie Feu de base à (sv10_34) Typhlosion de Luth sur le Poste Actif.
+Hisshiden a attaché (rsv10-5_80) Bracelet Vaillant à (sv10_34) Typhlosion de Luth sur le Poste Actif.
+Hisshiden a attaché (me5_104) Bracelet Vaillant à (sv10_32) Héricendre de Luth sur le Banc.
+Hisshiden a joué (sv1_196) Hyper Ball.
+- Hisshiden a défaussé 2 cartes.
+   • (sv8-5_72) Dispareptil, (sv8-5_71) Fantyrm
+- Hisshiden a pioché (sv10_34) Typhlosion de Luth.
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (me1_169) Détermination de Lilie.
+- Hisshiden a mélangé 3 cartes avec son deck.
+   • (sv10_34) Typhlosion de Luth, (me1_169) Détermination de Lilie, (sv10_34) Typhlosion de Luth
+- Hisshiden a pioché 6 cartes.
+   • (me1_173) Civière Nocturne, (sv2_172) Ordres du Boss, (sv8_21) Victini, (sv8_250) Montagne Gravité, (me3_81) Poké Registre, (sv8-5_71) Fantyrm
+Hisshiden a joué (sv8_250) Montagne Gravité comme Stade.
+- Hisshiden a défaussé (sv9_154) Paddoxton.
+Hisshiden a joué (me3_81) Poké Registre.
+- Hisshiden a pioché (sv10_33) Feurisson de Luth.
+- Hisshiden a mélangé son deck.
+(sv8-5_72) Dispareptil de Hisshiden a utilisé Ordre de Reconnaissance.
+- Hisshiden a pioché (me1_175) Super Bonbon.
+(sv6-5_38) Favianos-ex de Hisshiden a utilisé Renverser la Tendance.
+- Hisshiden a pioché 3 cartes.
+   • (sv10_34) Typhlosion de Luth, (me3_81) Poké Registre, (me1_173) Civière Nocturne
+(sv10_34) Typhlosion de Luth de Hisshiden a utilisé Explosion Partenaire sur (me2-5_177) Nigosier de Nabil de Luigi0103 et a infligé 280 dégâts.
+- Analyse des dégâts :
+   • Dégâts de base : 40 dégâts
+   • (4) cartes dans la pile de défausse : 240 dégâts
+   • Total de dégâts : 280 dégâts
+
+(me2-5_177) Nigosier de Nabil de Luigi0103 a été mis K.O. !
+La carte (sv9_148) Bandeau Choix de Nabil a été défaussée de (me2-5_177) Nigosier de Nabil de Luigi0103.
+Hisshiden a récupéré une carte Récompense.
+La carte (sv8_250) Montagne Gravité a été ajoutée à la main de Hisshiden.
+(sv8-5_79_ph) Insolourdo de Luigi0103 est maintenant sur le Poste Actif.
+
+Tour de Luigi0103
+Luigi0103 a pioché une carte.
+Luigi0103 a joué (me2-5_196) Civière Nocturne.
+- Luigi0103 a déplacé (me2-5_177) Nigosier de Nabil de Luigi0103 vers sa main.
+Luigi0103 a joué (me2-5_177) Nigosier de Nabil sur le Banc.
+Luigi0103 a joué (sv9_186) Zacian-ex de Nabil sur le Banc.
+Luigi0103 a joué (me1_119) Détermination de Lilie.
+- Luigi0103 a mélangé 3 cartes avec son deck.
+- Luigi0103 a pioché 6 cartes.
+Luigi0103 a fait évoluer (sv8-5_79_ph) Insolourdo en (sv8-5_80_mph) Deusolourdo sur le Poste Actif.
+Luigi0103 a joué (sv8-5_80_mph) Deusolourdo.
+- Luigi0103 a pioché 3 cartes.
+- Luigi0103 a mélangé 2 cartes avec son deck.
+   • (sv8-5_80_mph) Deusolourdo, (sv8-5_79_ph) Insolourdo
+(me2-5_177) Nigosier de Nabil de Luigi0103 est maintenant sur le Poste Actif.
+Luigi0103 a joué (sv6-5_38) Favianos-ex sur le Banc.
+(sv6-5_38) Favianos-ex de Luigi0103 a utilisé Renverser la Tendance.
+- Luigi0103 a pioché 3 cartes.
+Luigi0103 a joué (sv6_163) Boîte à Secrets.
+- Luigi0103 a défaussé 3 cartes.
+   • (sv6_223) Poffin Copain-Copain, (swsh9_186) Hyper Ball, (sv9_186) Zacian-ex de Nabil
+- Luigi0103 a pioché 4 cartes.
+   • (me2-5_196) Civière Nocturne, (sv9_148) Bandeau Choix de Nabil, (me4_110) Gypso, (sv9_154) Paddoxton
+- Luigi0103 a mélangé son deck.
+Luigi0103 a joué (sv9_154) Paddoxton comme Stade.
+- Luigi0103 a défaussé (sv8_250) Montagne Gravité.
+Luigi0103 a attaché (mee_8) Énergie Métal de base à (me2-5_177) Nigosier de Nabil sur le Poste Actif.
+Luigi0103 a attaché (sv9_148) Bandeau Choix de Nabil à (sv9_186) Zacian-ex de Nabil sur le Banc.
+(me2-5_177) Nigosier de Nabil de Luigi0103 a utilisé Crachement Inconstant sur (sv10_34) Typhlosion de Luth de Hisshiden et a infligé 180 dégâts.
+- Analyse des dégâts :
+   • Dégâts de base : 120 dégâts
+   • Portions Supplémentaires (talent) : 30 dégâts
+   • (sv9_154) Paddoxton (Stade) : 30 dégâts
+   • Total de dégâts : 180 dégâts
+
+(sv10_34) Typhlosion de Luth de Hisshiden a été mis K.O. !
+- 4 cartes ont été défaussées de (sv10_34) Typhlosion de Luth de Hisshiden.
+   • (sv3_230) Énergie Feu de base, (sv10_33) Feurisson de Luth, (sv10_32) Héricendre de Luth, (rsv10-5_80) Bracelet Vaillant
+Luigi0103 a récupéré une carte Récompense.
+La carte Une carte a été ajoutée à la main de Luigi0103.
+(sv10_32) Héricendre de Luth de Hisshiden est maintenant sur le Poste Actif.
+
+Tour de Hisshiden
+Hisshiden a pioché (me3_81) Poké Registre.
+Hisshiden a joué (me1_173) Civière Nocturne.
+- Hisshiden a déplacé (sv3_230) Énergie Feu de base de Hisshiden vers sa main.
+Hisshiden a attaché (sv3_230) Énergie Feu de base à (sv10_32) Héricendre de Luth sur le Poste Actif.
+Hisshiden a joué (me1_175) Super Bonbon.
+- Hisshiden a fait évoluer (sv10_32) Héricendre de Luth en (sv10_34) Typhlosion de Luth sur le Poste Actif.
+Hisshiden a fait évoluer (sv10_32) Héricendre de Luth en (sv10_33) Feurisson de Luth sur le Banc.
+Hisshiden a joué (sv8_250) Montagne Gravité comme Stade.
+- Hisshiden a défaussé (sv9_154) Paddoxton.
+Hisshiden a joué (me3_81) Poké Registre.
+- Hisshiden a pioché (sv8_21) Victini.
+- Hisshiden a mélangé son deck.
+Hisshiden a joué (sv8-5_71) Fantyrm sur le Banc.
+(sv8-5_72) Dispareptil de Hisshiden a utilisé Ordre de Reconnaissance.
+- Hisshiden a pioché (sv6_163) Boîte à Secrets.
+Hisshiden a joué (sv2_172) Ordres du Boss.
+- (sv9_186) Zacian-ex de Nabil de Luigi0103 a été échangé contre (me2-5_177) Nigosier de Nabil de Luigi0103 pour devenir le Pokémon Actif.
+(sv9_186) Zacian-ex de Nabil de Luigi0103 est maintenant sur le Poste Actif.
+(sv10_34) Typhlosion de Luth de Hisshiden a utilisé Explosion Partenaire sur (sv9_186) Zacian-ex de Nabil de Luigi0103 et a infligé 620 dégâts. (sv9_186) Zacian-ex de Nabil de Luigi0103 a reçu 310 dégâts supplémentaires à cause de sa Faiblesse face au type Feu.
+- Analyse des dégâts :
+   • Dégâts de base : 40 dégâts
+   • (me5_104) Bracelet Vaillant (Outil Pokémon) : 30 dégâts
+   • (4) cartes dans la pile de défausse : 240 dégâts
+   • Faiblesse face au type Feu : 310 dégâts
+   • Total de dégâts : 620 dégâts
+
+(sv9_186) Zacian-ex de Nabil de Luigi0103 a été mis K.O. !
+- 2 cartes ont été défaussées de (sv9_186) Zacian-ex de Nabil de Luigi0103.
+   • (sv5_161) Énergie Brume, (sv9_148) Bandeau Choix de Nabil
+Hisshiden a récupéré 2 cartes Récompense.
+La carte (sv3_230) Énergie Feu de base a été ajoutée à la main de Hisshiden.
+La carte (sv10_33) Feurisson de Luth a été ajoutée à la main de Hisshiden.
+(me2-5_177) Nigosier de Nabil de Luigi0103 est maintenant sur le Poste Actif.
+
+Tour de Luigi0103
+Luigi0103 a pioché une carte.
+Luigi0103 a joué (sv9_154) Paddoxton comme Stade.
+- Luigi0103 a défaussé (sv8_250) Montagne Gravité.
+Luigi0103 a attaché (sv9_148) Bandeau Choix de Nabil à (sv9_186) Zacian-ex de Nabil sur le Banc.
+(sv6-5_38) Favianos-ex de Luigi0103 a utilisé Renverser la Tendance.
+- Luigi0103 a pioché 3 cartes.
+Luigi0103 a attaché (mee_8) Énergie Métal de base à (sv9_186) Zacian-ex de Nabil sur le Banc.
+Luigi0103 a joué (me4_110) Gypso.
+- Luigi0103 a attaché (mee_8) Énergie Métal de base à (sv9_186) Zacian-ex de Nabil sur le Banc.
+- Luigi0103 a attaché (mee_8) Énergie Métal de base à (sv9_186) Zacian-ex de Nabil sur le Banc.
+Luigi0103 a fait battre en retraite (me2-5_177) Nigosier de Nabil sur le Banc.
+- La carte (mee_8) Énergie Métal de base a été défaussée de (me2-5_177) Nigosier de Nabil de Luigi0103.
+(sv9_186) Zacian-ex de Nabil de Luigi0103 est maintenant sur le Poste Actif.
+Luigi0103 a joué (sv8_76) Latias-ex sur le Banc.
+(sv9_186) Zacian-ex de Nabil de Luigi0103 a utilisé Tranche Vaillante sur (sv10_34) Typhlosion de Luth de Hisshiden et a infligé 330 dégâts.
+- Analyse des dégâts :
+   • Dégâts de base : 240 dégâts
+   • Portions Supplémentaires (talent) : 30 dégâts
+   • (sv9_154) Paddoxton (Stade) : 30 dégâts
+   • (sv9_148) Bandeau Choix de Nabil (Outil Pokémon) : 30 dégâts
+   • Total de dégâts : 330 dégâts
+
+(sv10_34) Typhlosion de Luth de Hisshiden a été mis K.O. !
+- 3 cartes ont été défaussées de (sv10_34) Typhlosion de Luth de Hisshiden.
+   • (sv3_230) Énergie Feu de base, (sv10_32) Héricendre de Luth, (me5_104) Bracelet Vaillant
+Luigi0103 a récupéré une carte Récompense.
+La carte Une carte a été ajoutée à la main de Luigi0103.
+(sv10_33) Feurisson de Luth de Hisshiden est maintenant sur le Poste Actif.
+
+Tour de Hisshiden
+Hisshiden a pioché (me1_167) Poffin Copain-Copain.
+Hisshiden a attaché (sv3_230) Énergie Feu de base à (sv10_33) Feurisson de Luth sur le Poste Actif.
+Hisshiden a joué (me3_81) Poké Registre.
+- Hisshiden a pioché (sv10_34) Typhlosion de Luth.
+- Hisshiden a mélangé son deck.
+Hisshiden a fait évoluer (sv10_33) Feurisson de Luth en (sv10_34) Typhlosion de Luth sur le Poste Actif.
+(sv10_34) Typhlosion de Luth de Hisshiden a utilisé Explosion Partenaire sur (sv9_186) Zacian-ex de Nabil de Luigi0103 et a infligé 560 dégâts. (sv9_186) Zacian-ex de Nabil de Luigi0103 a reçu 280 dégâts supplémentaires à cause de sa Faiblesse face au type Feu.
+- Analyse des dégâts :
+   • Dégâts de base : 40 dégâts
+   • (4) cartes dans la pile de défausse : 240 dégâts
+   • Faiblesse face au type Feu : 280 dégâts
+   • Total de dégâts : 560 dégâts
+
+(sv9_186) Zacian-ex de Nabil de Luigi0103 a été mis K.O. !
+- 4 cartes ont été défaussées de (sv9_186) Zacian-ex de Nabil de Luigi0103.
+   • (mee_8) Énergie Métal de base, (mee_8) Énergie Métal de base, (mee_8) Énergie Métal de base, (sv9_148) Bandeau Choix de Nabil
+Hisshiden a récupéré une carte Récompense.
+La carte (sv6_207) Soutien de Néphie a été ajoutée à la main de Hisshiden.
+Toutes les cartes Récompense ont été récupérées. Hisshiden gagne.

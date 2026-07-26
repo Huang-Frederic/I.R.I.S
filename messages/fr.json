@@ -944,7 +944,8 @@
     "ptcg_already_imported": "Cette partie a déjà été importée.",
     "ptcg_empty_log": "Colle d’abord le battle log.",
     "ptcg_unparsable_log": "Ça ne ressemble pas à un battle log PTCG Live.",
-    "ptcg_validation_failed": "La reconstruction contredit le log — aucun digest produit."
+    "ptcg_validation_failed": "La reconstruction contredit le log — aucun digest produit.",
+    "ptcg_log_damaged": "Trop de lignes du log n’ont pas pu être lues. Recopie-le depuis PTCG Live — les lignes à puce comptent."
   },
   "staleness": {
     "fresh": "<1j",

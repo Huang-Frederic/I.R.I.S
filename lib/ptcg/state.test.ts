@@ -119,3 +119,35 @@ describe('buildStates', () => {
     }
   });
 });
+
+describe('promotion confirmée après un déplacement forcé', () => {
+  it('does not re-resolve a Pokémon that is already Active', () => {
+    // "X est maintenant sur le Poste Actif" also follows a Boss's Orders that
+    // already moved X up. Re-resolving that confirmation picks a *different*
+    // copy when several are in play, demoting the one actually dragged up —
+    // and the wrong cards land in the discard two knockouts later.
+    const log = [
+      'Préparation',
+      'A a joué (c_1) Pikachu sur le Poste Actif.',
+      'B a joué (c_2) Rattata sur le Poste Actif.',
+      'B a joué (c_3) Zacian sur le Banc.',
+      'B a joué (c_3) Zacian sur le Banc.',
+      '',
+      'Tour de B',
+      'B a attaché (c_9) Bandeau à (c_3) Zacian sur le Banc.',
+      'B a mis fin à son tour.',
+      '',
+      'Tour de A',
+      'A a joué (c_8) Ordres du Boss.',
+      '- (c_3) Zacian de B a été échangé contre (c_2) Rattata de B pour devenir le Pokémon Actif.',
+      '(c_3) Zacian de B est maintenant sur le Poste Actif.',
+      'A a mis fin à son tour.',
+    ].join('\n');
+
+    const built = buildStates(tokenize(log));
+    const active = built.final.players.B.active!;
+    // The one dragged up is the one that was built, not the bare copy.
+    expect(active.cardId).toBe('c_3');
+    expect(active.attached.map((a) => a.id)).toEqual(['c_9']);
+  });
+});

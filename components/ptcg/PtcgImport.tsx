@@ -65,6 +65,9 @@ export default function PtcgImport() {
       const code = body?.error ?? 'server_error';
       setError(tErrors.has(code) ? tErrors(code) : (body?.message ?? code));
       const d = body?.details;
+      // Every failure mode names what actually went wrong. A count on its own
+      // — "67 lines were not recognised" — is something the reader can neither
+      // act on nor report.
       setDetails(
         Array.isArray(d?.errors)
           ? d.errors
@@ -73,9 +76,11 @@ export default function PtcgImport() {
                 (c: { kind: string; detail: string; expected: unknown; got: unknown }) =>
                   `${c.kind} — ${c.detail} (attendu ${String(c.expected)}, obtenu ${String(c.got)})`,
               )
-            : d?.underlying
-              ? [String(d.underlying)]
-              : [],
+            : Array.isArray(d?.unknown)
+              ? d.unknown.map((u: { line: number; text: string }) => `L${u.line}  ${u.text}`)
+              : d?.underlying
+                ? [String(d.underlying)]
+                : [],
       );
     },
     [tErrors],

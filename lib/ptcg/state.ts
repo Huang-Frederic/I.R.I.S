@@ -347,6 +347,19 @@ export function buildStates(tokens: PtcgTokenizeResult): PtcgBuildResult {
       case 'discard-attached':
         break; // already handled by the preceding knockout; used by validate.ts
 
+      // A card that attaches several energies resolves each one under itself
+      // (Gypso). Same effect as a top-level attach — leaving it out under-counts
+      // what is in play, which the knockout oracle reports as a discard short by
+      // exactly the energies that were never applied.
+      case 'attach': {
+        const k = resolve(ev.player as string, ev.target as PtcgCardRef, {
+          zone: ev.zone as string,
+          line: ev.line,
+        });
+        if (k) k.attached.push(takeFromHand(ev.player as string, ev.card as PtcgCardRef));
+        break;
+      }
+
       case 'shuffle-into-deck':
         // Hand first, discard second. Most cards that shuffle into the deck
         // take the hand (Détermination de Lilie and friends); only a few take
@@ -460,6 +473,16 @@ export function buildStates(tokens: PtcgTokenizeResult): PtcgBuildResult {
 
       case 'promote': {
         const card = ev.card as PtcgCardRef;
+
+        // "X est maintenant sur le Poste Actif" also follows a retreat or a
+        // Boss's Orders that already moved X up. Treating that confirmation as
+        // a fresh promotion re-resolves the name, and with several copies in
+        // play it can pick a different one — demoting the Pokémon that was
+        // actually dragged up. That is how a Boss's Orders on one of three
+        // Zacian-ex ended with the wrong one active, and the wrong cards in
+        // the discard two knockouts later.
+        if (pl!.active?.cardId === card.id) break;
+
         const k =
           pl!.bench.find((b) => b.cardId === card.id) ??
           resolve(ev.player as string, card, { line: ev.line });

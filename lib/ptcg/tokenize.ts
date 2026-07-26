@@ -396,6 +396,51 @@ export function tokenize(raw: string): PtcgTokenizeResult {
         outgoing: { id: m[4], name: m[5] },
       }),
     ],
+
+    // An attach spelled as a sub-line — a card that attaches several energies
+    // resolves each one under itself (Gypso). Identical shape to the top-level
+    // rule, and state-critical: dropping these under-counts what is attached,
+    // which the knockout oracle then catches as a discard mismatch.
+    [
+      'attach',
+      new RegExp(`^(${P}) a attaché ${C} à ${C} sur le ${ZONE}\\.$`),
+      (m) => ({
+        player: m[1],
+        card: { id: m[2], name: m[3] },
+        target: { id: m[4], name: m[5] },
+        zone: m[6],
+      }),
+    ],
+
+    // Singular of the bulk shuffle-into-deck. The plural rule already exists;
+    // the log switches to "une carte" for exactly one, with no bullet list.
+    [
+      'shuffle-into-deck',
+      new RegExp(`^(${P}) a mélangé une carte avec son deck\\.$`),
+      (m) => ({ player: m[1], count: 1 }),
+    ],
+
+    // Damage reported outside an attack — a stadium or an ability landing on a
+    // Pokémon. Recorded so the board reflects it; the KO lines drive the rest.
+    [
+      'place-damage',
+      new RegExp(`^${C} de (${P}) a reçu (\\d+) dégâts\\.$`),
+      (m) => ({
+        player: m[3],
+        counters: +m[4],
+        target: { id: m[1], name: m[2] },
+        claimedOwner: m[3],
+      }),
+    ],
+
+    // Prevention (Shaymin's Rideau de Fleurs). No state change — the damage was
+    // never applied — but it has to be recognised, or a real defensive play
+    // reads as a hole in the reconstruction.
+    [
+      'damage-prevented',
+      new RegExp(`^Les dégâts infligés à ${C} ont été évités\\.$`),
+      (m) => ({ target: { id: m[1], name: m[2] } }),
+    ],
   ];
 
   const events: PtcgEvent[] = [];

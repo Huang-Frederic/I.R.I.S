@@ -944,7 +944,8 @@
     "ptcg_already_imported": "该对战已经导入过了。",
     "ptcg_empty_log": "请先粘贴对战记录。",
     "ptcg_unparsable_log": "这看起来不是 PTCG Live 的对战记录。",
-    "ptcg_validation_failed": "重建与记录不符 — 未生成摘要。"
+    "ptcg_validation_failed": "重建与记录不符 — 未生成摘要。",
+    "ptcg_log_damaged": "记录中有太多行无法读取。请从 PTCG Live 重新复制。"
   },
   "staleness": {
     "fresh": "<1天",

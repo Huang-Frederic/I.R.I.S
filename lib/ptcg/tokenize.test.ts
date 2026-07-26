@@ -20,6 +20,16 @@ const FIXTURE_3 = readFileSync(
   'utf8',
 );
 
+/**
+ * Fourth real game — attaches spelled as sub-lines (Gypso), a singular
+ * shuffle-into-deck, damage reported outside an attack, damage prevented by an
+ * ability, and three copies of the same ex in play.
+ */
+const FIXTURE_4 = readFileSync(
+  join(process.cwd(), 'lib/ptcg/fixtures/zacian-2026-07-26.txt'),
+  'utf8',
+);
+
 const countTypes = (events: ReturnType<typeof tokenize>['events']) => {
   const counts: Record<string, number> = {};
   const walk = (e: (typeof events)[number]) => {
@@ -171,5 +181,51 @@ describe('tokenize', () => {
       .find((c) => c.type === 'place-damage')!;
     expect(place.claimedOwner).toBe('Bklee219');
     expect(place.counters).toBe(6);
+  });
+});
+
+describe('tokenize — quatrième partie (Zacian)', () => {
+  const result = tokenize(FIXTURE_4);
+
+  it('leaves nothing unrecognised', () => {
+    // The whole point of the unknown list: a new phrasing announces itself
+    // rather than quietly producing a reconstruction missing part of the game.
+    expect(result.unknown).toEqual([]);
+  });
+
+  it('reads an attach spelled as a sub-line', () => {
+    // Gypso attaches two energies, each resolved under itself. Missing these
+    // under-counts what is in play until a knockout exposes it.
+    const subAttaches = result.events.flatMap((e) =>
+      (e.children ?? []).filter((c) => c.type === 'attach'),
+    );
+    expect(subAttaches.length).toBe(2);
+    expect(subAttaches[0].card).toMatchObject({ id: 'mee_8' });
+    expect(subAttaches[0].target).toMatchObject({ id: 'sv9_186' });
+  });
+
+  it('reads the singular shuffle-into-deck', () => {
+    // "une carte" rather than "N cartes", with no bullet list to fall back on.
+    const singles = result.events.flatMap((e) =>
+      (e.children ?? []).filter((c) => c.type === 'shuffle-into-deck' && c.count === 1 && !c.cards),
+    );
+    expect(singles.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('reads damage reported outside an attack', () => {
+    const received = result.events.flatMap((e) =>
+      (e.children ?? []).filter((c) => c.type === 'place-damage' && c.counters === 30),
+    );
+    expect(received.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('reads prevented damage without applying any', () => {
+    // Shaymin's Rideau de Fleurs. No state change, but a real defensive play
+    // must not read as a hole in the log.
+    const prevented = result.events.flatMap((e) =>
+      (e.children ?? []).filter((c) => c.type === 'damage-prevented'),
+    );
+    expect(prevented.length).toBe(1);
+    expect(prevented[0].target).toMatchObject({ id: 'sv8-5_71' });
   });
 });

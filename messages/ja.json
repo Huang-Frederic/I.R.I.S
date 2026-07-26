@@ -944,7 +944,8 @@
     "ptcg_already_imported": "この対戦はすでに取り込まれています。",
     "ptcg_empty_log": "先にバトルログを貼り付けてください。",
     "ptcg_unparsable_log": "PTCG Liveのバトルログではないようです。",
-    "ptcg_validation_failed": "再現がログと矛盾しています — ダイジェストは生成されません。"
+    "ptcg_validation_failed": "再現がログと矛盾しています — ダイジェストは生成されません。",
+    "ptcg_log_damaged": "ログの多くを読み取れませんでした。PTCG Liveからコピーし直してください。"
   },
   "staleness": {
     "fresh": "<1日",

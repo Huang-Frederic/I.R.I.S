@@ -16,6 +16,7 @@ import { createClient } from '@/lib/supabase/server';
 import { parseGame } from '@/lib/ptcg';
 import { collectCardRefs, resolveCards } from '@/lib/ptcg/cards';
 import { buildDigest } from '@/lib/ptcg/digest';
+import { parseQuality } from '@/lib/ptcg/parse-quality';
 import { apiError, unauthorizedResponse } from '@/lib/utils/api-response';
 import type { PtcgCardRow } from '@/lib/types';
 
@@ -53,7 +54,23 @@ export async function POST(request: Request) {
     });
   }
 
-  // The gate. A digest built on a state that fails the damage oracle would
+  // First gate: was the log even read? The oracle only catches what it can
+  // see, so a paste that loses whole classes of line leaves it with nothing to
+  // check and it reports success. Unrecognised lines are their own refusal.
+  const quality = parseQuality(raw, parsed.unknown.length);
+  if (quality.degraded) {
+    return apiError('ptcg_log_damaged', {
+      status: 422,
+      message: 'Too much of the log could not be read. Copy it again from PTCG Live.',
+      details: {
+        ratio: quality.ratio,
+        unknown: parsed.unknown.slice(0, 40),
+        unknownTotal: parsed.unknown.length,
+      },
+    });
+  }
+
+  // Second gate. A digest built on a state that fails the damage oracle would
   // produce a confident, wrong analysis — worse than no analysis at all.
   const failed = parsed.validation.checks.filter((c) => c.ok === false);
   if (failed.length) {

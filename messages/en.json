@@ -944,7 +944,8 @@
     "ptcg_already_imported": "This game has already been imported.",
     "ptcg_empty_log": "Paste the battle log first.",
     "ptcg_unparsable_log": "That does not look like a PTCG Live battle log.",
-    "ptcg_validation_failed": "The reconstruction disagrees with the log — no digest was produced."
+    "ptcg_validation_failed": "The reconstruction disagrees with the log — no digest was produced.",
+    "ptcg_log_damaged": "Too much of the log could not be read. Copy it again from PTCG Live — the bullet lines matter."
   },
   "staleness": {
     "fresh": "<1d",
