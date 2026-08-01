@@ -27,6 +27,13 @@ import { crc32, deflateRawSync } from 'node:zlib';
 export const SKILL_DIR = join(process.cwd(), '.claude', 'skills', 'ptcg-coach');
 export const ZIP_PATH = join(process.cwd(), '.claude', 'skills', 'ptcg-coach.zip');
 
+/**
+ * Files that exist in the skill folder but must NEVER reach the zip: the zip is
+ * committed to a PUBLIC repo, and these derive from paid content (gitignored as
+ * plain files for the same reason). The skill degrades gracefully without them.
+ */
+export const PRIVATE_FILES = new Set(['references/typhlosion-playbook.md']);
+
 /** 1980-01-01 00:00, the earliest a DOS timestamp can express. Any fixed value
  *  works; what matters is that it never depends on when the build ran. */
 const DOS_TIME = 0;
@@ -45,7 +52,9 @@ function walk(dir: string): string[] {
 export function buildSkillZip(dir = SKILL_DIR): Buffer {
   const root = posix.basename(dir.split(sep).join(posix.sep));
   // Sorted so the archive does not depend on directory-listing order.
-  const files = walk(dir).sort();
+  const files = walk(dir)
+    .filter((f) => !PRIVATE_FILES.has(relative(dir, f).split(sep).join('/')))
+    .sort();
 
   const locals: Buffer[] = [];
   const central: Buffer[] = [];
@@ -112,7 +121,9 @@ export function buildSkillZip(dir = SKILL_DIR): Buffer {
 function main() {
   const zip = buildSkillZip();
   writeFileSync(ZIP_PATH, zip);
-  const files = walk(SKILL_DIR).sort();
+  const files = walk(SKILL_DIR).filter(
+    (f) => !PRIVATE_FILES.has(relative(SKILL_DIR, f).split(sep).join('/')),
+  );
   console.log(`${files.length} fichier(s), ${(zip.length / 1024).toFixed(1)} Ko`);
   console.log(`sha256 ${createHash('sha256').update(zip).digest('hex').slice(0, 16)}`);
   console.log(`→ ${relative(process.cwd(), ZIP_PATH)}`);

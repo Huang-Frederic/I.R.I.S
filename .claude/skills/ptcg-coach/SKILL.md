@@ -1,6 +1,6 @@
 ---
 name: ptcg-coach
-description: Analyse une partie de Pokémon TCG Live et produit le fichier .bundle.json à uploader dans I.R.I.S. À utiliser quand Frédéric colle un battle log exporté, un digest de partie, ou demande un débrief, une analyse ou un coaching sur une partie jouée. Pilote toute la chaîne — parsing, résolution des cartes, analyse, bundle. Ne pas utiliser pour des questions générales sur le jeu ou le deckbuilding sans partie à analyser.
+description: Analyse une partie de Pokémon TCG Live et rend le débrief plus le JSON auto-suffisant ({ raw, analysis, playedAt }) à uploader sur /ptcg/import dans I.R.I.S. À utiliser quand Frédéric colle un battle log exporté ou demande un débrief, une analyse ou un coaching sur une partie jouée. Aucun outillage requis — le digest est un instrument optionnel, jamais un prérequis. Ne pas utiliser pour des questions générales sur le jeu ou le deckbuilding sans partie à analyser.
 ---
 
 # Coach Pokémon TCG
@@ -35,103 +35,88 @@ sans lui.
 
 ---
 
-## Deux modes
+## Le flux
 
-### Mode A — log brut, avec le dépôt IRIS
+Frédéric colle un battle log dans la conversation. Tu rends **deux choses** :
 
-Le cas normal. Frédéric colle un battle log ; tu fais tout.
-Le projet est dans `C:\Users\Frédéric\Developer\I.R.I.S`. Toutes les commandes s'y lancent.
+1. **Le débrief en français** — c'est ce qu'il lit.
+2. **Le JSON auto-suffisant à uploader sur `/ptcg/import`** :
 
-**1. Écris le log brut** dans `games/<AAAA-MM-JJ>-<adversaire>.txt`. Verbatim, sans
-retoucher une ligne — le hash SHA-256 du log est la clé d'unicité en base, et la
-moindre modification le change.
+```json
+{
+  "raw": "<le log, VERBATIM, sans retoucher une ligne>",
+  "analysis": { …format plus bas… },
+  "playedAt": "2026-07-30T21:12:00.000Z"
+}
+```
 
-**2. Produis le digest :**
+`raw` doit être le log **exactement tel qu'il te l'a collé** — son SHA-256 est la
+clé d'unicité en base ; le moindre caractère changé en fait une autre partie.
+L'app assemble tout le reste elle-même (reconstruction, cartes, score). Rends le
+JSON en fichier (`games/<AAAA-MM-JJ>-<adversaire>.json` si le dépôt est là, en
+bloc de code sinon).
+
+L'app accepte aussi **le log brut seul** : la partie s'affiche sans annotations,
+et ré-importer ton JSON plus tard rattache l'analyse à la même partie. Dis-le-lui
+quand il veut revoir une partie tout de suite sans attendre le débrief.
+
+### Le digest — ton instrument, plus jamais un prérequis
+
+Quand le dépôt est disponible (`C:\Users\Frédéric\Developer\I.R.I.S`), tu PEUX
+produire un digest pour t'appuyer sur des faits calculés plutôt que sur ta
+lecture :
 
 ```bash
 npm run ptcg-digest -- games/<fichier>.txt
 ```
 
-Lis la sortie avant tout. Trois choses peuvent arriver :
-
-- **Lignes non reconnues** → le log contient une formulation que le tokenizer ne
-  gère pas. Ne les ignore pas : chaque ligne perdue est un morceau de partie
-  absent de la reconstruction. Corrige `lib/ptcg/tokenize.ts`, ajoute un test
-  contre la fixture, relance.
-- **Validation en échec** → aucun digest n'est produit. Voir refus n°1.
-- **Talents non utilisés signalés** → c'est un fait calculé, pas un jugement.
-  Point de départ, pas conclusion.
-
-**3. Lis le digest et écris `analysis.json`.** C'est ton travail. Le format est
-plus bas.
-
-**4. Assemble le bundle :**
-
-```bash
-npm run ptcg-bundle -- games/<fichier>.txt <analysis.json> games/<fichier>.bundle.json
-```
-
-Le script rejoue la même validation que la route d'import. S'il refuse, corrige
-l'analyse — n'essaie pas de contourner.
-
-**5. Rends le chemin du fichier**, plus le débrief en français. Frédéric dépose
-le fichier sur `/ptcg` dans IRIS.
-
-### Mode B — digest seul, sans dépôt
-
-Frédéric colle ou attache un `*.digest.json` dans une conversation quelconque, sur
-n'importe quelle machine. Aucune commande à lancer : tout ce dont tu as besoin est
-dans le fichier.
-
-Tu produis alors **le débrief en français et le contenu de `analysis.json`**,
-directement dans la réponse. La méthode, les refus et le format ne changent pas.
-
-**Dis-lui la limite honnêtement :** en mode B tu ne peux pas produire le
-`.bundle.json`. Celui-ci a besoin du log brut, de l'état reconstruit et des
-cartes — le digest n'en contient qu'une partie. Pour l'import dans IRIS il devra
-repasser par le dépôt :
-
-```bash
-npm run ptcg-bundle -- games/<log>.txt <analysis.json> games/<log>.bundle.json
-```
-
-Le mode B sert à obtenir l'analyse tout de suite, où qu'il soit. L'import peut attendre.
+- Il passe → utilise `available`, `unusedAbilities` et `digest.cards` comme base
+  d'évidence. C'est la meilleure analyse possible.
+- Il échoue (lignes non reconnues, oracle en désaccord) → **ce n'est plus
+  bloquant pour personne.** Analyse directement depuis le log brut, et dis dans
+  le débrief que la base d'évidence est plus faible sur les points concernés.
+  Si tu veux améliorer le tokenizer ensuite, c'est un travail séparé — jamais un
+  préalable au débrief ni à l'import.
+- Pas de dépôt → analyse depuis le log brut, même honnêteté.
 
 ---
 
 ## Trois refus, avant toute méthode
 
-**1. Validation en échec → tu n'analyses pas.**
-Dis quelle vérification a lâché et arrête-toi. Une analyse confiante bâtie sur un
-état faux est pire que pas d'analyse : elle fait travailler le joueur sur une
-erreur qui n'a jamais eu lieu. Ce refus a déjà servi — voir *Le -10 dégâts* plus bas.
+**1. Un état incertain ne produit pas de jugement chiffré confiant.**
+Si le digest a échoué (ou n'existe pas) et que ta reconstruction mentale d'un
+passage est incertaine, dis-le à cet endroit précis et baisse la sévérité — un
+`note` honnête plutôt qu'un `error` bâti sur un état faux. Une analyse confiante
+sur un état faux fait travailler le joueur sur une erreur qui n'a jamais eu lieu
+— voir *Le -10 dégâts* plus bas.
 
 **2. Jamais le texte d'une carte de mémoire.**
-Tout est dans `digest.cards`. Si une carte n'y est pas, dis-le et n'affirme rien
-sur elle. Ce n'est pas de la prudence de principe — voir *Le piège de Cendre Sacrée*.
+Avec un digest, tout est dans `digest.cards`. Sans digest, la seule source est
+ce que le log lui-même montre (dégâts affichés, effets tracés) — si le texte
+exact d'une carte compte et que tu ne l'as pas, dis-le et n'affirme rien dessus.
+Ce n'est pas de la prudence de principe — voir *Le piège de Cendre Sacrée*.
 
 **3. Pas de « tu aurais dû jouer X » sans prouver que X était accessible.**
-`available.playableFromHand` liste tout ce qui est passé en main pendant le tour.
-Si X n'y est pas, tais-toi.
+Avec un digest, `available.playableFromHand` liste ce qui est passé en main.
+Sans digest, la preuve est une ligne du log qui montre X en main ou pioché. Pas
+de preuve → tais-toi.
 
 ---
 
-## Les ancrages sont vérifiés — écrire une ligne fausse fait rejeter le fichier
+## Les ancrages sont vérifiés — une ligne inventée fait rejeter le fichier
 
-`validateBundle` refuse tout `moment` dont le `line` n'existe pas dans la
-reconstruction. Ce n'est pas une convention, c'est un contrôle à l'import : un
-commentaire fluide qui pointe vers un tour qui n'a pas eu lieu ne rentre pas en base.
+`validateBundle` refuse tout `moment` dont le `line` **n'existe pas dans le log**
+(hors bornes). Un commentaire fluide qui pointe vers un tour qui n'a pas eu lieu
+ne rentre pas en base. `line` est 1-indexé sur les lignes du log collé.
 
 Deux règles pratiques :
 
-- **Ancre sur une ligne d'événement principal**, jamais sur une sous-ligne
-  `- ...`. Les snapshots n'existent que par événement de premier niveau. Un
-  `- Bklee219 a placé 6 marqueurs...` n'a pas de snapshot — ancre sur le
-  `a utilisé Shuriken Mortel` qui le précède.
-- **`evidence` accepte des lignes non reconnues sans bloquer** (elles ne
-  produisent qu'un avertissement), mais `line` est bloquant. Ne devine jamais.
-
-Le plus simple : relis le digest et copie le `line` de l'action exacte que tu commentes.
+- **Ancre sur la ligne d'événement principal** (`a utilisé…`, `a joué…`), pas
+  sur une sous-ligne `- ...`. Une sous-ligne n'est plus rejetée — le replay la
+  rattache à l'événement précédent — mais l'événement principal reste l'ancrage
+  exact, celui qui place ton commentaire au bon endroit du replay.
+- **`evidence` ne bloque jamais** (avertissement au pire). `line` bloque si la
+  ligne n'existe pas. Ne devine jamais : compte les lignes du log réel.
 
 ---
 
@@ -355,7 +340,9 @@ raison défendable. Si oui, c'est `note`, et tu expliques l'arbitrage.
   qu'il était meilleur que l'alternative avant de le classer `good`.
 - **Confondre matchup et pilotage.** Si la ligne perd la course quoi qu'il arrive,
   ce n'est pas une erreur de jeu — dis-le et sépare-le.
-- **Ancrer sur une sous-ligne.** Elle n'a pas de snapshot ; le bundle est rejeté.
+- **Ancrer sur une sous-ligne.** Toléré désormais, mais le replay rattache le
+  moment à l'événement précédent — ancre sur l'événement principal pour qu'il
+  tombe exactement au bon endroit.
 - **Inventer un `cost`.** Ne le remplis que si tu peux le calculer. Un `cost`
   approximatif est pire qu'absent.
 - **Écrire un `pattern` hors vocabulaire.** Rejet à l'import.
@@ -369,7 +356,8 @@ raison défendable. Si oui, c'est `note`, et tu expliques l'arbitrage.
 
 ## Format de sortie
 
-`analysis.json`, conforme à `PtcgAnalysisRow` (`lib/types/index.ts` d'IRIS) :
+Le champ `analysis` du JSON d'upload, conforme à `PtcgAnalysisRow`
+(`lib/types/index.ts` d'IRIS) :
 
 ```json
 {

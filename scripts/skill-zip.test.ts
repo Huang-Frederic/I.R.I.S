@@ -28,6 +28,13 @@ describe('ptcg-coach.zip', () => {
     expect(zip).toContain('ptcg-coach/references/rules.md');
   });
 
+  it('never packs the private playbook', () => {
+    // The zip is committed to a PUBLIC repo; the playbook derives from a paid
+    // guide and is gitignored as a plain file. Zipping it would leak it anyway.
+    const zip = buildSkillZip(SKILL_DIR).toString('latin1');
+    expect(zip).not.toContain('typhlosion-playbook');
+  });
+
   it('is byte-identical across builds', () => {
     // A timestamp leaking into the headers would make every build differ and
     // turn the staleness check into noise everyone learns to ignore.
