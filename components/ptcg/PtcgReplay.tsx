@@ -59,15 +59,29 @@ export default function PtcgReplay({ me, opponent, snapshots, turns, cards, anal
   // visible. Opening on event 0 would show an empty table.
   const [cursor, setCursor] = useState(setup.length ? setup[setup.length - 1] : 0);
 
+  // A moment may anchor to a log line the parser produced no snapshot for
+  // (imports are lenient about parser coverage). Clamp to the nearest earlier
+  // event so the finding still lands in the right turn instead of vanishing.
+  const snapIndexFor = useCallback(
+    (line: number) => {
+      const exact = snapshots.findIndex((s) => s.line === line);
+      if (exact >= 0) return exact;
+      let best = -1;
+      for (const [i, s] of snapshots.entries()) if (s.line <= line) best = i;
+      return best >= 0 ? best : 0;
+    },
+    [snapshots],
+  );
+
   const byEvent = useMemo(() => {
     const m = new Map<number, string>();
     for (const mo of analysis?.moments ?? []) {
-      const i = snapshots.findIndex((s) => s.line === mo.line);
+      const i = snapIndexFor(mo.line);
       // Worst severity wins when a single event carries several findings.
-      if (i >= 0 && (mo.severity === 'error' || !m.has(i))) m.set(i, mo.severity);
+      if (mo.severity === 'error' || !m.has(i)) m.set(i, mo.severity);
     }
     return m;
-  }, [analysis, snapshots]);
+  }, [analysis, snapIndexFor]);
 
   const step = useCallback(
     (d: number) => setCursor((c) => Math.min(snapshots.length - 1, Math.max(0, c + d))),
@@ -102,7 +116,7 @@ export default function PtcgReplay({ me, opponent, snapshots, turns, cards, anal
   }, [step, goTurn]);
 
   const turnMoments = (analysis?.moments ?? []).filter((m) =>
-    turn.events.some((i) => snapshots[i].line === m.line),
+    turn.events.includes(snapIndexFor(m.line)),
   );
   const heading =
     turn.number === 0
@@ -315,10 +329,7 @@ export default function PtcgReplay({ me, opponent, snapshots, turns, cards, anal
                     <span />
                   )}
                   <button
-                    onClick={() => {
-                      const i = snapshots.findIndex((s) => s.line === m.line);
-                      if (i >= 0) setCursor(i);
-                    }}
+                    onClick={() => setCursor(snapIndexFor(m.line))}
                     className="text-text-muted hover:text-text shrink-0 text-[11px] underline"
                   >
                     {t('jumpToMoment')}

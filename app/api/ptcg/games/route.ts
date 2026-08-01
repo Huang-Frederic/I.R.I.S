@@ -1,13 +1,16 @@
 /**
  * Imports one game (see lib/ptcg/bundle.ts).
  *
- * Accepts either a complete .bundle.json — what the CLI produces and what the
- * dropzone has always taken — or `{ raw, analysis }`, which it assembles first.
- * The second form exists because a conversation can return an analysis but not
- * a bundle: assembling one needs the reconstruction, which lives here.
+ * Three shapes in, one gate, one storage path:
+ *  - `{ raw }` — a battle log pasted as-is. The game is stored and displays
+ *    without annotations. This path must not be blockable by parser quality:
+ *    the reconstruction is best-effort and the raw log is the source of truth.
+ *  - `{ raw, analysis }` — the self-contained JSON a coaching conversation
+ *    returns. Same assembly, plus the analysis row.
+ *  - a complete `.bundle.json` — the legacy CLI format, passed straight through.
  *
- * Either way the same gate runs, and a game is accepted whole or rejected
- * whole. Only the assembling path parses a log or reaches TCGdex.
+ * Re-importing a log that already exists attaches the new analysis to the
+ * existing game (the coach having improved is not a mistake to refuse).
  */
 
 import { NextResponse } from 'next/server';
@@ -43,12 +46,12 @@ export async function POST(request: Request) {
     return validationResponse('Body is not valid JSON.');
   }
 
-  // Two ways in. A complete .bundle.json is the file the CLI produces and the
-  // dropzone has always accepted. `{ raw, analysis }` is the browser path: the
-  // analysis comes back from a conversation as plain JSON, and the bundle can
-  // only be assembled where the reconstruction lives — which is here.
   const asPair = body as { raw?: unknown; analysis?: unknown; playedAt?: unknown };
-  if (typeof asPair?.raw === 'string' && asPair.analysis && typeof asPair.analysis === 'object') {
+  const hasAnalysis = !!asPair?.analysis && typeof asPair.analysis === 'object';
+  if (typeof asPair?.raw === 'string') {
+    if (!asPair.raw.trim()) {
+      return apiError('ptcg_empty_log', { message: 'Paste the exported battle log first.' });
+    }
     try {
       const parsed = parseGame(asPair.raw);
       const refs = collectCardRefs(parsed.state);
@@ -64,20 +67,26 @@ export async function POST(request: Request) {
           ? new Date(asPair.playedAt).toISOString()
           : undefined;
 
-      body = buildBundle(asPair.raw, parsed, cards, asPair.analysis as PtcgBundle['analysis'], {
-        playedAt,
-      });
+      body = buildBundle(
+        asPair.raw,
+        parsed,
+        cards,
+        hasAnalysis ? (asPair.analysis as PtcgBundle['analysis']) : null,
+        { playedAt },
+      );
     } catch (e) {
+      // A paste that is not a battle log at all lands here rather than as a 500.
       return apiError('ptcg_unparsable_log', {
-        message: 'The log could not be re-parsed to assemble the bundle.',
+        message: 'That does not look like a PTCG Live battle log.',
         details: { underlying: e instanceof Error ? e.message : String(e) },
       });
     }
   }
 
-  // The gate. Anchors are checked against the reconstruction, so a fluent but
-  // invented finding cannot be stored — see lib/ptcg/bundle.ts.
-  const check = validateBundle(body);
+  // The gate. Identity (hash) and anchors are checked; parser quality is a
+  // warning, never a refusal — see lib/ptcg/bundle.ts.
+  const isRawOnly = typeof asPair?.raw === 'string' && !hasAnalysis;
+  const check = validateBundle(body, { requireAnalysis: !isRawOnly });
   if (!check.ok) {
     return apiError('ptcg_invalid_bundle', {
       status: 400,
@@ -107,29 +116,31 @@ export async function POST(request: Request) {
   const myTurns = bundle.game.state.turns
     .filter((t) => t.player === bundle.game.me)
     .map((t) => t.number);
-  const score = playScore(bundle.analysis.moments ?? [], myTurns);
+  const score = bundle.analysis ? playScore(bundle.analysis.moments ?? [], myTurns) : null;
+
+  const derived = {
+    my_key_card: mine?.cardId ?? null,
+    opponent_key_card: theirs?.cardId ?? null,
+    my_archetype: bundle.game.my_archetype ?? mine?.name ?? null,
+    opponent_archetype: bundle.game.opponent_archetype ?? theirs?.name ?? null,
+  };
 
   const { data: game, error: gameError } = await supabase
     .from('ptcg_games')
     .insert({
       ...bundle.game,
       user_id: user.id,
-      my_key_card: mine?.cardId ?? null,
-      opponent_key_card: theirs?.cardId ?? null,
+      ...derived,
       play_score: score?.score ?? null,
-      // A bundle may carry its own archetype; otherwise name it after the
-      // protagonist, since the player's handle says nothing about the matchup.
-      my_archetype: bundle.game.my_archetype ?? mine?.name ?? null,
-      opponent_archetype: bundle.game.opponent_archetype ?? theirs?.name ?? null,
     })
     .select('id, played_at, me, opponent, result, prizes_me, prizes_opponent, turns')
     .single();
 
-  // Unique (user_id, log_hash). A second bundle for the same log is not a
-  // mistake to refuse — it is the coach having improved. Re-importing attaches
-  // the new analysis to the existing game and refreshes the derived columns;
-  // the previous analysis row is kept, since the read side takes the most
-  // recent and history is worth more than the row it costs.
+  // Unique (user_id, log_hash). A second upload of the same log is not a
+  // mistake to refuse — it is either the analysis arriving after a raw-only
+  // import, or the coach having improved. Re-importing refreshes the derived
+  // columns; a raw-only re-import must NOT erase a score an earlier analysis
+  // computed.
   const duplicate = gameError?.code === '23505';
   if (gameError && !duplicate) return serverErrorResponse(gameError.message);
 
@@ -138,11 +149,8 @@ export async function POST(request: Request) {
     const { data: existing, error } = await supabase
       .from('ptcg_games')
       .update({
-        my_key_card: mine?.cardId ?? null,
-        opponent_key_card: theirs?.cardId ?? null,
-        play_score: score?.score ?? null,
-        my_archetype: bundle.game.my_archetype ?? mine?.name ?? null,
-        opponent_archetype: bundle.game.opponent_archetype ?? theirs?.name ?? null,
+        ...derived,
+        ...(score ? { play_score: score.score } : {}),
       })
       .eq('user_id', user.id)
       .eq('log_hash', bundle.game.log_hash)
@@ -153,16 +161,18 @@ export async function POST(request: Request) {
   }
   if (!target) return serverErrorResponse('insert returned no row');
 
-  const { error: analysisError } = await supabase
-    .from('ptcg_analyses')
-    .insert({ ...bundle.analysis, game_id: target.id });
+  if (bundle.analysis) {
+    const { error: analysisError } = await supabase
+      .from('ptcg_analyses')
+      .insert({ ...bundle.analysis, game_id: target.id });
 
-  if (analysisError) {
-    // Leaving a game without its analysis would look like a silent success and
-    // block re-import on the hash. Roll back so the file can simply be retried
-    // — but only the game this request created, never one that already existed.
-    if (!duplicate) await supabase.from('ptcg_games').delete().eq('id', target.id);
-    return serverErrorResponse(analysisError.message);
+    if (analysisError) {
+      // Leaving a game without the analysis it was uploaded with would look
+      // like a silent success. Roll back so the file can simply be retried —
+      // but only the game this request created, never one that already existed.
+      if (!duplicate) await supabase.from('ptcg_games').delete().eq('id', target.id);
+      return serverErrorResponse(analysisError.message);
+    }
   }
 
   return NextResponse.json(

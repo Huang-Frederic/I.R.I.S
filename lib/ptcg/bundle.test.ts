@@ -76,12 +76,47 @@ describe('validateBundle', () => {
     expect(validateBundle(b).errors[0]).toBe('unsupported_bundle_version:99');
   });
 
-  it('refuses a game whose own damage oracle failed', () => {
-    // Storing this would poison every aggregate it later feeds.
+  it('accepts a game whose damage oracle failed, with a warning', () => {
+    // The raw log displays fine either way; blocking on parser quality is what
+    // used to make every new log phrasing a dead end. The derived numbers are
+    // flagged as unverified instead.
     const b = mutate((x) => {
       x.game.validation.ok = false;
     });
-    expect(validateBundle(b).errors).toContain('validation_failed');
+    const r = validateBundle(b);
+    expect(r.ok).toBe(true);
+    expect(r.warnings).toContain('reconstruction_unverified');
+  });
+
+  it('accepts a raw-only bundle when the caller does not require an analysis', () => {
+    const b = mutate((x) => {
+      x.analysis = null;
+    });
+    expect(validateBundle(b, { requireAnalysis: false }).ok).toBe(true);
+    // The legacy default still refuses: a .bundle.json always carried one.
+    expect(validateBundle(b).errors).toContain('missing_analysis');
+  });
+
+  it('warns, but does not block, on an anchor the parser produced no snapshot for', () => {
+    // A real log line without a snapshot (a sub-line, an unrecognised phrasing)
+    // is a display concern — the replay clamps to the nearest event. Only a
+    // line the log never had is an invented finding.
+    const snapLines = new Set(parsed.state.snapshots.map((s) => s.line));
+    const total = FIXTURE.trim().split(/\r?\n/).length;
+    let target = 0;
+    for (let l = 1; l <= total; l++) {
+      if (!snapLines.has(l)) {
+        target = l;
+        break;
+      }
+    }
+    expect(target).toBeGreaterThan(0);
+    const b = mutate((x) => {
+      x.analysis!.moments[0].line = target;
+    });
+    const r = validateBundle(b);
+    expect(r.ok).toBe(true);
+    expect(r.warnings).toContain(`moment_0_anchor_no_snapshot:L${target}`);
   });
 
   it('detects a log edited after the hash was computed', () => {
@@ -95,7 +130,7 @@ describe('validateBundle', () => {
     // The point of the gate: fluent prose pointing at a turn that never
     // happened must not reach the database.
     const b = mutate((x) => {
-      x.analysis.moments[0].line = 99999;
+      x.analysis!.moments[0].line = 99999;
     });
     expect(validateBundle(b).errors).toContain('moment_0_anchor_not_in_log:L99999');
   });
@@ -103,21 +138,21 @@ describe('validateBundle', () => {
   it('rejects an invented mistake code', () => {
     // An unknown code silently breaks cross-game aggregation.
     const b = mutate((x) => {
-      (x.analysis.patterns[0] as { code: string }).code = 'played_badly';
+      (x.analysis!.patterns[0] as { code: string }).code = 'played_badly';
     });
     expect(validateBundle(b).errors).toContain('pattern_0_unknown_code:played_badly');
   });
 
   it('rejects an unknown severity', () => {
     const b = mutate((x) => {
-      (x.analysis.moments[0] as { severity: string }).severity = 'catastrophic';
+      (x.analysis!.moments[0] as { severity: string }).severity = 'catastrophic';
     });
     expect(validateBundle(b).errors).toContain('moment_0_bad_severity:catastrophic');
   });
 
   it('rejects an empty finding', () => {
     const b = mutate((x) => {
-      x.analysis.moments[0].body = '';
+      x.analysis!.moments[0].body = '';
     });
     expect(validateBundle(b).errors).toContain('moment_0_empty');
   });
@@ -126,7 +161,7 @@ describe('validateBundle', () => {
     // Evidence is supporting material; a bad line weakens the finding without
     // invalidating it, unlike the anchor itself.
     const b = mutate((x) => {
-      x.analysis.moments[0].evidence = [88, 99999];
+      x.analysis!.moments[0].evidence = [88, 99999];
     });
     const r = validateBundle(b);
     expect(r.ok).toBe(true);
@@ -140,8 +175,8 @@ describe('validateBundle', () => {
   it('accepts a bundle with no findings at all', () => {
     // A clean game is a legitimate result, not a malformed file.
     const b = mutate((x) => {
-      x.analysis.moments = [];
-      x.analysis.patterns = [];
+      x.analysis!.moments = [];
+      x.analysis!.patterns = [];
     });
     expect(validateBundle(b).ok).toBe(true);
   });

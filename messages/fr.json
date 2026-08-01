@@ -943,9 +943,7 @@
     "ptcg_invalid_bundle": "Ce fichier de partie n'a pas passé la validation.",
     "ptcg_already_imported": "Cette partie a déjà été importée.",
     "ptcg_empty_log": "Colle d’abord le battle log.",
-    "ptcg_unparsable_log": "Ça ne ressemble pas à un battle log PTCG Live.",
-    "ptcg_validation_failed": "La reconstruction contredit le log — aucun digest produit.",
-    "ptcg_log_damaged": "Trop de lignes du log n’ont pas pu être lues. Recopie-le depuis PTCG Live — les lignes à puce comptent."
+    "ptcg_unparsable_log": "Ça ne ressemble pas à un battle log PTCG Live."
   },
   "staleness": {
     "fresh": "<1j",
@@ -1061,26 +1059,13 @@
     "jumpToMoment": "Montre-moi",
     "setupShort": "Pile/face",
     "importTitle": "Importer un duel",
-    "importSubtitle": "Colle le battle log, fais-le analyser, ramène l’analyse.",
-    "importStep1": "Colle le battle log exporté",
-    "importStep2": "Envoie le digest à Claude",
-    "importStep3": "Ramène l’analyse",
-    "importPlaceholder": "Colle ici ce que PTCG Live a copié dans ton presse-papiers en fin de partie.",
+    "importSubtitle": "Colle le log de PTCG Live pour revoir la partie, ou le JSON du coach pour la version annotée.",
+    "importPlaceholder": "Log de bataille PTCG Live, ou JSON du coach…",
     "importPlayedAt": "Jouée le",
-    "importParse": "Lire le log",
-    "importParsing": "Lecture…",
-    "importChecksPassed": "{count, plural, one {# vérification passée} other {# vérifications passées}}",
-    "importUnknownLines": "{count, plural, one {# ligne non reconnue — ce morceau de partie manque à la reconstruction} other {# lignes non reconnues — ces morceaux de partie manquent à la reconstruction}}",
-    "importUnresolved": "Cartes introuvables sur TCGdex : {cards}",
-    "importDownload": "Télécharger le digest",
-    "importDropAnalysis": "Dépose le JSON d’analyse",
-    "importDigestHint": "Attache ce fichier à une conversation avec le skill ptcg-coach. Il répond par un JSON d’analyse — ramène-le ci-dessous.",
     "importBadJson": "Ce fichier n’est pas du JSON valide.",
-    "importCopy": "Copier",
-    "importCopied": "Copié",
-    "importCopyFailed": "Presse-papiers inaccessible — utilise le téléchargement.",
-    "importOrPaste": "ou colle-la",
-    "importPastePlaceholder": "Colle le JSON d’analyse que la conversation t’a donné.",
-    "importSubmitPasted": "Importer cette analyse"
+    "importHint": "Deux formats acceptés : le log copié tel quel depuis PTCG Live (partie affichée sans annotations), ou le JSON complet rendu par le coach (partie + débrief). Ré-importer le JSON plus tard rattache l'analyse à la même partie.",
+    "importSubmit": "Importer",
+    "importDropJson": "…ou dépose le fichier .json du coach",
+    "importJsonNeedsRaw": "Ce JSON ne contient pas le log (champ « raw »). Colle le JSON complet rendu par le coach, ou le log brut."
   }
 }

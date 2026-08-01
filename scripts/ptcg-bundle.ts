@@ -27,6 +27,12 @@ async function main() {
 
   const raw = readFileSync(logPath, 'utf8');
   const analysis = JSON.parse(readFileSync(analysisPath, 'utf8')) as PtcgBundle['analysis'];
+  // This CLI's whole point is bundling an analysis with its log; a null here
+  // means the wrong file was passed. (Raw-only imports go straight to the app.)
+  if (!analysis || typeof analysis !== 'object') {
+    console.error('✗ analysis.json vide ou invalide');
+    process.exit(1);
+  }
   const parsed = parseGame(raw);
 
   let known: Record<string, PtcgCardRow> = {};

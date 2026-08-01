@@ -943,9 +943,7 @@
     "ptcg_invalid_bundle": "この対戦ファイルは検証に通りませんでした。",
     "ptcg_already_imported": "この対戦はすでに取り込まれています。",
     "ptcg_empty_log": "先にバトルログを貼り付けてください。",
-    "ptcg_unparsable_log": "PTCG Liveのバトルログではないようです。",
-    "ptcg_validation_failed": "再現がログと矛盾しています — ダイジェストは生成されません。",
-    "ptcg_log_damaged": "ログの多くを読み取れませんでした。PTCG Liveからコピーし直してください。"
+    "ptcg_unparsable_log": "PTCG Liveのバトルログではないようです。"
   },
   "staleness": {
     "fresh": "<1日",
@@ -1061,26 +1059,13 @@
     "jumpToMoment": "この場面へ",
     "setupShort": "コイン",
     "importTitle": "デュエルをインポート",
-    "importSubtitle": "バトルログを貼り、分析し、結果を戻す。",
-    "importStep1": "バトルログを貼り付け",
-    "importStep2": "ダイジェストをClaudeへ",
-    "importStep3": "分析を戻す",
-    "importPlaceholder": "対戦終了時にPTCG Liveがコピーした内容をここに貼り付け。",
+    "importSubtitle": "PTCG Liveのログを貼り付けると対戦をリプレイできます。コーチのJSONなら注釈付きで表示されます。",
+    "importPlaceholder": "PTCG LiveのバトルログまたはコーチのJSON…",
     "importPlayedAt": "対戦日",
-    "importParse": "ログを読む",
-    "importParsing": "読み込み中…",
-    "importChecksPassed": "{count}件の検証に合格",
-    "importUnknownLines": "{count}行を認識できませんでした — その部分は再現に含まれません",
-    "importUnresolved": "TCGdexで見つからないカード: {cards}",
-    "importDownload": "ダイジェストをダウンロード",
-    "importDropAnalysis": "分析JSONをドロップ",
-    "importDigestHint": "このファイルをptcg-coachスキルの会話に添付してください。分析JSONが返るので、下に戻します。",
     "importBadJson": "有効なJSONではありません。",
-    "importCopy": "コピー",
-    "importCopied": "コピー済み",
-    "importCopyFailed": "クリップボードにアクセスできません — ダウンロードを使ってください。",
-    "importOrPaste": "または貼り付け",
-    "importPastePlaceholder": "会話が返した分析JSONを貼り付け。",
-    "importSubmitPasted": "この分析をインポート"
+    "importHint": "2つの形式に対応：PTCG Liveからそのままコピーしたログ（注釈なしで表示）、またはコーチが返す完全なJSON（対戦＋デブリーフ）。後からJSONを再インポートすると、同じ対戦に分析が追加されます。",
+    "importSubmit": "インポート",
+    "importDropJson": "…またはコーチの.jsonファイルをドロップ",
+    "importJsonNeedsRaw": "このJSONにはログ（rawフィールド）が含まれていません。コーチの完全なJSONか、生ログを貼り付けてください。"
   }
 }

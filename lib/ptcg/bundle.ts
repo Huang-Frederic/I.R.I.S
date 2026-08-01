@@ -76,15 +76,24 @@ export interface BundleValidation {
 /**
  * Checks a bundle before it reaches the database.
  *
- * Beyond shape, three checks matter:
- *  - the game's own damage oracle must have passed. Importing a game whose
- *    reconstruction is known wrong would poison the history it feeds.
+ * Deliberately lenient about the *reconstruction* and strict about *identity*:
+ *  - a failed damage oracle or unrecognised lines are warnings, not refusals.
+ *    The raw log is the source of truth and displays fine either way; blocking
+ *    the import on parser quality is what used to make every new phrasing a
+ *    dead end.
  *  - log_hash must match raw_log, so a hand-edited file cannot claim to be a
  *    game it is not, and cannot collide with a different game's dedup key.
- *  - every moment must anchor to a log line that exists in the reconstruction.
- *    This is what stops a fluent but invented finding from being stored.
+ *  - a moment must anchor to a line that exists in the raw log. A line the
+ *    parser produced no snapshot for is a warning (the replay attaches it to
+ *    the nearest event); a line outside the log is still an invented finding
+ *    and is refused.
+ *  - `analysis` may be null (raw-log-only import) unless the caller requires it.
  */
-export function validateBundle(input: unknown): BundleValidation {
+export function validateBundle(
+  input: unknown,
+  opts: { requireAnalysis?: boolean } = {},
+): BundleValidation {
+  const requireAnalysis = opts.requireAnalysis ?? true;
   const errors: string[] = [];
   const warnings: string[] = [];
   const fail = (m: string) => errors.push(m);
@@ -111,9 +120,9 @@ export function validateBundle(input: unknown): BundleValidation {
   }
   if (!['win', 'loss', 'tie'].includes(g.result)) fail(`bad_result:${String(g.result)}`);
 
-  // A reconstruction that failed its own oracle must never be stored: every
-  // number downstream would inherit the error, silently.
-  if (!g.validation?.ok) fail('validation_failed');
+  // Informational now. The oracle disagreeing with the log means the *derived*
+  // numbers are suspect — the verbatim log and its display are not.
+  if (!g.validation?.ok) warnings.push('reconstruction_unverified');
 
   if (typeof g.raw_log === 'string' && typeof g.log_hash === 'string') {
     const actual = createHash('sha256').update(g.raw_log.trim()).digest('hex');
@@ -126,22 +135,30 @@ export function validateBundle(input: unknown): BundleValidation {
   if (!Array.isArray(b.cards)) fail('missing_cards');
   else if (b.cards.length === 0) warnings.push('no_cards_resolved');
 
-  const a = b.analysis as PtcgAnalysisRow | undefined;
+  const a = b.analysis as PtcgAnalysisRow | null | undefined;
   if (!a || typeof a !== 'object') {
-    fail('missing_analysis');
+    if (requireAnalysis) fail('missing_analysis');
     return { ok: errors.length === 0, errors, warnings };
   }
   if (!['rules', 'llm', 'manual'].includes(a.source))
     fail(`bad_analysis_source:${String(a.source)}`);
 
-  const lines = new Set((snapshots ?? []).map((s) => s.line));
+  const snapshotLines = new Set((snapshots ?? []).map((s) => s.line));
+  const rawLineCount =
+    typeof g.raw_log === 'string' ? g.raw_log.trim().split(/\r?\n/).length : 0;
   for (const [i, m] of (a.moments ?? []).entries()) {
     if (!SEVERITIES.includes(m.severity)) fail(`moment_${i}_bad_severity:${String(m.severity)}`);
     if (!m.title || !m.body) fail(`moment_${i}_empty`);
-    // The anchor is the difference between a verifiable finding and a story.
-    if (!lines.has(m.line)) fail(`moment_${i}_anchor_not_in_log:L${String(m.line)}`);
+    // The anchor is the difference between a verifiable finding and a story:
+    // a line the log never had is refused. A real line the parser produced no
+    // snapshot for only warns — the replay clamps it to the nearest event.
+    if (!Number.isInteger(m.line) || m.line < 1 || m.line > rawLineCount) {
+      fail(`moment_${i}_anchor_not_in_log:L${String(m.line)}`);
+    } else if (!snapshotLines.has(m.line)) {
+      warnings.push(`moment_${i}_anchor_no_snapshot:L${m.line}`);
+    }
     for (const e of m.evidence ?? []) {
-      if (!lines.has(e)) warnings.push(`moment_${i}_evidence_not_in_log:L${e}`);
+      if (!snapshotLines.has(e)) warnings.push(`moment_${i}_evidence_not_in_log:L${e}`);
     }
   }
 

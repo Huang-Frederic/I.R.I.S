@@ -347,10 +347,12 @@ export interface PtcgBundle {
   };
   /** Gameplay data for every card seen, upserted into ptcg_cards. */
   cards: PtcgCardRow[];
+  /** Null for a raw-log-only import: the game displays without annotations,
+   *  and an analysis can be attached later by re-importing the same log. */
   analysis: Pick<
     PtcgAnalysisRow,
     'schema_version' | 'source' | 'model' | 'verdict' | 'moments' | 'patterns' | 'checklist'
-  >;
+  > | null;
 }
 
 /**

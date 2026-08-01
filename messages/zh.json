@@ -943,9 +943,7 @@
     "ptcg_invalid_bundle": "该对战文件未通过校验。",
     "ptcg_already_imported": "该对战已经导入过了。",
     "ptcg_empty_log": "请先粘贴对战记录。",
-    "ptcg_unparsable_log": "这看起来不是 PTCG Live 的对战记录。",
-    "ptcg_validation_failed": "重建与记录不符 — 未生成摘要。",
-    "ptcg_log_damaged": "记录中有太多行无法读取。请从 PTCG Live 重新复制。"
+    "ptcg_unparsable_log": "这看起来不是 PTCG Live 的对战记录。"
   },
   "staleness": {
     "fresh": "<1天",
@@ -1061,26 +1059,13 @@
     "jumpToMoment": "跳到此处",
     "setupShort": "硬币",
     "importTitle": "导入对局",
-    "importSubtitle": "粘贴对战记录，交给分析，再把结果带回。",
-    "importStep1": "粘贴导出的对战记录",
-    "importStep2": "把摘要发给 Claude",
-    "importStep3": "带回分析",
-    "importPlaceholder": "把 PTCG Live 在对局结束时复制的内容粘贴到这里。",
+    "importSubtitle": "粘贴 PTCG Live 日志即可回放对局，粘贴教练的 JSON 则显示带注释的版本。",
+    "importPlaceholder": "PTCG Live 对战日志，或教练的 JSON…",
     "importPlayedAt": "对局日期",
-    "importParse": "读取记录",
-    "importParsing": "读取中…",
-    "importChecksPassed": "通过 {count} 项校验",
-    "importUnknownLines": "有 {count} 行未能识别 — 这部分对局不在重建中",
-    "importUnresolved": "TCGdex 上找不到的卡: {cards}",
-    "importDownload": "下载摘要",
-    "importDropAnalysis": "拖入分析 JSON",
-    "importDigestHint": "把该文件附加到启用 ptcg-coach 技能的对话中。它会返回分析 JSON，再带回下方。",
     "importBadJson": "该文件不是有效的 JSON。",
-    "importCopy": "复制",
-    "importCopied": "已复制",
-    "importCopyFailed": "无法访问剪贴板 — 请改用下载。",
-    "importOrPaste": "或粘贴",
-    "importPastePlaceholder": "粘贴对话返回的分析 JSON。",
-    "importSubmitPasted": "导入该分析"
+    "importHint": "支持两种格式：直接从 PTCG Live 复制的日志（无注释显示），或教练返回的完整 JSON（对局＋复盘）。之后重新导入 JSON 会将分析附加到同一对局。",
+    "importSubmit": "导入",
+    "importDropJson": "…或拖入教练的 .json 文件",
+    "importJsonNeedsRaw": "该 JSON 不包含日志（raw 字段）。请粘贴教练的完整 JSON，或原始日志。"
   }
 }
