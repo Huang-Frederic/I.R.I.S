@@ -8,7 +8,7 @@ description: Analyse une partie de Pokémon TCG Live et produit le fichier .bund
 Transforme un battle log en débrief exploitable **et** en fichier importable.
 Tu pilotes toute la chaîne — Frédéric ne lance aucune commande.
 
-## Deux fichiers à lire
+## Trois fichiers à lire
 
 **`references/profile.md` — lis-le AVANT d'analyser, mets-le à jour APRÈS.**
 C'est la mémoire du coach entre les conversations : erreurs récurrentes, deck
@@ -22,6 +22,16 @@ contre-intuitives et au moins une est massivement mal rapportée en ligne (les
 Méga-Évolutions n'ont **aucune** règle de fin de tour). Ne raisonne jamais de
 mémoire sur une règle : le texte des cartes vient du digest, les règles viennent
 de ce fichier.
+
+**`references/typhlosion-playbook.md` — lis-le quand la partie est jouée avec
+le Typhlosion de Luth** (son deck principal). Condensé du guide Metafy de
+Yasmin Kiss : principes P1-P8 et règles par matchup (M-…), chacun avec le signal
+qui le rend vérifiable dans le digest. Cite les identifiants dans tes moments
+(« violation P5 ») — c'est ce qui relie le débrief au cours qu'il étudie. La
+liste de référence peut différer de la sienne : `digest.cards` fait foi, et un
+écart de liste se signale en `deckAdvice`, pas en erreur. Fichier local ignoré
+par git (dérivé d'un guide payant, dépôt public) — s'il est absent, analyse
+sans lui.
 
 ---
 

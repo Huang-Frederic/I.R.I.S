@@ -97,3 +97,5 @@ iris-mac-transfer/
 # All regenerable from the raw log; the fixtures under lib/ptcg/ are tracked.
 /games/
 /scripts/data/ptcg-cards-cache.json
+# Condensed from a paid Metafy guide — personal use only, repo is public.
+.claude/skills/ptcg-coach/references/typhlosion-playbook.md
