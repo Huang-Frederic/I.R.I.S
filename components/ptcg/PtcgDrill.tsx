@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import { Flame, RotateCcw, Home, Timer } from 'lucide-react';
+import { Flame, RotateCcw, Home, Timer, Layers } from 'lucide-react';
 import { DRILL_DECK, DRILL_TARGET_IDS, type DrillCard } from '@/lib/ptcg/drill-deck';
 
 /** One physical copy in the shuffled pool. */
@@ -14,7 +14,7 @@ interface Copy {
 }
 
 type Mode = 'std' | 'real';
-type View = 'home' | 'scan' | 'answer' | 'result';
+type View = 'home' | 'loading' | 'scan' | 'answer' | 'result';
 
 interface RunRecord {
   m: Mode;
@@ -22,8 +22,11 @@ interface RunRecord {
   time: number;
 }
 
-const STORAGE = 'iris-drill-425';
+/** v2: the target list changed (7 counts) — old 10-count records don't compare. */
+const STORAGE = 'iris-drill-425-v2';
 const LIMIT = 45;
+/** Cards per fan packet — roughly what a hand holds while riffling a deck. */
+const PACKET = 5;
 
 const loadRuns = (): { runs: RunRecord[]; streak: number } => {
   try {
@@ -55,11 +58,15 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
   const [prizes, setPrizes] = useState<Copy[]>([]);
   const [hand, setHand] = useState<Copy[]>([]);
   const [deckShown, setDeckShown] = useState<Copy[]>([]);
+  const [packetIdx, setPacketIdx] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [records, setRecords] = useState<{ runs: RunRecord[]; streak: number }>({ runs: [], streak: 0 });
+  const [loaded, setLoaded] = useState(0);
+  const [broken, setBroken] = useState<Set<string>>(new Set());
   const startRef = useRef(0);
+  const preloadedRef = useRef(false);
 
   // localStorage is client-only; hydrate the records after mount.
   useEffect(() => {
@@ -73,8 +80,45 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
     return () => clearInterval(id);
   }, [running]);
 
+  /** Resolves once every unique card image is either cached or known-broken.
+   *  The run must not start with holes in the fan — a missing Bracelet mid-scan
+   *  reads as a bug, not as a card. */
+  const preload = useCallback(async (): Promise<Set<string>> => {
+    const unique = [...new Set(DRILL_DECK.map((c) => c.id))];
+    const failed = new Set<string>();
+    let done = 0;
+    setLoaded(0);
+    await Promise.all(
+      unique.map(
+        (id) =>
+          new Promise<void>((resolve) => {
+            const url = images[id];
+            const finish = (ok: boolean) => {
+              if (!ok) failed.add(id);
+              done += 1;
+              setLoaded(done);
+              resolve();
+            };
+            if (!url) return finish(false);
+            const img = new window.Image();
+            const timeout = setTimeout(() => finish(false), 8000);
+            img.onload = () => {
+              clearTimeout(timeout);
+              finish(true);
+            };
+            img.onerror = () => {
+              clearTimeout(timeout);
+              finish(false);
+            };
+            img.src = `${url}/low.webp`;
+          }),
+      ),
+    );
+    return failed;
+  }, [images]);
+
   const start = useCallback(
-    (m: Mode) => {
+    async (m: Mode) => {
       const shuffled = [...pool];
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -86,13 +130,20 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
       setPrizes(shuffled.slice(h.length, h.length + 6));
       setDeckShown(shuffled.slice(h.length + 6));
       setAnswers({});
+      setPacketIdx(0);
       setElapsed(0);
+      // Gate on the images: the timer only starts once every card can render.
+      if (!preloadedRef.current) {
+        setView('loading');
+        setBroken(await preload());
+        preloadedRef.current = true;
+      }
       startRef.current = performance.now();
       setRunning(true);
       setView('scan');
       window.scrollTo(0, 0);
     },
-    [pool],
+    [pool, preload],
   );
 
   const finishScan = () => {
@@ -130,11 +181,18 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
   const best = records.runs.filter((r) => r.score === targets.length).sort((a, b) => a.time - b.time)[0];
   const perfects = records.runs.filter((r) => r.score === targets.length && r.time <= LIMIT).length;
 
+  const packets = useMemo(() => {
+    const out: Copy[][] = [];
+    for (let i = 0; i < deckShown.length; i += PACKET) out.push(deckShown.slice(i, i + PACKET));
+    return out;
+  }, [deckShown]);
+  const fanDone = packetIdx >= packets.length;
+  const seen = Math.min(packetIdx * PACKET, deckShown.length);
+
   /* ---------------------------------------------------------------- tiles */
   const Tile = ({ c, small }: { c: Copy; small?: boolean }) => {
     const url = images[c.id];
-    return url ? (
-      /* Real card art — same low.webp size the replay uses. */
+    return url && !broken.has(c.id) ? (
       <Image
         src={`${url}/low.webp`}
         alt={c.name}
@@ -156,6 +214,40 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
     );
   };
 
+  /** A fan card — bigger art, held-in-hand angle. */
+  const FanCard = ({ c, i, n }: { c: Copy; i: number; n: number }) => {
+    const mid = (n - 1) / 2;
+    const url = images[c.id];
+    return (
+      <div
+        className="absolute bottom-3 left-1/2 w-40 select-none motion-safe:transition-transform sm:w-48"
+        style={{
+          transform: `translateX(calc(-50% + ${(i - mid) * 54}px)) rotate(${(i - mid) * 7}deg)`,
+          transformOrigin: 'bottom center',
+          zIndex: i,
+        }}
+      >
+        {url && !broken.has(c.id) ? (
+          <Image
+            src={`${url}/low.webp`}
+            alt={c.name}
+            width={245}
+            height={337}
+            unoptimized
+            className="h-auto w-full rounded-[4.5%] shadow-lg"
+          />
+        ) : (
+          <div className="border-border bg-surface-2 flex aspect-[63/88] w-full flex-col justify-between rounded-lg border-2 p-3 shadow-lg">
+            <span className="text-sm leading-tight font-bold break-words">{c.name}</span>
+            <span className="text-text-faint text-[10px] tracking-wide uppercase">
+              {t(`cat_${c.category}` as 'cat_poke')}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   /* ---------------------------------------------------------------- views */
   if (view === 'home') {
     return (
@@ -170,7 +262,7 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
         <div className="grid gap-3 sm:grid-cols-2">
           <button
             type="button"
-            onClick={() => start('std')}
+            onClick={() => void start('std')}
             className="bg-red rounded-xl px-4 py-4 text-left text-white transition hover:opacity-90"
           >
             <span className="block text-[15px] font-bold">{t('modeStandard')}</span>
@@ -178,7 +270,7 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
           </button>
           <button
             type="button"
-            onClick={() => start('real')}
+            onClick={() => void start('real')}
             className="border-border bg-surface hover:border-red/50 rounded-xl border px-4 py-4 text-left transition"
           >
             <span className="block text-[15px] font-bold">{t('modeReal')}</span>
@@ -239,7 +331,24 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
     );
   }
 
+  if (view === 'loading') {
+    const total = new Set(DRILL_DECK.map((c) => c.id)).size;
+    return (
+      <div className="border-border bg-surface flex flex-col items-center gap-3 rounded-xl border px-4 py-12">
+        <Layers className="text-red h-8 w-8 motion-safe:animate-pulse" aria-hidden />
+        <p className="text-sm font-semibold">{t('loadingCards', { done: loaded, total })}</p>
+        <div className="bg-surface-2 h-1.5 w-56 overflow-hidden rounded-full">
+          <div
+            className="bg-red h-full rounded-full motion-safe:transition-all"
+            style={{ width: `${(loaded / total) * 100}%` }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (view === 'scan') {
+    const current = packets[packetIdx] ?? [];
     return (
       <div>
         <div className="bg-bg border-border sticky top-0 z-10 -mx-1 flex items-center gap-3 border-b px-1 py-2.5">
@@ -251,7 +360,9 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
           >
             {left < 0 ? `+${(-left).toFixed(1)}` : left.toFixed(1)}
           </span>
-          <span className="text-text-muted text-xs">{t('deckCount', { count: deckShown.length })}</span>
+          <span className="text-text-muted font-mono text-xs tabular-nums">
+            {t('fanSeen', { seen, total: deckShown.length })}
+          </span>
           <button
             type="button"
             onClick={finishScan}
@@ -271,17 +382,35 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
                 <Tile key={i} c={c} small />
               ))}
             </div>
-            <p className="text-text-muted mt-3 text-xs font-semibold tracking-wide uppercase">
-              {t('deckLabel')}
-            </p>
           </div>
         )}
 
-        <div className="mt-2 grid grid-cols-5 gap-1.5 sm:grid-cols-7 md:grid-cols-9">
-          {deckShown.map((c, i) => (
-            <Tile key={i} c={c} />
-          ))}
-        </div>
+        {fanDone ? (
+          <div className="border-border bg-surface mt-4 flex flex-col items-center gap-4 rounded-xl border px-4 py-14">
+            <p className="text-sm font-semibold">{t('fanDone')}</p>
+            <button
+              type="button"
+              onClick={finishScan}
+              className="bg-red rounded-xl px-6 py-3 text-sm font-bold text-white"
+            >
+              {t('makeAnswer')}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPacketIdx((p) => p + 1)}
+            aria-label={t('fanTap')}
+            className="relative mt-2 block h-[320px] w-full cursor-pointer overflow-hidden rounded-xl sm:h-[380px]"
+          >
+            {current.map((c, i) => (
+              <FanCard key={`${packetIdx}-${i}`} c={c} i={i} n={current.length} />
+            ))}
+            <span className="text-text-faint absolute right-0 bottom-2 left-0 text-center text-xs">
+              {t('fanTap')}
+            </span>
+          </button>
+        )}
       </div>
     );
   }
@@ -417,7 +546,7 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
       <div className="flex gap-3">
         <button
           type="button"
-          onClick={() => start(mode)}
+          onClick={() => void start(mode)}
           className="bg-red flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white"
         >
           <RotateCcw className="h-4 w-4" aria-hidden /> {t('replay')}

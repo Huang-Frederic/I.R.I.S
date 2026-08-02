@@ -40,7 +40,9 @@ export const DRILL_DECK: DrillCard[] = [
   { id: 'me2-5_256', name: 'Ordres du Boss', count: 2, category: 'trainer' },
   { id: 'sv8_250', name: 'Montagne Gravité', count: 2, category: 'trainer' },
   { id: 'me1_175', name: 'Super Bonbon', count: 2, category: 'trainer' },
-  { id: 'me5_104', name: 'Bracelet Vaillant', count: 2, category: 'trainer' },
+  // rsv10-5_80 plutôt que le print Pitch Black (me5_104) : TCGdex n'a pas
+  // encore son image (HTTP 404), celle-ci vient des parties importées.
+  { id: 'rsv10-5_80', name: 'Bracelet Vaillant', count: 2, category: 'trainer' },
   { id: 'sv9_156', name: 'Billet à Échanger', count: 1, category: 'trainer' },
   { id: 'me4_113', name: 'Carton Rouge Spécial', count: 1, category: 'trainer' },
   { id: 'sv6_163', name: 'Boîte à Secrets', count: 1, category: 'trainer' },
@@ -51,7 +53,9 @@ export const DRILL_DECK: DrillCard[] = [
   { id: 'sv3_230', name: 'Énergie Feu', count: 5, category: 'energy' },
 ];
 
-/** The 10 counts the drill asks for — Yasmin's P1 list, in scan order. */
+/** The counts the drill asks for — Yasmin's P1 list, in scan order. The
+ *  recovery trio (Cendre, Civière, Néphie) is deliberately out for now:
+ *  Frédéric trains the core seven first and will add them back later. */
 export const DRILL_TARGET_IDS: string[] = [
   'sv10_32', // Héricendre
   'sv10_33', // Feurisson
@@ -60,7 +64,4 @@ export const DRILL_TARGET_IDS: string[] = [
   'sv3_230', // Énergie
   'sv9_156', // Billet à Échanger
   'sv6_163', // Boîte à Secrets
-  'sv10_168', // Cendre Sacrée
-  'me1_173', // Civière Nocturne
-  'sv6_207', // Soutien de Néphie
 ];
