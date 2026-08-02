@@ -1110,7 +1110,7 @@
     "cat_trainer": "训练家",
     "cat_energy": "能量",
     "loadingCards": "加载卡牌中… {done}/{total}",
-    "fanTap": "点击将这些牌放回牌库",
+    "fanTap": "滑动扇形浏览你的牌库",
     "fanSeen": "已看 {seen}/{total}",
     "fanDone": "牌库翻完了 — 该你了。",
     "makeAnswer": "提交答案"

@@ -1110,7 +1110,7 @@
     "cat_trainer": "トレーナーズ",
     "cat_energy": "エネルギー",
     "loadingCards": "カード読み込み中… {done}/{total}",
-    "fanTap": "タップしてカードをデッキに戻す",
+    "fanTap": "スワイプしてデッキをめくる",
     "fanSeen": "{seen}/{total}枚確認",
     "fanDone": "デッキを見終わった — 答えよう。",
     "makeAnswer": "回答する"

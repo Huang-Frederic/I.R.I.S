@@ -1110,7 +1110,7 @@
     "cat_trainer": "Dresseur",
     "cat_energy": "Énergie",
     "loadingCards": "Chargement des cartes… {done}/{total}",
-    "fanTap": "Touche pour reposer ces cartes sur le deck",
+    "fanTap": "Fais glisser l'éventail pour parcourir ton deck",
     "fanSeen": "{seen}/{total} vues",
     "fanDone": "Deck parcouru — à toi.",
     "makeAnswer": "Faire mon rendu"

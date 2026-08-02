@@ -1110,7 +1110,7 @@
     "cat_trainer": "Trainer",
     "cat_energy": "Energy",
     "loadingCards": "Loading cards… {done}/{total}",
-    "fanTap": "Tap to put these cards back on the deck",
+    "fanTap": "Swipe the fan to thumb through your deck",
     "fanSeen": "{seen}/{total} seen",
     "fanDone": "Deck fully fanned — your call.",
     "makeAnswer": "Give my answer"

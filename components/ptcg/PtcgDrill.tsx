@@ -25,8 +25,11 @@ interface RunRecord {
 /** v2: the target list changed (7 counts) — old 10-count records don't compare. */
 const STORAGE = 'iris-drill-425-v2';
 const LIMIT = 45;
-/** Cards per fan packet — roughly what a hand holds while riffling a deck. */
-const PACKET = 5;
+/** Fan geometry: card width and the exposed sliver per overlapped card. The
+ *  sliver shows each card's top-left corner — the name — exactly what a real
+ *  fan exposes while thumbing through a deck. */
+const CARD_W = 160;
+const SLIVER = 56;
 
 const loadRuns = (): { runs: RunRecord[]; streak: number } => {
   try {
@@ -58,7 +61,7 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
   const [prizes, setPrizes] = useState<Copy[]>([]);
   const [hand, setHand] = useState<Copy[]>([]);
   const [deckShown, setDeckShown] = useState<Copy[]>([]);
-  const [packetIdx, setPacketIdx] = useState(0);
+  const [seen, setSeen] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
   const [answers, setAnswers] = useState<Record<string, number>>({});
@@ -130,7 +133,7 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
       setPrizes(shuffled.slice(h.length, h.length + 6));
       setDeckShown(shuffled.slice(h.length + 6));
       setAnswers({});
-      setPacketIdx(0);
+      setSeen(0);
       setElapsed(0);
       // Gate on the images: the timer only starts once every card can render.
       if (!preloadedRef.current) {
@@ -181,13 +184,13 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
   const best = records.runs.filter((r) => r.score === targets.length).sort((a, b) => a.time - b.time)[0];
   const perfects = records.runs.filter((r) => r.score === targets.length && r.time <= LIMIT).length;
 
-  const packets = useMemo(() => {
-    const out: Copy[][] = [];
-    for (let i = 0; i < deckShown.length; i += PACKET) out.push(deckShown.slice(i, i + PACKET));
-    return out;
-  }, [deckShown]);
-  const fanDone = packetIdx >= packets.length;
-  const seen = Math.min(packetIdx * PACKET, deckShown.length);
+  /** How deep into the fan the right edge of the viewport is — the natural
+   *  reading position while sliding through. */
+  const onFanScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const reach = el.scrollLeft + el.clientWidth - CARD_W;
+    setSeen(Math.max(0, Math.min(deckShown.length, Math.round(reach / SLIVER) + 1)));
+  };
 
   /* ---------------------------------------------------------------- tiles */
   const Tile = ({ c, small }: { c: Copy; small?: boolean }) => {
@@ -210,40 +213,6 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
         <span className="text-text-faint text-[8px] tracking-wide uppercase">
           {t(`cat_${c.category}` as 'cat_poke')}
         </span>
-      </div>
-    );
-  };
-
-  /** A fan card — bigger art, held-in-hand angle. */
-  const FanCard = ({ c, i, n }: { c: Copy; i: number; n: number }) => {
-    const mid = (n - 1) / 2;
-    const url = images[c.id];
-    return (
-      <div
-        className="absolute bottom-3 left-1/2 w-40 select-none motion-safe:transition-transform sm:w-48"
-        style={{
-          transform: `translateX(calc(-50% + ${(i - mid) * 54}px)) rotate(${(i - mid) * 7}deg)`,
-          transformOrigin: 'bottom center',
-          zIndex: i,
-        }}
-      >
-        {url && !broken.has(c.id) ? (
-          <Image
-            src={`${url}/low.webp`}
-            alt={c.name}
-            width={245}
-            height={337}
-            unoptimized
-            className="h-auto w-full rounded-[4.5%] shadow-lg"
-          />
-        ) : (
-          <div className="border-border bg-surface-2 flex aspect-[63/88] w-full flex-col justify-between rounded-lg border-2 p-3 shadow-lg">
-            <span className="text-sm leading-tight font-bold break-words">{c.name}</span>
-            <span className="text-text-faint text-[10px] tracking-wide uppercase">
-              {t(`cat_${c.category}` as 'cat_poke')}
-            </span>
-          </div>
-        )}
       </div>
     );
   };
@@ -348,7 +317,6 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
   }
 
   if (view === 'scan') {
-    const current = packets[packetIdx] ?? [];
     return (
       <div>
         <div className="bg-bg border-border sticky top-0 z-10 -mx-1 flex items-center gap-3 border-b px-1 py-2.5">
@@ -385,32 +353,59 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
           </div>
         )}
 
-        {fanDone ? (
-          <div className="border-border bg-surface mt-4 flex flex-col items-center gap-4 rounded-xl border px-4 py-14">
-            <p className="text-sm font-semibold">{t('fanDone')}</p>
-            <button
-              type="button"
-              onClick={finishScan}
-              className="bg-red rounded-xl px-6 py-3 text-sm font-bold text-white"
-            >
-              {t('makeAnswer')}
-            </button>
+        {/* The fan: one continuous overlapped strip, thumbed through with a
+            native horizontal swipe. Each card exposes its top-left corner —
+            the name — exactly what a real fan shows while searching. */}
+        <div onScroll={onFanScroll} className="mt-3 touch-pan-x overflow-x-auto overscroll-x-contain">
+          <div className="flex items-end py-5 pr-4 pl-4" style={{ width: 'max-content' }}>
+            {deckShown.map((c, i) => {
+              const url = images[c.id];
+              return (
+                <div
+                  key={i}
+                  className="relative shrink-0 select-none"
+                  style={{
+                    width: CARD_W,
+                    marginLeft: i === 0 ? 0 : SLIVER - CARD_W,
+                    transform: `rotate(${((i % 3) - 1) * 1.1}deg)`,
+                    transformOrigin: 'bottom center',
+                  }}
+                >
+                  {url && !broken.has(c.id) ? (
+                    <Image
+                      src={`${url}/low.webp`}
+                      alt={c.name}
+                      width={245}
+                      height={337}
+                      unoptimized
+                      draggable={false}
+                      className="pointer-events-none h-auto w-full rounded-[4.5%] shadow-md"
+                    />
+                  ) : (
+                    <div className="border-border bg-surface-2 flex aspect-[63/88] w-full flex-col justify-between rounded-lg border-2 p-2.5 shadow-md">
+                      <span className="text-[13px] leading-tight font-bold break-words">{c.name}</span>
+                      <span className="text-text-faint text-[9px] tracking-wide uppercase">
+                        {t(`cat_${c.category}` as 'cat_poke')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {/* End cap — reached only once the whole deck has been fanned. */}
+            <div className="relative ml-6 flex shrink-0 flex-col items-center justify-center gap-3 self-stretch pr-2">
+              <p className="text-text-muted text-xs font-semibold whitespace-nowrap">{t('fanDone')}</p>
+              <button
+                type="button"
+                onClick={finishScan}
+                className="bg-red rounded-xl px-5 py-3 text-sm font-bold whitespace-nowrap text-white"
+              >
+                {t('makeAnswer')}
+              </button>
+            </div>
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setPacketIdx((p) => p + 1)}
-            aria-label={t('fanTap')}
-            className="relative mt-2 block h-[320px] w-full cursor-pointer overflow-hidden rounded-xl sm:h-[380px]"
-          >
-            {current.map((c, i) => (
-              <FanCard key={`${packetIdx}-${i}`} c={c} i={i} n={current.length} />
-            ))}
-            <span className="text-text-faint absolute right-0 bottom-2 left-0 text-center text-xs">
-              {t('fanTap')}
-            </span>
-          </button>
-        )}
+        </div>
+        <p className="text-text-faint mt-1 text-center text-xs">{t('fanTap')}</p>
       </div>
     );
   }
