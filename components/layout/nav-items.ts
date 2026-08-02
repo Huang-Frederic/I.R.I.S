@@ -10,6 +10,7 @@ import {
   CalendarDays,
   Stamp,
   Swords,
+  Crosshair,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -27,7 +28,8 @@ export interface NavItem {
     | 'options'
     | 'logs'
     | 'stamps'
-    | 'ptcg';
+    | 'ptcg'
+    | 'drill';
   icon: LucideIcon;
 }
 
@@ -40,6 +42,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/vinted', labelKey: 'vinted', icon: Tag },
   { href: '/stock', labelKey: 'stock', icon: Package },
   { href: '/ptcg', labelKey: 'ptcg', icon: Swords },
+  { href: '/drill', labelKey: 'drill', icon: Crosshair },
   { href: '/events', labelKey: 'events', icon: CalendarDays },
   { href: '/logs', labelKey: 'logs', icon: Activity },
   { href: '/options', labelKey: 'options', icon: Settings },
