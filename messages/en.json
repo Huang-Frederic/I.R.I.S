@@ -1067,7 +1067,8 @@
     "importHint": "Two formats accepted: the log copied straight from PTCG Live (game shown without annotations), or the full JSON returned by the coach (game + debrief). Re-importing the JSON later attaches the analysis to the same game.",
     "importSubmit": "Import",
     "importDropJson": "…or drop the coach's .json file",
-    "importJsonNeedsRaw": "This JSON does not embed the log (\"raw\" field). Paste the coach's full JSON, or the raw log."
+    "importJsonNeedsRaw": "This JSON does not embed the log (\"raw\" field). Paste the coach's full JSON, or the raw log.",
+    "statsLink": "Stats"
   },
   "drill": {
     "metaTitle": "Drill — I.R.I.S",
@@ -1114,5 +1115,38 @@
     "fanSeen": "{seen}/{total} seen",
     "fanDone": "Deck fully fanned — your call.",
     "makeAnswer": "Give my answer"
+  },
+  "ptcgStats": {
+    "metaTitle": "Stats — I.R.I.S",
+    "pageTitle": "Deck stats",
+    "pageSubtitle": "{count, plural, =0 {No games} one {Over 1 game} other {Over # games}} imported.",
+    "backToGames": "Back to games",
+    "emptyTitle": "No games to analyse",
+    "emptyBody": "Import logs in Duels → Import. Stats are computed automatically over all your games — nothing to re-paste.",
+    "kpiGames": "Games",
+    "kpiWinrate": "Winrate",
+    "kpiRecord": "Record",
+    "kpiScore": "Avg score",
+    "sectionOpening": "Openings",
+    "mulligan": "Games with a mulligan",
+    "mulliganHint": "An opening hand with no Basic Pokémon",
+    "energyT1": "Energy attached on turn 1",
+    "benchT1": "Benched Pokémon end of turn 1 (avg)",
+    "starterDist": "Opening Active Pokémon",
+    "sectionSetup": "Setup speed",
+    "feurissonT2": "Quilava in play ≤ T2",
+    "typhlosionT3": "Typhlosion in play ≤ T3",
+    "energyPerTurn": "Energy attached / turn",
+    "sectionEngine": "Engine",
+    "adlPerGame": "Ethan's Adventures played / game",
+    "abilitiesTitle": "Abilities triggered",
+    "noAbilities": "No abilities detected.",
+    "perGame": "{avg} / game",
+    "sectionMatchups": "By matchup",
+    "colDeck": "Opposing deck",
+    "colGames": "Games",
+    "colRecord": "Record",
+    "colWinrate": "WR",
+    "footnote": "Extracted from your raw battle logs (FR client). An exotic phrasing may under-count a line, never skew a game result."
   }
 }

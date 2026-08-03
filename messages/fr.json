@@ -1067,7 +1067,8 @@
     "importHint": "Deux formats acceptés : le log copié tel quel depuis PTCG Live (partie affichée sans annotations), ou le JSON complet rendu par le coach (partie + débrief). Ré-importer le JSON plus tard rattache l'analyse à la même partie.",
     "importSubmit": "Importer",
     "importDropJson": "…ou dépose le fichier .json du coach",
-    "importJsonNeedsRaw": "Ce JSON ne contient pas le log (champ « raw »). Colle le JSON complet rendu par le coach, ou le log brut."
+    "importJsonNeedsRaw": "Ce JSON ne contient pas le log (champ « raw »). Colle le JSON complet rendu par le coach, ou le log brut.",
+    "statsLink": "Stats"
   },
   "drill": {
     "metaTitle": "Drill — I.R.I.S",
@@ -1114,5 +1115,38 @@
     "fanSeen": "{seen}/{total} vues",
     "fanDone": "Deck parcouru — à toi.",
     "makeAnswer": "Faire mon rendu"
+  },
+  "ptcgStats": {
+    "metaTitle": "Stats — I.R.I.S",
+    "pageTitle": "Stats du deck",
+    "pageSubtitle": "{count, plural, =0 {Aucune partie} one {Sur 1 partie} other {Sur # parties}} importées.",
+    "backToGames": "Retour aux parties",
+    "emptyTitle": "Aucune partie à analyser",
+    "emptyBody": "Importe des logs dans Duels → Importer. Les stats se calculent automatiquement sur toutes tes parties, sans rien recoller.",
+    "kpiGames": "Parties",
+    "kpiWinrate": "Winrate",
+    "kpiRecord": "Bilan",
+    "kpiScore": "Score moyen",
+    "sectionOpening": "Départs",
+    "mulligan": "Parties avec misère",
+    "mulliganHint": "Une main de départ sans Pokémon de base",
+    "energyT1": "Énergie attachée au tour 1",
+    "benchT1": "Pokémon au banc fin de tour 1 (moy.)",
+    "starterDist": "Pokémon Actif de départ",
+    "sectionSetup": "Vitesse de setup",
+    "feurissonT2": "Feurisson en jeu ≤ T2",
+    "typhlosionT3": "Typhlosion en jeu ≤ T3",
+    "energyPerTurn": "Énergie attachée / tour",
+    "sectionEngine": "Moteur",
+    "adlPerGame": "Aventures de Luth jouées / partie",
+    "abilitiesTitle": "Talents déclenchés",
+    "noAbilities": "Aucun talent détecté.",
+    "perGame": "{avg} / partie",
+    "sectionMatchups": "Par matchup",
+    "colDeck": "Deck adverse",
+    "colGames": "Parties",
+    "colRecord": "Bilan",
+    "colWinrate": "WR",
+    "footnote": "Extrait des logs bruts de tes parties (client FR). Une formulation exotique peut sous-compter une ligne, jamais fausser un résultat de partie."
   }
 }

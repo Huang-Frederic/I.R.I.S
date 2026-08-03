@@ -1067,7 +1067,8 @@
     "importHint": "支持两种格式：直接从 PTCG Live 复制的日志（无注释显示），或教练返回的完整 JSON（对局＋复盘）。之后重新导入 JSON 会将分析附加到同一对局。",
     "importSubmit": "导入",
     "importDropJson": "…或拖入教练的 .json 文件",
-    "importJsonNeedsRaw": "该 JSON 不包含日志（raw 字段）。请粘贴教练的完整 JSON，或原始日志。"
+    "importJsonNeedsRaw": "该 JSON 不包含日志（raw 字段）。请粘贴教练的完整 JSON，或原始日志。",
+    "statsLink": "统计"
   },
   "drill": {
     "metaTitle": "训练 — I.R.I.S",
@@ -1114,5 +1115,38 @@
     "fanSeen": "已看 {seen}/{total}",
     "fanDone": "牌库翻完了 — 该你了。",
     "makeAnswer": "提交答案"
+  },
+  "ptcgStats": {
+    "metaTitle": "统计 — I.R.I.S",
+    "pageTitle": "卡组统计",
+    "pageSubtitle": "已导入 {count, plural, other {# 场}}对局。",
+    "backToGames": "返回对局",
+    "emptyTitle": "暂无可分析的对局",
+    "emptyBody": "在对决→导入中粘贴日志。统计会自动基于你所有对局计算，无需重新粘贴。",
+    "kpiGames": "对局",
+    "kpiWinrate": "胜率",
+    "kpiRecord": "战绩",
+    "kpiScore": "平均分",
+    "sectionOpening": "开局",
+    "mulligan": "出现调度的对局",
+    "mulliganHint": "起手无基础宝可梦",
+    "energyT1": "第1回合附着能量",
+    "benchT1": "第1回合结束时备战区数量（平均）",
+    "starterDist": "开局前排宝可梦",
+    "sectionSetup": "铺场速度",
+    "feurissonT2": "火岩鼠在场 ≤ T2",
+    "typhlosionT3": "火暴兽在场 ≤ T3",
+    "energyPerTurn": "每回合附着能量",
+    "sectionEngine": "引擎",
+    "adlPerGame": "每局使用阿响的冒险次数",
+    "abilitiesTitle": "触发的特性",
+    "noAbilities": "未检测到特性。",
+    "perGame": "{avg} / 局",
+    "sectionMatchups": "按对阵",
+    "colDeck": "对手卡组",
+    "colGames": "对局",
+    "colRecord": "战绩",
+    "colWinrate": "胜率",
+    "footnote": "从你的原始对战日志（法语客户端）提取。特殊表述可能少计一行，但绝不会歪曲对局结果。"
   }
 }

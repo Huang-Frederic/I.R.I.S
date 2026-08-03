@@ -1067,7 +1067,8 @@
     "importHint": "2つの形式に対応：PTCG Liveからそのままコピーしたログ（注釈なしで表示）、またはコーチが返す完全なJSON（対戦＋デブリーフ）。後からJSONを再インポートすると、同じ対戦に分析が追加されます。",
     "importSubmit": "インポート",
     "importDropJson": "…またはコーチの.jsonファイルをドロップ",
-    "importJsonNeedsRaw": "このJSONにはログ（rawフィールド）が含まれていません。コーチの完全なJSONか、生ログを貼り付けてください。"
+    "importJsonNeedsRaw": "このJSONにはログ（rawフィールド）が含まれていません。コーチの完全なJSONか、生ログを貼り付けてください。",
+    "statsLink": "統計"
   },
   "drill": {
     "metaTitle": "ドリル — I.R.I.S",
@@ -1114,5 +1115,38 @@
     "fanSeen": "{seen}/{total}枚確認",
     "fanDone": "デッキを見終わった — 答えよう。",
     "makeAnswer": "回答する"
+  },
+  "ptcgStats": {
+    "metaTitle": "統計 — I.R.I.S",
+    "pageTitle": "デッキ統計",
+    "pageSubtitle": "{count, plural, other {#戦}}分をインポート済み。",
+    "backToGames": "対戦一覧へ戻る",
+    "emptyTitle": "分析する対戦がありません",
+    "emptyBody": "デュエル→インポートでログを取り込むと、全対戦の統計が自動計算されます。貼り直し不要。",
+    "kpiGames": "対戦数",
+    "kpiWinrate": "勝率",
+    "kpiRecord": "成績",
+    "kpiScore": "平均スコア",
+    "sectionOpening": "初動",
+    "mulligan": "マリガンした対戦",
+    "mulliganHint": "たねポケモンのない初手",
+    "energyT1": "1ターン目にエネルギー装着",
+    "benchT1": "1ターン目終了時のベンチ数（平均）",
+    "starterDist": "開始時のバトルポケモン",
+    "sectionSetup": "展開の速さ",
+    "feurissonT2": "マグマラシ≤T2",
+    "typhlosionT3": "バクフーン≤T3",
+    "energyPerTurn": "1ターンあたりエネルギー装着",
+    "sectionEngine": "エンジン",
+    "adlPerGame": "ヒビキの冒険の使用回数/対戦",
+    "abilitiesTitle": "発動した特性",
+    "noAbilities": "特性が検出されませんでした。",
+    "perGame": "{avg} / 対戦",
+    "sectionMatchups": "マッチアップ別",
+    "colDeck": "相手デッキ",
+    "colGames": "対戦",
+    "colRecord": "成績",
+    "colWinrate": "勝率",
+    "footnote": "生バトルログ（FRクライアント）から抽出。特殊な表記は行を数え損なうことはあっても、対戦結果を歪めることはありません。"
   }
 }

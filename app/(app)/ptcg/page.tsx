@@ -1,4 +1,6 @@
 import { getTranslations } from 'next-intl/server';
+import Link from 'next/link';
+import { BarChart3 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import PageTitle from '@/components/layout/PageTitle';
 import PtcgView, { type PtcgGameCard } from '@/components/ptcg/PtcgView';
@@ -86,7 +88,18 @@ export default async function PtcgPage() {
 
   return (
     <section>
-      <PageTitle title={t('pageTitle')} subtitle={t('pageSubtitle', { count: games.length })} />
+      <div className="flex items-start justify-between gap-3">
+        <PageTitle title={t('pageTitle')} subtitle={t('pageSubtitle', { count: games.length })} />
+        {games.length > 0 && (
+          <Link
+            href="/ptcg/stats"
+            className="border-border bg-surface hover:border-red/50 mt-1 inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition"
+          >
+            <BarChart3 className="text-red h-4 w-4" aria-hidden />
+            {t('statsLink')}
+          </Link>
+        )}
+      </div>
       <div className="mt-6">
         <PtcgView games={games} />
       </div>
