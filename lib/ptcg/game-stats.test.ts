@@ -75,6 +75,7 @@ describe('aggregateStats', () => {
     stats: extractGameStats('', 'X'),
     result: 'win',
     play_score: 100,
+    myArchetype: 'Typhlosion / Dispareptil',
     opponent_archetype: 'Dragapult',
     ...over,
   });

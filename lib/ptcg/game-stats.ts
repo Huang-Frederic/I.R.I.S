@@ -136,7 +136,19 @@ export interface GameForStats {
   stats: GameLogStats;
   result: 'win' | 'loss' | 'tie';
   play_score: number | null;
+  /** My deck version, classified from my Pokémon (see lib/ptcg/archetype). */
+  myArchetype: string;
+  /** Opponent deck, classified from their Pokémon. */
   opponent_archetype: string | null;
+}
+
+/** Distinct decks I played, most-played first — drives the version filter. */
+export function listMyArchetypes(rows: GameForStats[]): { name: string; games: number }[] {
+  const counts = new Map<string, number>();
+  for (const r of rows) counts.set(r.myArchetype, (counts.get(r.myArchetype) ?? 0) + 1);
+  return [...counts.entries()]
+    .map(([name, games]) => ({ name, games }))
+    .sort((a, b) => b.games - a.games);
 }
 
 export interface AggregatedStats {

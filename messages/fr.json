@@ -1147,6 +1147,8 @@
     "colGames": "Parties",
     "colRecord": "Bilan",
     "colWinrate": "WR",
-    "footnote": "Extrait des logs bruts de tes parties (client FR). Une formulation exotique peut sous-compter une ligne, jamais fausser un résultat de partie."
+    "footnote": "Extrait des logs bruts de tes parties (client FR). Une formulation exotique peut sous-compter une ligne, jamais fausser un résultat de partie.",
+    "deckFilter": "Version de deck",
+    "deckAll": "Toutes ({count})"
   }
 }

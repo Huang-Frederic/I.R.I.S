@@ -1,6 +1,14 @@
-import { getTranslations } from 'next-intl/server';
+'use client';
+
+import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Dices, Rocket, Flame, Swords } from 'lucide-react';
-import type { AggregatedStats } from '@/lib/ptcg/game-stats';
+import {
+  aggregateStats,
+  listMyArchetypes,
+  type GameForStats,
+  type AggregatedStats,
+} from '@/lib/ptcg/game-stats';
 
 /** A labelled horizontal meter, 0-100%. Green past 60, amber 35-60, red under. */
 function Meter({ label, pct, hint }: { label: string; pct: number; hint?: string }) {
@@ -31,10 +39,18 @@ function Card({ icon, title, children }: { icon: React.ReactNode; title: string;
   );
 }
 
-export default async function PtcgStats({ stats: s }: { stats: AggregatedStats }) {
-  const t = await getTranslations('ptcgStats');
+const ALL = '__all__';
 
-  if (s.games === 0) {
+export default function PtcgStats({ games }: { games: GameForStats[] }) {
+  const t = useTranslations('ptcgStats');
+  const decks = useMemo(() => listMyArchetypes(games), [games]);
+  // Default to the single deck if there's only one, else "all".
+  const [deck, setDeck] = useState<string>(decks.length === 1 ? decks[0].name : ALL);
+
+  const filtered = deck === ALL ? games : games.filter((g) => g.myArchetype === deck);
+  const s: AggregatedStats = useMemo(() => aggregateStats(filtered), [filtered]);
+
+  if (games.length === 0) {
     return (
       <div className="border-border bg-surface rounded-xl border px-4 py-12 text-center">
         <p className="text-sm font-semibold">{t('emptyTitle')}</p>
@@ -54,7 +70,41 @@ export default async function PtcgStats({ stats: s }: { stats: AggregatedStats }
 
   return (
     <div className="flex flex-col gap-4">
-      {/* KPI strip — the headline the whole page answers to. */}
+      {/* Deck version filter — only shown when there's more than one to pick. */}
+      {decks.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-text-muted text-xs font-semibold tracking-wide uppercase">
+            {t('deckFilter')}
+          </span>
+          <button
+            type="button"
+            onClick={() => setDeck(ALL)}
+            aria-pressed={deck === ALL}
+            className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+              deck === ALL ? 'bg-red border-red text-white' : 'border-border bg-surface hover:border-red/50'
+            }`}
+          >
+            {t('deckAll', { count: games.length })}
+          </button>
+          {decks.map((d) => (
+            <button
+              key={d.name}
+              type="button"
+              onClick={() => setDeck(d.name)}
+              aria-pressed={deck === d.name}
+              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                deck === d.name
+                  ? 'bg-red border-red text-white'
+                  : 'border-border bg-surface hover:border-red/50'
+              }`}
+            >
+              {d.name} <span className="opacity-70">· {d.games}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* KPI strip. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {kpi(t('kpiGames'), String(s.games))}
         {kpi(
@@ -66,7 +116,7 @@ export default async function PtcgStats({ stats: s }: { stats: AggregatedStats }
         {kpi(t('kpiScore'), s.avgScore != null ? s.avgScore.toFixed(0) : '—')}
       </div>
 
-      {/* Opening — mulligans and the forced Active. */}
+      {/* Opening. */}
       <Card icon={<Dices className="text-red h-4 w-4" aria-hidden />} title={t('sectionOpening')}>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-3">
@@ -103,7 +153,7 @@ export default async function PtcgStats({ stats: s }: { stats: AggregatedStats }
         </div>
       </Card>
 
-      {/* Setup speed — how fast the line comes online. */}
+      {/* Setup speed. */}
       <Card icon={<Rocket className="text-red h-4 w-4" aria-hidden />} title={t('sectionSetup')}>
         <div className="grid gap-3 sm:grid-cols-3">
           <Meter label={t('feurissonT2')} pct={s.quilavaByT2Pct} />
@@ -112,13 +162,11 @@ export default async function PtcgStats({ stats: s }: { stats: AggregatedStats }
         </div>
       </Card>
 
-      {/* Engine — fuel and free abilities. */}
+      {/* Engine. */}
       <Card icon={<Flame className="text-red h-4 w-4" aria-hidden />} title={t('sectionEngine')}>
-        <div className="flex items-baseline justify-between border-b border-border pb-2.5">
+        <div className="border-border flex items-baseline justify-between border-b pb-2.5">
           <span className="text-sm">{t('adlPerGame')}</span>
-          <span className="font-mono text-lg font-bold tabular-nums">
-            {s.adlPlayedAvg.toFixed(1)}
-          </span>
+          <span className="font-mono text-lg font-bold tabular-nums">{s.adlPlayedAvg.toFixed(1)}</span>
         </div>
         <p className="text-text-muted mt-3 mb-2 text-[11px] font-semibold tracking-wide uppercase">
           {t('abilitiesTitle')}
@@ -144,10 +192,10 @@ export default async function PtcgStats({ stats: s }: { stats: AggregatedStats }
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-text-muted text-left text-[11px] uppercase tracking-wide">
+              <tr className="text-text-muted text-left text-[11px] tracking-wide uppercase">
                 <th className="py-1.5 pr-2 font-semibold">{t('colDeck')}</th>
-                <th className="py-1.5 px-2 text-right font-semibold">{t('colGames')}</th>
-                <th className="py-1.5 px-2 text-right font-semibold">{t('colRecord')}</th>
+                <th className="px-2 py-1.5 text-right font-semibold">{t('colGames')}</th>
+                <th className="px-2 py-1.5 text-right font-semibold">{t('colRecord')}</th>
                 <th className="py-1.5 pl-2 text-right font-semibold">{t('colWinrate')}</th>
               </tr>
             </thead>
@@ -157,8 +205,8 @@ export default async function PtcgStats({ stats: s }: { stats: AggregatedStats }
                 return (
                   <tr key={a.name} className="border-border border-t">
                     <td className="py-2 pr-2">{a.name}</td>
-                    <td className="py-2 px-2 text-right font-mono tabular-nums">{a.games}</td>
-                    <td className="py-2 px-2 text-right font-mono tabular-nums">
+                    <td className="px-2 py-2 text-right font-mono tabular-nums">{a.games}</td>
+                    <td className="px-2 py-2 text-right font-mono tabular-nums">
                       {a.wins}-{a.losses}
                     </td>
                     <td
