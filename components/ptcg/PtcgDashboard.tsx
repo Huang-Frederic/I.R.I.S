@@ -1,16 +1,45 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import { Dices, Rocket, Flame, Swords } from 'lucide-react';
+import { Dices, Rocket, Flame, Swords, ListChecks } from 'lucide-react';
 import {
   aggregateStats,
   listMyArchetypes,
   type GameForStats,
   type AggregatedStats,
 } from '@/lib/ptcg/game-stats';
+import { archetypeSprite } from '@/lib/ptcg/archetype';
 
-/** A labelled horizontal meter, 0-100%. Green past 60, amber 35-60, red under. */
+/** A game row with everything the dashboard and the list below need. */
+export interface DashboardGame extends GameForStats {
+  id: string;
+  playedAt: string;
+  opponent: string;
+}
+
+const ALL = '__all__';
+
+/** A pixel sprite for an archetype, crisp-scaled. Null archetypes (ace
+ *  fallbacks) render nothing so the layout stays aligned. */
+function Sprite({ label, size = 28 }: { label: string; size?: number }) {
+  const url = archetypeSprite(label);
+  if (!url) return <span className="inline-block shrink-0" style={{ width: size, height: size }} />;
+  return (
+    <Image
+      src={url}
+      alt=""
+      width={size}
+      height={size}
+      unoptimized
+      aria-hidden
+      className="shrink-0 [image-rendering:pixelated]"
+    />
+  );
+}
+
 function Meter({ label, pct, hint }: { label: string; pct: number; hint?: string }) {
   const tone = pct >= 60 ? 'bg-emerald-500' : pct >= 35 ? 'bg-amber-500' : 'bg-red';
   return (
@@ -27,7 +56,15 @@ function Meter({ label, pct, hint }: { label: string; pct: number; hint?: string
   );
 }
 
-function Card({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function Section({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="border-border bg-surface rounded-xl border p-4">
       <h2 className="text-text-muted mb-3 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
@@ -39,13 +76,13 @@ function Card({ icon, title, children }: { icon: React.ReactNode; title: string;
   );
 }
 
-const ALL = '__all__';
-
-export default function PtcgStats({ games }: { games: GameForStats[] }) {
+export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
   const t = useTranslations('ptcgStats');
+  const tp = useTranslations('ptcg');
   const decks = useMemo(() => listMyArchetypes(games), [games]);
-  // Default to the single deck if there's only one, else "all".
-  const [deck, setDeck] = useState<string>(decks.length === 1 ? decks[0].name : ALL);
+  // Default to the deck of the most recently played game (games arrive newest
+  // first), so the dashboard opens on the list currently being played.
+  const [deck, setDeck] = useState<string>(games[0]?.myArchetype ?? ALL);
 
   const filtered = deck === ALL ? games : games.filter((g) => g.myArchetype === deck);
   const s: AggregatedStats = useMemo(() => aggregateStats(filtered), [filtered]);
@@ -67,15 +104,37 @@ export default function PtcgStats({ games }: { games: GameForStats[] }) {
   );
 
   const maxStarter = Math.max(...s.starters.map((x) => x.pct), 1);
+  const resultChip = (r: 'win' | 'loss' | 'tie') =>
+    r === 'win'
+      ? 'bg-emerald-500/15 text-emerald-500'
+      : r === 'loss'
+        ? 'bg-red/15 text-red'
+        : 'bg-surface-2 text-text-muted';
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Deck version filter — only shown when there's more than one to pick. */}
+      {/* Deck version filter — shown once there's more than one build. */}
       {decks.length > 1 && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-text-muted text-xs font-semibold tracking-wide uppercase">
             {t('deckFilter')}
           </span>
+          {decks.map((d) => (
+            <button
+              key={d.name}
+              type="button"
+              onClick={() => setDeck(d.name)}
+              aria-pressed={deck === d.name}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                deck === d.name
+                  ? 'bg-red border-red text-white'
+                  : 'border-border bg-surface hover:border-red/50'
+              }`}
+            >
+              <Sprite label={d.name} size={18} />
+              {d.name} <span className="opacity-70">· {d.games}</span>
+            </button>
+          ))}
           <button
             type="button"
             onClick={() => setDeck(ALL)}
@@ -86,21 +145,6 @@ export default function PtcgStats({ games }: { games: GameForStats[] }) {
           >
             {t('deckAll', { count: games.length })}
           </button>
-          {decks.map((d) => (
-            <button
-              key={d.name}
-              type="button"
-              onClick={() => setDeck(d.name)}
-              aria-pressed={deck === d.name}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                deck === d.name
-                  ? 'bg-red border-red text-white'
-                  : 'border-border bg-surface hover:border-red/50'
-              }`}
-            >
-              {d.name} <span className="opacity-70">· {d.games}</span>
-            </button>
-          ))}
         </div>
       )}
 
@@ -117,7 +161,7 @@ export default function PtcgStats({ games }: { games: GameForStats[] }) {
       </div>
 
       {/* Opening. */}
-      <Card icon={<Dices className="text-red h-4 w-4" aria-hidden />} title={t('sectionOpening')}>
+      <Section icon={<Dices className="text-red h-4 w-4" aria-hidden />} title={t('sectionOpening')}>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-3">
             <Meter label={t('mulligan')} pct={s.mulliganPct} hint={t('mulliganHint')} />
@@ -151,19 +195,19 @@ export default function PtcgStats({ games }: { games: GameForStats[] }) {
             </div>
           </div>
         </div>
-      </Card>
+      </Section>
 
-      {/* Setup speed. */}
-      <Card icon={<Rocket className="text-red h-4 w-4" aria-hidden />} title={t('sectionSetup')}>
+      {/* Setup speed — how fast and how early I get online. */}
+      <Section icon={<Rocket className="text-red h-4 w-4" aria-hidden />} title={t('sectionSetup')}>
         <div className="grid gap-3 sm:grid-cols-3">
           <Meter label={t('feurissonT2')} pct={s.quilavaByT2Pct} />
           <Meter label={t('typhlosionT3')} pct={s.typhlosionByT3Pct} />
           <Meter label={t('energyPerTurn')} pct={s.energyTurnsPct} />
         </div>
-      </Card>
+      </Section>
 
       {/* Engine. */}
-      <Card icon={<Flame className="text-red h-4 w-4" aria-hidden />} title={t('sectionEngine')}>
+      <Section icon={<Flame className="text-red h-4 w-4" aria-hidden />} title={t('sectionEngine')}>
         <div className="border-border flex items-baseline justify-between border-b pb-2.5">
           <span className="text-sm">{t('adlPerGame')}</span>
           <span className="font-mono text-lg font-bold tabular-nums">{s.adlPlayedAvg.toFixed(1)}</span>
@@ -185,10 +229,10 @@ export default function PtcgStats({ games }: { games: GameForStats[] }) {
             ))}
           </ul>
         )}
-      </Card>
+      </Section>
 
-      {/* Matchup breakdown. */}
-      <Card icon={<Swords className="text-red h-4 w-4" aria-hidden />} title={t('sectionMatchups')}>
+      {/* Matchups, with a pixel sprite per opposing archetype. */}
+      <Section icon={<Swords className="text-red h-4 w-4" aria-hidden />} title={t('sectionMatchups')}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -204,7 +248,12 @@ export default function PtcgStats({ games }: { games: GameForStats[] }) {
                 const wr = a.games ? (a.wins / a.games) * 100 : 0;
                 return (
                   <tr key={a.name} className="border-border border-t">
-                    <td className="py-2 pr-2">{a.name}</td>
+                    <td className="py-2 pr-2">
+                      <span className="flex items-center gap-2">
+                        <Sprite label={a.name} />
+                        {a.name}
+                      </span>
+                    </td>
                     <td className="px-2 py-2 text-right font-mono tabular-nums">{a.games}</td>
                     <td className="px-2 py-2 text-right font-mono tabular-nums">
                       {a.wins}-{a.losses}
@@ -222,7 +271,40 @@ export default function PtcgStats({ games }: { games: GameForStats[] }) {
             </tbody>
           </table>
         </div>
-      </Card>
+      </Section>
+
+      {/* The games themselves, newest first, tap to replay. */}
+      <Section icon={<ListChecks className="text-red h-4 w-4" aria-hidden />} title={t('sectionGames')}>
+        <ul className="divide-border divide-y">
+          {filtered.map((g) => (
+            <li key={g.id}>
+              <Link
+                href={`/ptcg/${g.id}`}
+                className="hover:bg-surface-2 -mx-2 flex items-center gap-3 rounded-lg px-2 py-2 transition"
+              >
+                <span
+                  className={`w-12 shrink-0 rounded px-1.5 py-0.5 text-center text-[11px] font-bold ${resultChip(g.result)}`}
+                >
+                  {tp(`result_${g.result}` as 'result_win')}
+                </span>
+                <Sprite label={g.opponent_archetype ?? ''} />
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {g.opponent_archetype ?? g.opponent}
+                  <span className="text-text-faint ml-2 text-xs">{g.opponent}</span>
+                </span>
+                {g.play_score != null && (
+                  <span className="text-text-muted shrink-0 font-mono text-xs tabular-nums">
+                    {g.play_score}
+                  </span>
+                )}
+                <span className="text-text-faint shrink-0 text-xs tabular-nums">
+                  {g.playedAt.slice(0, 10)}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </Section>
 
       <p className="text-text-faint text-center text-[11px] leading-relaxed">{t('footnote')}</p>
     </div>

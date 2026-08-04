@@ -1149,6 +1149,7 @@
     "colWinrate": "勝率",
     "footnote": "生バトルログ（FRクライアント）から抽出。特殊な表記は行を数え損なうことはあっても、対戦結果を歪めることはありません。",
     "deckFilter": "デッキ版",
-    "deckAll": "すべて ({count})"
+    "deckAll": "すべて ({count})",
+    "sectionGames": "対戦"
   }
 }

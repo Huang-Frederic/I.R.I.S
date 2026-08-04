@@ -1149,6 +1149,7 @@
     "colWinrate": "胜率",
     "footnote": "从你的原始对战日志（法语客户端）提取。特殊表述可能少计一行，但绝不会歪曲对局结果。",
     "deckFilter": "卡组版本",
-    "deckAll": "全部 ({count})"
+    "deckAll": "全部 ({count})",
+    "sectionGames": "对局"
   }
 }

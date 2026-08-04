@@ -29,15 +29,30 @@ describe('extractPokemon', () => {
 });
 
 describe('classifyMyDeck', () => {
-  it('names the deck by the line + partner, even if I never reached Stage 2', () => {
-    // rocket.txt case: no Typhlosion in play, but Héricendre + Fantyrm is enough.
-    const pk = new Set(['Héricendre de Luth', 'Feurisson de Luth', 'Fantyrm', 'Victini']);
-    expect(classifyMyDeck(pk)).toBe('Typhlosion / Dispareptil');
+  it('names the old build from its Drakloak draw engine', () => {
+    const log = [
+      'Hisshiden a joué (x) Héricendre de Luth sur le Banc.',
+      'Hisshiden a joué (y) Fantyrm sur le Banc.',
+    ].join('\n');
+    expect(classifyMyDeck(log, 'Hisshiden')).toBe('Typhlosion / Drakloak');
   });
 
-  it('distinguishes the Dudunsparce build', () => {
-    const pk = new Set(['Typhlosion de Luth', 'Deusolourdo', 'Insolourdo']);
-    expect(classifyMyDeck(pk)).toBe('Typhlosion / Deusolourdo');
+  it('uses MY cards only — the opponent playing Dudunsparce must not relabel me', () => {
+    const log = [
+      'Hisshiden a joué (x) Fantyrm sur le Banc.',
+      'Luigi a joué (y) Insolourdo sur le Banc.', // opponent's engine
+    ].join('\n');
+    expect(classifyMyDeck(log, 'Hisshiden')).toBe('Typhlosion / Drakloak');
+  });
+
+  it('defaults to the current Dudunsparce build when no old-deck signal is present', () => {
+    const log = 'Hisshiden a joué (x) Héricendre de Luth sur le Poste Actif.';
+    expect(classifyMyDeck(log, 'Hisshiden')).toBe('Typhlosion / Dudunsparce');
+  });
+
+  it('reads the Dudunsparce build from a distinguishing trainer', () => {
+    const log = 'Hisshiden a joué (x) Tour Prismatique comme Stade.';
+    expect(classifyMyDeck(log, 'Hisshiden')).toBe('Typhlosion / Dudunsparce');
   });
 });
 

@@ -1149,6 +1149,7 @@
     "colWinrate": "WR",
     "footnote": "Extracted from your raw battle logs (FR client). An exotic phrasing may under-count a line, never skew a game result.",
     "deckFilter": "Deck version",
-    "deckAll": "All ({count})"
+    "deckAll": "All ({count})",
+    "sectionGames": "The games"
   }
 }

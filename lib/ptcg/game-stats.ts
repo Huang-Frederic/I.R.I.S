@@ -10,6 +10,9 @@
  */
 
 export interface GameLogStats {
+  /** Re-derived from the log's own end line — corrects a stored 'tie' that was
+   *  actually a concede loss. Null when no winner line was found (true tie). */
+  result: 'win' | 'loss' | 'tie';
   /** My turn count (turns where the "Tour de X" header is mine). */
   myTurns: number;
   mulligansMe: number;
@@ -49,8 +52,12 @@ export function extractGameStats(raw: string, me: string): GameLogStats {
   // also contains " de " (Typhlosion de Luth), so capture the trailing token,
   // not a lazy run. PTCG Live usernames have no spaces.
   const reKo = / de (\S+) a été mis K\.O\./;
+  // Every end phrasing ends in "<player> gagne." — capture the winner from any
+  // of them (prizes taken, deck-out, concede by either side).
+  const reWin = /(?:^|\. )(\S+) gagne\.\s*$/;
 
   const out: GameLogStats = {
+    result: 'tie',
     myTurns: 0,
     mulligansMe: 0,
     mulligansOpp: 0,
@@ -124,6 +131,8 @@ export function extractGameStats(raw: string, me: string): GameLogStats {
       if (ko[1] === me) out.kosTaken++;
       else out.kosDealt++;
     }
+    const win = reWin.exec(line);
+    if (win) out.result = win[1] === me ? 'win' : 'loss';
   }
   if (onMyTurn && energyThisTurn) out.energyTurns++;
 

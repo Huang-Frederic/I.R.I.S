@@ -263,6 +263,13 @@ export function tokenize(raw: string): PtcgTokenizeResult {
       new RegExp(`^L['’]adversaire a concédé la partie\\. (${P}) gagne\\.$`),
       (m) => ({ winner: m[1], byConcession: true }),
     ],
+    // The exporting player conceding. Without this the game had no winner line
+    // and read as a tie — so a concede showed up as a draw instead of a loss.
+    [
+      'game-end',
+      new RegExp(`^Vous avez concédé la partie\\. (${P}) gagne\\.$`),
+      (m) => ({ winner: m[1], byConcession: true }),
+    ],
     [
       'game-end',
       new RegExp(`^L['’]adversaire a récupéré toutes ses cartes Récompense\\. (${P}) gagne\\.$`),

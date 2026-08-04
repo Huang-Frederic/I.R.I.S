@@ -1,16 +1,16 @@
 /**
  * Deck archetype classification from the Pokémon a battle log reveals.
  *
- * Two jobs:
- *  - name MY deck by its Pokémon (Typhlosion + Dudunsparce vs Typhlosion +
- *    Drakloak), so stats can be split by the version I was actually playing;
- *  - name the OPPONENT deck by its key Pokémon (Dragapult + Blaziken →
- *    "Dragapult / Blaziken"), for the matchup table.
+ *  - name MY deck from MY cards (the Dudunsparce build vs the old Drakloak
+ *    build), so stats can be filtered to the list I'm actually playing;
+ *  - name the OPPONENT deck from their key Pokémon (Dragapult + Blaziken →
+ *    "Dragapult / Blaziken"), for the matchup table, with a national-dex number
+ *    per archetype so the UI can show a pixel sprite.
  *
- * Names are FRENCH (the client language of the logs). Matching is
- * accent-insensitive "contains", so prefixes fold in: "Zacian-ex de Nabil"
- * matches the "Zacian" key, "Migalos de Beladonis" matches "Migalos". A deck
- * that matches no rule falls back to its key card, never to a guess.
+ * Names are FRENCH (the client language). Matching is accent-insensitive
+ * "contains", so prefixes fold in: "Zacian-ex de Nabil" matches "zacian",
+ * "Corboss de la Team Rocket" matches "corboss". A deck that matches no rule
+ * falls back to its ace card, never to a guess.
  */
 
 const norm = (s: string) =>
@@ -19,103 +19,125 @@ const norm = (s: string) =>
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase();
 
-/** A rule matches when every GROUP is satisfied (AND between groups), and a
- *  group is satisfied when any of its FR base-name keys is present (OR within a
- *  group). This is what lets a rule survive a bad game: "the Typhlosion line"
- *  is [Cyndaquil OR Quilava OR Typhlosion], so a game that never reached the
- *  Stage 2 still classifies. Ordered most-specific first. */
-interface Rule {
+/** A rule matches when every GROUP is satisfied (AND between groups), a group
+ *  when any of its FR base-name keys is present (OR within a group). Listing a
+ *  whole evolution line in one group lets a game where the ace never evolved
+ *  still classify. `dex` is the national number of the sprite to show. */
+export interface Rule {
   label: string;
   groups: string[][];
+  dex: number;
 }
 
-/** The Typhlosion line — any stage identifies it (I don't always evolve up). */
-const TYPHLO_LINE = ['typhlosion', 'feurisson', 'hericendre'];
-
-/** MY decks — matched against the Pokémon on my side of the log. */
-export const MY_ARCHETYPES: Rule[] = [
-  { label: 'Typhlosion / Deusolourdo', groups: [TYPHLO_LINE, ['deusolourdo', 'insolourdo']] },
-  { label: 'Typhlosion / Dispareptil', groups: [TYPHLO_LINE, ['dispareptil', 'fantyrm']] },
-  { label: 'Typhlosion', groups: [TYPHLO_LINE] },
+/** MY decks. `signals` are cards that ONLY my version of that deck runs (so a
+ *  game is attributed even when the ace didn't come down). Checked against the
+ *  cards I actually played — see classifyMyDeck. */
+interface MyRule {
+  label: string;
+  signals: string[];
+  dex: number;
+}
+export const MY_ARCHETYPES: MyRule[] = [
+  {
+    label: 'Typhlosion / Dudunsparce',
+    // Dudunsparce engine + trainers unique to the new list.
+    signals: ['insolourdo', 'deusolourdo', 'tour prismatique', 'casque chance', 'combat final de gladio'],
+    dex: 982,
+  },
+  {
+    label: 'Typhlosion / Drakloak',
+    signals: ['dispareptil', 'fantyrm'],
+    dex: 886,
+  },
 ];
 
 /**
- * OPPONENT decks. FR Pokémon names (game-official, stable) for the current
- * Standard meta plus what Frédéric has already faced. Each ace is listed by
- * its whole line so a game where it never evolved still classifies. Add a row
- * when a new archetype shows up — an unknown deck falls back to its ace.
+ * OPPONENT decks — the current Standard meta (Limitless, top ~30) plus decks
+ * Frédéric has faced. FR Pokémon names are game-official and stable. Ordered
+ * most-specific first so two-Pokémon signatures win over one-Pokémon aces.
  */
 export const OPPONENT_ARCHETYPES: Rule[] = [
-  // Two-Pokémon signatures first.
-  { label: 'Dragapult / Blaziken', groups: [['lanssorien'], ['brasegali', 'galifeu', 'poussifeu']] },
-  { label: 'Dragapult / Dusknoir', groups: [['lanssorien'], ['noctunoir', 'skelenox', 'teraclope']] },
-  { label: 'Grimmsnarl / Froslass', groups: [['migalos'], ['momartik', 'stalgamin']] },
-  { label: 'Lucario / Hariyama', groups: [['lucario', 'riolu'], ['hariyama', 'makuhita']] },
-  { label: 'Alakazam / Dudunsparce', groups: [['alakazam', 'abra'], ['deusolourdo', 'insolourdo']] },
-  { label: 'Ogerpon / Hydrapple', groups: [['ogerpon'], ['pomdorochi', 'pomdramour']] },
-  { label: 'Raging Bolt / Ogerpon', groups: [['ire-foudre'], ['ogerpon']] },
+  // Two-Pokémon signatures.
+  { label: 'Dragapult / Blaziken', groups: [['lanssorien'], ['brasegali', 'galifeu', 'poussifeu']], dex: 257 },
+  { label: 'Dragapult / Dusknoir', groups: [['lanssorien'], ['noctunoir', 'teraclope', 'skelenox']], dex: 477 },
+  { label: 'Grimmsnarl / Froslass', groups: [['migalos', 'grimalin', 'fermeton'], ['momartik', 'stalgamin']], dex: 861 },
+  { label: 'Lucario / Hariyama', groups: [['lucario', 'riolu'], ['hariyama', 'makuhita']], dex: 448 },
+  { label: 'Alakazam / Dudunsparce', groups: [['alakazam', 'abra', 'kadabra'], ['deusolourdo', 'insolourdo']], dex: 65 },
+  { label: 'Ogerpon / Hydrapple', groups: [['ogerpon', 'meganium', 'macronium', 'germignon'], ['pomdramour', 'pomdorochi', 'verpom']], dex: 1019 },
+  { label: 'Raging Bolt / Ogerpon', groups: [['ire-foudre'], ['ogerpon']], dex: 1021 },
+  { label: 'Blaziken / Zoroark', groups: [['brasegali', 'galifeu'], ['zoroark', 'zorua']], dex: 257 },
   // One-Pokémon aces (whole line each).
-  { label: 'Dragapult', groups: [['lanssorien', 'fantyrmagik', 'lugulabre']] },
-  { label: 'Grimmsnarl', groups: [['migalos', 'grimalin', 'fermeton']] },
-  { label: 'Dhelmise', groups: [['sepiatop']] },
-  { label: 'Metagross', groups: [['metalosse', 'metang', 'terhal']] },
-  { label: 'Mega Excadrill', groups: [['minotaupe', 'rototaupe']] },
-  { label: "N's Zacian", groups: [['zacian']] },
-  { label: "N's Zoroark", groups: [['zoroark', 'zorua']] },
-  { label: 'Slowking', groups: [['roigada', 'ramoloss']] },
-  { label: 'Alakazam', groups: [['alakazam', 'abra']] },
-  { label: 'Garchomp', groups: [['carchacrok', 'griknot']] },
-  { label: 'Blaziken', groups: [['brasegali', 'galifeu']] },
-  { label: "Rocket's Honchkrow", groups: [['cornebre', 'corboss']] },
-  { label: "Rocket's Mewtwo", groups: [['mewtwo']] },
-  { label: 'Lucario', groups: [['lucario', 'riolu']] },
-  { label: 'Charizard', groups: [['dracaufeu']] },
-  { label: 'Hydrapple', groups: [['pomdorochi']] },
-  { label: 'Gardevoir', groups: [['gardevoir', 'tarsal', 'kirlia']] },
-  { label: 'Solrock Box', groups: [['solaroc', 'seleroc']] },
+  { label: 'Dragapult', groups: [['lanssorien']], dex: 887 },
+  { label: 'Grimmsnarl', groups: [['migalos', 'grimalin']], dex: 861 },
+  { label: 'Dhelmise', groups: [['sepiatop']], dex: 781 },
+  { label: 'Toucannon', groups: [['bazoucan', 'piclairon', 'picassaut']], dex: 733 },
+  { label: 'Metagross', groups: [['metalosse', 'metang', 'terhal']], dex: 376 },
+  { label: 'Mega Excadrill', groups: [['minotaupe', 'rototaupe']], dex: 530 },
+  { label: 'Mega Greninja', groups: [['amphinobi', 'croaporal', 'grenousse']], dex: 658 },
+  { label: 'Mega Chandelure', groups: [['lugulabre', 'melancolux', 'funecire']], dex: 609 },
+  { label: 'Mega Absol', groups: [['absol']], dex: 359 },
+  { label: 'Ceruledge', groups: [['malvalame', 'charbambin', 'braisillon']], dex: 937 },
+  { label: "N's Zoroark", groups: [['zoroark', 'zorua']], dex: 571 },
+  { label: "N's Zacian", groups: [['zacian']], dex: 888 },
+  { label: 'Slowking', groups: [['roigada', 'ramoloss']], dex: 199 },
+  { label: 'Alakazam', groups: [['alakazam', 'abra', 'kadabra']], dex: 65 },
+  { label: 'Garchomp', groups: [['carchacrok', 'griknot', 'draby']], dex: 445 },
+  { label: 'Blaziken', groups: [['brasegali', 'galifeu']], dex: 257 },
+  { label: "Rocket's Honchkrow", groups: [['corboss', 'cornebre']], dex: 430 },
+  { label: "Rocket's Mewtwo", groups: [['mewtwo']], dex: 150 },
+  { label: 'Kangaskhan Box', groups: [['kangourex']], dex: 115 },
+  { label: 'Manectric', groups: [['elecsprint', 'dynavolt']], dex: 310 },
+  { label: 'Beedrill', groups: [['dardargnan', 'coconfort', 'aspicot']], dex: 15 },
+  { label: 'Genesect', groups: [['genesect']], dex: 649 },
+  { label: 'Hydrapple', groups: [['pomdorochi', 'pomdramour', 'verpom']], dex: 1019 },
+  { label: 'Ogerpon', groups: [['ogerpon']], dex: 1017 },
+  { label: 'Feraligatr', groups: [['aligatueur', 'crocrodil', 'kaiminus']], dex: 160 },
+  { label: 'Charizard', groups: [['dracaufeu']], dex: 6 },
+  { label: 'Gardevoir', groups: [['gardevoir', 'kirlia', 'tarsal']], dex: 282 },
+  { label: 'Hop’s Trevenant', groups: [['desseliande', 'brocelome']], dex: 709 },
 ];
 
-/** Runs a rule table over a set of already-normalized Pokémon names. */
-function match(rules: Rule[], pokemon: Set<string>): string | null {
+/** label → dex, for sprites on rows classified to a known archetype. */
+const DEX_BY_LABEL = new Map<string, number>([
+  ...MY_ARCHETYPES.map((r) => [r.label, r.dex] as const),
+  ...OPPONENT_ARCHETYPES.map((r) => [r.label, r.dex] as const),
+]);
+
+/** The pixel sprite for an archetype label, or null if it's an ace fallback. */
+export function archetypeSprite(label: string): string | null {
+  const dex = DEX_BY_LABEL.get(label);
+  return dex
+    ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${dex}.png`
+    : null;
+}
+
+function matchRules(rules: Rule[], pokemon: Set<string>): string | null {
   const present = [...pokemon];
   for (const r of rules) {
-    const ok = r.groups.every((group) => group.some((key) => present.some((p) => p.includes(key))));
-    if (ok) return r.label;
+    if (r.groups.every((g) => g.some((k) => present.some((p) => p.includes(k))))) return r.label;
   }
   return null;
 }
 
-export function classifyMyDeck(pokemon: Set<string>): string {
-  const normed = new Set([...pokemon].map(norm));
-  return match(MY_ARCHETYPES, normed) ?? 'Typhlosion';
-}
-
-/** Classifies the opponent; `keyCard` (the DB ace, e.g. "Pashmilla-ex") is the
- *  fallback when no signature matches — better a real ace than "Autre". */
 export function classifyOpponent(pokemon: Set<string>, keyCard: string | null): string {
   const normed = new Set([...pokemon].map(norm));
-  return match(OPPONENT_ARCHETYPES, normed) ?? keyCard ?? '?';
+  return matchRules(OPPONENT_ARCHETYPES, normed) ?? keyCard ?? '?';
 }
 
 const CARD = String.raw`\([^)]+\)\s*`;
 
 /**
- * Every Pokémon name seen on a given player's side, from a raw FR log. A card
- * is a Pokémon (not a Trainer) when it is played to the Active/Bench, is
- * evolved into, uses an ability/attack, is knocked out, or is promoted — the
- * six phrasings below cover all of those and never a Trainer line.
+ * Every Pokémon name on a player's side, from a raw FR log. A card is a Pokémon
+ * (not a Trainer) when it is played to Active/Bench, evolved into, uses an
+ * ability/attack, is KO'd, or is promoted — the phrasings below cover those and
+ * never a Trainer line.
  */
 export function extractPokemon(raw: string, player: string): Set<string> {
   const out = new Set<string>();
   const P = player.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const rePlay = new RegExp(`^${P} a joué ${CARD}(.+?) sur (?:le Banc|le Poste Actif)`);
   const reEvo = new RegExp(`^${P} a fait évoluer ${CARD}(.+?) en ${CARD}(.+?) sur`);
-  // Owner-suffixed lines: "(id) Name de <player> a utilisé / a été mis K.O. /
-  // est maintenant …". Name may itself contain " de " (none of the meta aces
-  // do), so anchor on the owner being exactly this player at the tail.
-  const reOwner = new RegExp(
-    `^${CARD}(.+?) de ${P} (?:a utilisé|a été mis K\\.O\\.|est maintenant)`,
-  );
+  const reOwner = new RegExp(`^${CARD}(.+?) de ${P} (?:a utilisé|a été mis K\\.O\\.|est maintenant)`);
   for (const line of raw.split(/\r?\n/)) {
     let m: RegExpExecArray | null;
     if ((m = rePlay.exec(line))) out.add(m[1].trim());
@@ -126,4 +148,34 @@ export function extractPokemon(raw: string, player: string): Set<string> {
     if ((m = reOwner.exec(line))) out.add(m[1].trim());
   }
   return out;
+}
+
+/** Every card name (Pokémon AND Trainer) I played or used, for my-deck
+ *  classification — the distinguishing cards include trainers (Prism Tower…),
+ *  which extractPokemon deliberately skips. */
+function myCards(raw: string, me: string): Set<string> {
+  const out = extractPokemon(raw, me);
+  const P = me.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // "Hisshiden a joué (id) <card> [sur … | comme … | .]" — trainers included.
+  const rePlayed = new RegExp(`^${P} a joué ${CARD}(.+?)(?: sur | comme |\\.$)`);
+  for (const line of raw.split(/\r?\n/)) {
+    const m = rePlayed.exec(line);
+    if (m) out.add(m[1].trim());
+  }
+  return out;
+}
+
+/**
+ * Names my deck from MY cards only (the opponent's Dudunsparce engine can't
+ * mislabel my game). The old Drakloak build runs its Dreepy/Drakloak draw
+ * engine every game, so it reliably self-signals; anything without that signal
+ * is the current Dudunsparce build — which is also the sensible default, since
+ * a new-deck game that never drew Dunsparce would otherwise go unclassified.
+ */
+export function classifyMyDeck(raw: string, me: string): string {
+  const present = [...myCards(raw, me)].map(norm);
+  const has = (k: string) => present.some((p) => p.includes(k));
+  const old = MY_ARCHETYPES.find((r) => r.label === 'Typhlosion / Drakloak')!;
+  if (old.signals.some(has)) return old.label;
+  return 'Typhlosion / Dudunsparce';
 }
