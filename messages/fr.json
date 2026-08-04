@@ -1060,14 +1060,11 @@
     "jumpToMoment": "Montre-moi",
     "setupShort": "Pile/face",
     "importTitle": "Importer un duel",
-    "importSubtitle": "Colle le log de PTCG Live pour revoir la partie, ou le JSON du coach pour la version annotée.",
-    "importPlaceholder": "Log de bataille PTCG Live, ou JSON du coach…",
+    "importSubtitle": "Colle le log de PTCG Live pour ajouter la partie à tes stats.",
+    "importPlaceholder": "Log de bataille PTCG Live…",
     "importPlayedAt": "Jouée le",
-    "importBadJson": "Ce fichier n’est pas du JSON valide.",
-    "importHint": "Deux formats acceptés : le log copié tel quel depuis PTCG Live (partie affichée sans annotations), ou le JSON complet rendu par le coach (partie + débrief). Ré-importer le JSON plus tard rattache l'analyse à la même partie.",
+    "importHint": "Colle le log copié tel quel depuis PTCG Live — la partie est ajoutée à tes statistiques.",
     "importSubmit": "Importer",
-    "importDropJson": "…ou dépose le fichier .json du coach",
-    "importJsonNeedsRaw": "Ce JSON ne contient pas le log (champ « raw »). Colle le JSON complet rendu par le coach, ou le log brut.",
     "statsLink": "Stats"
   },
   "drill": {

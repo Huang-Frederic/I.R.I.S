@@ -7,8 +7,8 @@ import PtcgImport from './PtcgImport';
 
 /**
  * The import box in a modal, opened from the dashboard's Import button — no
- * page navigation. Backdrop-click is disabled so a misclick can't discard a
- * pasted log (PTCG Live can't re-export one); Escape and the X still close it.
+ * page navigation. Backdrop, Escape and the X all close it; the paste is safe
+ * because the draft is saved on every edit and restored on reopen.
  */
 export default function PtcgImportModal({
   open,
@@ -27,7 +27,6 @@ export default function PtcgImportModal({
       onClose={onClose}
       ariaLabel={t('importTitle')}
       layout="bottom-sheet"
-      closeOnBackdrop={false}
       className="bg-surface border-border flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border"
     >
       <div className="border-border flex items-start justify-between gap-3 border-b p-4">

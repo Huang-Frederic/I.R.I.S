@@ -1060,14 +1060,11 @@
     "jumpToMoment": "Show me",
     "setupShort": "Coin",
     "importTitle": "Import a duel",
-    "importSubtitle": "Paste the PTCG Live log to replay the game, or the coach's JSON for the annotated version.",
-    "importPlaceholder": "PTCG Live battle log, or the coach's JSON…",
+    "importSubtitle": "Paste the PTCG Live log to add the game to your stats.",
+    "importPlaceholder": "PTCG Live battle log…",
     "importPlayedAt": "Played on",
-    "importBadJson": "That file is not valid JSON.",
-    "importHint": "Two formats accepted: the log copied straight from PTCG Live (game shown without annotations), or the full JSON returned by the coach (game + debrief). Re-importing the JSON later attaches the analysis to the same game.",
+    "importHint": "Paste the battle log straight from PTCG Live — the game is added to your stats.",
     "importSubmit": "Import",
-    "importDropJson": "…or drop the coach's .json file",
-    "importJsonNeedsRaw": "This JSON does not embed the log (\"raw\" field). Paste the coach's full JSON, or the raw log.",
     "statsLink": "Stats"
   },
   "drill": {

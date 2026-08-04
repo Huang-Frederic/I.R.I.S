@@ -3,9 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Upload } from 'lucide-react';
-import Pokeball from '@/components/ui/Pokeball';
-import { parseJsonLoose } from '@/lib/utils/json-from-text';
 import { fromLocalInputValue, toLocalInputValue } from '@/lib/utils/local-datetime';
 
 /** Survives a refresh: re-exporting a log from PTCG Live is not possible, and
@@ -18,11 +15,9 @@ const DRAFT = 'ptcg-import-draft';
 const now = () => toLocalInputValue(new Date());
 
 /**
- * One box, one button. The box takes either of the two things Frédéric ever
- * has in hand — the battle log copied from PTCG Live (game displays without
- * annotations), or the self-contained JSON a coaching conversation returned
- * (game displays with the debrief). No parse step, no digest: pasting is
- * importing.
+ * One box, one button. Paste the battle log copied from PTCG Live and it is
+ * imported — the game is read and added to the stats. No parse step, no digest:
+ * pasting is importing.
  */
 export default function PtcgImport({
   /** Called on a successful import. When given, the caller decides what happens
@@ -41,7 +36,6 @@ export default function PtcgImport({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [details, setDetails] = useState<string[]>([]);
-  const fileRef = useRef<HTMLInputElement>(null);
   // Guards the save-on-change effect so it can't overwrite the stored draft
   // with the empty initial state before the restore below has run.
   const hydrated = useRef(false);
@@ -82,48 +76,16 @@ export default function PtcgImport({
     [tErrors],
   );
 
-  /** Builds the request body from whatever was pasted or dropped. */
-  const toPayload = (input: string): { body: unknown } | { error: string } => {
-    const read = parseJsonLoose(input);
-    if (read.ok && read.value && typeof read.value === 'object') {
-      const v = read.value as {
-        bundleVersion?: unknown;
-        raw?: unknown;
-        analysis?: unknown;
-        playedAt?: unknown;
-        moments?: unknown;
-      };
-      // Legacy .bundle.json — passed straight through.
-      if (v.bundleVersion) return { body: v };
-      // The coach's self-contained JSON: { raw, analysis, playedAt? }.
-      if (typeof v.raw === 'string') {
-        return {
-          body: { ...v, playedAt: v.playedAt ?? fromLocalInputValue(playedAt) },
-        };
-      }
-      // An analysis alone has no log to attach to — the JSON must embed `raw`.
-      if (v.analysis || v.moments) return { error: t('importJsonNeedsRaw') };
-      return { error: t('importBadJson') };
-    }
-    // Not JSON: the battle log itself, imported without annotations.
-    return { body: { raw: input, playedAt: fromLocalInputValue(playedAt) } };
-  };
-
   const submit = async (input: string) => {
     if (!input.trim()) return;
     setBusy(true);
     setError(null);
     setDetails([]);
     try {
-      const payload = toPayload(input);
-      if ('error' in payload) {
-        setError(payload.error);
-        return;
-      }
       const res = await fetch('/api/ptcg/games', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload.body),
+        body: JSON.stringify({ raw: input, playedAt: fromLocalInputValue(playedAt) }),
       });
       if (!res.ok) return void (await fail(res));
       const { game } = (await res.json()) as { game: { id: string } };
@@ -182,29 +144,6 @@ export default function PtcgImport({
           )}
         </div>
       )}
-
-      {/* A dropped file is the desktop path for the coach's JSON; on a phone,
-          pasting into the same box above does the job. */}
-      <input
-        ref={fileRef}
-        type="file"
-        accept="application/json,.json"
-        className="hidden"
-        onChange={async (e) => {
-          const f = e.target.files?.[0];
-          e.target.value = '';
-          if (f) await submit(await f.text());
-        }}
-      />
-      <button
-        type="button"
-        onClick={() => fileRef.current?.click()}
-        disabled={busy}
-        className="border-border hover:border-red/50 flex w-full flex-col items-center gap-2 rounded-xl border border-dashed py-6 transition disabled:opacity-40"
-      >
-        {busy ? <Pokeball size={32} /> : <Upload className="text-text-muted h-6 w-6" aria-hidden />}
-        <span className="text-sm font-semibold">{t('importDropJson')}</span>
-      </button>
     </div>
   );
 }

@@ -1060,14 +1060,11 @@
     "jumpToMoment": "この場面へ",
     "setupShort": "コイン",
     "importTitle": "デュエルをインポート",
-    "importSubtitle": "PTCG Liveのログを貼り付けると対戦をリプレイできます。コーチのJSONなら注釈付きで表示されます。",
-    "importPlaceholder": "PTCG LiveのバトルログまたはコーチのJSON…",
+    "importSubtitle": "PTCG Live のログを貼り付けて対戦を統計に追加します。",
+    "importPlaceholder": "PTCG Live のバトルログ…",
     "importPlayedAt": "対戦日",
-    "importBadJson": "有効なJSONではありません。",
-    "importHint": "2つの形式に対応：PTCG Liveからそのままコピーしたログ（注釈なしで表示）、またはコーチが返す完全なJSON（対戦＋デブリーフ）。後からJSONを再インポートすると、同じ対戦に分析が追加されます。",
+    "importHint": "PTCG Live からコピーしたバトルログを貼り付けると、対戦が統計に追加されます。",
     "importSubmit": "インポート",
-    "importDropJson": "…またはコーチの.jsonファイルをドロップ",
-    "importJsonNeedsRaw": "このJSONにはログ（rawフィールド）が含まれていません。コーチの完全なJSONか、生ログを貼り付けてください。",
     "statsLink": "統計"
   },
   "drill": {

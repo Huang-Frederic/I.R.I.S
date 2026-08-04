@@ -1060,14 +1060,11 @@
     "jumpToMoment": "跳到此处",
     "setupShort": "硬币",
     "importTitle": "导入对局",
-    "importSubtitle": "粘贴 PTCG Live 日志即可回放对局，粘贴教练的 JSON 则显示带注释的版本。",
-    "importPlaceholder": "PTCG Live 对战日志，或教练的 JSON…",
+    "importSubtitle": "粘贴 PTCG Live 记录，把对局加入统计。",
+    "importPlaceholder": "PTCG Live 对战记录…",
     "importPlayedAt": "对局日期",
-    "importBadJson": "该文件不是有效的 JSON。",
-    "importHint": "支持两种格式：直接从 PTCG Live 复制的日志（无注释显示），或教练返回的完整 JSON（对局＋复盘）。之后重新导入 JSON 会将分析附加到同一对局。",
+    "importHint": "直接粘贴从 PTCG Live 复制的对战记录 — 该对局会计入你的统计。",
     "importSubmit": "导入",
-    "importDropJson": "…或拖入教练的 .json 文件",
-    "importJsonNeedsRaw": "该 JSON 不包含日志（raw 字段）。请粘贴教练的完整 JSON，或原始日志。",
     "statsLink": "统计"
   },
   "drill": {
