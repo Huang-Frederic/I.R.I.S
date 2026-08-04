@@ -4,7 +4,17 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import { Dices, Rocket, Flame, Swords, ListChecks } from 'lucide-react';
+import {
+  Dices,
+  Rocket,
+  Flame,
+  Swords,
+  ListChecks,
+  Wrench,
+  Layers,
+  Plus,
+  Coins,
+} from 'lucide-react';
 import {
   aggregateStats,
   listMyArchetypes,
@@ -49,7 +59,10 @@ function Meter({ label, pct, hint }: { label: string; pct: number; hint?: string
         <span className="font-mono text-sm font-bold tabular-nums">{pct.toFixed(0)}%</span>
       </div>
       <div className="bg-surface-2 mt-1 h-2 overflow-hidden rounded-full">
-        <div className={`h-full rounded-full ${tone}`} style={{ width: `${Math.min(100, pct)}%` }} />
+        <div
+          className={`h-full rounded-full ${tone}`}
+          style={{ width: `${Math.min(100, pct)}%` }}
+        />
       </div>
       {hint && <p className="text-text-faint mt-1 text-[11px]">{hint}</p>}
     </div>
@@ -76,6 +89,18 @@ function Section({
   );
 }
 
+function ImportButton({ label }: { label: string }) {
+  return (
+    <Link
+      href="/ptcg/import"
+      className="bg-red hover:bg-red/90 flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold text-white transition"
+    >
+      <Plus className="h-3.5 w-3.5" aria-hidden />
+      {label}
+    </Link>
+  );
+}
+
 export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
   const t = useTranslations('ptcgStats');
   const tp = useTranslations('ptcg');
@@ -91,7 +116,10 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
     return (
       <div className="border-border bg-surface rounded-xl border px-4 py-12 text-center">
         <p className="text-sm font-semibold">{t('emptyTitle')}</p>
-        <p className="text-text-muted mx-auto mt-1 max-w-md text-sm">{t('emptyBody')}</p>
+        <p className="text-text-muted mx-auto mt-1 mb-5 max-w-md text-sm">{t('emptyBody')}</p>
+        <div className="flex justify-center">
+          <ImportButton label={t('importBtn')} />
+        </div>
       </div>
     );
   }
@@ -113,40 +141,47 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Deck version filter — shown once there's more than one build. */}
-      {decks.length > 1 && (
+      {/* Top bar: deck-version filter + a permanent way back to Import. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-text-muted text-xs font-semibold tracking-wide uppercase">
-            {t('deckFilter')}
-          </span>
-          {decks.map((d) => (
-            <button
-              key={d.name}
-              type="button"
-              onClick={() => setDeck(d.name)}
-              aria-pressed={deck === d.name}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                deck === d.name
-                  ? 'bg-red border-red text-white'
-                  : 'border-border bg-surface hover:border-red/50'
-              }`}
-            >
-              <Sprite label={d.name} size={18} />
-              {d.name} <span className="opacity-70">· {d.games}</span>
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setDeck(ALL)}
-            aria-pressed={deck === ALL}
-            className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-              deck === ALL ? 'bg-red border-red text-white' : 'border-border bg-surface hover:border-red/50'
-            }`}
-          >
-            {t('deckAll', { count: games.length })}
-          </button>
+          {decks.length > 1 && (
+            <>
+              <span className="text-text-muted text-xs font-semibold tracking-wide uppercase">
+                {t('deckFilter')}
+              </span>
+              {decks.map((d) => (
+                <button
+                  key={d.name}
+                  type="button"
+                  onClick={() => setDeck(d.name)}
+                  aria-pressed={deck === d.name}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                    deck === d.name
+                      ? 'bg-red border-red text-white'
+                      : 'border-border bg-surface hover:border-red/50'
+                  }`}
+                >
+                  <Sprite label={d.name} size={18} />
+                  {d.name} <span className="opacity-70">· {d.games}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setDeck(ALL)}
+                aria-pressed={deck === ALL}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                  deck === ALL
+                    ? 'bg-red border-red text-white'
+                    : 'border-border bg-surface hover:border-red/50'
+                }`}
+              >
+                {t('deckAll', { count: games.length })}
+              </button>
+            </>
+          )}
         </div>
-      )}
+        <ImportButton label={t('importBtn')} />
+      </div>
 
       {/* KPI strip. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -160,18 +195,53 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
         {kpi(t('kpiScore'), s.avgScore != null ? s.avgScore.toFixed(0) : '—')}
       </div>
 
-      {/* Opening. */}
-      <Section icon={<Dices className="text-red h-4 w-4" aria-hidden />} title={t('sectionOpening')}>
+      {/* Turn order — is my winrate better on the play or on the draw? */}
+      <Section
+        icon={<Coins className="text-red h-4 w-4" aria-hidden />}
+        title={t('sectionTurnOrder')}
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(
+            [
+              [t('goingFirst'), s.first],
+              [t('goingSecond'), s.second],
+            ] as const
+          ).map(([label, sp]) => (
+            <div
+              key={label}
+              className="border-border bg-surface-2/40 flex items-center justify-between rounded-lg border p-3"
+            >
+              <div>
+                <p className="text-sm font-semibold">{label}</p>
+                <p className="text-text-faint mt-0.5 text-[11px]">
+                  {sp.wins}/{sp.games} {t('kpiGames').toLowerCase()}
+                </p>
+              </div>
+              <span
+                className={`font-mono text-2xl font-bold tabular-nums ${
+                  sp.games === 0
+                    ? 'text-text-faint'
+                    : sp.winratePct >= 50
+                      ? 'text-emerald-500'
+                      : 'text-red'
+                }`}
+              >
+                {sp.games === 0 ? '—' : `${sp.winratePct.toFixed(0)}%`}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* Opening — mulligans, a developed turn-2 board, and what I open on. */}
+      <Section
+        icon={<Dices className="text-red h-4 w-4" aria-hidden />}
+        title={t('sectionOpening')}
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-3">
             <Meter label={t('mulligan')} pct={s.mulliganPct} hint={t('mulliganHint')} />
-            <Meter label={t('energyT1')} pct={s.energyT1Pct} />
-            <div className="flex items-baseline justify-between">
-              <span className="text-sm">{t('benchT1')}</span>
-              <span className="font-mono text-sm font-bold tabular-nums">
-                {s.benchT1Avg.toFixed(1)}
-              </span>
-            </div>
+            <Meter label={t('goodBenchT2')} pct={s.goodBenchT2Pct} hint={t('goodBenchT2Hint')} />
           </div>
           <div>
             <p className="text-text-muted mb-2 text-[11px] font-semibold tracking-wide uppercase">
@@ -180,7 +250,7 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
             <div className="flex flex-col gap-1.5">
               {s.starters.map((st) => (
                 <div key={st.name} className="flex items-center gap-2 text-xs">
-                  <span className="w-24 shrink-0 truncate">{st.name}</span>
+                  <span className="w-28 shrink-0 truncate">{st.name}</span>
                   <div className="bg-surface-2 h-4 flex-1 overflow-hidden rounded">
                     <div
                       className="bg-red/70 h-full rounded"
@@ -197,20 +267,21 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
         </div>
       </Section>
 
-      {/* Setup speed — how fast and how early I get online. */}
+      {/* Setup speed — Feurisson by T2, Typhlosion by T3. */}
       <Section icon={<Rocket className="text-red h-4 w-4" aria-hidden />} title={t('sectionSetup')}>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Meter label={t('feurissonT2')} pct={s.quilavaByT2Pct} />
           <Meter label={t('typhlosionT3')} pct={s.typhlosionByT3Pct} />
-          <Meter label={t('energyPerTurn')} pct={s.energyTurnsPct} />
         </div>
       </Section>
 
-      {/* Engine. */}
+      {/* Engine — Ethan's Adventure throughput and the abilities that fired. */}
       <Section icon={<Flame className="text-red h-4 w-4" aria-hidden />} title={t('sectionEngine')}>
         <div className="border-border flex items-baseline justify-between border-b pb-2.5">
           <span className="text-sm">{t('adlPerGame')}</span>
-          <span className="font-mono text-lg font-bold tabular-nums">{s.adlPlayedAvg.toFixed(1)}</span>
+          <span className="font-mono text-lg font-bold tabular-nums">
+            {s.adlPlayedAvg.toFixed(1)}
+          </span>
         </div>
         <p className="text-text-muted mt-3 mb-2 text-[11px] font-semibold tracking-wide uppercase">
           {t('abilitiesTitle')}
@@ -220,10 +291,14 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
         ) : (
           <ul className="divide-border divide-y">
             {s.abilities.map((ab) => (
-              <li key={ab.name} className="flex items-center justify-between py-1.5 text-sm">
-                <span>{ab.name}</span>
-                <span className="text-text-muted font-mono tabular-nums">
+              <li key={ab.name} className="flex items-center justify-between gap-2 py-1.5 text-sm">
+                <span className="min-w-0 truncate">{ab.name}</span>
+                <span className="text-text-muted shrink-0 font-mono text-xs tabular-nums">
                   {t('perGame', { avg: ab.avg.toFixed(1) })}
+                  <span className="text-text-faint">
+                    {' '}
+                    · {t('inGamesPct', { pct: ab.gamesPct.toFixed(0) })}
+                  </span>
                 </span>
               </li>
             ))}
@@ -231,8 +306,41 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
         )}
       </Section>
 
+      {/* Techs — is each one-of pulling its weight? */}
+      <Section icon={<Wrench className="text-red h-4 w-4" aria-hidden />} title={t('sectionTechs')}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="border-border bg-surface-2/40 rounded-lg border p-3">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-semibold">{t('techVictini')}</span>
+              <span className="font-mono text-xl font-bold tabular-nums">
+                {s.victiniLethalGames}
+                <span className="text-text-faint text-sm">/{s.games}</span>
+              </span>
+            </div>
+            <p className="text-text-muted mt-1 text-xs">{t('techVictiniCaption')}</p>
+            <p className="text-text-faint mt-1 text-[11px]">
+              {t('techVictiniSub', { ko: s.victiniKoGames, total: s.games })}
+            </p>
+          </div>
+          <div className="border-border bg-surface-2/40 rounded-lg border p-3">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-semibold">{t('techPsyduck')}</span>
+              <span className="font-mono text-xl font-bold tabular-nums">
+                {s.psyduckRelevantGames}
+                <span className="text-text-faint text-sm">/{s.games}</span>
+              </span>
+            </div>
+            <p className="text-text-muted mt-1 text-xs">{t('techPsyduckCaption')}</p>
+            <p className="text-text-faint mt-1 text-[11px]">{t('techPsyduckHint')}</p>
+          </div>
+        </div>
+      </Section>
+
       {/* Matchups, with a pixel sprite per opposing archetype. */}
-      <Section icon={<Swords className="text-red h-4 w-4" aria-hidden />} title={t('sectionMatchups')}>
+      <Section
+        icon={<Swords className="text-red h-4 w-4" aria-hidden />}
+        title={t('sectionMatchups')}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -273,8 +381,55 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
         </div>
       </Section>
 
+      {/* Card usage — plays/attaches vs discards, to spot cards pulling no weight. */}
+      <Section icon={<Layers className="text-red h-4 w-4" aria-hidden />} title={t('sectionCards')}>
+        <p className="text-text-faint mb-2 text-[11px]">{t('cardsHint')}</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-text-muted text-left text-[11px] tracking-wide uppercase">
+                <th className="py-1.5 pr-2 font-semibold">{t('colCard')}</th>
+                <th className="px-2 py-1.5 text-right font-semibold">{t('colPlayed')}</th>
+                <th className="px-2 py-1.5 text-right font-semibold">{t('colDiscarded')}</th>
+                <th className="py-1.5 pl-2 text-right font-semibold">{t('colPerGame')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {s.cards.map((c) => {
+                // Never played, only discarded → a candidate dead card.
+                const dead = c.played === 0 && c.discarded > 0;
+                return (
+                  <tr key={c.name} className="border-border border-t">
+                    <td className="py-2 pr-2">
+                      <span className="flex items-center gap-2">
+                        <span className={dead ? 'text-text-muted' : ''}>{c.name}</span>
+                        {dead && (
+                          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                            {t('cardDead')}
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2 text-right font-mono tabular-nums">{c.played}</td>
+                    <td className="text-text-muted px-2 py-2 text-right font-mono tabular-nums">
+                      {c.discarded}
+                    </td>
+                    <td className="py-2 pl-2 text-right font-mono tabular-nums">
+                      {c.perGame.toFixed(1)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
       {/* The games themselves, newest first, tap to replay. */}
-      <Section icon={<ListChecks className="text-red h-4 w-4" aria-hidden />} title={t('sectionGames')}>
+      <Section
+        icon={<ListChecks className="text-red h-4 w-4" aria-hidden />}
+        title={t('sectionGames')}
+      >
         <ul className="divide-border divide-y">
           {filtered.map((g) => (
             <li key={g.id}>

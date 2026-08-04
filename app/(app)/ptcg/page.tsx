@@ -12,6 +12,13 @@ export async function generateMetadata() {
   return { title: t('metaTitle') };
 }
 
+const normName = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
+/** The Dusknoir line (Duskull/Dusclops/Dusknoir), Psyduck's counter target. */
+const DUSKNOIR = ['noctunoir', 'teraclope', 'skelenox'];
+const hasDusknoirLine = (pokemon: Set<string>) =>
+  [...pokemon].some((p) => DUSKNOIR.some((k) => normName(p).includes(k)));
+
 /**
  * The Duels page is a pure statistics dashboard: every imported game is re-read
  * from its raw log (result, openings, setup speed, engine, both archetypes) and
@@ -50,7 +57,9 @@ export default async function PtcgPage() {
   }
 
   // Resolve the opponent ace-card ids to names once — the classifier's fallback.
-  const aceIds = [...new Set((data ?? []).map((g) => g.opponent_key_card).filter(Boolean))] as string[];
+  const aceIds = [
+    ...new Set((data ?? []).map((g) => g.opponent_key_card).filter(Boolean)),
+  ] as string[];
   const { data: aceRows } = aceIds.length
     ? await supabase.from('ptcg_cards').select('ptcgl_id, name').in('ptcgl_id', aceIds)
     : { data: [] };
@@ -58,9 +67,23 @@ export default async function PtcgPage() {
     ((aceRows ?? []) as Pick<PtcgCardRow, 'ptcgl_id' | 'name'>[]).map((c) => [c.ptcgl_id, c.name]),
   );
 
+  // HP by (accent-insensitive) FR name, so a KO can be tested for Victini's
+  // margin: without its +10, would the target have survived?
+  const { data: hpRows } = await fetchAllRows<{ name: string; hp: number | null }>((from, to) =>
+    supabase
+      .from('ptcg_cards')
+      .select('name, hp')
+      .eq('language', 'fr')
+      .not('hp', 'is', null)
+      .range(from, to),
+  );
+  const hpByName: Record<string, number> = {};
+  for (const c of hpRows ?? []) if (c.hp != null) hpByName[normName(c.name)] = c.hp;
+
   const games: DashboardGame[] = (data ?? []).map((g) => {
-    const stats = extractGameStats(g.raw_log, g.me);
+    const stats = extractGameStats(g.raw_log, g.me, hpByName);
     const ace = g.opponent_key_card ? (aceName.get(g.opponent_key_card) ?? null) : null;
+    const oppPokemon = extractPokemon(g.raw_log, g.opponent);
     return {
       id: g.id,
       playedAt: g.played_at,
@@ -70,7 +93,10 @@ export default async function PtcgPage() {
       result: stats.result,
       play_score: g.play_score,
       myArchetype: classifyMyDeck(g.raw_log, g.me),
-      opponent_archetype: classifyOpponent(extractPokemon(g.raw_log, g.opponent), ace),
+      opponent_archetype: classifyOpponent(oppPokemon, ace),
+      // Psyduck's Damp shuts off self-KO abilities — the Dusknoir line is its
+      // canonical target, so a game vs it is a game Psyduck could have mattered.
+      psyduckRelevant: hasDusknoirLine(oppPokemon),
     };
   });
 
