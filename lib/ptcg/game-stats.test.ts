@@ -123,6 +123,26 @@ describe('extractGameStats', () => {
     expect(s.cardUse['Combat Final de Gladio'].played).toBe(0);
   });
 
+  it('counts an evolution as playing that Stage', () => {
+    const log = [
+      'Tour de Hisshiden',
+      'Hisshiden a fait évoluer (a) Héricendre de Luth en (b) Feurisson de Luth sur le Poste Actif.',
+    ].join('\n');
+    expect(extractGameStats(log, 'Hisshiden').cardUse['Feurisson de Luth'].played).toBe(1);
+  });
+
+  it('does not credit me for an opponent Stadium I discard by replacing it', () => {
+    const log = [
+      'Desiretik a joué (s) Paddoxton comme Stade.', // opponent's stadium
+      'Tour de Hisshiden',
+      'Hisshiden a joué (c) Tour Prismatique comme Stade.',
+      '- Hisshiden a défaussé (s) Paddoxton.', // the log credits me, but it's theirs
+    ].join('\n');
+    const s = extractGameStats(log, 'Hisshiden');
+    expect(s.cardUse['Tour Prismatique'].played).toBe(1);
+    expect(s.cardUse['Paddoxton']).toBeUndefined();
+  });
+
   it('never throws on an unrelated paste', () => {
     expect(() => extractGameStats('bonjour\nceci n est pas un log', 'X')).not.toThrow();
   });

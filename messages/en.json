@@ -1075,7 +1075,7 @@
     "pageTitle": "Drill",
     "pageSubtitle": "Timed prize checking on your Typhlosion list.",
     "objectiveTitle": "Goal",
-    "objective": "In under {seconds}s, give the prized count for your 7 targets: Cyndaquil, Quilava, Typhlosion, Ethan's Adventure, Energies, Ticket, Box.",
+    "objective": "In under {seconds}s, give the prized count for your 7 targets: Héricendre, Feurisson, Typhlosion, Aventure de Luth, Energies, Ticket, Box.",
     "modeStandard": "Standard",
     "modeStandardHint": "54-card deck visible, 6 hidden prizes",
     "modeReal": "Real",
@@ -1135,7 +1135,7 @@
     "feurissonT2": "Quilava in play ≤ T2",
     "typhlosionT3": "Typhlosion in play ≤ T3",
     "sectionEngine": "Engine",
-    "adlPerGame": "Ethan's Adventures played / game",
+    "adlPerGame": "Aventure de Luth / game",
     "abilitiesTitle": "Abilities triggered",
     "noAbilities": "No abilities detected.",
     "perGame": "{avg} / game",
@@ -1166,8 +1166,8 @@
     "colDiscarded": "Discarded",
     "colPerGame": "/ game",
     "cardDead": "dead?",
-    "sectionTurnOrder": "On the play / draw",
-    "goingFirst": "On the play",
-    "goingSecond": "On the draw"
+    "sectionTurnOrder": "First / Second",
+    "goingFirst": "First",
+    "goingSecond": "Second"
   }
 }

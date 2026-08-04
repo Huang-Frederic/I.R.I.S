@@ -13,11 +13,7 @@
  * falls back to its ace card, never to a guess.
  */
 
-const norm = (s: string) =>
-  s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
+const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 /** A rule matches when every GROUP is satisfied (AND between groups), a group
  *  when any of its FR base-name keys is present (OR within a group). Listing a
@@ -41,7 +37,13 @@ export const MY_ARCHETYPES: MyRule[] = [
   {
     label: 'Typhlosion / Dudunsparce',
     // Dudunsparce engine + trainers unique to the new list.
-    signals: ['insolourdo', 'deusolourdo', 'tour prismatique', 'casque chance', 'combat final de gladio'],
+    signals: [
+      'insolourdo',
+      'deusolourdo',
+      'tour prismatique',
+      'casque chance',
+      'combat final de gladio',
+    ],
     dex: 982,
   },
   {
@@ -58,14 +60,57 @@ export const MY_ARCHETYPES: MyRule[] = [
  */
 export const OPPONENT_ARCHETYPES: Rule[] = [
   // Two-Pokémon signatures.
-  { label: 'Dragapult / Blaziken', groups: [['lanssorien'], ['brasegali', 'galifeu', 'poussifeu']], dex: 257 },
-  { label: 'Dragapult / Dusknoir', groups: [['lanssorien'], ['noctunoir', 'teraclope', 'skelenox']], dex: 477 },
-  { label: 'Grimmsnarl / Froslass', groups: [['migalos', 'grimalin', 'fermeton'], ['momartik', 'stalgamin']], dex: 861 },
-  { label: 'Lucario / Hariyama', groups: [['lucario', 'riolu'], ['hariyama', 'makuhita']], dex: 448 },
-  { label: 'Alakazam / Dudunsparce', groups: [['alakazam', 'abra', 'kadabra'], ['deusolourdo', 'insolourdo']], dex: 65 },
-  { label: 'Ogerpon / Hydrapple', groups: [['ogerpon', 'meganium', 'macronium', 'germignon'], ['pomdramour', 'pomdorochi', 'verpom']], dex: 1019 },
+  {
+    label: 'Dragapult / Blaziken',
+    groups: [['lanssorien'], ['brasegali', 'galifeu', 'poussifeu']],
+    dex: 257,
+  },
+  {
+    label: 'Dragapult / Dusknoir',
+    groups: [['lanssorien'], ['noctunoir', 'teraclope', 'skelenox']],
+    dex: 477,
+  },
+  {
+    label: 'Grimmsnarl / Froslass',
+    groups: [
+      ['migalos', 'grimalin', 'fermeton'],
+      ['momartik', 'stalgamin'],
+    ],
+    dex: 861,
+  },
+  {
+    label: 'Lucario / Hariyama',
+    groups: [
+      ['lucario', 'riolu'],
+      ['hariyama', 'makuhita'],
+    ],
+    dex: 448,
+  },
+  {
+    label: 'Alakazam / Dudunsparce',
+    groups: [
+      ['alakazam', 'abra', 'kadabra'],
+      ['deusolourdo', 'insolourdo'],
+    ],
+    dex: 65,
+  },
+  {
+    label: 'Ogerpon / Hydrapple',
+    groups: [
+      ['ogerpon', 'meganium', 'macronium', 'germignon'],
+      ['pomdramour', 'pomdorochi', 'verpom'],
+    ],
+    dex: 1019,
+  },
   { label: 'Raging Bolt / Ogerpon', groups: [['ire-foudre'], ['ogerpon']], dex: 1021 },
-  { label: 'Blaziken / Zoroark', groups: [['brasegali', 'galifeu'], ['zoroark', 'zorua']], dex: 257 },
+  {
+    label: 'Blaziken / Zoroark',
+    groups: [
+      ['brasegali', 'galifeu'],
+      ['zoroark', 'zorua'],
+    ],
+    dex: 257,
+  },
   // One-Pokémon aces (whole line each).
   { label: 'Dragapult', groups: [['lanssorien']], dex: 887 },
   { label: 'Grimmsnarl', groups: [['migalos', 'grimalin']], dex: 861 },
@@ -74,6 +119,9 @@ export const OPPONENT_ARCHETYPES: Rule[] = [
   { label: 'Metagross', groups: [['metalosse', 'metang', 'terhal']], dex: 376 },
   { label: 'Mega Excadrill', groups: [['minotaupe', 'rototaupe']], dex: 530 },
   { label: 'Mega Greninja', groups: [['amphinobi', 'croaporal', 'grenousse']], dex: 658 },
+  // "Lockpin" is the FR name for Lopunny (Laporeille = Buneary is its pre-evo).
+  { label: 'Mega Lopunny', groups: [['lockpin', 'laporeille']], dex: 428 },
+  { label: 'Yanmega', groups: [['yanmega', 'yanma']], dex: 469 },
   { label: 'Mega Chandelure', groups: [['lugulabre', 'melancolux', 'funecire']], dex: 609 },
   { label: 'Mega Absol', groups: [['absol']], dex: 359 },
   { label: 'Ceruledge', groups: [['malvalame', 'charbambin', 'braisillon']], dex: 937 },
@@ -137,7 +185,9 @@ export function extractPokemon(raw: string, player: string): Set<string> {
   const P = player.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const rePlay = new RegExp(`^${P} a joué ${CARD}(.+?) sur (?:le Banc|le Poste Actif)`);
   const reEvo = new RegExp(`^${P} a fait évoluer ${CARD}(.+?) en ${CARD}(.+?) sur`);
-  const reOwner = new RegExp(`^${CARD}(.+?) de ${P} (?:a utilisé|a été mis K\\.O\\.|est maintenant)`);
+  const reOwner = new RegExp(
+    `^${CARD}(.+?) de ${P} (?:a utilisé|a été mis K\\.O\\.|est maintenant)`,
+  );
   for (const line of raw.split(/\r?\n/)) {
     let m: RegExpExecArray | null;
     if ((m = rePlay.exec(line))) out.add(m[1].trim());

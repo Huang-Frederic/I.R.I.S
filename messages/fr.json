@@ -1167,7 +1167,7 @@
     "colPerGame": "/ partie",
     "cardDead": "morte ?",
     "sectionTurnOrder": "Premier / Second",
-    "goingFirst": "Je commence",
-    "goingSecond": "Je suis 2ᵉ"
+    "goingFirst": "Premier",
+    "goingSecond": "Second"
   }
 }

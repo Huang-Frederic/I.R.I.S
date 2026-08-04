@@ -69,13 +69,11 @@ export default async function PtcgPage() {
 
   // HP by (accent-insensitive) FR name, so a KO can be tested for Victini's
   // margin: without its +10, would the target have survived?
+  // No language filter: localized names don't collide across languages, so
+  // every HP-bearing card can key by its own name. (A language filter here was
+  // silently matching nothing, which left Victini's margin uncomputable.)
   const { data: hpRows } = await fetchAllRows<{ name: string; hp: number | null }>((from, to) =>
-    supabase
-      .from('ptcg_cards')
-      .select('name, hp')
-      .eq('language', 'fr')
-      .not('hp', 'is', null)
-      .range(from, to),
+    supabase.from('ptcg_cards').select('name, hp').not('hp', 'is', null).range(from, to),
   );
   const hpByName: Record<string, number> = {};
   for (const c of hpRows ?? []) if (c.hp != null) hpByName[normName(c.name)] = c.hp;

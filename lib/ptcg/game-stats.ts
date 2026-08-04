@@ -95,6 +95,8 @@ export function extractGameStats(
   // single form ("a défaussé (id) Name.") is caught inline, so require a digit.
   const reDiscardCost = new RegExp(`^-? ?${M} a défaussé \\d`);
   const reDiscardOne = new RegExp(`^-? ?${M} a défaussé ${CARD}(.+?)\\.`);
+  // Any player's play, to learn which cards the OPPONENT owns.
+  const reAnyPlay = new RegExp(`^(.+?) a joué ${CARD}(.+?)(?: sur | comme |\\.$)`);
   const reWin = /(?:^|\. )(\S+) gagne\.\s*$/;
 
   const out: GameLogStats = {
@@ -150,6 +152,14 @@ export function extractGameStats(
     const u = (out.cardUse[name] ??= { played: 0, discarded: 0 });
     u.discarded++;
   };
+  // Cards the opponent played. When I play a Stadium, the current one — even the
+  // opponent's — is discarded and the log credits ME. That isn't my card, so a
+  // discard of something the opponent owns and I never played doesn't count.
+  const oppOwned = new Set<string>();
+  const myDiscard = (name: string) => {
+    if (oppOwned.has(norm(name)) && (out.cardUse[name]?.played ?? 0) === 0) return;
+    discard(name);
+  };
 
   const snapshotT2 = () => {
     if (myTurn === 2) {
@@ -172,6 +182,10 @@ export function extractGameStats(
       pendingBench = pendingDiscard = false;
       continue;
     }
+
+    // Learn opponent ownership from any play line (mine are skipped).
+    const anyPlay = reAnyPlay.exec(line);
+    if (anyPlay && anyPlay[1] !== me) oppOwned.add(norm(anyPlay[2]));
 
     const mull = reMull.exec(line);
     if (mull && inSetup) {
@@ -203,7 +217,7 @@ export function extractGameStats(
           for (const n of subLineNames(line)) put(n);
           pendingBench = false;
         } else if (pendingDiscard) {
-          for (const n of subLineNames(line)) discard(n);
+          for (const n of subLineNames(line)) myDiscard(n);
           pendingDiscard = false;
         }
       }
@@ -211,6 +225,7 @@ export function extractGameStats(
       if (evo) {
         drop(evo[1]);
         put(evo[2]);
+        play(evo[2]); // evolving IS playing that Stage from hand — count it used
         if (out.evoTurn[evo[2]] === undefined) out.evoTurn[evo[2]] = myTurn;
       }
       const p = rePlayAny.exec(line);
@@ -220,7 +235,7 @@ export function extractGameStats(
       if (reAdl.test(line)) out.adlPlayed++;
       // Single-card discard: "Hisshiden a défaussé (id) Name."
       const dc = reDiscardOne.exec(line);
-      if (dc) discard(dc[1]);
+      if (dc) myDiscard(dc[1]);
     }
 
     // --- abilities (mine, either turn) ---
