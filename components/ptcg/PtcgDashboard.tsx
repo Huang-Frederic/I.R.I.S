@@ -3,7 +3,9 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import PtcgImportModal from './PtcgImportModal';
 import {
   Dices,
   Rocket,
@@ -89,25 +91,42 @@ function Section({
   );
 }
 
-function ImportButton({ label }: { label: string }) {
+function ImportButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <Link
-      href="/ptcg/import"
+    <button
+      type="button"
+      onClick={onClick}
       className="bg-red hover:bg-red/90 flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold text-white transition"
     >
       <Plus className="h-3.5 w-3.5" aria-hidden />
       {label}
-    </Link>
+    </button>
   );
 }
 
 export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
   const t = useTranslations('ptcgStats');
   const tp = useTranslations('ptcg');
+  const router = useRouter();
   const decks = useMemo(() => listMyArchetypes(games), [games]);
   // Default to the deck of the most recently played game (games arrive newest
   // first), so the dashboard opens on the list currently being played.
   const [deck, setDeck] = useState<string>(games[0]?.myArchetype ?? ALL);
+  const [importOpen, setImportOpen] = useState(false);
+
+  // A soft refresh re-runs the server page (re-reads every log) so the new duel
+  // shows up in place — no full reload, and the deck filter is preserved.
+  const onImported = () => {
+    setImportOpen(false);
+    router.refresh();
+  };
+  const importModal = (
+    <PtcgImportModal
+      open={importOpen}
+      onClose={() => setImportOpen(false)}
+      onImported={onImported}
+    />
+  );
 
   const filtered = deck === ALL ? games : games.filter((g) => g.myArchetype === deck);
   const s: AggregatedStats = useMemo(() => aggregateStats(filtered), [filtered]);
@@ -118,8 +137,9 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
         <p className="text-sm font-semibold">{t('emptyTitle')}</p>
         <p className="text-text-muted mx-auto mt-1 mb-5 max-w-md text-sm">{t('emptyBody')}</p>
         <div className="flex justify-center">
-          <ImportButton label={t('importBtn')} />
+          <ImportButton label={t('importBtn')} onClick={() => setImportOpen(true)} />
         </div>
+        {importModal}
       </div>
     );
   }
@@ -180,8 +200,9 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
             </>
           )}
         </div>
-        <ImportButton label={t('importBtn')} />
+        <ImportButton label={t('importBtn')} onClick={() => setImportOpen(true)} />
       </div>
+      {importModal}
 
       {/* KPI strip. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

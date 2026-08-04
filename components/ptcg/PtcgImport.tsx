@@ -24,7 +24,14 @@ const now = () => toLocalInputValue(new Date());
  * (game displays with the debrief). No parse step, no digest: pasting is
  * importing.
  */
-export default function PtcgImport() {
+export default function PtcgImport({
+  /** Called on a successful import. When given, the caller decides what happens
+   *  next (e.g. a modal closes and refreshes the list) instead of navigating to
+   *  the new game's page. */
+  onImported,
+}: {
+  onImported?: (game: { id: string }) => void;
+} = {}) {
   const t = useTranslations('ptcg');
   const tErrors = useTranslations('errors');
   const router = useRouter();
@@ -35,23 +42,34 @@ export default function PtcgImport() {
   const [error, setError] = useState<string | null>(null);
   const [details, setDetails] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Guards the save-on-change effect so it can't overwrite the stored draft
+  // with the empty initial state before the restore below has run.
+  const hydrated = useRef(false);
 
   // Deferred a tick: sessionStorage is client-only (an initializer would
   // mismatch SSR), and the purity rule forbids synchronous setState in effects.
   useEffect(() => {
     const id = setTimeout(() => {
       const saved = sessionStorage.getItem(DRAFT);
-      if (!saved) return;
-      try {
-        const d = JSON.parse(saved) as { text: string; playedAt: string };
-        setText(d.text);
-        setPlayedAt(d.playedAt || now());
-      } catch {
-        sessionStorage.removeItem(DRAFT);
+      if (saved) {
+        try {
+          const d = JSON.parse(saved) as { text: string; playedAt: string };
+          setText(d.text);
+          setPlayedAt(d.playedAt || now());
+        } catch {
+          sessionStorage.removeItem(DRAFT);
+        }
       }
+      hydrated.current = true;
     }, 0);
     return () => clearTimeout(id);
   }, []);
+
+  // Persist the draft on every edit so closing the modal (or a stray reload)
+  // never loses a paste that PTCG Live cannot re-export.
+  useEffect(() => {
+    if (hydrated.current) sessionStorage.setItem(DRAFT, JSON.stringify({ text, playedAt }));
+  }, [text, playedAt]);
 
   const fail = useCallback(
     async (res: Response) => {
@@ -59,9 +77,7 @@ export default function PtcgImport() {
       const code = body?.error ?? 'server_error';
       setError(tErrors.has(code) ? tErrors(code) : (body?.message ?? code));
       const d = body?.details;
-      setDetails(
-        Array.isArray(d?.errors) ? d.errors : d?.underlying ? [String(d.underlying)] : [],
-      );
+      setDetails(Array.isArray(d?.errors) ? d.errors : d?.underlying ? [String(d.underlying)] : []);
     },
     [tErrors],
   );
@@ -104,7 +120,6 @@ export default function PtcgImport() {
         setError(payload.error);
         return;
       }
-      sessionStorage.setItem(DRAFT, JSON.stringify({ text, playedAt }));
       const res = await fetch('/api/ptcg/games', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -113,7 +128,8 @@ export default function PtcgImport() {
       if (!res.ok) return void (await fail(res));
       const { game } = (await res.json()) as { game: { id: string } };
       sessionStorage.removeItem(DRAFT);
-      router.push(`/ptcg/${game.id}`);
+      if (onImported) onImported(game);
+      else router.push(`/ptcg/${game.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
