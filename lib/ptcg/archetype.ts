@@ -59,6 +59,15 @@ export const MY_ARCHETYPES: MyRule[] = [
  * most-specific first so two-Pokémon signatures win over one-Pokémon aces.
  */
 export const OPPONENT_ARCHETYPES: Rule[] = [
+  // "Festival lead" — the Festival Grounds ("Lieu de la Fête") control deck.
+  // Recognised by the Grookey line (Ouistempo/Badabouin/Gorythmic) OR the
+  // stadium itself. Checked FIRST so it wins over the Hydrapple line it also
+  // runs. Sprite = Badabouin (#811). See extractOpponentSignals for the stadium.
+  {
+    label: 'Festival lead',
+    groups: [['badabouin', 'ouistempo', 'gorythmic', 'lieu de la fete']],
+    dex: 811,
+  },
   // Two-Pokémon signatures.
   {
     label: 'Dragapult / Blaziken',
@@ -201,6 +210,20 @@ export function extractPokemon(raw: string, player: string): Set<string> {
     }
     if ((m = reOwner.exec(line))) out.add(m[1].trim());
   }
+  return out;
+}
+
+/**
+ * The opponent's archetype SIGNALS: every Pokémon they revealed (extractPokemon)
+ * PLUS the one deck-defining stadium we key on — Festival Grounds ("Lieu de la
+ * Fête"), which names the "Festival lead" deck even when its Pokémon stayed in
+ * hand. Kept separate from extractPokemon so classifyMyDeck stays Pokémon-only.
+ */
+export function extractOpponentSignals(raw: string, opponent: string): Set<string> {
+  const out = extractPokemon(raw, opponent);
+  const P = opponent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const reStadium = new RegExp(`^${P} a joué ${CARD}Lieu de la Fête`);
+  if (raw.split(/\r?\n/).some((l) => reStadium.test(l))) out.add('Lieu de la Fête');
   return out;
 }
 

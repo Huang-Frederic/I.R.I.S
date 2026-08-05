@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { fetchAllRows } from '@/lib/api/fetch-all';
 import { extractGameStats } from '@/lib/ptcg/game-stats';
-import { extractPokemon, classifyMyDeck, classifyOpponent } from '@/lib/ptcg/archetype';
+import { extractOpponentSignals, classifyMyDeck, classifyOpponent } from '@/lib/ptcg/archetype';
 import type { PtcgCardRow } from '@/lib/types';
 import PageTitle from '@/components/layout/PageTitle';
 import PtcgDashboard, { type DashboardGame } from '@/components/ptcg/PtcgDashboard';
@@ -81,7 +81,7 @@ export default async function PtcgPage() {
   const games: DashboardGame[] = (data ?? []).map((g) => {
     const stats = extractGameStats(g.raw_log, g.me, hpByName);
     const ace = g.opponent_key_card ? (aceName.get(g.opponent_key_card) ?? null) : null;
-    const oppPokemon = extractPokemon(g.raw_log, g.opponent);
+    const oppPokemon = extractOpponentSignals(g.raw_log, g.opponent);
     return {
       id: g.id,
       playedAt: g.played_at,
