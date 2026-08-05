@@ -172,7 +172,11 @@ export function classifyOpponent(pokemon: Set<string>, keyCard: string | null): 
   return matchRules(OPPONENT_ARCHETYPES, normed) ?? keyCard ?? '?';
 }
 
-const CARD = String.raw`\([^)]+\)\s*`;
+// The "(sv10_34) " card-id prefix PTCG Live prints before a card name — but
+// ONLY for the player whose hand is known; it dropped it from the opponent's
+// lines in an Aug-2026 log-format change. Optional, or the opponent's Pokémon
+// (and thus their archetype) never get extracted → everything falls to "?".
+const CARD = String.raw`(?:\([^)]+\)\s*)?`;
 
 /**
  * Every Pokémon name on a player's side, from a raw FR log. A card is a Pokémon
