@@ -237,9 +237,14 @@ export function extractGameStats(
       const att = reAttach.exec(line);
       if (att) play(att[1]);
       if (reAdl.test(line)) out.adlPlayed++;
-      // Single-card discard: "Hisshiden a défaussé (id) Name."
-      const dc = reDiscardOne.exec(line);
-      if (dc) myDiscard(dc[1]);
+      // Single-card discard: "Hisshiden a défaussé Name." — but NOT the bulk-cost
+      // line "Hisshiden a défaussé 2 cartes." (Hyper Ball / Secret Box): with the
+      // id prefix now optional, reDiscardOne would grab "2 cartes" as a pseudo-card.
+      // Its real cards are itemized on the next "•" sub-line (pendingDiscard).
+      if (!reDiscardCost.test(line)) {
+        const dc = reDiscardOne.exec(line);
+        if (dc) myDiscard(dc[1]);
+      }
     }
 
     // --- abilities (mine, either turn) ---
