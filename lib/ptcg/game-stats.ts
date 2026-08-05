@@ -54,15 +54,19 @@ export interface GameLogStats {
   kosTaken: number;
 }
 
-const CARD = String.raw`\([^)]+\)\s*`;
+// Optional "(sv10_34) " card-id prefix — PTCG Live dropped it from the battle
+// log (both players) in an Aug-2026 format change, so requiring it left every
+// play/attach/ability line unmatched and the whole usage table empty.
+const CARD = String.raw`(?:\([^)]+\)\s*)?`;
 
-/** Parses a "• (id) Name, (id) Name" sub-line into its card names. */
+/** Parses a "• Name, Name" sub-line into its card names. The per-name "(id) "
+ *  prefix is optional — PTCG Live dropped it in the Aug-2026 format change. */
 function subLineNames(line: string): string[] {
-  const out: string[] = [];
-  const re = /\([^)]+\)\s*([^,]+?)(?:,|$)/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(line))) out.push(m[1].trim());
-  return out;
+  return line
+    .replace(/^\s*•\s*/, '') // drop the bullet + indent
+    .split(',')
+    .map((s) => s.replace(/^\s*\([^)]+\)\s*/, '').trim()) // strip an optional "(id) " per name
+    .filter(Boolean);
 }
 
 export function extractGameStats(
