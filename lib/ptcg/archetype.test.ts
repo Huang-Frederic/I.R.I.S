@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { extractPokemon, classifyMyDeck, classifyOpponent } from './archetype';
 
 describe('extractPokemon', () => {
-  it('collects a player\'s Pokémon from plays, evolutions, abilities and KOs', () => {
+  it("collects a player's Pokémon from plays, evolutions, abilities and KOs", () => {
     const log = [
       'Guubeee a joué (sv5_113) Terhal sur le Poste Actif.',
       'Guubeee a fait évoluer (sv5_113) Terhal en (sv5_114) Métang sur le Banc.',
@@ -19,7 +19,7 @@ describe('extractPokemon', () => {
     expect([...p].some((x) => x.includes('Lambda'))).toBe(false);
   });
 
-  it('does not attribute the opponent\'s Pokémon to me', () => {
+  it("does not attribute the opponent's Pokémon to me", () => {
     const log = [
       'Hisshiden a joué (x) Héricendre de Luth sur le Banc.',
       'Alice a joué (y) Lanssorien sur le Poste Actif.',
@@ -76,5 +76,45 @@ describe('classifyOpponent', () => {
 
   it('falls back to ? when there is nothing at all', () => {
     expect(classifyOpponent(new Set(), null)).toBe('?');
+  });
+
+  it('reads Dragapult from the Dreepy line alone (Dragapult never revealed)', () => {
+    expect(classifyOpponent(new Set(['Fantyrm', 'Rozbouton']), null)).toBe('Dragapult');
+  });
+
+  it('reads a lone Dusknoir line as Dusknoir', () => {
+    expect(classifyOpponent(new Set(['Skelénox']), null)).toBe('Dusknoir');
+  });
+
+  it('reads Ogerpon / Meganium (no Hydrapple)', () => {
+    expect(
+      classifyOpponent(new Set(['Ogerpon Masque Turquoise-ex', 'Méganium', 'Macronium']), null),
+    ).toBe('Ogerpon / Meganium');
+  });
+
+  it('classifies opponent Garchomp despite the "Carchacrock" spelling', () => {
+    expect(
+      classifyOpponent(new Set(['Carchacrock-ex de Cynthia', 'Griknot de Cynthia']), null),
+    ).toBe('Garchomp');
+  });
+});
+
+describe('id-less logs (the other PTCG Live export)', () => {
+  it('extracts Pokémon from plays and evolutions without the card set id', () => {
+    const log = [
+      'JanuarySky a joué Verpom sur le Poste Actif.',
+      'JanuarySky a fait évoluer Verpom en Pomdramour sur le Banc.',
+    ].join('\n');
+    const p = extractPokemon(log, 'JanuarySky');
+    expect(p.has('Verpom')).toBe(true);
+    expect(p.has('Pomdramour')).toBe(true);
+  });
+
+  it('recognises my Garchomp deck from the "de Cynthia" cards, id or not', () => {
+    const log = [
+      'Hisshiden a joué Griknot de Cynthia sur le Poste Actif.',
+      'Hisshiden a fait évoluer Griknot de Cynthia en Carchacrock-ex de Cynthia sur le Poste Actif.',
+    ].join('\n');
+    expect(classifyMyDeck(log, 'Hisshiden')).toBe("Cynthia's Garchomp");
   });
 });

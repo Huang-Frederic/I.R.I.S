@@ -1,8 +1,8 @@
 /**
  * Deck archetype classification from the Pokémon a battle log reveals.
  *
- *  - name MY deck from MY cards (the Dudunsparce build vs the old Drakloak
- *    build), so stats can be filtered to the list I'm actually playing;
+ *  - name MY deck from MY cards (the Dudunsparce build, the old Drakloak build,
+ *    or Cynthia's Garchomp), so stats can be filtered to the list I'm playing;
  *  - name the OPPONENT deck from their key Pokémon (Dragapult + Blaziken →
  *    "Dragapult / Blaziken"), for the matchup table, with a national-dex number
  *    per archetype so the UI can show a pixel sprite.
@@ -51,6 +51,13 @@ export const MY_ARCHETYPES: MyRule[] = [
     signals: ['dispareptil', 'fantyrm'],
     dex: 886,
   },
+  {
+    label: "Cynthia's Garchomp",
+    // Every signature card carries the "de Cynthia" suffix; the Garchomp line
+    // ("Carchacrok"/"Carchacrock") folds under the accent-free prefix.
+    signals: ['de cynthia', 'carchacro', 'roserade'],
+    dex: 445,
+  },
 ];
 
 /**
@@ -71,12 +78,18 @@ export const OPPONENT_ARCHETYPES: Rule[] = [
   // Two-Pokémon signatures.
   {
     label: 'Dragapult / Blaziken',
-    groups: [['lanssorien'], ['brasegali', 'galifeu', 'poussifeu']],
+    groups: [
+      ['lanssorien', 'fantyrm', 'dispareptil'],
+      ['brasegali', 'galifeu', 'poussifeu'],
+    ],
     dex: 257,
   },
   {
     label: 'Dragapult / Dusknoir',
-    groups: [['lanssorien'], ['noctunoir', 'teraclope', 'skelenox']],
+    groups: [
+      ['lanssorien', 'fantyrm', 'dispareptil'],
+      ['noctunoir', 'teraclope', 'skelenox'],
+    ],
     dex: 477,
   },
   {
@@ -111,6 +124,11 @@ export const OPPONENT_ARCHETYPES: Rule[] = [
     ],
     dex: 1019,
   },
+  {
+    label: 'Ogerpon / Meganium',
+    groups: [['ogerpon'], ['meganium', 'macronium', 'germignon']],
+    dex: 154,
+  },
   { label: 'Raging Bolt / Ogerpon', groups: [['ire-foudre'], ['ogerpon']], dex: 1021 },
   {
     label: 'Blaziken / Zoroark',
@@ -121,7 +139,8 @@ export const OPPONENT_ARCHETYPES: Rule[] = [
     dex: 257,
   },
   // One-Pokémon aces (whole line each).
-  { label: 'Dragapult', groups: [['lanssorien']], dex: 887 },
+  { label: 'Dragapult', groups: [['lanssorien', 'fantyrm', 'dispareptil']], dex: 887 },
+  { label: 'Dusknoir', groups: [['noctunoir', 'teraclope', 'skelenox']], dex: 477 },
   { label: 'Grimmsnarl', groups: [['migalos', 'grimalin']], dex: 861 },
   { label: 'Dhelmise', groups: [['sepiatop']], dex: 781 },
   { label: 'Toucannon', groups: [['bazoucan', 'piclairon', 'picassaut']], dex: 733 },
@@ -138,7 +157,7 @@ export const OPPONENT_ARCHETYPES: Rule[] = [
   { label: "N's Zacian", groups: [['zacian']], dex: 888 },
   { label: 'Slowking', groups: [['roigada', 'ramoloss']], dex: 199 },
   { label: 'Alakazam', groups: [['alakazam', 'abra', 'kadabra']], dex: 65 },
-  { label: 'Garchomp', groups: [['carchacrok', 'griknot', 'draby']], dex: 445 },
+  { label: 'Garchomp', groups: [['carchacro', 'griknot', 'carmache']], dex: 445 },
   { label: 'Blaziken', groups: [['brasegali', 'galifeu']], dex: 257 },
   { label: "Rocket's Honchkrow", groups: [['corboss', 'cornebre']], dex: 430 },
   { label: "Rocket's Mewtwo", groups: [['mewtwo']], dex: 150 },
@@ -252,7 +271,10 @@ function myCards(raw: string, me: string): Set<string> {
 export function classifyMyDeck(raw: string, me: string): string {
   const present = [...myCards(raw, me)].map(norm);
   const has = (k: string) => present.some((p) => p.includes(k));
-  const old = MY_ARCHETYPES.find((r) => r.label === 'Typhlosion / Drakloak')!;
-  if (old.signals.some(has)) return old.label;
+  const byLabel = (l: string) => MY_ARCHETYPES.find((r) => r.label === l)!;
+  // Garchomp and the old Drakloak build both self-signal; anything else is the
+  // current Dudunsparce list (the sensible default — see note above).
+  if (byLabel("Cynthia's Garchomp").signals.some(has)) return "Cynthia's Garchomp";
+  if (byLabel('Typhlosion / Drakloak').signals.some(has)) return 'Typhlosion / Drakloak';
   return 'Typhlosion / Dudunsparce';
 }

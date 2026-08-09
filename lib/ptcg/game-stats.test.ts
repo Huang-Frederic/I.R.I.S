@@ -143,6 +143,17 @@ describe('extractGameStats', () => {
     expect(s.cardUse['Paddoxton']).toBeUndefined();
   });
 
+  it('parses a log with no card set ids (the other export format)', () => {
+    const log = [
+      'Hisshiden a joué Héricendre de Luth sur le Poste Actif.', // setup, no "(id)"
+      'Tour de Hisshiden',
+      'Hisshiden a joué Ordres du Boss.',
+    ].join('\n');
+    const s = extractGameStats(log, 'Hisshiden');
+    expect(s.starter).toBe('Héricendre de Luth');
+    expect(s.cardUse['Ordres du Boss'].played).toBe(1);
+  });
+
   it('never throws on an unrelated paste', () => {
     expect(() => extractGameStats('bonjour\nceci n est pas un log', 'X')).not.toThrow();
   });

@@ -42,13 +42,31 @@ export function parseGame(raw: string): PtcgParsedGame {
   const built = buildStates(tokens);
   const validation = validate(built, tokens);
 
-  // The exporting player is the one whose hand is visible: the log only ever
-  // names cards on the side of the client it was exported from.
-  const known: Record<string, number> = Object.fromEntries(tokens.players.map((p) => [p, 0]));
-  for (const s of built.snapshots) {
-    for (const p of tokens.players) known[p] += s.state.players[p].hand.length;
+  // The exporting player is the one whose hand the log reveals. Primary signal,
+  // robust to logs that omit card set ids: only the exporting client spells out
+  // its opening hand, as a "• …" list right under its "main de départ" draw.
+  const P = tokens.players.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const openRe = new RegExp(`^(${P}) a pioché \\d+ cartes pour sa main de départ\\.$`);
+  const drawRe = new RegExp(`^(${P}) a pioché`);
+  const rawLines = raw.split(/\r?\n/).map((l) => l.trim());
+  let me: string | null = null;
+  for (let i = 0; i < rawLines.length && !me; i++) {
+    const open = openRe.exec(rawLines[i]);
+    if (!open) continue;
+    for (let j = i + 1; j < Math.min(i + 4, rawLines.length); j++) {
+      if (rawLines[j].startsWith('•')) me = open[1]; // this opener's hand is shown
+      if (rawLines[j].startsWith('•') || drawRe.test(rawLines[j])) break;
+    }
   }
-  const me = [...tokens.players].sort((a, b) => known[b] - known[a])[0];
+  // Fallback (id-ful logs): the player who accumulated the most known hand cards
+  // in the reconstruction — the visible side, since the other's stay hidden.
+  if (!me) {
+    const known: Record<string, number> = Object.fromEntries(tokens.players.map((p) => [p, 0]));
+    for (const s of built.snapshots) {
+      for (const p of tokens.players) known[p] += s.state.players[p].hand.length;
+    }
+    me = [...tokens.players].sort((a, b) => known[b] - known[a])[0];
+  }
   const opponent = tokens.players.find((p) => p !== me)!;
 
   const final = built.final;
