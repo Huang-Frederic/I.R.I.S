@@ -12,17 +12,12 @@ export async function generateMetadata() {
   return { title: t('metaTitle') };
 }
 
-const normName = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-
-/** The Dusknoir line (Duskull/Dusclops/Dusknoir), Psyduck's counter target. */
-const DUSKNOIR = ['noctunoir', 'teraclope', 'skelenox'];
-const hasDusknoirLine = (pokemon: Set<string>) =>
-  [...pokemon].some((p) => DUSKNOIR.some((k) => normName(p).includes(k)));
-
 /**
  * The Duels page is a pure statistics dashboard: every imported game is re-read
- * from its raw log (result, openings, setup speed, engine, both archetypes) and
+ * from its raw log (result, openings, setup speed, tempo, both archetypes) and
  * aggregated, with the game list at the bottom. No AI review — just the numbers.
+ * Every metric here is deck-agnostic, so a new list shows up with real numbers
+ * the moment its first game is imported — nothing to add per deck.
  * Reading the raw logs live means the concede/tie fix and the archetype rules
  * apply retroactively to every game already imported.
  */
@@ -67,19 +62,17 @@ export default async function PtcgPage() {
     ((aceRows ?? []) as Pick<PtcgCardRow, 'ptcgl_id' | 'name'>[]).map((c) => [c.ptcgl_id, c.name]),
   );
 
-  // HP by (accent-insensitive) FR name, so a KO can be tested for Victini's
-  // margin: without its +10, would the target have survived?
-  // No language filter: localized names don't collide across languages, so
-  // every HP-bearing card can key by its own name. (A language filter here was
-  // silently matching nothing, which left Victini's margin uncomputable.)
-  const { data: hpRows } = await fetchAllRows<{ name: string; hp: number | null }>((from, to) =>
-    supabase.from('ptcg_cards').select('name, hp').not('hp', 'is', null).range(from, to),
+  // Every Supporter name we know of, so a turn can be checked for "did I play
+  // my Supporter?" without the dashboard knowing a single card by name. No
+  // language filter: "Supporter" is the trainer_type in both FR and EN rows,
+  // and localized names don't collide across languages.
+  const { data: supporterRows } = await fetchAllRows<{ name: string }>((from, to) =>
+    supabase.from('ptcg_cards').select('name').eq('trainer_type', 'Supporter').range(from, to),
   );
-  const hpByName: Record<string, number> = {};
-  for (const c of hpRows ?? []) if (c.hp != null) hpByName[normName(c.name)] = c.hp;
+  const supporterNames = [...new Set((supporterRows ?? []).map((c) => c.name))];
 
   const games: DashboardGame[] = (data ?? []).map((g) => {
-    const stats = extractGameStats(g.raw_log, g.me, hpByName);
+    const stats = extractGameStats(g.raw_log, g.me, supporterNames);
     const ace = g.opponent_key_card ? (aceName.get(g.opponent_key_card) ?? null) : null;
     const oppPokemon = extractOpponentSignals(g.raw_log, g.opponent);
     return {
@@ -92,9 +85,6 @@ export default async function PtcgPage() {
       play_score: g.play_score,
       myArchetype: classifyMyDeck(g.raw_log, g.me),
       opponent_archetype: classifyOpponent(oppPokemon, ace),
-      // Psyduck's Damp shuts off self-KO abilities — the Dusknoir line is its
-      // canonical target, so a game vs it is a game Psyduck could have mattered.
-      psyduckRelevant: hasDusknoirLine(oppPokemon),
     };
   });
 

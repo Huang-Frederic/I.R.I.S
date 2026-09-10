@@ -10,12 +10,6 @@
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
-/** The Typhlosion line and the Dudunsparce line, for the T2 board check. */
-const TYPHLO_LINE = ['typhlosion', 'feurisson', 'hericendre'];
-const DUN_LINE = ['insolourdo', 'deusolourdo'];
-const isTyphlo = (n: string) => TYPHLO_LINE.some((k) => norm(n).includes(k));
-const isDun = (n: string) => DUN_LINE.some((k) => norm(n).includes(k));
-
 export interface CardUse {
   played: number;
   discarded: number;
@@ -32,22 +26,24 @@ export interface GameLogStats {
   mulligansMe: number;
   /** The Pokémon I put in the Active Spot during setup. */
   starter: string | null;
-  /** By the end of my turn 2: ≥1 Dunsparce/Dudunsparce AND ≥2 of the
-   *  Typhlosion line in play — a "developed board". */
-  goodBenchT2: boolean;
+  /** How many Pokémon I had in play at the end of my turn 2 — how far the
+   *  board got developed, whatever the deck. */
+  boardT2: number;
   /** My-turn index of the first evolution into each name. */
   evoTurn: Record<string, number>;
-  /** Ethan's Adventure / Aventure de Luth played. */
-  adlPlayed: number;
+  /** My-turn index of the first attack I declared, or null if I never did. */
+  firstAttackTurn: number | null;
+  /** How many of MY turns I played a Supporter on — at most one per turn, so
+   *  this over myTurns is the share of turns that got their Supporter. */
+  supporterTurns: number;
+  /** Cards I drew, opening hand excluded. */
+  cardsDrawn: number;
+  /** Who took the first prize card of the game. */
+  firstPrize: 'me' | 'opponent' | null;
   /** Ability name → total activations (mine only). */
   abilities: Record<string, number>;
   /** Ability names that fired at least once this game — for "% of games". */
   abilityGames: string[];
-  /** KOs my attack scored where Victini's +10 was in the damage math. */
-  victiniKos: number;
-  /** …and of those, the KOs that would have MISSED without Victini's bonus
-   *  (target HP sits above the damage minus the bonus). */
-  victiniLethal: number;
   /** Card name → how often I played / discarded it. */
   cardUse: Record<string, CardUse>;
   kosDealt: number;
@@ -72,9 +68,11 @@ function subLineNames(line: string): string[] {
 export function extractGameStats(
   raw: string,
   me: string,
-  /** Normalized-name → HP, so a KO can be tested for Victini necessity. */
-  hpByName: Record<string, number> = {},
+  /** Card names that are Supporters (any casing/accents), from `ptcg_cards`.
+   *  Empty means the Supporter rate simply reads 0 — never a throw. */
+  supporterNames: Iterable<string> = [],
 ): GameLogStats {
+  const supporters = new Set([...supporterNames].map(norm));
   const M = me.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const reTurn = /^Tour de (.+?)\s*$/;
   const reMull = /^(.+?) a déclaré une misère/;
@@ -86,7 +84,6 @@ export function extractGameStats(
   );
   const reEvo = new RegExp(`^${M} a fait évoluer ${CARD}(.+?) en ${CARD}(.+?) sur`);
   const reAbility = new RegExp(`^${CARD}.+? de ${M} a utilisé (.+?)\\.\\s*$`);
-  const reAdl = new RegExp(`^${M} a joué ${CARD}Aventure de Luth`);
   // Tools and Energy are ATTACHED, not "played on" — counting the attach keeps
   // a Tool like Bracelet Vaillant from looking dead in the usage table.
   const reAttach = new RegExp(`^${M} a attaché ${CARD}(.+?) à `);
@@ -102,6 +99,10 @@ export function extractGameStats(
   // Any player's play, to learn which cards the OPPONENT owns.
   const reAnyPlay = new RegExp(`^(.+?) a joué ${CARD}(.+?)(?: sur | comme |\\.$)`);
   const reWin = /(?:^|\. )(\S+) gagne\.\s*$/;
+  // "a pioché une carte." / "a pioché 3 cartes." / "a pioché (id) Nom." — the
+  // opening hand ("pour sa main de départ") is excluded by the caller below.
+  const reDraw = new RegExp(`^-? ?${M} a pioché (?:(\\d+) cartes|une carte|.+)`);
+  const rePrize = /^(.+?) a récupéré une carte Récompense/;
 
   const out: GameLogStats = {
     result: 'tie',
@@ -109,13 +110,14 @@ export function extractGameStats(
     myTurns: 0,
     mulligansMe: 0,
     starter: null,
-    goodBenchT2: false,
+    boardT2: 0,
     evoTurn: {},
-    adlPlayed: 0,
+    firstAttackTurn: null,
+    supporterTurns: 0,
+    cardsDrawn: 0,
+    firstPrize: null,
     abilities: {},
     abilityGames: [],
-    victiniKos: 0,
-    victiniLethal: 0,
     cardUse: {},
     kosDealt: 0,
     kosTaken: 0,
@@ -130,23 +132,15 @@ export function extractGameStats(
     if (v <= 1) board.delete(n);
     else board.set(n, v - 1);
   };
-  const boardHas = () => {
-    let typhlo = 0;
-    let dun = 0;
-    for (const [n, c] of board) {
-      if (isTyphlo(n)) typhlo += c;
-      if (isDun(n)) dun += c;
-    }
-    return { typhlo, dun };
-  };
+  const boardSize = () => [...board.values()].reduce((a, b) => a + b, 0);
 
   let inSetup = true;
   let myTurn = 0;
   let onMyTurn = false;
   let pendingBench = false;
   let pendingDiscard = false;
-  // The last attack I declared, resolved on the KO line that follows its block.
-  let atk: { target: string; total: number; victini: boolean; weakness: boolean } | null = null;
+  // Turns on which I played a Supporter — a Set so two in one turn count once.
+  const supporterTurnSet = new Set<number>();
 
   const play = (name: string) => {
     const u = (out.cardUse[name] ??= { played: 0, discarded: 0 });
@@ -166,10 +160,7 @@ export function extractGameStats(
   };
 
   const snapshotT2 = () => {
-    if (myTurn === 2) {
-      const { typhlo, dun } = boardHas();
-      out.goodBenchT2 = typhlo >= 2 && dun >= 1;
-    }
+    if (myTurn === 2) out.boardT2 = boardSize();
   };
 
   for (const line of raw.split(/\r?\n/)) {
@@ -190,6 +181,14 @@ export function extractGameStats(
     // Learn opponent ownership from any play line (mine are skipped).
     const anyPlay = reAnyPlay.exec(line);
     if (anyPlay && anyPlay[1] !== me) oppOwned.add(norm(anyPlay[2]));
+
+    // Draws and prizes are read on either turn, and outside setup framing.
+    if (!/main de départ/.test(line)) {
+      const dr = reDraw.exec(line);
+      if (dr) out.cardsDrawn += dr[1] ? parseInt(dr[1], 10) : 1;
+    }
+    const pz = rePrize.exec(line);
+    if (pz && out.firstPrize === null) out.firstPrize = pz[1] === me ? 'me' : 'opponent';
 
     const mull = reMull.exec(line);
     if (mull && inSetup) {
@@ -233,10 +232,12 @@ export function extractGameStats(
         if (out.evoTurn[evo[2]] === undefined) out.evoTurn[evo[2]] = myTurn;
       }
       const p = rePlayAny.exec(line);
-      if (p) play(p[1]);
+      if (p) {
+        play(p[1]);
+        if (supporters.has(norm(p[1]))) supporterTurnSet.add(myTurn);
+      }
       const att = reAttach.exec(line);
       if (att) play(att[1]);
-      if (reAdl.test(line)) out.adlPlayed++;
       // Single-card discard: "Hisshiden a défaussé Name." — but NOT the bulk-cost
       // line "Hisshiden a défaussé 2 cartes." (Hyper Ball / Secret Box): with the
       // id prefix now optional, reDiscardOne would grab "2 cartes" as a pseudo-card.
@@ -254,18 +255,8 @@ export function extractGameStats(
       firedThisGame.add(ab[1]);
     }
 
-    // --- attack + damage block, for Victini necessity ---
-    const at = reAttack.exec(line);
-    if (at) {
-      atk = {
-        target: at[1].trim(),
-        total: parseInt(at[2], 10),
-        victini: false,
-        weakness: /Faiblesse/.test(line),
-      };
-    } else if (atk) {
-      if (/Cri de Victoire/.test(line)) atk.victini = true;
-    }
+    // --- my first attack, as a setup-speed marker ---
+    if (out.firstAttackTurn === null && reAttack.test(line)) out.firstAttackTurn = myTurn;
 
     // --- KOs ---
     const ko = reKo.exec(line);
@@ -276,15 +267,6 @@ export function extractGameStats(
         if (t) drop(t[1]); // my Pokémon left the board
       } else {
         out.kosDealt++;
-        // Resolve the pending attack if it KO'd this target.
-        const t = reKoTarget.exec(line);
-        if (atk && t && norm(t[1]) === norm(atk.target) && atk.victini) {
-          out.victiniKos++;
-          const hp = hpByName[norm(atk.target)];
-          const bonus = atk.weakness ? 20 : 10; // +10 pre-weakness → +20 after
-          if (hp !== undefined && atk.total - bonus < hp) out.victiniLethal++;
-        }
-        atk = null;
       }
     }
 
@@ -293,6 +275,7 @@ export function extractGameStats(
   }
   snapshotT2();
   out.abilityGames = [...firedThisGame];
+  out.supporterTurns = supporterTurnSet.size;
   return out;
 }
 
@@ -304,8 +287,6 @@ export interface GameForStats {
   play_score: number | null;
   myArchetype: string;
   opponent_archetype: string | null;
-  /** The opponent ran a self-KO ability (Dusknoir line) Psyduck shuts off. */
-  psyduckRelevant: boolean;
 }
 
 /** Distinct decks I played, most-played first — drives the version filter. */
@@ -344,23 +325,27 @@ export interface AggregatedStats {
   second: Split;
   mulliganPct: number;
   starters: { name: string; pct: number }[];
-  goodBenchT2Pct: number;
-  quilavaByT2Pct: number;
-  typhlosionByT3Pct: number;
-  adlPlayedAvg: number;
+  /** Pokémon in play at the end of my turn 2, averaged. */
+  boardT2Avg: number;
+  /** Share of games whose FIRST evolution landed on my turn 2 or earlier. */
+  evoByT2Pct: number;
+  /** Share of games where I attacked on my turn 2 or earlier. */
+  attackByT2Pct: number;
+  /** Share of MY TURNS that got a Supporter — turns, not games, is the
+   *  denominator: a Supporter is a once-per-turn resource. */
+  supporterTurnPct: number;
+  drawnPerGame: number;
   abilities: AbilityStat[];
-  /** Victini: games it fired in a KO, and games it was the margin. */
-  victiniKoGames: number;
-  victiniLethalGames: number;
-  /** Psyduck: games the opponent ran a self-KO ability it counters. */
-  psyduckRelevantGames: number;
+  /** Share of the games that saw a prize taken where I took the FIRST one. */
+  firstPrizePct: number;
+  kosDealtAvg: number;
+  kosTakenAvg: number;
+  /** My turns per game — how long my games run. */
+  turnsAvg: number;
   /** Every card I played, with total plays/discards and per-game rates. */
   cards: { name: string; played: number; discarded: number; perGame: number }[];
   byArchetype: { name: string; games: number; wins: number; losses: number }[];
 }
-
-const startsWithAny = (name: string, prefixes: string[]) =>
-  prefixes.some((p) => name.startsWith(p));
 
 export function aggregateStats(rows: GameForStats[]): AggregatedStats {
   const n = rows.length;
@@ -380,27 +365,35 @@ export function aggregateStats(rows: GameForStats[]): AggregatedStats {
   const cardTotals = new Map<string, CardUse>();
   const byArch = new Map<string, { games: number; wins: number; losses: number }>();
   let mull = 0;
-  let goodBench = 0;
-  let quilavaT2 = 0;
-  let typhloT3 = 0;
-  let adl = 0;
-  let victiniKoGames = 0;
-  let victiniLethalGames = 0;
-  let psyduck = 0;
+  let boardT2 = 0;
+  let evoByT2 = 0;
+  let attackByT2 = 0;
+  let supporterTurns = 0;
+  let myTurns = 0;
+  let drawn = 0;
+  let kosDealt = 0;
+  let kosTaken = 0;
+  let firstPrizeMine = 0;
+  let firstPrizeGames = 0;
 
   for (const r of rows) {
     const s = r.stats;
     if (s.mulligansMe > 0) mull++;
-    if (s.goodBenchT2) goodBench++;
     if (s.starter) starterCounts.set(s.starter, (starterCounts.get(s.starter) ?? 0) + 1);
-    adl += s.adlPlayed;
-    if (s.victiniKos > 0) victiniKoGames++;
-    if (s.victiniLethal > 0) victiniLethalGames++;
-    if (r.psyduckRelevant) psyduck++;
-    for (const [name, turn] of Object.entries(s.evoTurn)) {
-      if (turn <= 2 && startsWithAny(name, ['Feurisson'])) quilavaT2++;
-      if (turn <= 3 && startsWithAny(name, ['Typhlosion'])) typhloT3++;
+    boardT2 += s.boardT2;
+    supporterTurns += s.supporterTurns;
+    myTurns += s.myTurns;
+    drawn += s.cardsDrawn;
+    kosDealt += s.kosDealt;
+    kosTaken += s.kosTaken;
+    if (s.firstPrize) {
+      firstPrizeGames++;
+      if (s.firstPrize === 'me') firstPrizeMine++;
     }
+    // The first evolution of the game, whichever line it was on.
+    const evoTurns = Object.values(s.evoTurn);
+    if (evoTurns.length && Math.min(...evoTurns) <= 2) evoByT2++;
+    if (s.firstAttackTurn !== null && s.firstAttackTurn <= 2) attackByT2++;
     for (const [name, count] of Object.entries(s.abilities)) {
       abilityTotals.set(name, (abilityTotals.get(name) ?? 0) + count);
     }
@@ -435,10 +428,11 @@ export function aggregateStats(rows: GameForStats[]): AggregatedStats {
     starters: [...starterCounts.entries()]
       .map(([name, c]) => ({ name, pct: pct(c) }))
       .sort((a, b) => b.pct - a.pct),
-    goodBenchT2Pct: pct(goodBench),
-    quilavaByT2Pct: pct(quilavaT2),
-    typhlosionByT3Pct: pct(typhloT3),
-    adlPlayedAvg: n ? adl / n : 0,
+    boardT2Avg: n ? boardT2 / n : 0,
+    evoByT2Pct: pct(evoByT2),
+    attackByT2Pct: pct(attackByT2),
+    supporterTurnPct: myTurns ? (supporterTurns / myTurns) * 100 : 0,
+    drawnPerGame: n ? drawn / n : 0,
     abilities: [...abilityTotals.entries()]
       .map(([name, total]) => ({
         name,
@@ -447,9 +441,10 @@ export function aggregateStats(rows: GameForStats[]): AggregatedStats {
       }))
       .sort((a, b) => b.avg - a.avg)
       .slice(0, 10),
-    victiniKoGames,
-    victiniLethalGames,
-    psyduckRelevantGames: psyduck,
+    firstPrizePct: firstPrizeGames ? (firstPrizeMine / firstPrizeGames) * 100 : 0,
+    kosDealtAvg: n ? kosDealt / n : 0,
+    kosTakenAvg: n ? kosTaken / n : 0,
+    turnsAvg: n ? myTurns / n : 0,
     cards: [...cardTotals.entries()]
       // Basic Energy isn't a "does this card earn its slot" candidate — drop it.
       .filter(([name]) => !/energie .*de base/.test(norm(name)))

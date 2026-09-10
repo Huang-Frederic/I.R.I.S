@@ -1,8 +1,9 @@
 /**
  * Deck archetype classification from the Pokémon a battle log reveals.
  *
- *  - name MY deck from MY cards (the Dudunsparce build, the old Drakloak build,
- *    or Cynthia's Garchomp), so stats can be filtered to the list I'm playing;
+ *  - name MY deck from MY cards (Beedrill, N's Zoroark, Cynthia's Garchomp, the
+ *    Dudunsparce build or the old Drakloak one), so stats can be filtered to
+ *    the list I'm playing;
  *  - name the OPPONENT deck from their key Pokémon (Dragapult + Blaziken →
  *    "Dragapult / Blaziken"), for the matchup table, with a national-dex number
  *    per archetype so the UI can show a pixel sprite.
@@ -33,10 +34,44 @@ interface MyRule {
   signals: string[];
   dex: number;
 }
+/** MY decks, MOST SPECIFIC FIRST — classifyMyDeck returns the first whose
+ *  signals appear among the cards I played, and falls back to the LAST entry
+ *  when nothing matches. So the last one must be the deck a signal-less game is
+ *  most likely to be, and every earlier entry needs a signal no other list of
+ *  mine runs (the Beedrill deck also plays Dudunsparce — it is placed above the
+ *  Dudunsparce build so its own Weedle line decides). */
 export const MY_ARCHETYPES: MyRule[] = [
   {
+    label: 'Dardargnan',
+    // 12 cards of the Weedle line, so a game that reveals none is essentially
+    // impossible. Forest of Vitality is the deck's own stadium, as a backstop.
+    signals: ['aspicot', 'coconfort', 'dardargnan', 'foret de vitalite'],
+    dex: 15,
+  },
+  {
+    label: 'Zoroark de N',
+    // The Zorua line is 8 cards; N's Castle and N's Zekrom back it up for the
+    // rare game where none of it came down.
+    signals: ['zorua', 'zoroark', 'zekrom de n', 'chateau de n'],
+    dex: 571,
+  },
+  {
+    label: "Cynthia's Garchomp",
+    // Every signature card carries the "de Cynthia" suffix; the Garchomp line
+    // ("Carchacrok"/"Carchacrock") folds under the accent-free prefix.
+    signals: ['de cynthia', 'carchacro', 'roserade'],
+    dex: 445,
+  },
+  {
+    label: 'Typhlosion / Drakloak',
+    signals: ['dispareptil', 'fantyrm'],
+    dex: 886,
+  },
+  {
+    // The default: a Typhlosion game that signals nothing is the current build,
+    // which is also the list played most. Its signals are listed for the record
+    // and cost nothing — matching them lands on the same label as falling through.
     label: 'Typhlosion / Dudunsparce',
-    // Dudunsparce engine + trainers unique to the new list.
     signals: [
       'insolourdo',
       'deusolourdo',
@@ -45,18 +80,6 @@ export const MY_ARCHETYPES: MyRule[] = [
       'combat final de gladio',
     ],
     dex: 982,
-  },
-  {
-    label: 'Typhlosion / Drakloak',
-    signals: ['dispareptil', 'fantyrm'],
-    dex: 886,
-  },
-  {
-    label: "Cynthia's Garchomp",
-    // Every signature card carries the "de Cynthia" suffix; the Garchomp line
-    // ("Carchacrok"/"Carchacrock") folds under the accent-free prefix.
-    signals: ['de cynthia', 'carchacro', 'roserade'],
-    dex: 445,
   },
 ];
 
@@ -263,18 +286,13 @@ function myCards(raw: string, me: string): Set<string> {
 
 /**
  * Names my deck from MY cards only (the opponent's Dudunsparce engine can't
- * mislabel my game). The old Drakloak build runs its Dreepy/Drakloak draw
- * engine every game, so it reliably self-signals; anything without that signal
- * is the current Dudunsparce build — which is also the sensible default, since
- * a new-deck game that never drew Dunsparce would otherwise go unclassified.
+ * mislabel my game). Walks MY_ARCHETYPES in order and returns the first deck
+ * whose signals I played; a game that signals nothing falls through to the last
+ * entry, which is the deck a signal-less log is most likely to be.
  */
 export function classifyMyDeck(raw: string, me: string): string {
   const present = [...myCards(raw, me)].map(norm);
   const has = (k: string) => present.some((p) => p.includes(k));
-  const byLabel = (l: string) => MY_ARCHETYPES.find((r) => r.label === l)!;
-  // Garchomp and the old Drakloak build both self-signal; anything else is the
-  // current Dudunsparce list (the sensible default — see note above).
-  if (byLabel("Cynthia's Garchomp").signals.some(has)) return "Cynthia's Garchomp";
-  if (byLabel('Typhlosion / Drakloak').signals.some(has)) return 'Typhlosion / Drakloak';
-  return 'Typhlosion / Dudunsparce';
+  const hit = MY_ARCHETYPES.find((r) => r.signals.some(has));
+  return (hit ?? MY_ARCHETYPES[MY_ARCHETYPES.length - 1]).label;
 }

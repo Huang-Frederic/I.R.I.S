@@ -6,17 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import PtcgImportModal from './PtcgImportModal';
-import {
-  Dices,
-  Rocket,
-  Flame,
-  Swords,
-  ListChecks,
-  Wrench,
-  Layers,
-  Plus,
-  Coins,
-} from 'lucide-react';
+import { Dices, Rocket, Flame, Swords, ListChecks, Timer, Layers, Plus, Coins } from 'lucide-react';
 import {
   aggregateStats,
   listMyArchetypes,
@@ -67,6 +57,20 @@ function Meter({ label, pct, hint }: { label: string; pct: number; hint?: string
         />
       </div>
       {hint && <p className="text-text-faint mt-1 text-[11px]">{hint}</p>}
+    </div>
+  );
+}
+
+/** A bare number with a caption — for the averages a percentage would distort
+ *  (a board size, cards drawn, KOs per game). */
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="border-border bg-surface-2/40 rounded-lg border p-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-sm font-semibold">{label}</span>
+        <span className="font-mono text-xl font-bold tabular-nums">{value}</span>
+      </div>
+      {hint && <p className="text-text-muted mt-1 text-xs">{hint}</p>}
     </div>
   );
 }
@@ -262,7 +266,7 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-3">
             <Meter label={t('mulligan')} pct={s.mulliganPct} hint={t('mulliganHint')} />
-            <Meter label={t('goodBenchT2')} pct={s.goodBenchT2Pct} hint={t('goodBenchT2Hint')} />
+            <Stat label={t('boardT2')} value={s.boardT2Avg.toFixed(1)} hint={t('boardT2Hint')} />
           </div>
           <div>
             <p className="text-text-muted mb-2 text-[11px] font-semibold tracking-wide uppercase">
@@ -288,21 +292,27 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
         </div>
       </Section>
 
-      {/* Setup speed — Feurisson by T2, Typhlosion by T3. */}
+      {/* Setup speed — how fast the board comes online, whatever the deck. */}
       <Section icon={<Rocket className="text-red h-4 w-4" aria-hidden />} title={t('sectionSetup')}>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Meter label={t('feurissonT2')} pct={s.quilavaByT2Pct} />
-          <Meter label={t('typhlosionT3')} pct={s.typhlosionByT3Pct} />
+          <Meter label={t('evoT2')} pct={s.evoByT2Pct} hint={t('evoT2Hint')} />
+          <Meter label={t('attackT2')} pct={s.attackByT2Pct} hint={t('attackT2Hint')} />
         </div>
       </Section>
 
       {/* Engine — Ethan's Adventure throughput and the abilities that fired. */}
       <Section icon={<Flame className="text-red h-4 w-4" aria-hidden />} title={t('sectionEngine')}>
-        <div className="border-border flex items-baseline justify-between border-b pb-2.5">
-          <span className="text-sm">{t('adlPerGame')}</span>
-          <span className="font-mono text-lg font-bold tabular-nums">
-            {s.adlPlayedAvg.toFixed(1)}
-          </span>
+        <div className="border-border grid gap-3 border-b pb-3 sm:grid-cols-2">
+          <Meter
+            label={t('supporterRate')}
+            pct={s.supporterTurnPct}
+            hint={t('supporterRateHint')}
+          />
+          <Stat
+            label={t('drawnPerGame')}
+            value={s.drawnPerGame.toFixed(0)}
+            hint={t('drawnPerGameHint')}
+          />
         </div>
         <p className="text-text-muted mt-3 mb-2 text-[11px] font-semibold tracking-wide uppercase">
           {t('abilitiesTitle')}
@@ -327,32 +337,17 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
         )}
       </Section>
 
-      {/* Techs — is each one-of pulling its weight? */}
-      <Section icon={<Wrench className="text-red h-4 w-4" aria-hidden />} title={t('sectionTechs')}>
+      {/* Tempo — who sets the pace, and how the prize race actually runs. */}
+      <Section icon={<Timer className="text-red h-4 w-4" aria-hidden />} title={t('sectionTempo')}>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="border-border bg-surface-2/40 rounded-lg border p-3">
-            <div className="flex items-baseline justify-between">
-              <span className="text-sm font-semibold">{t('techVictini')}</span>
-              <span className="font-mono text-xl font-bold tabular-nums">
-                {s.victiniLethalGames}
-                <span className="text-text-faint text-sm">/{s.games}</span>
-              </span>
-            </div>
-            <p className="text-text-muted mt-1 text-xs">{t('techVictiniCaption')}</p>
-            <p className="text-text-faint mt-1 text-[11px]">
-              {t('techVictiniSub', { ko: s.victiniKoGames, total: s.games })}
-            </p>
-          </div>
-          <div className="border-border bg-surface-2/40 rounded-lg border p-3">
-            <div className="flex items-baseline justify-between">
-              <span className="text-sm font-semibold">{t('techPsyduck')}</span>
-              <span className="font-mono text-xl font-bold tabular-nums">
-                {s.psyduckRelevantGames}
-                <span className="text-text-faint text-sm">/{s.games}</span>
-              </span>
-            </div>
-            <p className="text-text-muted mt-1 text-xs">{t('techPsyduckCaption')}</p>
-            <p className="text-text-faint mt-1 text-[11px]">{t('techPsyduckHint')}</p>
+          <Meter label={t('firstPrize')} pct={s.firstPrizePct} hint={t('firstPrizeHint')} />
+          <div className="flex flex-col gap-3">
+            <Stat
+              label={t('koRatio')}
+              value={`${s.kosDealtAvg.toFixed(1)} / ${s.kosTakenAvg.toFixed(1)}`}
+              hint={t('koRatioHint')}
+            />
+            <Stat label={t('turnsAvg')} value={s.turnsAvg.toFixed(1)} hint={t('turnsAvgHint')} />
           </div>
         </div>
       </Section>

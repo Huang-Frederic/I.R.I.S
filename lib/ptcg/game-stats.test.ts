@@ -64,51 +64,6 @@ describe('extractGameStats', () => {
     expect(s.abilityGames).toContain('Unis par le Voyage');
   });
 
-  it('flags a developed turn-2 board: a Dunsparce line and two Typhlosion-line', () => {
-    const log = [
-      'Hisshiden a joué (a) Héricendre de Luth sur le Poste Actif.', // setup active
-      'Hisshiden a joué (b) Insolourdo sur le Banc.', // setup bench
-      'Tour de Hisshiden', // T1
-      'Hisshiden a joué (c) Héricendre de Luth sur le Banc.',
-      'Tour de Alice',
-      'Tour de Hisshiden', // T2
-      'Hisshiden a fait évoluer (a) Héricendre de Luth en (d) Feurisson de Luth sur le Poste Actif.',
-      'Tour de Alice', // leaving my T2 → snapshot
-    ].join('\n');
-    expect(extractGameStats(log, 'Hisshiden').goodBenchT2).toBe(true);
-  });
-
-  it('does not flag a thin turn-2 board', () => {
-    const log = [
-      'Hisshiden a joué (a) Héricendre de Luth sur le Poste Actif.',
-      'Tour de Hisshiden',
-      'Tour de Alice',
-      'Tour de Hisshiden', // T2, only one Pokémon, no Dunsparce
-      'Tour de Alice',
-    ].join('\n');
-    expect(extractGameStats(log, 'Hisshiden').goodBenchT2).toBe(false);
-  });
-
-  it('counts a KO as Victini-lethal only when its +10 was the margin', () => {
-    const mk = (hp: number) =>
-      extractGameStats(
-        [
-          'Tour de Hisshiden',
-          '(sv10_34) Typhlosion de Luth de Hisshiden a utilisé Explosion Partenaire sur (x) Dracaufeu-ex de Alice et a infligé 330 dégâts.',
-          '   • Cri de Victoire (talent) : 10 dégâts',
-          '   • Total de dégâts : 330 dégâts',
-          '(x) Dracaufeu-ex de Alice a été mis K.O. !',
-        ].join('\n'),
-        'Hisshiden',
-        { 'dracaufeu-ex': hp },
-      );
-    // HP 330: 330-10=320 < 330 → Victini was the margin.
-    expect(mk(330).victiniKos).toBe(1);
-    expect(mk(330).victiniLethal).toBe(1);
-    // HP 300: 320 ≥ 300 → the KO landed without the bonus.
-    expect(mk(300).victiniLethal).toBe(0);
-  });
-
   it('tracks card plays, tool/energy attaches, and discards', () => {
     const log = [
       'Tour de Hisshiden',
@@ -159,6 +114,83 @@ describe('extractGameStats', () => {
   });
 });
 
+describe('deck-agnostic metrics', () => {
+  it('counts the Pokémon I have in play at the end of my turn 2', () => {
+    const log = [
+      'Hisshiden a joué (a) Aspicot sur le Poste Actif.',
+      'Tour de Hisshiden',
+      'Hisshiden a joué (b) Insolourdo sur le Banc.',
+      'Tour de Alice',
+      'Tour de Hisshiden',
+      'Hisshiden a joué (c) Miaouss-ex sur le Banc.',
+      'Tour de Alice',
+      'Tour de Hisshiden',
+      'Hisshiden a joué (d) Favianos-ex sur le Banc.',
+    ].join('\n');
+    // Three by the end of turn 2 — the fourth came down on turn 3.
+    expect(extractGameStats(log, 'Hisshiden').boardT2).toBe(3);
+  });
+
+  it('records the turn of my first attack, and ignores the opponent attacking', () => {
+    const log = [
+      'Tour de Hisshiden',
+      'Tour de Alice',
+      '(x) Zoroark-ex de N de Alice a utilisé Griffe Sombre sur (y) Aspicot de Hisshiden et a infligé 60 dégâts.',
+      'Tour de Hisshiden',
+      '(y) Dardargnan-ex de Hisshiden a utilisé Dard Mortel sur (x) Zorua de N de Alice et a infligé 200 dégâts.',
+    ].join('\n');
+    expect(extractGameStats(log, 'Hisshiden').firstAttackTurn).toBe(2);
+  });
+
+  it('leaves the first-attack turn null when I never attacked', () => {
+    expect(extractGameStats('Tour de Hisshiden', 'Hisshiden').firstAttackTurn).toBeNull();
+  });
+
+  it('counts my turns on which I played a Supporter, once per turn', () => {
+    const supporters = new Set(['Détermination de Lilie', 'Ordres du Boss']);
+    const log = [
+      'Tour de Hisshiden',
+      'Hisshiden a joué (a) Détermination de Lilie.',
+      'Tour de Alice',
+      'Alice a joué (a) Ordres du Boss.', // not mine
+      'Tour de Hisshiden',
+      'Hisshiden a joué (b) Hyper Ball.', // an Item, not a Supporter
+      'Tour de Hisshiden',
+      'Hisshiden a joué (c) Ordres du Boss.',
+      'Hisshiden a joué (d) Détermination de Lilie.', // a second one, same turn
+    ].join('\n');
+    const s = extractGameStats(log, 'Hisshiden', supporters);
+    expect(s.supporterTurns).toBe(2);
+    expect(s.myTurns).toBe(3);
+  });
+
+  it('counts the cards I drew, excluding my opening hand', () => {
+    const log = [
+      'Hisshiden a pioché 7 cartes pour sa main de départ.',
+      'Tour de Hisshiden',
+      'Hisshiden a pioché une carte.',
+      'Hisshiden a joué (a) Poké Registre.',
+      '- Hisshiden a pioché 2 cartes.',
+      'Alice a pioché 5 cartes.', // not mine
+      'Tour de Hisshiden',
+      'Hisshiden a pioché (b) Hyper Ball.',
+    ].join('\n');
+    expect(extractGameStats(log, 'Hisshiden').cardsDrawn).toBe(4);
+  });
+
+  it('records who took the very first prize card', () => {
+    const mine = [
+      'Hisshiden a récupéré une carte Récompense.',
+      'Alice a récupéré une carte Récompense.',
+    ];
+    expect(extractGameStats(mine.join('\n'), 'Hisshiden').firstPrize).toBe('me');
+    expect(extractGameStats([...mine].reverse().join('\n'), 'Hisshiden').firstPrize).toBe(
+      'opponent',
+    );
+    expect(extractGameStats('rien', 'Hisshiden').firstPrize).toBeNull();
+  });
+});
+
 describe('aggregateStats', () => {
   const mk = (over: Partial<GameForStats>): GameForStats => ({
     stats: extractGameStats('', 'X'),
@@ -166,7 +198,6 @@ describe('aggregateStats', () => {
     play_score: 100,
     myArchetype: 'Typhlosion / Dudunsparce',
     opponent_archetype: 'Dragapult',
-    psyduckRelevant: false,
     ...over,
   });
 
@@ -199,16 +230,55 @@ describe('aggregateStats', () => {
     expect(a.second.winratePct).toBe(0);
   });
 
-  it('counts Victini and Psyduck relevance across games', () => {
-    const g0 = mk({ psyduckRelevant: true });
-    const withVic = {
-      ...g0,
-      stats: { ...g0.stats, victiniLethalGames: 0, victiniKos: 2, victiniLethal: 1 },
-    };
-    const a = aggregateStats([withVic, mk({ psyduckRelevant: false })]);
-    expect(a.victiniLethalGames).toBe(1);
-    expect(a.victiniKoGames).toBe(1);
-    expect(a.psyduckRelevantGames).toBe(1);
+  it('averages the turn-2 board size and the cards drawn per game', () => {
+    const rows = [
+      mk({ stats: { ...extractGameStats('', 'X'), boardT2: 4, cardsDrawn: 30 } }),
+      mk({ stats: { ...extractGameStats('', 'X'), boardT2: 2, cardsDrawn: 20 } }),
+    ];
+    const a = aggregateStats(rows);
+    expect(a.boardT2Avg).toBe(3);
+    expect(a.drawnPerGame).toBe(25);
+  });
+
+  it('rates setup speed by the first evolution and the first attack landing by T2', () => {
+    const rows = [
+      mk({ stats: { ...extractGameStats('', 'X'), evoTurn: { A: 2 }, firstAttackTurn: 2 } }),
+      mk({ stats: { ...extractGameStats('', 'X'), evoTurn: { A: 4, B: 3 }, firstAttackTurn: 5 } }),
+      // Never evolved, never attacked — counts as a game, not as a success.
+      mk({ stats: { ...extractGameStats('', 'X'), evoTurn: {}, firstAttackTurn: null } }),
+    ];
+    const a = aggregateStats(rows);
+    expect(a.evoByT2Pct).toBeCloseTo(33.3, 0);
+    expect(a.attackByT2Pct).toBeCloseTo(33.3, 0);
+  });
+
+  it('rates Supporters over turns played, not over games', () => {
+    const rows = [
+      mk({ stats: { ...extractGameStats('', 'X'), myTurns: 10, supporterTurns: 8 } }),
+      mk({ stats: { ...extractGameStats('', 'X'), myTurns: 10, supporterTurns: 2 } }),
+    ];
+    expect(aggregateStats(rows).supporterTurnPct).toBe(50);
+  });
+
+  it('rates the first prize over games that actually had one', () => {
+    const rows = [
+      mk({ stats: { ...extractGameStats('', 'X'), firstPrize: 'me' } }),
+      mk({ stats: { ...extractGameStats('', 'X'), firstPrize: 'opponent' } }),
+      // A game where no prize was ever taken must not count against me.
+      mk({ stats: { ...extractGameStats('', 'X'), firstPrize: null } }),
+    ];
+    expect(aggregateStats(rows).firstPrizePct).toBe(50);
+  });
+
+  it('averages KOs dealt, KOs taken and game length', () => {
+    const rows = [
+      mk({ stats: { ...extractGameStats('', 'X'), kosDealt: 6, kosTaken: 2, myTurns: 8 } }),
+      mk({ stats: { ...extractGameStats('', 'X'), kosDealt: 2, kosTaken: 6, myTurns: 12 } }),
+    ];
+    const a = aggregateStats(rows);
+    expect(a.kosDealtAvg).toBe(4);
+    expect(a.kosTakenAvg).toBe(4);
+    expect(a.turnsAvg).toBe(10);
   });
 
   it('buckets results by opponent archetype', () => {

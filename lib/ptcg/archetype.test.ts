@@ -118,3 +118,42 @@ describe('id-less logs (the other PTCG Live export)', () => {
     expect(classifyMyDeck(log, 'Hisshiden')).toBe("Cynthia's Garchomp");
   });
 });
+
+describe("classifyMyDeck — the Beedrill and N's Zoroark lists", () => {
+  it('names the Beedrill deck from its Weedle line', () => {
+    const log = [
+      'Hisshiden a joué (cri_1) Aspicot sur le Poste Actif.',
+      'Hisshiden a fait évoluer (cri_1) Aspicot en (cri_2) Coconfort sur le Poste Actif.',
+    ].join('\n');
+    expect(classifyMyDeck(log, 'Hisshiden')).toBe('Dardargnan');
+  });
+
+  it('names the Beedrill deck even though it also runs the Dudunsparce engine', () => {
+    const log = [
+      'Hisshiden a joué (tef_128) Insolourdo sur le Poste Actif.',
+      'Hisshiden a joué (cri_1) Aspicot sur le Banc.',
+    ].join('\n');
+    expect(classifyMyDeck(log, 'Hisshiden')).toBe('Dardargnan');
+  });
+
+  it("names the N's Zoroark deck from its Zorua line", () => {
+    const log = [
+      'Hisshiden a joué (jtg_97) Zorua de N sur le Poste Actif.',
+      'Hisshiden a fait évoluer (jtg_97) Zorua de N en (jtg_98) Zoroark-ex de N sur le Poste Actif.',
+    ].join('\n');
+    expect(classifyMyDeck(log, 'Hisshiden')).toBe('Zoroark de N');
+  });
+
+  it("names the N's Zoroark deck from N's Castle when no Zorua came down", () => {
+    const log = 'Hisshiden a joué (jtg_152) Château de N comme Stade.';
+    expect(classifyMyDeck(log, 'Hisshiden')).toBe('Zoroark de N');
+  });
+
+  it('uses MY cards only — the opponent playing Zoroark must not relabel me', () => {
+    const log = [
+      'Hisshiden a joué (x) Héricendre de Luth sur le Poste Actif.',
+      'Luigi a joué (jtg_97) Zorua de N sur le Banc.',
+    ].join('\n');
+    expect(classifyMyDeck(log, 'Hisshiden')).toBe('Typhlosion / Dudunsparce');
+  });
+});
