@@ -43,9 +43,11 @@ interface MyRule {
 export const MY_ARCHETYPES: MyRule[] = [
   {
     label: 'Dardargnan',
-    // 12 cards of the Weedle line, so a game that reveals none is essentially
-    // impossible. Forest of Vitality is the deck's own stadium, as a backstop.
-    signals: ['aspicot', 'coconfort', 'dardargnan', 'foret de vitalite'],
+    // The Weedle line ONLY — 12 cards, so a game that reveals none is
+    // essentially impossible, and no other list of mine runs any of them.
+    // Forêt de Vitalité was here as a backstop and had to go: another of my
+    // lists plays it, which handed this deck 7 games it never played.
+    signals: ['aspicot', 'coconfort', 'dardargnan'],
     dex: 15,
   },
   {

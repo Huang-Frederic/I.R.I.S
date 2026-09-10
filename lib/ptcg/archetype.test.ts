@@ -157,3 +157,18 @@ describe("classifyMyDeck — the Beedrill and N's Zoroark lists", () => {
     expect(classifyMyDeck(log, 'Hisshiden')).toBe('Typhlosion / Dudunsparce');
   });
 });
+
+describe('a signal must belong to ONE of my lists', () => {
+  it('does not name the Beedrill deck from a stadium another of my lists runs', () => {
+    const log = [
+      'Hisshiden a joué (sv10_1) Griknot de Cynthia sur le Poste Actif.',
+      'Hisshiden a joué (meg_117) Forêt de Vitalité comme Stade.',
+    ].join('\n');
+    expect(classifyMyDeck(log, 'Hisshiden')).toBe("Cynthia's Garchomp");
+  });
+
+  it('still names the Beedrill deck from the Weedle line alone', () => {
+    const log = 'Hisshiden a joué (cri_1) Aspicot sur le Poste Actif.';
+    expect(classifyMyDeck(log, 'Hisshiden')).toBe('Dardargnan');
+  });
+});
