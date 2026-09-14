@@ -9,10 +9,6 @@ vi.mock('@/lib/supabase/server', () => ({
 
 afterEach(() => vi.clearAllMocks());
 
-function makeGetRequest(): Request {
-  return new Request('http://localhost/api/ptcg/drill-profiles');
-}
-
 function makePostRequest(body: unknown): Request {
   return new Request('http://localhost/api/ptcg/drill-profiles', {
     method: 'POST',
@@ -23,7 +19,7 @@ function makePostRequest(body: unknown): Request {
 describe('GET /api/ptcg/drill-profiles', () => {
   it('returns 401 when not authenticated', async () => {
     supabaseMock.auth.getUser.mockResolvedValue({ data: { user: null } });
-    const res = await GET(makeGetRequest());
+    const res = await GET();
     expect(res.status).toBe(401);
   });
 
@@ -31,7 +27,7 @@ describe('GET /api/ptcg/drill-profiles', () => {
     supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
     const order = vi.fn().mockResolvedValue({ data: [{ id: 'p1', name: 'Typhlosion' }], error: null });
     supabaseMock.from.mockReturnValue({ select: () => ({ eq: () => ({ order }) }) });
-    const res = await GET(makeGetRequest());
+    const res = await GET();
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.profiles).toEqual([{ id: 'p1', name: 'Typhlosion' }]);
