@@ -260,6 +260,28 @@ export interface PtcgGameRow {
   created_at: string;
 }
 
+export type DrillCategory = 'poke' | 'trainer' | 'energy';
+
+/** One unique printed card in a Drill profile's decklist. `id` is
+ *  `${set_code}-${set_number}` (e.g. "DRI-32") — stable within a profile,
+ *  splittable back into the tcg_catalog lookup key. */
+export interface DrillCard {
+  id: string;
+  name: string;
+  count: number;
+  category: DrillCategory;
+}
+
+export interface DrillProfileRow {
+  id: string;
+  user_id: string;
+  name: string;
+  cards: DrillCard[];
+  target_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PtcgSnapshot {
   /** 1-based line in the raw log. */
   line: number;
