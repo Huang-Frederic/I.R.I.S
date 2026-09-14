@@ -34,22 +34,21 @@ export default function DrillProfileForm({ open, editing, onClose, onSaved }: Pr
   // fresh "New Profile".
   useEffect(() => {
     if (!open) return;
-    const id = setTimeout(() => {
-      if (editing) {
-        setText(decklistTextFromCards(editing.cards));
-        setName(editing.name);
-        setCards(editing.cards);
-        setTargetIds(new Set(editing.target_ids));
-      } else {
-        setText('');
-        setName('');
-        setCards([]);
-        setTargetIds(new Set());
-      }
-      setUnresolved([]);
-      setError(null);
-    }, 0);
-    return () => clearTimeout(id);
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (editing) {
+      setText(decklistTextFromCards(editing.cards));
+      setName(editing.name);
+      setCards(editing.cards);
+      setTargetIds(new Set(editing.target_ids));
+    } else {
+      setText('');
+      setName('');
+      setCards([]);
+      setTargetIds(new Set());
+    }
+    setUnresolved([]);
+    setError(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, editing]);
 
   async function handleParse() {
