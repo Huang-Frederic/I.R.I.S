@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveCards } from '@/lib/ptcg/cards';
-import { DRILL_DECK } from '@/lib/ptcg/drill-deck';
+import { DRILL_DECK, DRILL_TARGET_IDS } from '@/lib/ptcg/drill-deck';
 import PtcgDrill from '@/components/ptcg/PtcgDrill';
 import PageTitle from '@/components/layout/PageTitle';
 import type { PtcgCardRow } from '@/lib/types';
@@ -52,7 +52,7 @@ export default async function DrillPage() {
     <section>
       <PageTitle title={t('pageTitle')} subtitle={t('pageSubtitle')} />
       <div className="mt-6 max-w-3xl">
-        <PtcgDrill images={images} />
+        <PtcgDrill images={images} cards={DRILL_DECK} targetIds={DRILL_TARGET_IDS} />
       </div>
     </section>
   );

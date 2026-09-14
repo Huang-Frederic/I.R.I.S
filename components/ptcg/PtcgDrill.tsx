@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { Flame, RotateCcw, Home, Timer, Layers } from 'lucide-react';
-import { DRILL_DECK, DRILL_TARGET_IDS, type DrillCard } from '@/lib/ptcg/drill-deck';
+import type { DrillCard } from '@/lib/types';
 
 /** One physical copy in the shuffled pool. */
 interface Copy {
@@ -41,19 +41,25 @@ const loadRuns = (): { runs: RunRecord[]; streak: number } => {
   return { runs: [], streak: 0 };
 };
 
-export default function PtcgDrill({ images }: { images: Record<string, string> }) {
+export interface PtcgDrillProps {
+  images: Record<string, string>;
+  cards: DrillCard[];
+  targetIds: string[];
+}
+
+export default function PtcgDrill({ images, cards, targetIds }: PtcgDrillProps) {
   const t = useTranslations('drill');
 
   const pool = useMemo<Copy[]>(
     () =>
-      DRILL_DECK.flatMap((c) =>
+      cards.flatMap((c) =>
         Array.from({ length: c.count }, () => ({ id: c.id, name: c.name, category: c.category })),
       ),
-    [],
+    [cards],
   );
   const targets = useMemo(
-    () => DRILL_TARGET_IDS.map((id) => DRILL_DECK.find((c) => c.id === id)!),
-    [],
+    () => targetIds.map((id) => cards.find((c) => c.id === id)!),
+    [cards, targetIds],
   );
 
   const [view, setView] = useState<View>('home');
@@ -87,7 +93,7 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
    *  The run must not start with holes in the fan — a missing Bracelet mid-scan
    *  reads as a bug, not as a card. */
   const preload = useCallback(async (): Promise<Set<string>> => {
-    const unique = [...new Set(DRILL_DECK.map((c) => c.id))];
+    const unique = [...new Set(cards.map((c) => c.id))];
     const failed = new Set<string>();
     let done = 0;
     setLoaded(0);
@@ -118,7 +124,7 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
       ),
     );
     return failed;
-  }, [images]);
+  }, [images, cards]);
 
   const start = useCallback(
     async (m: Mode) => {
@@ -225,7 +231,7 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
           <h2 className="text-text-muted text-xs font-semibold tracking-wide uppercase">
             {t('objectiveTitle')}
           </h2>
-          <p className="mt-2 text-sm leading-relaxed">{t('objective', { seconds: LIMIT })}</p>
+          <p className="mt-2 text-sm leading-relaxed">{t('objective', { seconds: LIMIT, count: targets.length })}</p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -301,7 +307,7 @@ export default function PtcgDrill({ images }: { images: Record<string, string> }
   }
 
   if (view === 'loading') {
-    const total = new Set(DRILL_DECK.map((c) => c.id)).size;
+    const total = new Set(cards.map((c) => c.id)).size;
     return (
       <div className="border-border bg-surface flex flex-col items-center gap-3 rounded-xl border px-4 py-12">
         <Layers className="text-red h-8 w-8 motion-safe:animate-pulse" aria-hidden />
