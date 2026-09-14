@@ -30,7 +30,8 @@
     "reenrich-cards": "tsx scripts/reenrich-existing-cards.ts",
     "ptcg-digest": "tsx scripts/ptcg-digest.ts",
     "ptcg-bundle": "tsx scripts/ptcg-bundle.ts",
-    "skill-zip": "tsx scripts/skill-zip.ts"
+    "skill-zip": "tsx scripts/skill-zip.ts",
+    "generate-icons": "tsx scripts/generate-icons.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
@@ -66,6 +67,7 @@
     "prettier": "^3.4.1",
     "prettier-plugin-tailwindcss": "^0.6.9",
     "server-only": "^0.0.1",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",
     "typescript": "^5",

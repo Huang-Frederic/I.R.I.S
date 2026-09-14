@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { Card, Lot, CardWithListings, LotWithListings, BaseListing } from '@/lib/types';
@@ -44,6 +44,14 @@ import { useUserContext } from '@/lib/hooks/useUserContext';
 import { useDataSync } from './hooks/useDataSync';
 import { useSelectionMode } from './hooks/useSelectionMode';
 import { useStockCount } from './hooks/useStockCount';
+import { useBumpPolling } from './hooks/useBumpPolling';
+import { useRealtimeListingsRefresh } from './hooks/useRealtimeListingsRefresh';
+import {
+  matchesSearch,
+  matchesLotSearch,
+  matchesLotFilters,
+  matchesAttrFilters,
+} from '@/lib/utils/vinted-list-filters';
 
 export interface VintedListProps {
   cards: CardWithListings[];
@@ -57,59 +65,6 @@ export interface VintedListProps {
   /** When true, the current user is the designated Vinted user and the
    *  "Post to Vinted" button is shown in each row. */
   vintedEnabled: boolean;
-}
-
-function normalize(s: string): string {
-  return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
-}
-
-function matchesSearch(card: CardWithListings, query: string): boolean {
-  if (!query) return true;
-  const q = normalize(query);
-  const fields = [
-    card.set_number, card.card_name, card.pokemon_name,
-    card.set_name, card.set_code, card.language, card.rarity,
-  ];
-  return fields.some((f) => f && normalize(f).includes(q));
-}
-
-function matchesLotSearch(lot: LotWithListings, query: string): boolean {
-  if (!query) return true;
-  const q = normalize(query);
-  const fields = [lot.name, lot.extra_description ?? '', lot.language ?? ''];
-  return fields.some((f) => f && normalize(f).includes(q));
-}
-
-const CATALOG_SINGLE = 4875;
-const BRAND_IDS = { pokemon: 191646, onepiece: 89766, magic: 399547, lorcana: 287189, riftbound: 509120 } as const;
-
-function matchesLotFilters(lot: LotWithListings, f: VintedFilterState): boolean {
-  if (f.kindFilter === 'single' && lot.catalog_id !== CATALOG_SINGLE) return false;
-  if (f.kindFilter === 'lot' && lot.catalog_id === CATALOG_SINGLE) return false;
-  if (f.lotBrand !== 'all') {
-    const bid = lot.brand_id;
-    switch (f.lotBrand) {
-      case 'pokemon': if (bid !== null && bid !== BRAND_IDS.pokemon) return false; break;
-      case 'onepiece': if (bid !== BRAND_IDS.onepiece) return false; break;
-      case 'magic': if (bid !== BRAND_IDS.magic) return false; break;
-      case 'lorcana': if (bid !== BRAND_IDS.lorcana) return false; break;
-      case 'riftbound': if (bid !== BRAND_IDS.riftbound) return false; break;
-      case 'autres':
-        if (bid === null || bid === BRAND_IDS.pokemon || bid === BRAND_IDS.onepiece || bid === BRAND_IDS.magic || bid === BRAND_IDS.lorcana || bid === BRAND_IDS.riftbound) return false;
-        break;
-    }
-  }
-  return true;
-}
-
-function matchesAttrFilters(card: CardWithListings, f: VintedFilterState): boolean {
-  if (f.language !== 'all' && card.language !== f.language) return false;
-  if (f.rarity !== 'all' && card.rarity !== f.rarity) return false;
-  if (f.variant !== 'all') {
-    const variant = card.variant ?? 'standard';
-    if (variant !== f.variant) return false;
-  }
-  return true;
 }
 
 export default function VintedList({ cards: initial, lots: initialLots, collectionCards: initialCollection, registered, config, vintedEnabled }: VintedListProps) {
@@ -141,58 +96,12 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
   }, [filters]);
 
   // Track items with a queued bump (repost) job so the row can show a badge.
-  const [bumpingIds, setBumpingIds] = useState<Map<string, string>>(new Map());
-  const bumpPollRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
-
-  const onBumpQueued = useCallback((itemId: string, jobId: string) => {
-    setBumpingIds((prev) => new Map(prev).set(itemId, jobId));
-    const supabase = createClient();
-    const interval = setInterval(async () => {
-      const { data: job } = await supabase
-        .from('vinted_post_jobs')
-        .select('status')
-        .eq('id', jobId)
-        .maybeSingle();
-      if (job?.status === 'done' || job?.status === 'error') {
-        clearInterval(interval);
-        bumpPollRef.current.delete(itemId);
-        setBumpingIds((prev) => { const next = new Map(prev); next.delete(itemId); return next; });
-        router.refresh();
-      }
-    }, 3000);
-    bumpPollRef.current.set(itemId, interval);
-  }, [router]);
-
-  // Clean up any running polls on unmount.
-  useEffect(() => {
-    const polls = bumpPollRef.current;
-    return () => { polls.forEach((iv) => clearInterval(iv)); };
-  }, []);
+  const { bumpingIds, onBumpQueued } = useBumpPolling();
 
   // Realtime: when the partner migrates our listings to a new card (promote-after-sold),
   // the card_listings row for our user_id is deleted + re-inserted on the new card.
   // Without this, our page stays stale and shows "À retirer" until we manually refresh.
-  // Debounced to 2 s to avoid cascading refreshes when the agent posts many cards at once.
-  const realtimeRefreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (!myUserId) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`card-listings-${myUserId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'card_listings', filter: `user_id=eq.${myUserId}` },
-        () => {
-          if (realtimeRefreshRef.current) clearTimeout(realtimeRefreshRef.current);
-          realtimeRefreshRef.current = setTimeout(() => router.refresh(), 2000);
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-      if (realtimeRefreshRef.current) clearTimeout(realtimeRefreshRef.current);
-    };
-  }, [myUserId, router]);
+  useRealtimeListingsRefresh(myUserId);
 
   const { selectionMode, selectedIds, toggleSelect, toggleSelectionMode, cancelSelection } =
     useSelectionMode();

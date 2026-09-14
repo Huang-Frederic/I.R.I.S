@@ -4,7 +4,6 @@ import { useRef, useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { ScanLine, AlertTriangle, CheckCircle2, XCircle, Camera } from 'lucide-react';
 import {
-  UI_LANGUAGES,
   type CardCondition,
   type CardLanguage,
   type CardRarity,
@@ -32,134 +31,20 @@ import CardMatchPreview from '@/components/scanner/CardMatchPreview';
 import { detectNumberMismatch } from '@/lib/utils/pokedex-mismatch';
 import { Field, Input, Select, CandidatePicker } from './CardScanFormUI';
 import StickyCardPreview from './StickyCardPreview';
-
-const LANGUAGES: readonly CardLanguage[] = UI_LANGUAGES;
-const CONDITIONS: CardCondition[] = ['NM', 'EX', 'GD', 'PL', 'PO'];
-const STATUS_VALUES = ['for_sale', 'pokedex', 'collection'] as const satisfies readonly CardStatus[];
-const RARITY_VALUES = [
-  'SAR',
-  'AR',
-  'SR',
-  'CHR',
-  'RR',
-  'R_HOLO',
-  'R',
-  'UC',
-  'C',
-  'OTHER',
-] as const satisfies readonly CardRarity[];
-const VARIANT_VALUES = [
-  { value: '', key: 'standard' },
-  { value: 'pokeball', key: 'pokeball' },
-  { value: 'masterball', key: 'masterball' },
-  { value: 'reverse_holo', key: 'reverse_holo' },
-  { value: 'stamp', key: 'stamp' },
-  { value: 'promo', key: 'promo' },
-] as const;
-
-/**
- * Status-driven accent palette for the destination select + save button.
- * Mirrors the semantic mapping used elsewhere: blue = Vinted/for_sale,
- * amber = Stock/collection, red = Pokédex. Picked up by both the status
- * <select>'s border and the save <button>'s bg/hover so the user gets
- * instant visual feedback on which bucket the card will land in.
- */
-const STATUS_COLOR_CLASSES: Record<CardStatus, { border: string; button: string }> = {
-  for_sale: { border: 'border-blue-500', button: 'bg-blue-600 hover:bg-blue-700' },
-  collection: { border: 'border-amber-600', button: 'bg-amber-600 hover:bg-amber-700' },
-  pokedex: { border: 'border-red', button: 'bg-red hover:bg-[#c44545]' },
-  // 'sold' / 'traded' aren't user-selectable in the scanner, but CardStatus
-  // includes them — fall back to the for_sale palette to keep the type total.
-  sold: { border: 'border-blue-500', button: 'bg-blue-600 hover:bg-blue-700' },
-  traded: { border: 'border-blue-500', button: 'bg-blue-600 hover:bg-blue-700' },
-};
+import {
+  LANGUAGES,
+  CONDITIONS,
+  STATUS_VALUES,
+  RARITY_VALUES,
+  VARIANT_VALUES,
+  STATUS_COLOR_CLASSES,
+  EMPTY,
+  CONFIDENCE_THRESHOLD,
+  type FormFields,
+} from './CardScanForm.constants';
+import { resolveLanguage, formatLocalizedName } from './CardScanForm.helpers';
 
 type Phase = 'idle' | 'scanning' | 'reviewing' | 'saving' | 'success' | 'error';
-
-interface FormFields {
-  pokemon_name: string;
-  pokemon_number: string;
-  card_name: string;
-  card_id_tcg: string;
-  set_name: string;
-  set_code: string;
-  set_number: string;
-  tcg_image_url: string;
-  language: CardLanguage;
-  rarity: CardRarity;
-  condition: CardCondition;
-  status: CardStatus;
-  notes: string;
-  variant: string;
-  count: number;
-  /* Pricing — hidden from the user, populated by enrichment when available. */
-  cardmarket_id: string;
-  cm_price_low: string;
-  cm_price_trend: string;
-  cm_price_avg: string;
-}
-
-const EMPTY: FormFields = {
-  pokemon_name: '',
-  pokemon_number: '',
-  card_name: '',
-  card_id_tcg: '',
-  set_name: '',
-  set_code: '',
-  set_number: '',
-  tcg_image_url: '',
-  language: 'EN',
-  rarity: 'OTHER',
-  condition: 'NM',
-  status: 'for_sale',
-  notes: '',
-  variant: '',
-  count: 1,
-  cardmarket_id: '',
-  cm_price_low: '',
-  cm_price_trend: '',
-  cm_price_avg: '',
-};
-
-const CONFIDENCE_THRESHOLD = 0.8;
-
-function detectLanguage(text: string): CardLanguage {
-  // Last-resort sniff used only on the Vision-fallback path (no Gemini language
-  // field available). Returns 'JP' when CJK characters are present, else 'EN'.
-  // For accurate KO/FR/DE/IT/ES/PT/ZH, prefer `ocr.language` from Gemini.
-  return /[぀-ゟ゠-ヿ一-龿]/.test(text) ? 'JP' : 'EN';
-}
-
-/**
- * Resolve the card's language from an OCR result. Prefers the explicit
- * `language` field from Gemini extraction (covers all 9 supported languages),
- * falls back to `detectLanguage` regex sniffing only when Gemini didn't set it
- * (Vision fallback path or legacy responses).
- */
-function resolveLanguage(ocr: { language?: CardLanguage; text: string }): CardLanguage {
-  return ocr.language ?? detectLanguage(ocr.text);
-}
-
-/**
- * Format a card or Pokémon name for display when the printed language differs
- * from French. Catalog gives the French name (e.g. "Carapuce"); raw OCR gives
- * the on-card original (e.g. "ゼニガメ" / "Squirtle"). For non-FR cards we
- * surface both so the user can cross-check the photo at a glance.
- */
-function formatLocalizedName(
-  frenchName: string | null | undefined,
-  rawOriginal: string | null | undefined,
-  language: CardLanguage,
-): string {
-  const fr = (frenchName ?? '').trim();
-  const raw = (rawOriginal ?? '').trim();
-  if (!fr) return raw;
-  if (language === 'FR' || !raw) return fr;
-  // Guard: if raw is already embedded in fr (server already applied bilingual
-  // formatting), don't double-wrap — e.g. "Meloetta ex (メロエッタex)" + "メロエッタex".
-  if (fr.toLowerCase().includes(raw.toLowerCase())) return fr;
-  return `${fr} (${raw})`;
-}
 
 export interface CardScanFormProps {
   /** When set, the pokemon_number input is locked to this value, pokemon_name pre-filled via dataset. */
