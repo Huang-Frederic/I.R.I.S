@@ -9,7 +9,9 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.ts'],
     globals: true,
     include: ['**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['**/node_modules/**', '.next', 'e2e/**'],
+    // .worktrees: isolated git worktrees (feature work) — never run/duplicate
+    // their tests when invoked from the main checkout.
+    exclude: ['**/node_modules/**', '.next', 'e2e/**', '.worktrees/**'],
   },
   resolve: {
     alias: {
