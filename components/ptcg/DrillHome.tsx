@@ -106,11 +106,10 @@ export default function DrillHome({ initialProfiles }: { initialProfiles: DrillP
                   <img
                     src={`${SPRITE_BASE}/${p.pokemon_number}.png`}
                     alt=""
-                    className="h-10 w-10 shrink-0"
-                    style={{ imageRendering: 'pixelated' }}
+                    className="pixel-sprite h-12 w-12 shrink-0"
                   />
                 ) : (
-                  <div className="bg-surface-2 h-10 w-10 shrink-0 rounded-full" />
+                  <div className="bg-surface-2 h-12 w-12 shrink-0 rounded-full" />
                 )}
                 <div>
                   <p className="text-sm font-semibold">{p.name}</p>

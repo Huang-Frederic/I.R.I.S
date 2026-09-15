@@ -50,15 +50,14 @@ export default function PokemonPicker({ value, onChange }: Props) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={t('profileSpriteLabel')}
-        className="border-border bg-surface-2 hover:border-red flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 transition"
+        className="border-border bg-surface-2 hover:border-red flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 transition"
       >
         {value ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={`${SPRITE_BASE}/${value}.png`}
             alt=""
-            className="h-12 w-12"
-            style={{ imageRendering: 'pixelated' }}
+            className="pixel-sprite h-14 w-14"
           />
         ) : (
           <span className="text-text-faint text-xl">?</span>
@@ -97,8 +96,7 @@ export default function PokemonPicker({ value, onChange }: Props) {
                     src={`${SPRITE_BASE}/${r.number}.png`}
                     alt={r.fr}
                     loading="lazy"
-                    className="h-12 w-12"
-                    style={{ imageRendering: 'pixelated' }}
+                    className="pixel-sprite h-12 w-12"
                   />
                 </button>
               ))}

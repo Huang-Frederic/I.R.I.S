@@ -122,6 +122,16 @@ body {
   }
 }
 
+/** Crisp nearest-neighbor scaling for retro pixel-art sprites (Drill profile
+ *  Pokémon icons). `image-rendering: pixelated` alone isn't enough — older
+ *  WebKit/Firefox need their own vendor values, and CSS falls back to the
+ *  last value it understands, so all three must be declared in order. */
+.pixel-sprite {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: pixelated;
+}
+
 /** Hide the scrollbar visually while keeping the element scrollable. */
 .scrollbar-hidden {
   scrollbar-width: none; /* Firefox */
