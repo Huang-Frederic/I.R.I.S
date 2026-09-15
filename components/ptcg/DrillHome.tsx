@@ -1,15 +1,18 @@
 // components/ptcg/DrillHome.tsx
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus, Play, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Play, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import type { DrillProfileRow } from '@/lib/types';
 import DrillProfileForm from './DrillProfileForm';
 import PtcgDrill from './PtcgDrill';
 import ConfirmDialog from '@/components/vinted/ConfirmDialog';
 
-const SPRITE_BASE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon';
+// Same community-drawn pixel sprite set as PokemonPicker — see that file for
+// why this path (not the smoother default PokeAPI sprite) was picked.
+const SPRITE_BASE =
+  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white';
 
 export default function DrillHome({ initialProfiles }: { initialProfiles: DrillProfileRow[] }) {
   const t = useTranslations('drill');
@@ -22,6 +25,20 @@ export default function DrillHome({ initialProfiles }: { initialProfiles: DrillP
   const [running, setRunning] = useState<{ profile: DrillProfileRow; images: Record<string, string> } | null>(
     null,
   );
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close the open row menu on any click outside it.
+  useEffect(() => {
+    if (!menuOpenId) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpenId(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpenId]);
 
   async function handleStart(profile: DrillProfileRow) {
     setStarting(profile.id);
@@ -100,26 +117,42 @@ export default function DrillHome({ initialProfiles }: { initialProfiles: DrillP
                   <p className="text-text-muted text-xs">{t('deckCount', { count: p.cards.length })}</p>
                 </div>
               </div>
-              <div className="flex shrink-0 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(p);
-                    setFormOpen(true);
-                  }}
-                  className="border-border hover:bg-surface-2 rounded-lg border p-2"
-                  aria-label={t('editProfile')}
-                >
-                  <Pencil className="h-4 w-4" aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleting(p)}
-                  className="border-border hover:bg-surface-2 rounded-lg border p-2"
-                  aria-label={t('deleteProfile')}
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden />
-                </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <div className="relative" ref={menuOpenId === p.id ? menuRef : undefined}>
+                  <button
+                    type="button"
+                    onClick={() => setMenuOpenId(menuOpenId === p.id ? null : p.id)}
+                    className="border-border hover:bg-surface-2 rounded-lg border p-2"
+                    aria-label={t('moreActions')}
+                  >
+                    <MoreVertical className="h-4 w-4" aria-hidden />
+                  </button>
+                  {menuOpenId === p.id && (
+                    <div className="border-border bg-surface absolute right-0 z-10 mt-1 w-36 overflow-hidden rounded-lg border shadow-lg">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpenId(null);
+                          setEditing(p);
+                          setFormOpen(true);
+                        }}
+                        className="hover:bg-surface-2 flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
+                      >
+                        <Pencil className="h-3.5 w-3.5" aria-hidden /> {t('editProfile')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpenId(null);
+                          setDeleting(p);
+                        }}
+                        className="hover:bg-surface-2 text-red flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden /> {t('deleteProfile')}
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => void handleStart(p)}

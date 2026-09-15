@@ -6,37 +6,55 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+function openPicker() {
+  fireEvent.click(screen.getByRole('button', { name: 'profileSpriteLabel' }));
+}
+
 describe('<PokemonPicker>', () => {
-  it('shows no results before a query is typed', () => {
+  it('does not show the search field before the sprite circle is clicked', () => {
     render(<PokemonPicker value={null} onChange={() => {}} />);
-    expect(screen.queryByRole('button', { name: /Dracaufeu/i })).toBeNull();
+    expect(screen.queryByRole('textbox')).toBeNull();
   });
 
-  it('shows matching results for a French name query', () => {
+  it('opens a picker showing the dex from the top when the sprite circle is clicked', () => {
+    // The grid is virtualized (react-window) — only the rows near the top
+    // are actually in the DOM until the user scrolls, so this asserts on
+    // the first entry (#1) rather than the whole dex.
     render(<PokemonPicker value={null} onChange={() => {}} />);
+    openPicker();
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Bulbizarre' })).toBeInTheDocument();
+  });
+
+  it('filters the grid by a French name query', () => {
+    render(<PokemonPicker value={null} onChange={() => {}} />);
+    openPicker();
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'dracaufeu' } });
-    expect(screen.getByRole('button', { name: /Dracaufeu/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dracaufeu' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Bulbizarre' })).toBeNull();
   });
 
-  it('shows matching results for an English name query', () => {
+  it('filters the grid by an English name query', () => {
     render(<PokemonPicker value={null} onChange={() => {}} />);
+    openPicker();
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'charizard' } });
-    expect(screen.getByRole('button', { name: /Charizard/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dracaufeu' })).toBeInTheDocument();
   });
 
-  it('calls onChange with the picked national dex number and clears the query', () => {
+  it('picks a Pokémon, closes the picker, and clears the query', () => {
     const onChange = vi.fn();
     render(<PokemonPicker value={null} onChange={onChange} />);
-    const input = screen.getByRole('textbox') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'dracaufeu' } });
-    fireEvent.mouseDown(screen.getByRole('button', { name: /Dracaufeu/i }));
+    openPicker();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'dracaufeu' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Dracaufeu' }));
     expect(onChange).toHaveBeenCalledWith(6);
-    expect(input.value).toBe('');
+    expect(screen.queryByRole('textbox')).toBeNull();
   });
 
-  it('renders a sprite preview once a value is set', () => {
+  it('renders the picked sprite on the trigger circle', () => {
     render(<PokemonPicker value={6} onChange={() => {}} />);
-    const img = screen.getByAltText('') as HTMLImageElement;
-    expect(img.src).toContain('/6.png');
+    const trigger = screen.getByRole('button', { name: 'profileSpriteLabel' });
+    const img = trigger.querySelector('img');
+    expect(img?.src).toContain('/6.png');
   });
 });

@@ -1074,6 +1074,7 @@
     "newProfile": "New Profile",
     "noProfiles": "No profiles yet — create one to get started.",
     "editProfile": "Edit",
+    "moreActions": "More actions",
     "deleteProfile": "Delete",
     "deleteProfileTitle": "Delete this profile?",
     "deleteProfileBody": "\"{name}\" will be permanently deleted.",

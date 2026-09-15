@@ -8,16 +8,16 @@ export interface PokemonSearchResult {
 }
 
 /** Searches POKEMON_NAMES by French or English name, accent- and
- *  case-insensitive substring match. Object.entries on POKEMON_NAMES yields
- *  ascending dex-number order (integer-like keys), so results come back
- *  lowest-number-first. */
-export function searchPokemon(query: string, limit = 8): PokemonSearchResult[] {
+ *  case-insensitive substring match. An empty query returns the full dex
+ *  (used by the grid picker's default view) instead of no results.
+ *  Object.entries on POKEMON_NAMES yields ascending dex-number order
+ *  (integer-like keys), so results come back lowest-number-first. */
+export function searchPokemon(query: string, limit = 1025): PokemonSearchResult[] {
   const q = normalizeForSearch(query.trim());
-  if (!q) return [];
 
   const results: PokemonSearchResult[] = [];
   for (const [numStr, entry] of Object.entries(POKEMON_NAMES)) {
-    if (normalizeForSearch(entry.fr).includes(q) || normalizeForSearch(entry.en).includes(q)) {
+    if (!q || normalizeForSearch(entry.fr).includes(q) || normalizeForSearch(entry.en).includes(q)) {
       results.push({ number: Number(numStr), fr: entry.fr, en: entry.en });
       if (results.length >= limit) break;
     }

@@ -17,23 +17,21 @@ describe('searchPokemon', () => {
     expect(results.some((r) => r.number === 25)).toBe(true);
   });
 
-  it('returns an empty array for an empty or whitespace query', () => {
-    expect(searchPokemon('')).toEqual([]);
-    expect(searchPokemon('   ')).toEqual([]);
+  it('returns the full dex, in ascending dex order, for an empty or whitespace query', () => {
+    const results = searchPokemon('');
+    expect(results).toHaveLength(1025);
+    expect(results[0]).toEqual({ number: 1, fr: 'Bulbizarre', en: 'Bulbasaur' });
+    expect(results[1024].number).toBe(1025);
+    expect(searchPokemon('   ')).toHaveLength(1025);
   });
 
-  it('returns an empty array when nothing matches', () => {
+  it('returns an empty array when nothing matches a non-empty query', () => {
     expect(searchPokemon('zzzznotapokemon')).toEqual([]);
   });
 
   it('caps results at the given limit', () => {
-    // 'a' matches hundreds of names in fr+en — plenty to exceed a small limit.
     const results = searchPokemon('a', 3);
     expect(results).toHaveLength(3);
-  });
-
-  it('defaults to a limit of 8 results', () => {
-    const results = searchPokemon('a');
-    expect(results.length).toBeLessThanOrEqual(8);
+    expect(searchPokemon('', 5)).toHaveLength(5);
   });
 });

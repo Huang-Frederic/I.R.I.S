@@ -1074,6 +1074,7 @@
     "newProfile": "Nouveau profil",
     "noProfiles": "Aucun profil pour l'instant — crée-en un pour commencer.",
     "editProfile": "Modifier",
+    "moreActions": "Plus d'actions",
     "deleteProfile": "Supprimer",
     "deleteProfileTitle": "Supprimer ce profil ?",
     "deleteProfileBody": "« {name} » sera définitivement supprimé.",

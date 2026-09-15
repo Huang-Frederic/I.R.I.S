@@ -1074,6 +1074,7 @@
     "newProfile": "新しいプロファイル",
     "noProfiles": "まだプロファイルがありません。作成して始めましょう。",
     "editProfile": "編集",
+    "moreActions": "その他の操作",
     "deleteProfile": "削除",
     "deleteProfileTitle": "このプロファイルを削除しますか？",
     "deleteProfileBody": "「{name}」は完全に削除されます。",

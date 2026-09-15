@@ -152,6 +152,22 @@ export default function DrillProfileForm({ open, editing, onClose, onSaved }: Pr
       </div>
 
       <div className="flex flex-col gap-4 overflow-y-auto p-4">
+        <div className="flex items-end gap-3">
+          <PokemonPicker value={pokemonNumber} onChange={setPokemonNumber} />
+          <div className="flex flex-1 flex-col gap-2">
+            <label className="text-text-muted text-xs font-semibold uppercase tracking-wide">
+              {t('profileNameLabel')}
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t('profileNamePlaceholder')}
+              className="bg-surface-2 border-border focus:border-red w-full rounded-lg border px-3 py-2 text-sm outline-none"
+            />
+          </div>
+        </div>
+
         <div className="flex flex-col gap-2">
           <label className="text-text-muted text-xs font-semibold uppercase tracking-wide">
             {t('pasteDecklistLabel')}
@@ -208,25 +224,6 @@ export default function DrillProfileForm({ open, editing, onClose, onSaved }: Pr
                 </div>
               );
             })}
-          </div>
-        )}
-
-        {cards.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <label className="text-text-muted text-xs font-semibold uppercase tracking-wide">
-              {t('profileNameLabel')}
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t('profileNamePlaceholder')}
-              className="bg-surface-2 border-border focus:border-red w-full rounded-lg border px-3 py-2 text-sm outline-none"
-            />
-            <label className="text-text-muted mt-1 text-xs font-semibold uppercase tracking-wide">
-              {t('profileSpriteLabel')}
-            </label>
-            <PokemonPicker value={pokemonNumber} onChange={setPokemonNumber} />
           </div>
         )}
       </div>

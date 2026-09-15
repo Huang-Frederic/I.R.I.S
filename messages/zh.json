@@ -1074,6 +1074,7 @@
     "newProfile": "新建档案",
     "noProfiles": "还没有档案，创建一个开始吧。",
     "editProfile": "编辑",
+    "moreActions": "更多操作",
     "deleteProfile": "删除",
     "deleteProfileTitle": "删除此档案？",
     "deleteProfileBody": "“{name}”将被永久删除。",
