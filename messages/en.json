@@ -1086,6 +1086,8 @@
     "selectTargetsLabel": "Check the cards to quiz on",
     "profileNameLabel": "Profile name",
     "profileNamePlaceholder": "e.g. Typhlosion",
+    "profileSpriteLabel": "Profile sprite",
+    "searchPokemonPlaceholder": "Search a Pokémon (FR or EN)",
     "objectiveTitle": "Goal",
     "objective": "In under {seconds}s, give the prized count for your {count} targets.",
     "modeStandard": "Standard",

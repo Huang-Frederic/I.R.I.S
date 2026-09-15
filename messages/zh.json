@@ -1086,6 +1086,8 @@
     "selectTargetsLabel": "勾选要检查的卡牌",
     "profileNameLabel": "档案名称",
     "profileNamePlaceholder": "例如：火暴兽",
+    "profileSpriteLabel": "档案精灵图标",
+    "searchPokemonPlaceholder": "搜索宝可梦（法语或英语名）",
     "objectiveTitle": "目标",
     "objective": "在{seconds}秒内说出{count}个目标的奖赏区数量。",
     "modeStandard": "标准",

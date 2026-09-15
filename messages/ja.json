@@ -1086,6 +1086,8 @@
     "selectTargetsLabel": "チェックするカードを選択",
     "profileNameLabel": "プロファイル名",
     "profileNamePlaceholder": "例：バクフーン",
+    "profileSpriteLabel": "プロファイルのスプライト",
+    "searchPokemonPlaceholder": "ポケモンを検索（仏語・英語名）",
     "objectiveTitle": "目標",
     "objective": "{seconds}秒以内に{count}項目のサイド落ち枚数を当てる。",
     "modeStandard": "スタンダード",

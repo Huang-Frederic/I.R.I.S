@@ -1086,6 +1086,8 @@
     "selectTargetsLabel": "Coche les cartes à checker",
     "profileNameLabel": "Nom du profil",
     "profileNamePlaceholder": "ex. Typhlosion",
+    "profileSpriteLabel": "Sprite du profil",
+    "searchPokemonPlaceholder": "Chercher un Pokémon (FR ou EN)",
     "objectiveTitle": "Objectif",
     "objective": "Donner en moins de {seconds} s le nombre de cartes prizées pour tes {count} cibles.",
     "modeStandard": "Standard",

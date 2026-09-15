@@ -19,11 +19,17 @@ function isDrillCard(v: unknown): v is DrillCard {
 }
 
 /** Shared by POST (create) and PATCH (Task 8, update) — both accept the
- *  same { name, cards, target_ids } shape and must pass the same checks. */
+ *  same { name, cards, target_ids, pokemon_number } shape and must pass the
+ *  same checks. */
 export function validateProfileBody(body: unknown):
-  | { ok: true; name: string; cards: DrillCard[]; target_ids: string[] }
+  | { ok: true; name: string; cards: DrillCard[]; target_ids: string[]; pokemon_number: number }
   | { ok: false; message: string } {
-  const b = body as { name?: unknown; cards?: unknown; target_ids?: unknown };
+  const b = body as {
+    name?: unknown;
+    cards?: unknown;
+    target_ids?: unknown;
+    pokemon_number?: unknown;
+  };
   if (typeof b?.name !== 'string' || !b.name.trim()) {
     return { ok: false, message: 'A profile name is required.' };
   }
@@ -37,7 +43,21 @@ export function validateProfileBody(body: unknown):
   if (!b.target_ids.every((id) => cardIds.has(id))) {
     return { ok: false, message: 'Every target id must reference a card in the decklist.' };
   }
-  return { ok: true, name: b.name.trim(), cards: b.cards, target_ids: b.target_ids };
+  if (
+    typeof b.pokemon_number !== 'number' ||
+    !Number.isInteger(b.pokemon_number) ||
+    b.pokemon_number < 1 ||
+    b.pokemon_number > 1025
+  ) {
+    return { ok: false, message: 'A Pokémon sprite is required.' };
+  }
+  return {
+    ok: true,
+    name: b.name.trim(),
+    cards: b.cards,
+    target_ids: b.target_ids,
+    pokemon_number: b.pokemon_number,
+  };
 }
 
 export async function GET() {
@@ -49,7 +69,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('ptcg_drill_profiles')
-    .select('id, user_id, name, cards, target_ids, created_at, updated_at')
+    .select('id, user_id, name, cards, target_ids, pokemon_number, created_at, updated_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
   if (error) return serverErrorResponse(error.message);
@@ -76,8 +96,14 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase
     .from('ptcg_drill_profiles')
-    .insert({ user_id: user.id, name: check.name, cards: check.cards, target_ids: check.target_ids })
-    .select('id, user_id, name, cards, target_ids, created_at, updated_at')
+    .insert({
+      user_id: user.id,
+      name: check.name,
+      cards: check.cards,
+      target_ids: check.target_ids,
+      pokemon_number: check.pokemon_number,
+    })
+    .select('id, user_id, name, cards, target_ids, pokemon_number, created_at, updated_at')
     .single();
   if (error) return serverErrorResponse(error.message);
 

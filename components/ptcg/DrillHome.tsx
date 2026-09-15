@@ -9,6 +9,8 @@ import DrillProfileForm from './DrillProfileForm';
 import PtcgDrill from './PtcgDrill';
 import ConfirmDialog from '@/components/vinted/ConfirmDialog';
 
+const SPRITE_BASE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon';
+
 export default function DrillHome({ initialProfiles }: { initialProfiles: DrillProfileRow[] }) {
   const t = useTranslations('drill');
   const [profiles, setProfiles] = useState(initialProfiles);
@@ -81,9 +83,22 @@ export default function DrillHome({ initialProfiles }: { initialProfiles: DrillP
         <ul className="divide-border border-border bg-surface divide-y rounded-xl border">
           {profiles.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-3 p-4">
-              <div>
-                <p className="text-sm font-semibold">{p.name}</p>
-                <p className="text-text-muted text-xs">{t('deckCount', { count: p.cards.length })}</p>
+              <div className="flex items-center gap-3">
+                {p.pokemon_number ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={`${SPRITE_BASE}/${p.pokemon_number}.png`}
+                    alt=""
+                    className="h-10 w-10 shrink-0"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                ) : (
+                  <div className="bg-surface-2 h-10 w-10 shrink-0 rounded-full" />
+                )}
+                <div>
+                  <p className="text-sm font-semibold">{p.name}</p>
+                  <p className="text-text-muted text-xs">{t('deckCount', { count: p.cards.length })}</p>
+                </div>
               </div>
               <div className="flex shrink-0 gap-2">
                 <button

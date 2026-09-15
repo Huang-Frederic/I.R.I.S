@@ -20,7 +20,7 @@ export default async function DrillPage() {
 
   const { data } = await supabase
     .from('ptcg_drill_profiles')
-    .select('id, user_id, name, cards, target_ids, created_at, updated_at')
+    .select('id, user_id, name, cards, target_ids, pokemon_number, created_at, updated_at')
     .order('created_at', { ascending: false });
 
   return (

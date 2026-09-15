@@ -278,6 +278,10 @@ export interface DrillProfileRow {
   name: string;
   cards: DrillCard[];
   target_ids: string[];
+  /** National dex number of the sprite shown for this profile. Nullable at
+   *  the DB level for pre-existing rows; the form requires picking one for
+   *  every new/edited profile. */
+  pokemon_number: number | null;
   created_at: string;
   updated_at: string;
 }

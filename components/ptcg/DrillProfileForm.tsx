@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Modal from '@/components/ui/Modal';
 import { decklistTextFromCards } from '@/lib/ptcg/decklist';
+import PokemonPicker from './PokemonPicker';
 import type { DrillCard, DrillCategory, DrillProfileRow } from '@/lib/types';
 
 const CATEGORIES: DrillCategory[] = ['poke', 'trainer', 'energy'];
@@ -23,6 +24,7 @@ export default function DrillProfileForm({ open, editing, onClose, onSaved }: Pr
 
   const [text, setText] = useState('');
   const [name, setName] = useState('');
+  const [pokemonNumber, setPokemonNumber] = useState<number | null>(null);
   const [cards, setCards] = useState<DrillCard[]>([]);
   const [unresolved, setUnresolved] = useState<string[]>([]);
   const [targetIds, setTargetIds] = useState<Set<string>>(new Set());
@@ -38,11 +40,13 @@ export default function DrillProfileForm({ open, editing, onClose, onSaved }: Pr
     if (editing) {
       setText(decklistTextFromCards(editing.cards));
       setName(editing.name);
+      setPokemonNumber(editing.pokemon_number);
       setCards(editing.cards);
       setTargetIds(new Set(editing.target_ids));
     } else {
       setText('');
       setName('');
+      setPokemonNumber(null);
       setCards([]);
       setTargetIds(new Set());
     }
@@ -95,7 +99,12 @@ export default function DrillProfileForm({ open, editing, onClose, onSaved }: Pr
     setSaving(true);
     setError(null);
     try {
-      const body = { name: name.trim(), cards, target_ids: [...targetIds] };
+      const body = {
+        name: name.trim(),
+        cards,
+        target_ids: [...targetIds],
+        pokemon_number: pokemonNumber,
+      };
       const res = await fetch(
         editing ? `/api/ptcg/drill-profiles/${editing.id}` : '/api/ptcg/drill-profiles',
         {
@@ -115,7 +124,12 @@ export default function DrillProfileForm({ open, editing, onClose, onSaved }: Pr
     }
   }
 
-  const canSave = name.trim().length > 0 && cards.length > 0 && targetIds.size > 0 && !saving;
+  const canSave =
+    name.trim().length > 0 &&
+    pokemonNumber !== null &&
+    cards.length > 0 &&
+    targetIds.size > 0 &&
+    !saving;
 
   return (
     <Modal
@@ -209,6 +223,10 @@ export default function DrillProfileForm({ open, editing, onClose, onSaved }: Pr
               placeholder={t('profileNamePlaceholder')}
               className="bg-surface-2 border-border focus:border-red w-full rounded-lg border px-3 py-2 text-sm outline-none"
             />
+            <label className="text-text-muted mt-1 text-xs font-semibold uppercase tracking-wide">
+              {t('profileSpriteLabel')}
+            </label>
+            <PokemonPicker value={pokemonNumber} onChange={setPokemonNumber} />
           </div>
         )}
       </div>

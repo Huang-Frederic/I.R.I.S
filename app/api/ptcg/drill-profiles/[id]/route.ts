@@ -22,7 +22,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
   const { data: profile, error } = await supabase
     .from('ptcg_drill_profiles')
-    .select('id, user_id, name, cards, target_ids, created_at, updated_at')
+    .select('id, user_id, name, cards, target_ids, pokemon_number, created_at, updated_at')
     .eq('id', id)
     .eq('user_id', user.id)
     .maybeSingle();
@@ -59,11 +59,12 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       name: check.name,
       cards: check.cards,
       target_ids: check.target_ids,
+      pokemon_number: check.pokemon_number,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
     .eq('user_id', user.id)
-    .select('id, user_id, name, cards, target_ids, created_at, updated_at')
+    .select('id, user_id, name, cards, target_ids, pokemon_number, created_at, updated_at')
     .single();
   if (error) return serverErrorResponse(error.message);
 

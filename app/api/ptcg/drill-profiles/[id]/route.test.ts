@@ -87,11 +87,13 @@ describe('PATCH /api/ptcg/drill-profiles/[id]', () => {
       name: 'Renamed',
       cards: [{ id: 'DRI-32', name: 'x', count: 1, category: 'poke' }],
       target_ids: ['DRI-32'],
+      pokemon_number: 157,
     };
     const res = await PATCH(makeRequest('PATCH', body), ctx);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.profile.name).toBe('Renamed');
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ pokemon_number: 157 }));
   });
 });
 
