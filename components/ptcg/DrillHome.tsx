@@ -8,11 +8,7 @@ import type { DrillProfileRow } from '@/lib/types';
 import DrillProfileForm from './DrillProfileForm';
 import PtcgDrill from './PtcgDrill';
 import ConfirmDialog from '@/components/vinted/ConfirmDialog';
-
-// Same community-drawn pixel sprite set as PokemonPicker — see that file for
-// why this path (not the smoother default PokeAPI sprite) was picked.
-const SPRITE_BASE =
-  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white';
+import { pokemonSpriteUrl } from '@/lib/utils/pokemon-sprite';
 
 export default function DrillHome({ initialProfiles }: { initialProfiles: DrillProfileRow[] }) {
   const t = useTranslations('drill');
@@ -101,10 +97,10 @@ export default function DrillHome({ initialProfiles }: { initialProfiles: DrillP
           {profiles.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-3 p-4">
               <div className="flex items-center gap-3">
-                {p.pokemon_number ? (
+                {p.pokemon_number && pokemonSpriteUrl(p.pokemon_number) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={`${SPRITE_BASE}/${p.pokemon_number}.png`}
+                    src={pokemonSpriteUrl(p.pokemon_number)!}
                     alt=""
                     className="pixel-sprite h-12 w-12 shrink-0"
                   />

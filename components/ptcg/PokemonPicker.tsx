@@ -5,13 +5,7 @@ import { useTranslations } from 'next-intl';
 import { FixedSizeList } from 'react-window';
 import Modal from '@/components/ui/Modal';
 import { searchPokemon, type PokemonSearchResult } from '@/lib/utils/pokemon-search';
-
-// Community-drawn "Generation V" pixel sprites — the only PokeAPI sprite set
-// that both looks like a classic retro game sprite AND covers the full
-// national dex (fan artists have extended the style to Pokémon released
-// after Black/White). Verified against #1 and #1025 before picking this.
-const SPRITE_BASE =
-  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white';
+import { pokemonSpriteUrl } from '@/lib/utils/pokemon-sprite';
 
 // The grid is virtualized (react-window) rather than rendering all 1025
 // sprites at once — cheap on a phone, and avoids a ~1000-node DOM tree.
@@ -55,9 +49,9 @@ export default function PokemonPicker({ value, onChange }: Props) {
         {value ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={`${SPRITE_BASE}/${value}.png`}
+            src={pokemonSpriteUrl(value) ?? undefined}
             alt=""
-            className="pixel-sprite h-14 w-14"
+            className="pixel-sprite h-12 w-12"
           />
         ) : (
           <span className="text-text-faint text-xl">?</span>
@@ -93,7 +87,7 @@ export default function PokemonPicker({ value, onChange }: Props) {
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`${SPRITE_BASE}/${r.number}.png`}
+                    src={pokemonSpriteUrl(r.number) ?? undefined}
                     alt={r.fr}
                     loading="lazy"
                     className="pixel-sprite h-12 w-12"

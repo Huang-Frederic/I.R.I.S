@@ -55,6 +55,6 @@ describe('<PokemonPicker>', () => {
     render(<PokemonPicker value={6} onChange={() => {}} />);
     const trigger = screen.getByRole('button', { name: 'profileSpriteLabel' });
     const img = trigger.querySelector('img');
-    expect(img?.src).toContain('/6.png');
+    expect(img?.src).toContain('/charizard.png');
   });
 });
