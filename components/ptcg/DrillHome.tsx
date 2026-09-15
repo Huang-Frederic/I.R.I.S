@@ -97,16 +97,18 @@ export default function DrillHome({ initialProfiles }: { initialProfiles: DrillP
           {profiles.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-3 p-4">
               <div className="flex items-center gap-3">
-                {p.pokemon_number && pokemonSpriteUrl(p.pokemon_number) ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={pokemonSpriteUrl(p.pokemon_number)!}
-                    alt=""
-                    className="pixel-sprite h-12 w-12 shrink-0"
-                  />
-                ) : (
-                  <div className="bg-surface-2 h-12 w-12 shrink-0 rounded-full" />
-                )}
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center">
+                  {p.pokemon_number && pokemonSpriteUrl(p.pokemon_number) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={pokemonSpriteUrl(p.pokemon_number)!}
+                      alt=""
+                      className="pixel-sprite max-h-12 max-w-12"
+                    />
+                  ) : (
+                    <div className="bg-surface-2 h-12 w-12 rounded-full" />
+                  )}
+                </div>
                 <div>
                   <p className="text-sm font-semibold">{p.name}</p>
                   <p className="text-text-muted text-xs">{t('deckCount', { count: p.cards.length })}</p>

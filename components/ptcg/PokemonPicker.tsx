@@ -51,7 +51,7 @@ export default function PokemonPicker({ value, onChange }: Props) {
           <img
             src={pokemonSpriteUrl(value) ?? undefined}
             alt=""
-            className="pixel-sprite h-12 w-12"
+            className="pixel-sprite max-h-12 max-w-12"
           />
         ) : (
           <span className="text-text-faint text-xl">?</span>
@@ -90,7 +90,7 @@ export default function PokemonPicker({ value, onChange }: Props) {
                     src={pokemonSpriteUrl(r.number) ?? undefined}
                     alt={r.fr}
                     loading="lazy"
-                    className="pixel-sprite h-12 w-12"
+                    className="pixel-sprite max-h-12 max-w-12"
                   />
                 </button>
               ))}
