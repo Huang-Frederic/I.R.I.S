@@ -1070,6 +1070,11 @@
     "editLogTitle": "デッキを修正",
     "myDeckLabel": "自分のデッキ",
     "opponentDeckLabel": "相手のデッキ",
+    "addLogButton": "追加",
+    "resolving": "解析中…",
+    "noLogsYet": "まだ対戦がありません。上にバトルログを貼り付けて始めましょう。",
+    "dayRecord": "{wins}勝 · {losses}敗 · {ties}分",
+    "editLog": "デッキを修正",
     "statsLink": "統計"
   },
   "drill": {

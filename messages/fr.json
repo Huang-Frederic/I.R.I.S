@@ -1070,6 +1070,11 @@
     "editLogTitle": "Corriger les decks",
     "myDeckLabel": "Mon deck",
     "opponentDeckLabel": "Deck adverse",
+    "addLogButton": "Ajouter",
+    "resolving": "Analyse en cours…",
+    "noLogsYet": "Aucun duel. Colle un battle log ci-dessus pour commencer.",
+    "dayRecord": "{wins}V · {losses}D · {ties}N",
+    "editLog": "Corriger les decks",
     "statsLink": "Stats"
   },
   "drill": {

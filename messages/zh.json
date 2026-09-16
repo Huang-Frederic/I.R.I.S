@@ -1070,6 +1070,11 @@
     "editLogTitle": "修正卡组",
     "myDeckLabel": "我的卡组",
     "opponentDeckLabel": "对手卡组",
+    "addLogButton": "添加",
+    "resolving": "分析中…",
+    "noLogsYet": "还没有对局。在上方粘贴对战日志即可开始。",
+    "dayRecord": "{wins}胜 · {losses}负 · {ties}平",
+    "editLog": "修正卡组",
     "statsLink": "统计"
   },
   "drill": {

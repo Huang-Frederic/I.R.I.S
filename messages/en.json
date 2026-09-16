@@ -1070,6 +1070,11 @@
     "editLogTitle": "Fix the decks",
     "myDeckLabel": "My deck",
     "opponentDeckLabel": "Opponent's deck",
+    "addLogButton": "Add",
+    "resolving": "Analyzing…",
+    "noLogsYet": "No games yet. Paste a battle log above to get started.",
+    "dayRecord": "{wins}W · {losses}L · {ties}T",
+    "editLog": "Fix the detected decks",
     "statsLink": "Stats"
   },
   "drill": {
