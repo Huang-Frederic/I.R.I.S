@@ -284,12 +284,19 @@ export function extractGameStats(
 /* -------------------------------------------------------------- aggregate */
 
 export interface GameForStats {
-  stats: GameLogStats;
+  /** Null for a tournament round with no associated battle log — it still
+   *  counts toward result-based aggregates (win/loss/winrate), just not
+   *  toward the log-derived per-turn metrics. See aggregateStats. */
+  stats: GameLogStats | null;
   result: 'win' | 'loss' | 'tie';
   play_score: number | null;
   playedAt: string;
   myArchetypeDex: number[];
   opponentArchetypeDex: number[];
+  /** Top-level, not nested in `stats`: a tournament round without a log
+   *  still records who went first (see lib/ptcg/tournaments.ts), so this
+   *  must be readable even when `stats` is null. */
+  wentFirst: boolean | null;
 }
 
 export interface ArchetypeGroup {
@@ -423,7 +430,7 @@ export interface AggregatedStats {
  *  `aggregateStats` (the whole-slice split) and `matchupsForArchetype` (the
  *  same split scoped to one matchup's own games). */
 export function splitByWentFirst(rows: GameForStats[], went: boolean): Split {
-  const g = rows.filter((r) => r.stats.wentFirst === went);
+  const g = rows.filter((r) => r.wentFirst === went);
   const w = g.filter((r) => r.result === 'win').length;
   return { games: g.length, wins: w, winratePct: g.length ? (w / g.length) * 100 : 0 };
 }
@@ -438,6 +445,11 @@ export function aggregateStats(rows: GameForStats[]): AggregatedStats {
   const abilityTotals = new Map<string, number>();
   const abilityGameHits = new Map<string, number>();
   const cardTotals = new Map<string, CardUse>();
+  // Rows with a battle log — the denominator for every metric below that
+  // reads r.stats. A tournament round with no log still counts toward
+  // games/wins/losses/winratePct above (those only ever read r.result), but
+  // must not silently count as "0" in every per-turn percentage too.
+  let nLogged = 0;
   let mull = 0;
   let boardT2 = 0;
   let evoByT2 = 0;
@@ -452,6 +464,8 @@ export function aggregateStats(rows: GameForStats[]): AggregatedStats {
 
   for (const r of rows) {
     const s = r.stats;
+    if (!s) continue;
+    nLogged++;
     if (s.mulligansMe > 0) mull++;
     if (s.starter) starterCounts.set(s.starter, (starterCounts.get(s.starter) ?? 0) + 1);
     boardT2 += s.boardT2;
@@ -482,37 +496,37 @@ export function aggregateStats(rows: GameForStats[]): AggregatedStats {
     }
   }
 
-  const pct = (v: number) => (n ? (v / n) * 100 : 0);
+  const pct = (v: number, denom: number) => (denom ? (v / denom) * 100 : 0);
   return {
     games: n,
     wins,
     losses,
     ties: n - wins - losses,
-    winratePct: pct(wins),
+    winratePct: pct(wins, n),
     avgScore: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null,
     first: splitByWentFirst(rows, true),
     second: splitByWentFirst(rows, false),
-    mulliganPct: pct(mull),
+    mulliganPct: pct(mull, nLogged),
     starters: [...starterCounts.entries()]
-      .map(([name, c]) => ({ name, pct: pct(c) }))
+      .map(([name, c]) => ({ name, pct: pct(c, nLogged) }))
       .sort((a, b) => b.pct - a.pct),
-    boardT2Avg: n ? boardT2 / n : 0,
-    evoByT2Pct: pct(evoByT2),
-    attackByT2Pct: pct(attackByT2),
+    boardT2Avg: nLogged ? boardT2 / nLogged : 0,
+    evoByT2Pct: pct(evoByT2, nLogged),
+    attackByT2Pct: pct(attackByT2, nLogged),
     supporterTurnPct: myTurns ? (supporterTurns / myTurns) * 100 : 0,
-    drawnPerGame: n ? drawn / n : 0,
+    drawnPerGame: nLogged ? drawn / nLogged : 0,
     abilities: [...abilityTotals.entries()]
       .map(([name, total]) => ({
         name,
-        avg: n ? total / n : 0,
-        gamesPct: pct(abilityGameHits.get(name) ?? 0),
+        avg: nLogged ? total / nLogged : 0,
+        gamesPct: pct(abilityGameHits.get(name) ?? 0, nLogged),
       }))
       .sort((a, b) => b.avg - a.avg)
       .slice(0, 10),
     firstPrizePct: firstPrizeGames ? (firstPrizeMine / firstPrizeGames) * 100 : 0,
-    kosDealtAvg: n ? kosDealt / n : 0,
-    kosTakenAvg: n ? kosTaken / n : 0,
-    turnsAvg: n ? myTurns / n : 0,
+    kosDealtAvg: nLogged ? kosDealt / nLogged : 0,
+    kosTakenAvg: nLogged ? kosTaken / nLogged : 0,
+    turnsAvg: nLogged ? myTurns / nLogged : 0,
     cards: [...cardTotals.entries()]
       // Basic Energy isn't a "does this card earn its slot" candidate — drop it.
       .filter(([name]) => !/energie .*de base/.test(norm(name)))
@@ -520,7 +534,7 @@ export function aggregateStats(rows: GameForStats[]): AggregatedStats {
         name,
         played: u.played,
         discarded: u.discarded,
-        perGame: n ? u.played / n : 0,
+        perGame: nLogged ? u.played / nLogged : 0,
       }))
       .sort((a, b) => b.played + b.discarded - (a.played + a.discarded)),
   };

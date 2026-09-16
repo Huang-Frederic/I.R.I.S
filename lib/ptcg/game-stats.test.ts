@@ -203,6 +203,7 @@ describe('groupByMyArchetype', () => {
     result: 'win',
     play_score: 100,
     playedAt: '2026-01-01T00:00:00.000Z',
+    wentFirst: null,
     myArchetypeDex: [157],
     opponentArchetypeDex: [1],
     ...over,
@@ -254,6 +255,7 @@ describe('matchupsForArchetype', () => {
     result: 'win',
     play_score: 100,
     playedAt: '2026-01-01T00:00:00.000Z',
+    wentFirst: null,
     myArchetypeDex: [982],
     opponentArchetypeDex: [887],
     ...over,
@@ -280,10 +282,7 @@ describe('matchupsForArchetype', () => {
   });
 
   it('splits each matchup by who went first, independent of other matchups', () => {
-    const withFirst = (wentFirst: boolean, result: 'win' | 'loss') => {
-      const g = mk({ result });
-      return { ...g, stats: { ...g.stats, wentFirst } };
-    };
+    const withFirst = (wentFirst: boolean, result: 'win' | 'loss') => mk({ result, wentFirst });
     const rows = [
       withFirst(true, 'win'),
       withFirst(true, 'win'),
@@ -321,6 +320,7 @@ describe('aggregateStats', () => {
     result: 'win',
     play_score: 100,
     playedAt: '2026-01-01T00:00:00.000Z',
+    wentFirst: null,
     myArchetypeDex: [982],
     opponentArchetypeDex: [887],
     ...over,
@@ -340,10 +340,7 @@ describe('aggregateStats', () => {
   });
 
   it('splits winrate by who went first', () => {
-    const withFirst = (wentFirst: boolean, result: 'win' | 'loss') => {
-      const g = mk({ result });
-      return { ...g, stats: { ...g.stats, wentFirst } };
-    };
+    const withFirst = (wentFirst: boolean, result: 'win' | 'loss') => mk({ result, wentFirst });
     const a = aggregateStats([
       withFirst(true, 'win'),
       withFirst(true, 'win'),
@@ -407,11 +404,15 @@ describe('aggregateStats', () => {
   });
 
   it('excludes basic energy from the card-usage table', () => {
-    const g = mk({});
-    g.stats.cardUse = {
-      'Énergie Feu de base': { played: 9, discarded: 0 },
-      'Ordres du Boss': { played: 2, discarded: 1 },
-    };
+    const g = mk({
+      stats: {
+        ...extractGameStats('', 'X'),
+        cardUse: {
+          'Énergie Feu de base': { played: 9, discarded: 0 },
+          'Ordres du Boss': { played: 2, discarded: 1 },
+        },
+      },
+    });
     const a = aggregateStats([g]);
     expect(a.cards.some((c) => c.name === 'Ordres du Boss')).toBe(true);
     expect(a.cards.some((c) => /Énergie/.test(c.name))).toBe(false);
@@ -424,5 +425,30 @@ describe('aggregateStats', () => {
     expect(a.avgScore).toBeNull();
     expect(a.first.games).toBe(0);
     expect(a.first.winratePct).toBe(0);
+  });
+
+  it('lets result-based aggregates (win/loss/winrate) include rows with no battle log', () => {
+    const rows = [
+      mk({ result: 'win' }),
+      mk({ result: 'loss' }),
+      // A tournament round with no log — still a real result, no per-turn stats.
+      mk({ result: 'win', stats: null }),
+    ];
+    const a = aggregateStats(rows);
+    expect(a.games).toBe(3);
+    expect(a.wins).toBe(2);
+    expect(a.winratePct).toBeCloseTo(66.67, 1);
+  });
+
+  it('computes log-derived percentages only over rows that have stats, undiluted by log-less rows', () => {
+    const rows = [
+      mk({ stats: { ...extractGameStats('', 'X'), mulligansMe: 1 } }), // mulliganed
+      mk({ stats: { ...extractGameStats('', 'X'), mulligansMe: 0 } }), // did not
+      // Ten log-less tournament rounds — if these counted in the denominator,
+      // mulliganPct would collapse from 50% to roughly 8%.
+      ...Array.from({ length: 10 }, () => mk({ stats: null })),
+    ];
+    const a = aggregateStats(rows);
+    expect(a.mulliganPct).toBe(50);
   });
 });

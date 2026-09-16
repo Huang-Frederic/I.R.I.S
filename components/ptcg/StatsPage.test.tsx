@@ -14,6 +14,7 @@ const mk = (over: Partial<StatsGame>): StatsGame => ({
   result: 'win',
   play_score: 100,
   playedAt: '2026-01-01T00:00:00.000Z',
+  wentFirst: null,
   myArchetypeDex: [157],
   opponentArchetypeDex: [887],
   ...over,
@@ -51,10 +52,8 @@ describe('<StatsPage>', () => {
   });
 
   it('shows the 1st/2nd-turn winrate split on each Level 2 matchup row', () => {
-    const withFirst = (wentFirst: boolean, result: 'win' | 'loss') => {
-      const g = mk({ myArchetypeDex: [157], opponentArchetypeDex: [887], result });
-      return { ...g, stats: { ...g.stats, wentFirst } };
-    };
+    const withFirst = (wentFirst: boolean, result: 'win' | 'loss') =>
+      mk({ myArchetypeDex: [157], opponentArchetypeDex: [887], result, wentFirst });
     // Fixture note: with exactly 1 first-turn win and 1 second-turn loss, the
     // matchup's overall record is forced to exactly 1-1 (50%), and "50%"
     // contains the substring "0%" — colliding with the going-second figure
