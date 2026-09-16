@@ -597,3 +597,60 @@ export interface CardWithListings extends Card {
 export interface LotWithListings extends Lot {
   listings: LotListing[];
 }
+
+/** One played game within a tournament round. Up to `best_of` entries per
+ *  round — see PtcgTournamentRoundRow.games. */
+export interface TournamentGame {
+  result: 'win' | 'loss' | 'tie';
+  wentFirst: boolean | null;
+}
+
+export type PtcgTournamentCategory =
+  | 'online'
+  | 'locals'
+  | 'challenge'
+  | 'cup'
+  | 'regionals'
+  | 'internationals'
+  | 'worlds';
+
+export type PtcgTournamentPlacement =
+  | 'no_placement'
+  | 'dropped'
+  | 'winner'
+  | 'top_2'
+  | 'top_4'
+  | 'top_8'
+  | 'top_16'
+  | 'top_32'
+  | 'top_64'
+  | 'top_128'
+  | 'top_256'
+  | 'top_512'
+  | 'top_1024';
+
+export interface PtcgTournamentRow {
+  id: string;
+  user_id: string;
+  name: string;
+  /** Plain date (YYYY-MM-DD), no time-of-day — see the migration's comment. */
+  played_at: string;
+  category: PtcgTournamentCategory;
+  best_of: 1 | 3;
+  placement: PtcgTournamentPlacement;
+  /** Fixed for the whole tournament — a player doesn't swap decks mid-event. */
+  my_archetype_dex: number[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PtcgTournamentRoundRow {
+  id: string;
+  tournament_id: string;
+  round_number: number;
+  opponent_archetype_dex: number[];
+  /** Up to `best_of` entries. Empty when `outcome` is set. */
+  games: TournamentGame[];
+  outcome: 'id' | 'no_show' | 'bye' | null;
+  created_at: string;
+}
