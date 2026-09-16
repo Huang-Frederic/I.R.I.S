@@ -3,9 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import PtcgImportModal from './PtcgImportModal';
 import { Dices, Rocket, Flame, Swords, ListChecks, Timer, Layers, Plus, Coins } from 'lucide-react';
 import {
   aggregateStats,
@@ -95,42 +93,25 @@ function Section({
   );
 }
 
-function ImportButton({ label, onClick }: { label: string; onClick: () => void }) {
+function ImportButton({ label }: { label: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <Link
+      href="/ptcg"
       className="bg-red hover:bg-red/90 flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold text-white transition"
     >
       <Plus className="h-3.5 w-3.5" aria-hidden />
       {label}
-    </button>
+    </Link>
   );
 }
 
 export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
   const t = useTranslations('ptcgStats');
   const tp = useTranslations('ptcg');
-  const router = useRouter();
   const decks = useMemo(() => listMyArchetypes(games), [games]);
   // Default to the deck of the most recently played game (games arrive newest
   // first), so the dashboard opens on the list currently being played.
   const [deck, setDeck] = useState<string>(games[0]?.myArchetype ?? ALL);
-  const [importOpen, setImportOpen] = useState(false);
-
-  // A soft refresh re-runs the server page (re-reads every log) so the new duel
-  // shows up in place — no full reload, and the deck filter is preserved.
-  const onImported = () => {
-    setImportOpen(false);
-    router.refresh();
-  };
-  const importModal = (
-    <PtcgImportModal
-      open={importOpen}
-      onClose={() => setImportOpen(false)}
-      onImported={onImported}
-    />
-  );
 
   const filtered = deck === ALL ? games : games.filter((g) => g.myArchetype === deck);
   const s: AggregatedStats = useMemo(() => aggregateStats(filtered), [filtered]);
@@ -141,9 +122,8 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
         <p className="text-sm font-semibold">{t('emptyTitle')}</p>
         <p className="text-text-muted mx-auto mt-1 mb-5 max-w-md text-sm">{t('emptyBody')}</p>
         <div className="flex justify-center">
-          <ImportButton label={t('importBtn')} onClick={() => setImportOpen(true)} />
+          <ImportButton label={t('importBtn')} />
         </div>
-        {importModal}
       </div>
     );
   }
@@ -204,9 +184,8 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
             </>
           )}
         </div>
-        <ImportButton label={t('importBtn')} onClick={() => setImportOpen(true)} />
+        <ImportButton label={t('importBtn')} />
       </div>
-      {importModal}
 
       {/* KPI strip. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -441,37 +420,34 @@ export default function PtcgDashboard({ games }: { games: DashboardGame[] }) {
         </div>
       </Section>
 
-      {/* The games themselves, newest first, tap to replay. */}
+      {/* The games themselves, newest first. No longer a link — the
+          per-game page is gone; Plan 3 replaces this section outright
+          with the matchup drill-down. */}
       <Section
         icon={<ListChecks className="text-red h-4 w-4" aria-hidden />}
         title={t('sectionGames')}
       >
         <ul className="divide-border divide-y">
           {filtered.map((g) => (
-            <li key={g.id}>
-              <Link
-                href={`/ptcg/${g.id}`}
-                className="hover:bg-surface-2 -mx-2 flex items-center gap-3 rounded-lg px-2 py-2 transition"
+            <li key={g.id} className="-mx-2 flex items-center gap-3 rounded-lg px-2 py-2">
+              <span
+                className={`w-12 shrink-0 rounded px-1.5 py-0.5 text-center text-[11px] font-bold ${resultChip(g.result)}`}
               >
-                <span
-                  className={`w-12 shrink-0 rounded px-1.5 py-0.5 text-center text-[11px] font-bold ${resultChip(g.result)}`}
-                >
-                  {tp(`result_${g.result}` as 'result_win')}
+                {tp(`result_${g.result}` as 'result_win')}
+              </span>
+              <Sprite label={g.opponent_archetype ?? ''} />
+              <span className="min-w-0 flex-1 truncate text-sm">
+                {g.opponent_archetype ?? g.opponent}
+                <span className="text-text-faint ml-2 text-xs">{g.opponent}</span>
+              </span>
+              {g.play_score != null && (
+                <span className="text-text-muted shrink-0 font-mono text-xs tabular-nums">
+                  {g.play_score}
                 </span>
-                <Sprite label={g.opponent_archetype ?? ''} />
-                <span className="min-w-0 flex-1 truncate text-sm">
-                  {g.opponent_archetype ?? g.opponent}
-                  <span className="text-text-faint ml-2 text-xs">{g.opponent}</span>
-                </span>
-                {g.play_score != null && (
-                  <span className="text-text-muted shrink-0 font-mono text-xs tabular-nums">
-                    {g.play_score}
-                  </span>
-                )}
-                <span className="text-text-faint shrink-0 text-xs tabular-nums">
-                  {g.playedAt.slice(0, 10)}
-                </span>
-              </Link>
+              )}
+              <span className="text-text-faint shrink-0 text-xs tabular-nums">
+                {g.playedAt.slice(0, 10)}
+              </span>
             </li>
           ))}
         </ul>

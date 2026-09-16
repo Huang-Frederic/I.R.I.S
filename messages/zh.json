@@ -46,7 +46,8 @@
     "logs": "活动记录",
     "more": "更多",
     "close": "关闭",
-    "ptcg": "对决",
+    "ptcg": "对战记录",
+    "ptcgStats": "统计",
     "drill": "训练"
   },
   "auth": {
@@ -1018,7 +1019,9 @@
   },
   "ptcg": {
     "metaTitle": "对决分析",
-    "pageTitle": "对决",
+    "pageTitle": "对战记录",
+    "statsPageTitle": "统计",
+    "battleLogsMetaTitle": "对战记录",
     "pageSubtitle": "{count, plural, =0 {暂无对决} other {已分析 # 场对决}}",
     "loadError": "无法加载对战：{message}",
     "dropzone": "松开以导入对决",

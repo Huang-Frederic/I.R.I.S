@@ -46,7 +46,8 @@
     "logs": "Activity",
     "more": "More",
     "close": "Close",
-    "ptcg": "Duels",
+    "ptcg": "Battle Logs",
+    "ptcgStats": "Stats",
     "drill": "Drill"
   },
   "auth": {
@@ -1018,7 +1019,9 @@
   },
   "ptcg": {
     "metaTitle": "Duel analysis",
-    "pageTitle": "Duels",
+    "pageTitle": "Battle Logs",
+    "statsPageTitle": "Stats",
+    "battleLogsMetaTitle": "Battle Logs",
     "pageSubtitle": "{count, plural, =0 {No duels yet} one {# duel analysed} other {# duels analysed}}",
     "loadError": "Could not load games: {message}",
     "dropzone": "Drop to import the duel",

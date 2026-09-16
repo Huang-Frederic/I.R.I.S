@@ -46,7 +46,8 @@
     "logs": "アクティビティ",
     "more": "その他",
     "close": "閉じる",
-    "ptcg": "デュエル",
+    "ptcg": "バトルログ",
+    "ptcgStats": "統計",
     "drill": "ドリル"
   },
   "auth": {
@@ -1018,7 +1019,9 @@
   },
   "ptcg": {
     "metaTitle": "デュエル分析",
-    "pageTitle": "デュエル",
+    "pageTitle": "バトルログ",
+    "statsPageTitle": "統計",
+    "battleLogsMetaTitle": "バトルログ",
     "pageSubtitle": "{count, plural, =0 {デュエルなし} other {# 件のデュエルを分析}}",
     "loadError": "対戦を読み込めませんでした: {message}",
     "dropzone": "ドロップして取り込む",
