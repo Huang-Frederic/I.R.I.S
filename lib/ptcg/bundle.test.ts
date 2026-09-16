@@ -56,6 +56,19 @@ describe('buildBundle', () => {
     expect(b.game.prizes_me).toBe(3);
     expect(b.game.state.snapshots.length).toBeGreaterThan(100);
   });
+
+  it('defaults my_archetype_dex/opponent_archetype_dex to null and threads through an explicit override', () => {
+    const withoutOverride = buildBundle('raw', parsed, {}, null, {});
+    expect(withoutOverride.game.my_archetype_dex).toBeNull();
+    expect(withoutOverride.game.opponent_archetype_dex).toBeNull();
+
+    const withOverride = buildBundle('raw', parsed, {}, null, {
+      myArchetypeDex: [15],
+      opponentArchetypeDex: [206, 982],
+    });
+    expect(withOverride.game.my_archetype_dex).toEqual([15]);
+    expect(withOverride.game.opponent_archetype_dex).toEqual([206, 982]);
+  });
 });
 
 describe('validateBundle', () => {

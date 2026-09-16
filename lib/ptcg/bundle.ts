@@ -39,7 +39,13 @@ export function buildBundle(
   parsed: PtcgParsedGame,
   cards: Record<string, PtcgCardRow>,
   analysis: PtcgBundle['analysis'],
-  meta: { playedAt?: string; myArchetype?: string | null; opponentArchetype?: string | null } = {},
+  meta: {
+    playedAt?: string;
+    myArchetype?: string | null;
+    opponentArchetype?: string | null;
+    myArchetypeDex?: number[] | null;
+    opponentArchetypeDex?: number[] | null;
+  } = {},
 ): PtcgBundle {
   return {
     bundleVersion: SUPPORTED_VERSION,
@@ -54,6 +60,8 @@ export function buildBundle(
       turns: parsed.turns,
       my_archetype: meta.myArchetype ?? null,
       opponent_archetype: meta.opponentArchetype ?? null,
+      my_archetype_dex: meta.myArchetypeDex ?? null,
+      opponent_archetype_dex: meta.opponentArchetypeDex ?? null,
       // Stored verbatim: it is the only source of truth, and everything else in
       // the bundle can be recomputed from it after a parser fix.
       raw_log: raw,
