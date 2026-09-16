@@ -18,7 +18,7 @@ import { createClient } from '@/lib/supabase/server';
 import { buildBundle, validateBundle } from '@/lib/ptcg/bundle';
 import { parseGame } from '@/lib/ptcg';
 import { collectCardRefs, resolveCards } from '@/lib/ptcg/cards';
-import { keyPokemon } from '@/lib/ptcg/protagonists';
+import { keyPokemons } from '@/lib/ptcg/protagonists';
 import { playScore } from '@/lib/ptcg/score';
 import {
   apiError,
@@ -108,8 +108,8 @@ export async function POST(request: Request) {
   // otherwise have to load `state` — about a megabyte per game — just to show
   // which Pokémon carried each side.
   const snapshots = bundle.game.state.snapshots;
-  const mine = keyPokemon(snapshots, bundle.game.me);
-  const theirs = keyPokemon(snapshots, bundle.game.opponent);
+  const mine = keyPokemons(snapshots, bundle.game.me);
+  const theirs = keyPokemons(snapshots, bundle.game.opponent);
 
   // Only the player's own turns count — the turn list alternates, and scoring
   // the opponent's would halve every penalty.
@@ -119,10 +119,10 @@ export async function POST(request: Request) {
   const score = bundle.analysis ? playScore(bundle.analysis.moments ?? [], myTurns) : null;
 
   const derived = {
-    my_key_card: mine?.cardId ?? null,
-    opponent_key_card: theirs?.cardId ?? null,
-    my_archetype: bundle.game.my_archetype ?? mine?.name ?? null,
-    opponent_archetype: bundle.game.opponent_archetype ?? theirs?.name ?? null,
+    my_key_card: mine[0]?.cardId ?? null,
+    opponent_key_card: theirs[0]?.cardId ?? null,
+    my_archetype: bundle.game.my_archetype ?? mine[0]?.name ?? null,
+    opponent_archetype: bundle.game.opponent_archetype ?? theirs[0]?.name ?? null,
   };
 
   const { data: game, error: gameError } = await supabase

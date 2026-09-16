@@ -1,14 +1,13 @@
 /**
  * Identifies the Pokémon that actually carried each side of a game.
  *
- * Used to give a game a face in the history: two cards, one per player, with
- * the score between them. It also fills `my_archetype` / `opponent_archetype`,
- * which otherwise fall back to the player's handle — "Bklee219" tells you
- * nothing about what you played against, "Méga-Amphinobi-ex" tells you
- * everything.
+ * Used to give a game a face in the history: up to 2 cards per side, so a
+ * combo deck (e.g. "Alakazam / Dudunsparce") shows both, not just one. It
+ * also feeds the archetype-dex fields on ptcg_games — see
+ * lib/ptcg/archetype-dex.ts.
  *
- * The rule is total damage dealt, not stage or rarity: the protagonist of a
- * game is whatever did the work. Summing by card id also survives evolution
+ * The rule is total damage dealt, not stage or rarity: the protagonists of a
+ * game are whatever did the work. Summing by card id also survives evolution
  * correctly — a Feurisson that chips for 40 then becomes the Typhlosion that
  * deals 1200 counts as two different cards, and the Typhlosion wins.
  */
@@ -24,9 +23,12 @@ export interface PtcgProtagonist {
 
 /**
  * @param snapshots the game's reconstruction
- * @param player    whose protagonist to find
+ * @param player    whose protagonists to find
+ * @returns up to 2 Pokémon that dealt damage, highest first; if none did, a
+ *   single Pokémon that spent the most time Active (a game can end before
+ *   anyone attacks); if the player never had anything in play, an empty array.
  */
-export function keyPokemon(snapshots: PtcgSnapshot[], player: string): PtcgProtagonist | null {
+export function keyPokemons(snapshots: PtcgSnapshot[], player: string): PtcgProtagonist[] {
   const damage = new Map<string, { name: string; total: number }>();
   const activeTurns = new Map<string, { name: string; count: number }>();
 
@@ -48,16 +50,18 @@ export function keyPokemon(snapshots: PtcgSnapshot[], player: string): PtcgProta
     }
   }
 
-  const topDamage = [...damage].sort((a, b) => b[1].total - a[1].total)[0];
-  if (topDamage && topDamage[1].total > 0) {
-    return { cardId: topDamage[0], name: topDamage[1].name, damageDealt: topDamage[1].total };
-  }
+  const byDamage = [...damage]
+    .filter(([, v]) => v.total > 0)
+    .sort((a, b) => b[1].total - a[1].total)
+    .slice(0, 2)
+    .map(([cardId, v]) => ({ cardId, name: v.name, damageDealt: v.total }));
+  if (byDamage.length > 0) return byDamage;
 
-  // Nobody dealt damage — name the Pokémon that spent the most time Active.
+  // Nobody dealt damage — name the single Pokémon that spent the most time
+  // Active. Only one: with no damage signal at all, a second guess would be
+  // noise, not a second protagonist.
   const topActive = [...activeTurns].sort((a, b) => b[1].count - a[1].count)[0];
-  if (topActive) {
-    return { cardId: topActive[0], name: topActive[1].name, damageDealt: 0 };
-  }
+  if (topActive) return [{ cardId: topActive[0], name: topActive[1].name, damageDealt: 0 }];
 
-  return null;
+  return [];
 }
