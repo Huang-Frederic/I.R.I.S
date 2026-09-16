@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { extractGameStats, aggregateStats, groupByMyArchetype, type GameForStats } from './game-stats';
+import {
+  extractGameStats,
+  aggregateStats,
+  groupByMyArchetype,
+  matchupsForArchetype,
+  type GameForStats,
+} from './game-stats';
 
 const GUUBEEE = readFileSync(
   join(process.cwd(), 'lib/ptcg/fixtures/amphinobi-2026-07-25.txt'),
@@ -239,6 +245,73 @@ describe('groupByMyArchetype', () => {
 
   it('buckets an unclassified (empty dex) game under its own group', () => {
     expect(groupByMyArchetype([mk({ myArchetypeDex: [] })])[0].dex).toEqual([]);
+  });
+});
+
+describe('matchupsForArchetype', () => {
+  const mk = (over: Partial<GameForStats>): GameForStats => ({
+    stats: extractGameStats('', 'X'),
+    result: 'win',
+    play_score: 100,
+    playedAt: '2026-01-01T00:00:00.000Z',
+    myArchetypeDex: [982],
+    opponentArchetypeDex: [887],
+    ...over,
+  });
+
+  it('groups by opponent archetype-dex equality regardless of order', () => {
+    const rows = [
+      mk({ opponentArchetypeDex: [887, 886] }),
+      mk({ opponentArchetypeDex: [886, 887] }),
+      mk({ opponentArchetypeDex: [1] }),
+    ];
+    const matchups = matchupsForArchetype(rows);
+    expect(matchups).toHaveLength(2);
+    expect(matchups[0].games).toBe(2);
+  });
+
+  it('computes record and win rate per matchup', () => {
+    const rows = [
+      mk({ opponentArchetypeDex: [887], result: 'win' }),
+      mk({ opponentArchetypeDex: [887], result: 'loss' }),
+    ];
+    const m = matchupsForArchetype(rows)[0];
+    expect(m).toMatchObject({ games: 2, wins: 1, losses: 1, ties: 0, winratePct: 50 });
+  });
+
+  it('splits each matchup by who went first, independent of other matchups', () => {
+    const withFirst = (wentFirst: boolean, result: 'win' | 'loss') => {
+      const g = mk({ result });
+      return { ...g, stats: { ...g.stats, wentFirst } };
+    };
+    const rows = [
+      withFirst(true, 'win'),
+      withFirst(true, 'win'),
+      withFirst(false, 'loss'),
+      mk({ opponentArchetypeDex: [1], result: 'win' }), // a different matchup — must not pollute the split above
+    ];
+    const m = matchupsForArchetype(rows).find((x) => x.dex[0] === 887)!;
+    expect(m.first.games).toBe(2);
+    expect(m.first.winratePct).toBe(100);
+    expect(m.second.games).toBe(1);
+    expect(m.second.winratePct).toBe(0);
+  });
+
+  it('reports the most recent playedAt per matchup', () => {
+    const rows = [
+      mk({ playedAt: '2026-01-01T00:00:00.000Z' }),
+      mk({ playedAt: '2026-05-01T00:00:00.000Z' }),
+    ];
+    expect(matchupsForArchetype(rows)[0].lastPlayed).toBe('2026-05-01T00:00:00.000Z');
+  });
+
+  it('sorts matchups most-played first', () => {
+    const rows = [
+      mk({ opponentArchetypeDex: [1] }),
+      mk({ opponentArchetypeDex: [887] }),
+      mk({ opponentArchetypeDex: [887] }),
+    ];
+    expect(matchupsForArchetype(rows)[0].dex).toEqual([887]);
   });
 });
 

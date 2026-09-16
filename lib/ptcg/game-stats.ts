@@ -330,6 +330,47 @@ export function groupByMyArchetype(rows: GameForStats[]): ArchetypeGroup[] {
     .sort((a, b) => b.games - a.games);
 }
 
+export interface MatchupGroup {
+  dex: number[];
+  games: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  winratePct: number;
+  first: Split;
+  second: Split;
+  lastPlayed: string;
+}
+
+/** Opponent archetypes faced within one my-archetype's games, grouped by
+ *  archetype-dex equality — drives Level 2 of the Stats drill-down. */
+export function matchupsForArchetype(rows: GameForStats[]): MatchupGroup[] {
+  const groups = new Map<string, { dex: number[]; rows: GameForStats[] }>();
+  for (const r of rows) {
+    const key = archetypeKey(r.opponentArchetypeDex);
+    const g = groups.get(key);
+    if (g) g.rows.push(r);
+    else groups.set(key, { dex: r.opponentArchetypeDex, rows: [r] });
+  }
+  return [...groups.values()]
+    .map(({ dex, rows }) => {
+      const wins = rows.filter((r) => r.result === 'win').length;
+      const losses = rows.filter((r) => r.result === 'loss').length;
+      return {
+        dex,
+        games: rows.length,
+        wins,
+        losses,
+        ties: rows.length - wins - losses,
+        winratePct: rows.length ? (wins / rows.length) * 100 : 0,
+        first: splitByWentFirst(rows, true),
+        second: splitByWentFirst(rows, false),
+        lastPlayed: rows.reduce((max, r) => (r.playedAt > max ? r.playedAt : max), rows[0].playedAt),
+      };
+    })
+    .sort((a, b) => b.games - a.games);
+}
+
 export interface AbilityStat {
   name: string;
   /** Average activations per game. */
@@ -379,17 +420,20 @@ export interface AggregatedStats {
   byArchetype: { name: string; games: number; wins: number; losses: number }[];
 }
 
+/** Win rate for the subset of `rows` where `wentFirst === went` — shared by
+ *  `aggregateStats` (the whole-slice split) and `matchupsForArchetype` (the
+ *  same split scoped to one matchup's own games). */
+export function splitByWentFirst(rows: GameForStats[], went: boolean): Split {
+  const g = rows.filter((r) => r.stats.wentFirst === went);
+  const w = g.filter((r) => r.result === 'win').length;
+  return { games: g.length, wins: w, winratePct: g.length ? (w / g.length) * 100 : 0 };
+}
+
 export function aggregateStats(rows: GameForStats[]): AggregatedStats {
   const n = rows.length;
   const wins = rows.filter((r) => r.result === 'win').length;
   const losses = rows.filter((r) => r.result === 'loss').length;
   const scores = rows.map((r) => r.play_score).filter((s): s is number => s != null);
-
-  const split = (went: boolean): Split => {
-    const g = rows.filter((r) => r.stats.wentFirst === went);
-    const w = g.filter((r) => r.result === 'win').length;
-    return { games: g.length, wins: w, winratePct: g.length ? (w / g.length) * 100 : 0 };
-  };
 
   const starterCounts = new Map<string, number>();
   const abilityTotals = new Map<string, number>();
@@ -454,8 +498,8 @@ export function aggregateStats(rows: GameForStats[]): AggregatedStats {
     ties: n - wins - losses,
     winratePct: pct(wins),
     avgScore: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null,
-    first: split(true),
-    second: split(false),
+    first: splitByWentFirst(rows, true),
+    second: splitByWentFirst(rows, false),
     mulliganPct: pct(mull),
     starters: [...starterCounts.entries()]
       .map(([name, c]) => ({ name, pct: pct(c) }))
