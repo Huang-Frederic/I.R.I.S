@@ -8,6 +8,8 @@
  * phrasing, but extraction never throws and never blocks anything.
  */
 
+import { archetypeKey } from './archetype-dex';
+
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
 export interface CardUse {
@@ -285,16 +287,46 @@ export interface GameForStats {
   stats: GameLogStats;
   result: 'win' | 'loss' | 'tie';
   play_score: number | null;
-  myArchetype: string;
-  opponent_archetype: string | null;
+  playedAt: string;
+  myArchetypeDex: number[];
+  opponentArchetypeDex: number[];
 }
 
-/** Distinct decks I played, most-played first — drives the version filter. */
-export function listMyArchetypes(rows: GameForStats[]): { name: string; games: number }[] {
-  const counts = new Map<string, number>();
-  for (const r of rows) counts.set(r.myArchetype, (counts.get(r.myArchetype) ?? 0) + 1);
-  return [...counts.entries()]
-    .map(([name, games]) => ({ name, games }))
+export interface ArchetypeGroup {
+  dex: number[];
+  games: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  winratePct: number;
+  lastPlayed: string;
+}
+
+/** Distinct decks I played, grouped by archetype-dex equality (order-independent),
+ *  most-played first — drives Level 1 of the Stats drill-down. A group's displayed
+ *  sprite order is whichever game's own `myArchetypeDex` order was encountered first. */
+export function groupByMyArchetype(rows: GameForStats[]): ArchetypeGroup[] {
+  const groups = new Map<string, { dex: number[]; rows: GameForStats[] }>();
+  for (const r of rows) {
+    const key = archetypeKey(r.myArchetypeDex);
+    const g = groups.get(key);
+    if (g) g.rows.push(r);
+    else groups.set(key, { dex: r.myArchetypeDex, rows: [r] });
+  }
+  return [...groups.values()]
+    .map(({ dex, rows }) => {
+      const wins = rows.filter((r) => r.result === 'win').length;
+      const losses = rows.filter((r) => r.result === 'loss').length;
+      return {
+        dex,
+        games: rows.length,
+        wins,
+        losses,
+        ties: rows.length - wins - losses,
+        winratePct: rows.length ? (wins / rows.length) * 100 : 0,
+        lastPlayed: rows.reduce((max, r) => (r.playedAt > max ? r.playedAt : max), rows[0].playedAt),
+      };
+    })
     .sort((a, b) => b.games - a.games);
 }
 

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { extractGameStats, aggregateStats, type GameForStats } from './game-stats';
+import { extractGameStats, aggregateStats, groupByMyArchetype, type GameForStats } from './game-stats';
 
 const GUUBEEE = readFileSync(
   join(process.cwd(), 'lib/ptcg/fixtures/amphinobi-2026-07-25.txt'),
@@ -191,13 +191,65 @@ describe('deck-agnostic metrics', () => {
   });
 });
 
+describe('groupByMyArchetype', () => {
+  const mk = (over: Partial<GameForStats>): GameForStats => ({
+    stats: extractGameStats('', 'X'),
+    result: 'win',
+    play_score: 100,
+    playedAt: '2026-01-01T00:00:00.000Z',
+    myArchetypeDex: [157],
+    opponentArchetypeDex: [1],
+    ...over,
+  });
+
+  it('groups games by archetype-dex equality regardless of stored order', () => {
+    const rows = [
+      mk({ myArchetypeDex: [157, 156] }),
+      mk({ myArchetypeDex: [156, 157] }),
+      mk({ myArchetypeDex: [1] }),
+    ];
+    const groups = groupByMyArchetype(rows);
+    expect(groups).toHaveLength(2);
+    expect(groups[0].games).toBe(2);
+  });
+
+  it('computes record and win rate per group', () => {
+    const rows = [
+      mk({ myArchetypeDex: [157], result: 'win' }),
+      mk({ myArchetypeDex: [157], result: 'loss' }),
+      mk({ myArchetypeDex: [157], result: 'win' }),
+    ];
+    const groups = groupByMyArchetype(rows);
+    expect(groups[0]).toMatchObject({ games: 3, wins: 2, losses: 1, ties: 0 });
+    expect(groups[0].winratePct).toBeCloseTo(66.67, 1);
+  });
+
+  it('sorts groups most-played first', () => {
+    const rows = [mk({ myArchetypeDex: [1] }), mk({ myArchetypeDex: [157] }), mk({ myArchetypeDex: [157] })];
+    expect(groupByMyArchetype(rows)[0].dex).toEqual([157]);
+  });
+
+  it('reports the most recent playedAt per group as lastPlayed', () => {
+    const rows = [
+      mk({ myArchetypeDex: [157], playedAt: '2026-01-01T00:00:00.000Z' }),
+      mk({ myArchetypeDex: [157], playedAt: '2026-03-01T00:00:00.000Z' }),
+    ];
+    expect(groupByMyArchetype(rows)[0].lastPlayed).toBe('2026-03-01T00:00:00.000Z');
+  });
+
+  it('buckets an unclassified (empty dex) game under its own group', () => {
+    expect(groupByMyArchetype([mk({ myArchetypeDex: [] })])[0].dex).toEqual([]);
+  });
+});
+
 describe('aggregateStats', () => {
   const mk = (over: Partial<GameForStats>): GameForStats => ({
     stats: extractGameStats('', 'X'),
     result: 'win',
     play_score: 100,
-    myArchetype: 'Typhlosion / Dudunsparce',
-    opponent_archetype: 'Dragapult',
+    playedAt: '2026-01-01T00:00:00.000Z',
+    myArchetypeDex: [982],
+    opponentArchetypeDex: [887],
     ...over,
   });
 
