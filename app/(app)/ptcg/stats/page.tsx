@@ -63,6 +63,7 @@ export default async function PtcgStatsPage() {
       id: g.id,
       opponent: g.opponent,
       stats,
+      wentFirst: stats.wentFirst,
       result: stats.result,
       play_score: g.play_score,
       playedAt: g.played_at,
