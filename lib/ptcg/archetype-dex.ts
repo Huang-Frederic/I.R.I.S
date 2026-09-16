@@ -30,3 +30,14 @@ export function resolveArchetypeDex(
   // occurrence of each dex number.
   return [...new Set(dexNumbers)];
 }
+
+/**
+ * Canonical grouping key for a set of archetype dex numbers — two archetypes
+ * are "the same" when their dex-number SETS are equal regardless of order
+ * (e.g. [157, 156] and [156, 157] group together). An empty array yields the
+ * empty string: the key for the "unclassified" bucket (no override set yet,
+ * or a deliberate empty-array override).
+ */
+export function archetypeKey(dex: number[]): string {
+  return [...dex].sort((a, b) => a - b).join(',');
+}

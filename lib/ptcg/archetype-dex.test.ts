@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseGame } from './index';
-import { resolveArchetypeDex } from './archetype-dex';
+import { archetypeKey, resolveArchetypeDex } from './archetype-dex';
 
 const load = (name: string) =>
   parseGame(readFileSync(join(process.cwd(), `lib/ptcg/fixtures/${name}`), 'utf8'));
@@ -37,5 +37,20 @@ describe('resolveArchetypeDex', () => {
     // both resolve to the same national dex number (658, Greninja). For
     // sprite purposes this is one distinct species and should appear once.
     expect(resolveArchetypeDex(loss.state.snapshots, loss.opponent, null)).toEqual([658]);
+  });
+});
+
+describe('archetypeKey', () => {
+  it('produces the same key regardless of array order', () => {
+    expect(archetypeKey([157, 156])).toBe(archetypeKey([156, 157]));
+  });
+
+  it('produces different keys for different sets', () => {
+    expect(archetypeKey([157, 156])).not.toBe(archetypeKey([157]));
+  });
+
+  it('gives the empty array a stable key, distinct from any non-empty one', () => {
+    expect(archetypeKey([])).toBe('');
+    expect(archetypeKey([])).not.toBe(archetypeKey([0]));
   });
 });
