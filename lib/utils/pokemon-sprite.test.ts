@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { slugifyPokemonName, pokemonSpriteUrl } from './pokemon-sprite';
+import { slugifyPokemonName, pokemonSpriteUrl, dexNumberFromCardName } from './pokemon-sprite';
 
 describe('slugifyPokemonName', () => {
   it('lowercases a simple name', () => {
@@ -48,5 +48,29 @@ describe('pokemonSpriteUrl', () => {
   it('returns null for a number outside the dex', () => {
     expect(pokemonSpriteUrl(0)).toBeNull();
     expect(pokemonSpriteUrl(1026)).toBeNull();
+  });
+});
+
+describe('dexNumberFromCardName', () => {
+  it('matches a plain species name', () => {
+    expect(dexNumberFromCardName('Typhlosion de Luth')).toBe(157);
+  });
+
+  it('matches a species name that is a SUFFIX of the card name', () => {
+    expect(dexNumberFromCardName('Feurisson de Luth')).toBe(156);
+    expect(dexNumberFromCardName('Héricendre de Luth')).toBe(155);
+  });
+
+  it('matches a species name that is a PREFIX of the card name (Mega cards)', () => {
+    expect(dexNumberFromCardName('Méga-Amphinobi-ex')).toBe(658);
+    expect(dexNumberFromCardName('Méga-Minotaupe-ex')).toBe(530);
+  });
+
+  it('matches the plain card without the Méga- decoration', () => {
+    expect(dexNumberFromCardName('Amphinobi-ex')).toBe(658);
+  });
+
+  it('returns null for a name matching no Pokémon', () => {
+    expect(dexNumberFromCardName('Not A Real Pokemon Card')).toBeNull();
   });
 });

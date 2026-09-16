@@ -1,4 +1,5 @@
 import { POKEMON_NAMES } from '@/lib/data/pokemon-names';
+import { normalizeForSearch } from './text-normalize';
 
 // LimitlessTCG's own tiny (~20x20) pixel-art Pokémon icons — the same source
 // already trusted elsewhere in this repo for card data (scrape-limitlesstcg.ts).
@@ -22,4 +23,22 @@ export function pokemonSpriteUrl(pokemonNumber: number): string | null {
   const entry = POKEMON_NAMES[pokemonNumber];
   if (!entry) return null;
   return `${SPRITE_BASE}/${slugifyPokemonName(entry.en)}.png`;
+}
+
+/** Reverse-looks-up a Pokémon's national dex number from a card's printed
+ *  name. The species name can be a suffix ("Carchacrok-ex", "Typhlosion de
+ *  Luth") or, for this project's Mega-era cards, a PREFIX ("Méga-Amphinobi-ex")
+ *  — so this checks for the species name anywhere in the normalized card
+ *  name, picking the longest match when more than one candidate applies.
+ *  Returns null for Trainer/Energy cards or a name matching nothing. */
+export function dexNumberFromCardName(name: string): number | null {
+  const normalized = normalizeForSearch(name);
+  let best: { number: number; length: number } | null = null;
+  for (const [numStr, entry] of Object.entries(POKEMON_NAMES)) {
+    const candidate = normalizeForSearch(entry.fr);
+    if (normalized.includes(candidate) && (!best || candidate.length > best.length)) {
+      best = { number: Number(numStr), length: candidate.length };
+    }
+  }
+  return best?.number ?? null;
 }
