@@ -247,6 +247,11 @@ export interface PtcgGameRow {
   turns: number;
   my_archetype: string | null;
   opponent_archetype: string | null;
+  /** Manual override: national dex numbers for this side's key Pokémon, in
+   *  display order. NULL means "derive live from raw_log" — see
+   *  lib/ptcg/archetype-dex.ts. */
+  my_archetype_dex: number[] | null;
+  opponent_archetype_dex: number[] | null;
   /** ptcgl_id of the Pokémon that dealt the most damage — joins ptcg_cards. */
   my_key_card: string | null;
   opponent_key_card: string | null;
@@ -365,6 +370,8 @@ export interface PtcgBundle {
     turns: number;
     my_archetype: string | null;
     opponent_archetype: string | null;
+    my_archetype_dex: number[] | null;
+    opponent_archetype_dex: number[] | null;
     raw_log: string;
     log_hash: string;
     parser_version: string;
