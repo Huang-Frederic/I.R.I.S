@@ -406,19 +406,6 @@ describe('aggregateStats', () => {
     expect(a.turnsAvg).toBe(10);
   });
 
-  it('buckets results by opponent archetype', () => {
-    const rows = [
-      mk({ opponent_archetype: 'Dragapult', result: 'loss' }),
-      mk({ opponent_archetype: 'Dragapult', result: 'win' }),
-      mk({ opponent_archetype: 'Dhelmise', result: 'win' }),
-    ];
-    const a = aggregateStats(rows);
-    const pult = a.byArchetype.find((x) => x.name === 'Dragapult')!;
-    expect(pult.games).toBe(2);
-    expect(pult.wins).toBe(1);
-    expect(pult.losses).toBe(1);
-  });
-
   it('excludes basic energy from the card-usage table', () => {
     const g = mk({});
     g.stats.cardUse = {

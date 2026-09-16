@@ -417,7 +417,6 @@ export interface AggregatedStats {
   turnsAvg: number;
   /** Every card I played, with total plays/discards and per-game rates. */
   cards: { name: string; played: number; discarded: number; perGame: number }[];
-  byArchetype: { name: string; games: number; wins: number; losses: number }[];
 }
 
 /** Win rate for the subset of `rows` where `wentFirst === went` — shared by
@@ -439,7 +438,6 @@ export function aggregateStats(rows: GameForStats[]): AggregatedStats {
   const abilityTotals = new Map<string, number>();
   const abilityGameHits = new Map<string, number>();
   const cardTotals = new Map<string, CardUse>();
-  const byArch = new Map<string, { games: number; wins: number; losses: number }>();
   let mull = 0;
   let boardT2 = 0;
   let evoByT2 = 0;
@@ -482,12 +480,6 @@ export function aggregateStats(rows: GameForStats[]): AggregatedStats {
       t.discarded += u.discarded;
       cardTotals.set(name, t);
     }
-    const arch = r.opponent_archetype ?? '?';
-    const a = byArch.get(arch) ?? { games: 0, wins: 0, losses: 0 };
-    a.games++;
-    if (r.result === 'win') a.wins++;
-    if (r.result === 'loss') a.losses++;
-    byArch.set(arch, a);
   }
 
   const pct = (v: number) => (n ? (v / n) * 100 : 0);
@@ -531,8 +523,5 @@ export function aggregateStats(rows: GameForStats[]): AggregatedStats {
         perGame: n ? u.played / n : 0,
       }))
       .sort((a, b) => b.played + b.discarded - (a.played + a.discarded)),
-    byArchetype: [...byArch.entries()]
-      .map(([name, v]) => ({ name, ...v }))
-      .sort((a, b) => b.games - a.games),
   };
 }
