@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, ChevronRight, Pencil } from 'lucide-react';
 import { groupByDay } from '@/lib/utils/group-by-day';
-import { pokemonSpriteUrl } from '@/lib/utils/pokemon-sprite';
+import DeckSprites from './DeckSprites';
 import GameLogViewer from './GameLogViewer';
 import CreateLogModal, { type ResolvedArchetype } from './CreateLogModal';
 import type { PtcgSnapshot, PtcgTurnIndex } from '@/lib/types';
@@ -26,23 +26,6 @@ interface ExpandedGame {
   rawLog: string;
   snapshots: PtcgSnapshot[];
   turns: PtcgTurnIndex[];
-}
-
-function DeckSprites({ dex }: { dex: number[] | null }) {
-  if (!dex || dex.length === 0) {
-    return <div className="bg-surface-2 h-8 w-8 shrink-0 rounded-full" />;
-  }
-  return (
-    <div className="flex -space-x-2">
-      {dex.map((n) => {
-        const url = pokemonSpriteUrl(n);
-        return url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={n} src={url} alt="" className="pixel-sprite border-surface h-8 w-8 rounded-full border-2" />
-        ) : null;
-      })}
-    </div>
-  );
 }
 
 export default function BattleLogsPage({ initialGames }: { initialGames: BattleLogGame[] }) {
