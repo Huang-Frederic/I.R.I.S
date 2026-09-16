@@ -46,7 +46,13 @@ export async function POST(request: Request) {
     return validationResponse('Body is not valid JSON.');
   }
 
-  const asPair = body as { raw?: unknown; analysis?: unknown; playedAt?: unknown };
+  const asPair = body as {
+    raw?: unknown;
+    analysis?: unknown;
+    playedAt?: unknown;
+    myArchetypeDex?: unknown;
+    opponentArchetypeDex?: unknown;
+  };
   const hasAnalysis = !!asPair?.analysis && typeof asPair.analysis === 'object';
   if (typeof asPair?.raw === 'string') {
     if (!asPair.raw.trim()) {
@@ -67,12 +73,19 @@ export async function POST(request: Request) {
           ? new Date(asPair.playedAt).toISOString()
           : undefined;
 
+      const asDexArray = (v: unknown): number[] | undefined =>
+        Array.isArray(v) && v.every((n) => typeof n === 'number') ? v : undefined;
+
       body = buildBundle(
         asPair.raw,
         parsed,
         cards,
         hasAnalysis ? (asPair.analysis as PtcgBundle['analysis']) : null,
-        { playedAt },
+        {
+          playedAt,
+          myArchetypeDex: asDexArray(asPair.myArchetypeDex),
+          opponentArchetypeDex: asDexArray(asPair.opponentArchetypeDex),
+        },
       );
     } catch (e) {
       // A paste that is not a battle log at all lands here rather than as a 500.
