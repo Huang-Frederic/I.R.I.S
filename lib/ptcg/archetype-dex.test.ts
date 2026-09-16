@@ -29,4 +29,13 @@ describe('resolveArchetypeDex', () => {
     // hence no dex numbers — distinct from "everyone matched, 0 results".
     expect(resolveArchetypeDex([], 'Nobody', null)).toEqual([]);
   });
+
+  it('dedupes by dex number when deriving live, keeping the first (highest-damage) occurrence', () => {
+    // loss.opponent's top-2 protagonists are "Amphinobi-ex" and
+    // "Méga-Amphinobi-ex" — different cards/evolution stages (keyPokemons
+    // correctly keeps them distinct, since it sums damage by card id), but
+    // both resolve to the same national dex number (658, Greninja). For
+    // sprite purposes this is one distinct species and should appear once.
+    expect(resolveArchetypeDex(loss.state.snapshots, loss.opponent, null)).toEqual([658]);
+  });
 });

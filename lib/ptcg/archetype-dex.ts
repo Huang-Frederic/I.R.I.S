@@ -19,7 +19,14 @@ export function resolveArchetypeDex(
   override: number[] | null,
 ): number[] {
   if (override !== null) return override;
-  return keyPokemons(snapshots, player)
+  const dexNumbers = keyPokemons(snapshots, player)
     .map((p) => dexNumberFromCardName(p.name))
     .filter((n): n is number => n !== null);
+  // Different evolution stages of the same species (e.g. "Amphinobi-ex" and
+  // "Méga-Amphinobi-ex") are kept as separate protagonists by keyPokemons
+  // (it sums damage per card id), but both resolve to the same national dex
+  // number. For sprite purposes that's one distinct species, so dedupe here
+  // — keeping the first (highest-damage, since keyPokemons sorts descending)
+  // occurrence of each dex number.
+  return [...new Set(dexNumbers)];
 }

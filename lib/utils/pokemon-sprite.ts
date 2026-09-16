@@ -30,7 +30,9 @@ export function pokemonSpriteUrl(pokemonNumber: number): string | null {
  *  Luth") or, for this project's Mega-era cards, a PREFIX ("Méga-Amphinobi-ex")
  *  — so this checks for the species name anywhere in the normalized card
  *  name, picking the longest match when more than one candidate applies.
- *  Returns null for Trainer/Energy cards or a name matching nothing. */
+ *  Returns null when nothing matches (in practice this usually — not
+ *  always — includes Trainer/Energy cards, since the substring match can
+ *  coincidentally hit a short species name inside an unrelated card name). */
 export function dexNumberFromCardName(name: string): number | null {
   const normalized = normalizeForSearch(name);
   let best: { number: number; length: number } | null = null;
