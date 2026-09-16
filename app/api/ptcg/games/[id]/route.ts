@@ -35,14 +35,29 @@ export async function GET(_request: Request, { params }: RouteContext) {
   if (error) return serverErrorResponse(error.message);
   if (!game) return notFoundResponse('ptcg_game');
 
+  const myArchetypeDex = resolveArchetypeDex(game.state.snapshots, game.me, game.my_archetype_dex);
+  const opponentArchetypeDex = resolveArchetypeDex(
+    game.state.snapshots,
+    game.opponent,
+    game.opponent_archetype_dex,
+  );
+
   return NextResponse.json({
-    game,
-    myArchetypeDex: resolveArchetypeDex(game.state.snapshots, game.me, game.my_archetype_dex),
-    opponentArchetypeDex: resolveArchetypeDex(
-      game.state.snapshots,
-      game.opponent,
-      game.opponent_archetype_dex,
-    ),
+    game: {
+      ...game,
+      // The turn-log viewer only ever reads `line`/`turnNumber` per snapshot —
+      // each snapshot's own `event`/`state` is a full per-turn board
+      // reconstruction and the actual bulk of a game's ~1MB payload. Trimming
+      // it here (never in the DB read above, which resolveArchetypeDex still
+      // needs in full) is what makes expanding a row feel instant instead of
+      // downloading the whole game every time.
+      state: {
+        turns: game.state.turns,
+        snapshots: game.state.snapshots.map((s) => ({ line: s.line, turnNumber: s.turnNumber })),
+      },
+    },
+    myArchetypeDex,
+    opponentArchetypeDex,
   });
 }
 

@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { NAV_ITEMS, BUBBLE_ITEMS } from './nav-items';
+import { NAV_ITEMS, BUBBLE_ITEMS, activeNavHref } from './nav-items';
 import { useAgentStatus } from '@/lib/hooks/useAgentStatus';
 
 const SCANNER = NAV_ITEMS.find((i) => i.href === '/submit')!;
@@ -32,7 +32,11 @@ export default function BottomNav() {
     setMounted(true);
   }, []);
 
-  const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
+  const active = activeNavHref(
+    pathname,
+    NAV_ITEMS.map((i) => i.href),
+  );
+  const isActive = (href: string) => href === active;
   const bubbleActive = BUBBLE_ITEMS.some((i) => isActive(i.href));
   const glow = bubbleActive || open;
 

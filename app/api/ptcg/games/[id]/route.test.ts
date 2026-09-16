@@ -58,6 +58,40 @@ describe('GET /api/ptcg/games/[id]', () => {
     expect(body).toEqual({ game, myArchetypeDex: [], opponentArchetypeDex: [] });
   });
 
+  it("trims each snapshot to line/turnNumber, dropping the per-turn board reconstruction (event/state) that GameLogViewer never reads", async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    const game = {
+      id: 'g1',
+      me: 'Hisshiden',
+      opponent: 'Bklee219',
+      raw_log: 'raw text',
+      state: {
+        turns: [{ number: 1, player: 'Hisshiden', events: [0] }],
+        snapshots: [
+          {
+            line: 3,
+            turnNumber: 1,
+            event: { type: 'attack', damage: 60 },
+            state: { turnNumber: 1, activePlayer: 'Hisshiden', stadium: null, winner: null, players: {} },
+          },
+        ],
+      },
+      my_archetype_dex: [157],
+      opponent_archetype_dex: [658],
+    };
+    const maybeSingle = vi.fn().mockResolvedValue({ data: game, error: null });
+    supabaseMock.from.mockReturnValue({
+      select: () => ({ eq: () => ({ eq: () => ({ maybeSingle }) }) }),
+    });
+    const res = await GET(makeRequest('GET'), ctx);
+    const body = await res.json();
+    expect(body.game.state.snapshots).toEqual([{ line: 3, turnNumber: 1 }]);
+    expect(body.game.state.turns).toEqual(game.state.turns);
+    // Untrimmed fields survive as-is.
+    expect(body.game.raw_log).toBe('raw text');
+    expect(body.game.me).toBe('Hisshiden');
+  });
+
   it('returns the stored override verbatim when set, without deriving live', async () => {
     supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
     const game = {

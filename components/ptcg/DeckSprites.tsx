@@ -20,6 +20,7 @@ export default function DeckSprites({ dex }: { dex: number[] | null }) {
             key={n}
             src={url}
             alt=""
+            loading="lazy"
             className="pixel-sprite border-surface h-8 w-8 rounded-full border-2"
           />
         ) : null;

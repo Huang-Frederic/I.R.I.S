@@ -8,7 +8,11 @@ interface Props {
   me: string;
   opponent: string;
   rawLog: string;
-  snapshots: PtcgSnapshot[];
+  // Only `line`/`turnNumber` are ever read here — the full snapshot also
+  // carries a per-turn game-state reconstruction that's the bulk of a game's
+  // payload size and this component never touches, so callers fetch/pass a
+  // trimmed shape (see GET /api/ptcg/games/[id]).
+  snapshots: Pick<PtcgSnapshot, 'line' | 'turnNumber'>[];
   turns: PtcgTurnIndex[];
 }
 

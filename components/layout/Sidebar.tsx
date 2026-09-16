@@ -3,13 +3,17 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { NAV_ITEMS } from './nav-items';
+import { NAV_ITEMS, activeNavHref } from './nav-items';
 import { useAgentStatus } from '@/lib/hooks/useAgentStatus';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const t = useTranslations('nav');
   const agentStatus = useAgentStatus();
+  const active = activeNavHref(
+    pathname,
+    NAV_ITEMS.map((i) => i.href),
+  );
 
   return (
     <aside className="bg-surface border-border fixed inset-y-0 left-0 z-30 hidden w-[220px] flex-col border-r md:flex">
@@ -29,15 +33,15 @@ export default function Sidebar() {
 
       <nav className="flex flex-1 flex-col gap-1 px-3 pb-4" aria-label={t('ariaLabel')}>
         {NAV_ITEMS.map(({ href, labelKey, icon: Icon }) => {
-          const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+          const current = href === active;
           return (
             <Link
               key={href}
               href={href}
               prefetch={true}
-              aria-current={active ? 'page' : undefined}
+              aria-current={current ? 'page' : undefined}
               className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
-                active
+                current
                   ? 'bg-red-bg text-red font-medium'
                   : 'text-text-muted hover:bg-surface-2 hover:text-text'
               }`}

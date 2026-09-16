@@ -1,7 +1,7 @@
 // components/ptcg/BattleLogsPage.tsx
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, ChevronRight, Pencil } from 'lucide-react';
 import { groupByDay } from '@/lib/utils/group-by-day';
@@ -24,7 +24,9 @@ interface ExpandedGame {
   me: string;
   opponent: string;
   rawLog: string;
-  snapshots: PtcgSnapshot[];
+  // Trimmed server-side — see GET /api/ptcg/games/[id] — to only what
+  // GameLogViewer reads, not the full per-turn board reconstruction.
+  snapshots: Pick<PtcgSnapshot, 'line' | 'turnNumber'>[];
   turns: PtcgTurnIndex[];
 }
 
@@ -99,7 +101,7 @@ export default function BattleLogsPage({ initialGames }: { initialGames: BattleL
     });
   };
 
-  const days = groupByDay(games);
+  const days = useMemo(() => groupByDay(games), [games]);
 
   return (
     <div className="flex flex-col gap-5">
