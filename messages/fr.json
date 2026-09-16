@@ -1065,6 +1065,11 @@
     "importPlayedAt": "Jouée le",
     "importHint": "Colle le log copié tel quel depuis PTCG Live — la partie est ajoutée à tes statistiques.",
     "importSubmit": "Importer",
+    "createLogTitle": "Confirme les decks",
+    "createLogSubtitle": "Corrige les sprites détectés si besoin.",
+    "editLogTitle": "Corriger les decks",
+    "myDeckLabel": "Mon deck",
+    "opponentDeckLabel": "Deck adverse",
     "statsLink": "Stats"
   },
   "drill": {

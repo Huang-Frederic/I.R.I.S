@@ -1065,6 +1065,11 @@
     "importPlayedAt": "対戦日",
     "importHint": "PTCG Live からコピーしたバトルログを貼り付けると、対戦が統計に追加されます。",
     "importSubmit": "インポート",
+    "createLogTitle": "デッキを確認",
+    "createLogSubtitle": "検出されたスプライトが違う場合は修正してください。",
+    "editLogTitle": "デッキを修正",
+    "myDeckLabel": "自分のデッキ",
+    "opponentDeckLabel": "相手のデッキ",
     "statsLink": "統計"
   },
   "drill": {

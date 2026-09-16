@@ -1065,6 +1065,11 @@
     "importPlayedAt": "Played on",
     "importHint": "Paste the battle log straight from PTCG Live — the game is added to your stats.",
     "importSubmit": "Import",
+    "createLogTitle": "Confirm the decks",
+    "createLogSubtitle": "Fix the detected sprites if needed.",
+    "editLogTitle": "Fix the decks",
+    "myDeckLabel": "My deck",
+    "opponentDeckLabel": "Opponent's deck",
     "statsLink": "Stats"
   },
   "drill": {
