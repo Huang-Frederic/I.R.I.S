@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { fetchAllRows } from '@/lib/api/fetch-all';
 import { extractGameStats } from '@/lib/ptcg/game-stats';
+import { combineGamesForStats, type TournamentWithRounds } from '@/lib/ptcg/stats-page-data';
 import PageTitle from '@/components/layout/PageTitle';
 import StatsPage, { type StatsGame } from '@/components/ptcg/StatsPage';
 
@@ -57,7 +58,7 @@ export default async function PtcgStatsPage() {
   );
   const supporterNames = [...new Set((supporterRows ?? []).map((c) => c.name))];
 
-  const games: StatsGame[] = (data ?? []).map((g) => {
+  const loggedGames: StatsGame[] = (data ?? []).map((g) => {
     const stats = extractGameStats(g.raw_log, g.me, supporterNames);
     return {
       id: g.id,
@@ -71,6 +72,18 @@ export default async function PtcgStatsPage() {
       opponentArchetypeDex: g.opponent_archetype_dex ?? [],
     };
   });
+
+  const { data: tournaments } = await fetchAllRows<TournamentWithRounds>((from, to) =>
+    supabase
+      .from('ptcg_tournaments')
+      .select(
+        'id, my_archetype_dex, played_at, rounds:ptcg_tournament_rounds(games, outcome, opponent_archetype_dex)',
+      )
+      .order('id', { ascending: true })
+      .range(from, to),
+  );
+
+  const games = combineGamesForStats(loggedGames, tournaments ?? []);
 
   return (
     <section>
