@@ -1118,7 +1118,17 @@
     "otherOutcomeLabel": "Other outcome",
     "outcome_id": "ID",
     "outcome_no_show": "No show",
-    "outcome_bye": "Bye"
+    "outcome_bye": "Bye",
+    "roundLabel": "Round {n}",
+    "roundColumnHeader": "Round",
+    "deckColumnHeader": "Deck",
+    "resultColumnHeader": "Result",
+    "addRoundButton": "Add round",
+    "noRoundsYet": "No rounds yet.",
+    "editRound": "Edit round",
+    "deleteRoundAria": "Delete round",
+    "deleteRoundTitle": "Delete this round?",
+    "deleteRoundBody": "This can't be undone."
   },
   "drill": {
     "metaTitle": "Drill — I.R.I.S",

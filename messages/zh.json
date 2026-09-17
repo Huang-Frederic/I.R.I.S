@@ -1118,7 +1118,17 @@
     "otherOutcomeLabel": "其他结果",
     "outcome_id": "ID",
     "outcome_no_show": "未到场",
-    "outcome_bye": "轮空"
+    "outcome_bye": "轮空",
+    "roundLabel": "第{n}轮",
+    "roundColumnHeader": "轮次",
+    "deckColumnHeader": "套牌",
+    "resultColumnHeader": "结果",
+    "addRoundButton": "添加轮次",
+    "noRoundsYet": "暂无轮次。",
+    "editRound": "编辑轮次",
+    "deleteRoundAria": "删除轮次",
+    "deleteRoundTitle": "删除此轮次？",
+    "deleteRoundBody": "此操作无法撤销。"
   },
   "drill": {
     "metaTitle": "训练 — I.R.I.S",

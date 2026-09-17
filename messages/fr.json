@@ -1118,7 +1118,17 @@
     "otherOutcomeLabel": "Autre issue",
     "outcome_id": "ID",
     "outcome_no_show": "Forfait",
-    "outcome_bye": "Bye"
+    "outcome_bye": "Bye",
+    "roundLabel": "Round {n}",
+    "roundColumnHeader": "Round",
+    "deckColumnHeader": "Deck",
+    "resultColumnHeader": "Résultat",
+    "addRoundButton": "Ajouter un round",
+    "noRoundsYet": "Aucun round pour l'instant.",
+    "editRound": "Modifier le round",
+    "deleteRoundAria": "Supprimer le round",
+    "deleteRoundTitle": "Supprimer ce round ?",
+    "deleteRoundBody": "Cette action est irréversible."
   },
   "drill": {
     "metaTitle": "Drill — I.R.I.S",
