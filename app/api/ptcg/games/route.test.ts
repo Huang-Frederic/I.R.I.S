@@ -98,3 +98,25 @@ describe('POST /api/ptcg/games — archetype-dex override', () => {
     );
   });
 });
+
+describe('POST /api/ptcg/games — went_first', () => {
+  afterEach(() => vi.clearAllMocks());
+
+  it('derives went_first from the raw log and stores it on insert', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    const insert = mockGamesInsert();
+
+    await POST(makeRequest({ raw: 'Tour de Hisshiden\nHisshiden pioche une carte.' }));
+
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ went_first: true }));
+  });
+
+  it('stores went_first as null when the raw log has no recognisable turn header', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    const insert = mockGamesInsert();
+
+    await POST(makeRequest({ raw: 'irrelevant — parseGame is mocked' }));
+
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ went_first: null }));
+  });
+});

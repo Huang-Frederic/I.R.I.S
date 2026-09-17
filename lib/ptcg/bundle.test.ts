@@ -69,6 +69,14 @@ describe('buildBundle', () => {
     expect(withOverride.game.my_archetype_dex).toEqual([15]);
     expect(withOverride.game.opponent_archetype_dex).toEqual([206, 982]);
   });
+
+  it('defaults went_first to null and threads through an explicit value', () => {
+    const withoutValue = buildBundle('raw', parsed, {}, null, {});
+    expect(withoutValue.game.went_first).toBeNull();
+
+    const withValue = buildBundle('raw', parsed, {}, null, { wentFirst: true });
+    expect(withValue.game.went_first).toBe(true);
+  });
 });
 
 describe('validateBundle', () => {

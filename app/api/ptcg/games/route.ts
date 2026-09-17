@@ -18,6 +18,7 @@ import { createClient } from '@/lib/supabase/server';
 import { buildBundle, validateBundle } from '@/lib/ptcg/bundle';
 import { parseGame } from '@/lib/ptcg';
 import { collectCardRefs, resolveCards } from '@/lib/ptcg/cards';
+import { extractGameStats } from '@/lib/ptcg/game-stats';
 import { keyPokemons } from '@/lib/ptcg/protagonists';
 import { playScore } from '@/lib/ptcg/score';
 import {
@@ -76,6 +77,12 @@ export async function POST(request: Request) {
       const asDexArray = (v: unknown): number[] | undefined =>
         Array.isArray(v) && v.every((n) => typeof n === 'number') ? v : undefined;
 
+      // Computed once at import time and stored (see the ptcg_games.went_first
+      // column) so Battle Logs' list row can show a 1st/2nd badge without
+      // re-fetching and re-parsing the raw log for every row. supporterNames
+      // is irrelevant to wentFirst detection, so an empty array is fine here.
+      const wentFirst = extractGameStats(asPair.raw, parsed.me, []).wentFirst;
+
       body = buildBundle(
         asPair.raw,
         parsed,
@@ -85,6 +92,7 @@ export async function POST(request: Request) {
           playedAt,
           myArchetypeDex: asDexArray(asPair.myArchetypeDex),
           opponentArchetypeDex: asDexArray(asPair.opponentArchetypeDex),
+          wentFirst,
         },
       );
     } catch (e) {

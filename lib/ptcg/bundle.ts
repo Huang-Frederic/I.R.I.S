@@ -45,6 +45,7 @@ export function buildBundle(
     opponentArchetype?: string | null;
     myArchetypeDex?: number[] | null;
     opponentArchetypeDex?: number[] | null;
+    wentFirst?: boolean | null;
   } = {},
 ): PtcgBundle {
   return {
@@ -62,6 +63,7 @@ export function buildBundle(
       opponent_archetype: meta.opponentArchetype ?? null,
       my_archetype_dex: meta.myArchetypeDex ?? null,
       opponent_archetype_dex: meta.opponentArchetypeDex ?? null,
+      went_first: meta.wentFirst ?? null,
       // Stored verbatim: it is the only source of truth, and everything else in
       // the bundle can be recomputed from it after a parser fix.
       raw_log: raw,

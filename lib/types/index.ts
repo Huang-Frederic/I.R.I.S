@@ -252,6 +252,8 @@ export interface PtcgGameRow {
    *  lib/ptcg/archetype-dex.ts. */
   my_archetype_dex: number[] | null;
   opponent_archetype_dex: number[] | null;
+  /** Null for games imported before this column existed. */
+  went_first: boolean | null;
   /** ptcgl_id of the Pokémon that dealt the most damage — joins ptcg_cards. */
   my_key_card: string | null;
   opponent_key_card: string | null;
@@ -372,6 +374,7 @@ export interface PtcgBundle {
     opponent_archetype: string | null;
     my_archetype_dex: number[] | null;
     opponent_archetype_dex: number[] | null;
+    went_first: boolean | null;
     raw_log: string;
     log_hash: string;
     parser_version: string;

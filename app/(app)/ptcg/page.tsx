@@ -24,7 +24,9 @@ export default async function PtcgPage() {
   const { data, error } = await fetchAllRows<BattleLogGame>((from, to) =>
     supabase
       .from('ptcg_games')
-      .select('id, played_at, me, opponent, result, my_archetype_dex, opponent_archetype_dex')
+      .select(
+        'id, played_at, me, opponent, result, my_archetype_dex, opponent_archetype_dex, went_first',
+      )
       .order('played_at', { ascending: false })
       .order('created_at', { ascending: false })
       .range(from, to),
