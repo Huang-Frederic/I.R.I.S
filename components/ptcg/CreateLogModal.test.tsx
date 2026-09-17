@@ -42,7 +42,13 @@ describe('<CreateLogModal> create mode', () => {
 
     // The full row (not just { id }) reaches onSaved — Task 6 needs
     // played_at/result to prepend an accurate row without guessing.
-    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(savedGame));
+    await waitFor(() =>
+      expect(onSaved).toHaveBeenCalledWith({
+        ...savedGame,
+        myArchetypeDex: [157, 156],
+        opponentArchetypeDex: [658],
+      }),
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/ptcg/games',
       expect.objectContaining({
@@ -53,6 +59,37 @@ describe('<CreateLogModal> create mode', () => {
           opponentArchetypeDex: [658],
         }),
       }),
+    );
+  });
+
+  it("passes the corrected archetype dex to onSaved, not the original resolved prop, when the user fixes a sprite before saving", async () => {
+    const savedGame = { id: 'g1', played_at: '2026-09-16T10:00:00.000Z', result: 'win' as const };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ game: savedGame }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const onSaved = vi.fn();
+
+    render(
+      <CreateLogModal
+        mode="create"
+        open
+        onClose={() => {}}
+        raw="the raw log text"
+        resolved={resolved}
+        onSaved={onSaved}
+      />,
+    );
+
+    // Correct my deck's first slot (auto-detected as dex 157) to Dracaufeu (6).
+    fireEvent.click(screen.getAllByRole('button', { name: 'profileSpriteLabel' })[0]);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'dracaufeu' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Dracaufeu' }));
+
+    fireEvent.click(screen.getByText('save'));
+
+    await waitFor(() =>
+      expect(onSaved).toHaveBeenCalledWith(
+        expect.objectContaining({ myArchetypeDex: [6, 156], opponentArchetypeDex: [658] }),
+      ),
     );
   });
 });

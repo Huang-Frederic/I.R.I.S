@@ -98,4 +98,28 @@ describe('<PokemonPicker>', () => {
     const img = trigger.querySelector('img');
     expect(img?.src).toContain('/greninja-mega.png');
   });
+
+  it('does not steal focus onto the search field when opened — avoids popping the mobile keyboard', () => {
+    render(<PokemonPicker value={null} onChange={() => {}} />);
+    openPicker();
+    expect(screen.getByRole('textbox')).not.toHaveFocus();
+  });
+
+  it('offers a "clear" tile first in the grid, to remove a sprite rather than only replace it', () => {
+    const onChange = vi.fn();
+    render(<PokemonPicker value={6} onChange={onChange} />);
+    openPicker();
+    fireEvent.click(screen.getByRole('button', { name: 'clearSpriteLabel' }));
+    expect(onChange).toHaveBeenCalledWith(null);
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('ignores the Mega toggle when clearing', () => {
+    const onChange = vi.fn();
+    render(<PokemonPicker value={6} onChange={onChange} />);
+    openPicker();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'megaToggleLabel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'clearSpriteLabel' }));
+    expect(onChange).toHaveBeenCalledWith(null);
+  });
 });

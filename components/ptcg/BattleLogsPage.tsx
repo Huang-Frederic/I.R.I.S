@@ -289,8 +289,10 @@ export default function BattleLogsPage({ initialGames }: { initialGames: BattleL
                 me: createModal.resolved.me,
                 opponent: createModal.resolved.opponent,
                 result: game.result,
-                my_archetype_dex: createModal.resolved.myArchetypeDex,
-                opponent_archetype_dex: createModal.resolved.opponentArchetypeDex,
+                // From the modal's own state at save time — may differ from
+                // createModal.resolved.* if the user corrected a sprite.
+                my_archetype_dex: game.myArchetypeDex,
+                opponent_archetype_dex: game.opponentArchetypeDex,
                 // Not returned by POST /api/ptcg/games today — the row just
                 // shows no 1st/2nd badge until the page is next reloaded.
                 went_first: null,

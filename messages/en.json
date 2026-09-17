@@ -1194,7 +1194,8 @@
     "fanSeen": "{seen}/{total} seen",
     "fanDone": "Deck fully fanned — your call.",
     "makeAnswer": "Give my answer",
-    "megaToggleLabel": "Mega form"
+    "megaToggleLabel": "Mega form",
+    "clearSpriteLabel": "Clear"
   },
   "ptcgStats": {
     "metaTitle": "Stats — I.R.I.S",

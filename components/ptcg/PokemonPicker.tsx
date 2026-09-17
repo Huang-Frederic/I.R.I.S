@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { X } from 'lucide-react';
 import { FixedSizeList } from 'react-window';
 import Modal from '@/components/ui/Modal';
 import { searchPokemon, type PokemonSearchResult } from '@/lib/utils/pokemon-search';
@@ -22,25 +23,29 @@ const DUAL_FORM_DEX = new Set([6, 150]);
 interface Props {
   /** National dex number, or null when nothing is picked yet. */
   value: number | null;
-  onChange: (pokemonNumber: number) => void;
+  onChange: (pokemonNumber: number | null) => void;
 }
 
 /** Emoji-picker-style sprite selector: click the circle to open a searchable
- *  grid of the full dex (French/English name), click a sprite to pick it. */
+ *  grid of the full dex (French/English name), click a sprite to pick it.
+ *  The very first grid tile is always a "clear" option (`null`) — an
+ *  auto-detected sprite the user doesn't want has to be removable, not just
+ *  replaceable with another real Pokémon. */
 export default function PokemonPicker({ value, onChange }: Props) {
   const t = useTranslations('drill');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [mega, setMega] = useState(false);
   const results = searchPokemon(query);
+  const items: (PokemonSearchResult | null)[] = useMemo(() => [null, ...results], [results]);
   const rows = useMemo(() => {
-    const chunks: PokemonSearchResult[][] = [];
-    for (let i = 0; i < results.length; i += COLS) chunks.push(results.slice(i, i + COLS));
+    const chunks: (PokemonSearchResult | null)[][] = [];
+    for (let i = 0; i < items.length; i += COLS) chunks.push(items.slice(i, i + COLS));
     return chunks;
-  }, [results]);
+  }, [items]);
 
-  function pick(number: number) {
-    onChange(mega ? encodeMegaDex(number, DUAL_FORM_DEX.has(number) ? 'x' : undefined) : number);
+  function pick(number: number | null) {
+    onChange(number === null || !mega ? number : encodeMegaDex(number, DUAL_FORM_DEX.has(number) ? 'x' : undefined));
     setOpen(false);
     setQuery('');
     setMega(false);
@@ -76,7 +81,6 @@ export default function PokemonPicker({ value, onChange }: Props) {
         <div className="border-border border-b p-3">
           <input
             type="text"
-            autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('searchPokemonPlaceholder')}
@@ -90,22 +94,34 @@ export default function PokemonPicker({ value, onChange }: Props) {
         <FixedSizeList height={GRID_HEIGHT} itemCount={rows.length} itemSize={ROW_HEIGHT} width="100%">
           {({ index, style }) => (
             <div style={style} className="flex gap-1 px-3">
-              {rows[index].map((r) => (
-                <button
-                  key={r.number}
-                  type="button"
-                  onClick={() => pick(r.number)}
-                  className="hover:bg-surface-2 flex flex-1 items-center justify-center rounded-lg p-1.5"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={pokemonSpriteUrl(r.number) ?? undefined}
-                    alt={r.fr}
-                    loading="lazy"
-                    className="pixel-sprite max-h-12 max-w-12"
-                  />
-                </button>
-              ))}
+              {rows[index].map((r) =>
+                r === null ? (
+                  <button
+                    key="clear"
+                    type="button"
+                    onClick={() => pick(null)}
+                    aria-label={t('clearSpriteLabel')}
+                    className="hover:bg-surface-2 border-border flex flex-1 items-center justify-center rounded-lg border border-dashed p-1.5"
+                  >
+                    <X className="text-text-faint h-5 w-5" aria-hidden />
+                  </button>
+                ) : (
+                  <button
+                    key={r.number}
+                    type="button"
+                    onClick={() => pick(r.number)}
+                    className="hover:bg-surface-2 flex flex-1 items-center justify-center rounded-lg p-1.5"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={pokemonSpriteUrl(r.number) ?? undefined}
+                      alt={r.fr}
+                      loading="lazy"
+                      className="pixel-sprite max-h-12 max-w-12"
+                    />
+                  </button>
+                ),
+              )}
             </div>
           )}
         </FixedSizeList>

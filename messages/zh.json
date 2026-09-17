@@ -1194,7 +1194,8 @@
     "fanSeen": "已看 {seen}/{total}",
     "fanDone": "牌库翻完了 — 该你了。",
     "makeAnswer": "提交答案",
-    "megaToggleLabel": "超级形态"
+    "megaToggleLabel": "超级形态",
+    "clearSpriteLabel": "清除"
   },
   "ptcgStats": {
     "metaTitle": "统计 — I.R.I.S",

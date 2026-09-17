@@ -20,7 +20,13 @@ interface CreateProps {
    *  here — this is what Save actually persists. */
   raw: string;
   resolved: ResolvedArchetype;
-  onSaved: (game: { id: string; played_at: string; result: 'win' | 'loss' | 'tie' }) => void;
+  onSaved: (game: {
+    id: string;
+    played_at: string;
+    result: 'win' | 'loss' | 'tie';
+    myArchetypeDex: number[];
+    opponentArchetypeDex: number[];
+  }) => void;
 }
 
 interface EditProps {
@@ -64,7 +70,11 @@ export default function CreateLogModal(props: Props) {
         const { game } = (await res.json()) as {
           game: { id: string; played_at: string; result: 'win' | 'loss' | 'tie' };
         };
-        props.onSaved(game);
+        // myDex/opponentDex here are whatever the user corrected them to in
+        // this session, not props.resolved's original auto-detected values —
+        // the caller must use these, or a freshly-added row shows the wrong
+        // sprites until the page is reloaded and re-fetches from the DB.
+        props.onSaved({ ...game, myArchetypeDex: myDex, opponentArchetypeDex: opponentDex });
       } else {
         const res = await fetch(`/api/ptcg/games/${props.gameId}`, {
           method: 'PATCH',

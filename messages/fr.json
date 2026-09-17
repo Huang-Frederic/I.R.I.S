@@ -1194,7 +1194,8 @@
     "fanSeen": "{seen}/{total} vues",
     "fanDone": "Deck parcouru — à toi.",
     "makeAnswer": "Faire mon rendu",
-    "megaToggleLabel": "Forme Méga"
+    "megaToggleLabel": "Forme Méga",
+    "clearSpriteLabel": "Vider"
   },
   "ptcgStats": {
     "metaTitle": "Stats — I.R.I.S",
