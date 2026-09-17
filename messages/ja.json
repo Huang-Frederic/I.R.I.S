@@ -1099,7 +1099,19 @@
     "placement_top_8": "トップ8",
     "placement_top_4": "トップ4",
     "placement_top_2": "トップ2",
-    "placement_winner": "優勝"
+    "placement_winner": "優勝",
+    "addRoundTitle": "ラウンドを追加",
+    "editRoundTitle": "ラウンドを編集",
+    "gameLabel": "ゲーム{n}",
+    "gameResult_win": "勝ち",
+    "gameResult_loss": "負け",
+    "gameResult_tie": "引き分け",
+    "wentFirst": "先攻",
+    "wentSecond": "後攻",
+    "otherOutcomeLabel": "その他の結果",
+    "outcome_id": "ID",
+    "outcome_no_show": "不戦敗",
+    "outcome_bye": "不戦勝"
   },
   "drill": {
     "metaTitle": "ドリル — I.R.I.S",

@@ -1099,7 +1099,19 @@
     "placement_top_8": "前8名",
     "placement_top_4": "前4名",
     "placement_top_2": "前2名",
-    "placement_winner": "冠军"
+    "placement_winner": "冠军",
+    "addRoundTitle": "添加轮次",
+    "editRoundTitle": "编辑轮次",
+    "gameLabel": "第{n}局",
+    "gameResult_win": "胜",
+    "gameResult_loss": "负",
+    "gameResult_tie": "平",
+    "wentFirst": "先手",
+    "wentSecond": "后手",
+    "otherOutcomeLabel": "其他结果",
+    "outcome_id": "ID",
+    "outcome_no_show": "未到场",
+    "outcome_bye": "轮空"
   },
   "drill": {
     "metaTitle": "训练 — I.R.I.S",

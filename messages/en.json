@@ -1099,7 +1099,19 @@
     "placement_top_8": "Top 8",
     "placement_top_4": "Top 4",
     "placement_top_2": "Top 2",
-    "placement_winner": "Winner"
+    "placement_winner": "Winner",
+    "addRoundTitle": "Add round",
+    "editRoundTitle": "Edit round",
+    "gameLabel": "Game {n}",
+    "gameResult_win": "Win",
+    "gameResult_loss": "Loss",
+    "gameResult_tie": "Tie",
+    "wentFirst": "1st",
+    "wentSecond": "2nd",
+    "otherOutcomeLabel": "Other outcome",
+    "outcome_id": "ID",
+    "outcome_no_show": "No show",
+    "outcome_bye": "Bye"
   },
   "drill": {
     "metaTitle": "Drill — I.R.I.S",
