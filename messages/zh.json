@@ -1069,7 +1069,14 @@
     "noLogsYet": "还没有对局。在上方粘贴对战日志即可开始。",
     "dayRecord": "{wins}胜 · {losses}负 · {ties}平",
     "editLog": "修正卡组",
-    "statsLink": "统计"
+    "statsLink": "统计",
+    "category_online": "线上",
+    "category_locals": "地区赛",
+    "category_challenge": "挑战赛",
+    "category_cup": "杯赛",
+    "category_regionals": "地区锦标赛",
+    "category_internationals": "国际锦标赛",
+    "category_worlds": "世界赛"
   },
   "drill": {
     "metaTitle": "训练 — I.R.I.S",

@@ -4,7 +4,14 @@ import type { PtcgTournamentCategory, PtcgTournamentPlacement } from '@/lib/type
 export interface CategoryOption {
   value: PtcgTournamentCategory;
   icon: LucideIcon;
-  labelKey: string;
+  labelKey:
+    | 'category_online'
+    | 'category_locals'
+    | 'category_challenge'
+    | 'category_cup'
+    | 'category_regionals'
+    | 'category_internationals'
+    | 'category_worlds';
 }
 
 /** Same order as the DB check constraint and the reference app's own
@@ -21,7 +28,20 @@ export const CATEGORY_OPTIONS: CategoryOption[] = [
 
 export interface PlacementOption {
   value: PtcgTournamentPlacement;
-  labelKey: string;
+  labelKey:
+    | 'placement_no_placement'
+    | 'placement_dropped'
+    | 'placement_top_1024'
+    | 'placement_top_512'
+    | 'placement_top_256'
+    | 'placement_top_128'
+    | 'placement_top_64'
+    | 'placement_top_32'
+    | 'placement_top_16'
+    | 'placement_top_8'
+    | 'placement_top_4'
+    | 'placement_top_2'
+    | 'placement_winner';
 }
 
 /** Broadest field cut first, most exclusive last — matches the reference

@@ -1069,7 +1069,14 @@
     "noLogsYet": "No games yet. Paste a battle log above to get started.",
     "dayRecord": "{wins}W · {losses}L · {ties}T",
     "editLog": "Fix the detected decks",
-    "statsLink": "Stats"
+    "statsLink": "Stats",
+    "category_online": "Online",
+    "category_locals": "Locals",
+    "category_challenge": "Challenge",
+    "category_cup": "Cup",
+    "category_regionals": "Regionals",
+    "category_internationals": "Internationals",
+    "category_worlds": "Worlds"
   },
   "drill": {
     "metaTitle": "Drill — I.R.I.S",

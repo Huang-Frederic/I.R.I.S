@@ -1069,7 +1069,14 @@
     "noLogsYet": "まだ対戦がありません。上にバトルログを貼り付けて始めましょう。",
     "dayRecord": "{wins}勝 · {losses}敗 · {ties}分",
     "editLog": "デッキを修正",
-    "statsLink": "統計"
+    "statsLink": "統計",
+    "category_online": "オンライン",
+    "category_locals": "ローカル",
+    "category_challenge": "チャレンジ",
+    "category_cup": "カップ",
+    "category_regionals": "リージョナル",
+    "category_internationals": "インターナショナル",
+    "category_worlds": "世界大会"
   },
   "drill": {
     "metaTitle": "ドリル — I.R.I.S",

@@ -1069,7 +1069,14 @@
     "noLogsYet": "Aucun duel. Colle un battle log ci-dessus pour commencer.",
     "dayRecord": "{wins}V · {losses}D · {ties}N",
     "editLog": "Corriger les decks",
-    "statsLink": "Stats"
+    "statsLink": "Stats",
+    "category_online": "En ligne",
+    "category_locals": "Locaux",
+    "category_challenge": "Challenge",
+    "category_cup": "Cup",
+    "category_regionals": "Régionaux",
+    "category_internationals": "Internationaux",
+    "category_worlds": "Mondiaux"
   },
   "drill": {
     "metaTitle": "Drill — I.R.I.S",
