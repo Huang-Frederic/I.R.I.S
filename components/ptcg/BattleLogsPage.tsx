@@ -56,6 +56,20 @@ export default function BattleLogsPage({ initialGames }: { initialGames: BattleL
   );
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<ExpandedGame | null>(null);
+  // Only the most recent day starts open — older days collapse to keep a
+  // long history scannable, matching the reference app's per-day accordion.
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(
+    () => new Set(groupByDay(initialGames).slice(0, 1).map((d) => d.dayKey)),
+  );
+
+  function toggleDay(dayKey: string) {
+    setExpandedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(dayKey)) next.delete(dayKey);
+      else next.add(dayKey);
+      return next;
+    });
+  }
 
   const addLog = async () => {
     if (!text.trim()) return;
@@ -155,14 +169,27 @@ export default function BattleLogsPage({ initialGames }: { initialGames: BattleL
           const wins = day.rows.filter((g) => g.result === 'win').length;
           const losses = day.rows.filter((g) => g.result === 'loss').length;
           const ties = day.rows.filter((g) => g.result === 'tie').length;
+          const dayOpen = expandedDays.has(day.dayKey);
           return (
             <div key={day.dayKey} className="flex flex-col gap-2">
-              <div className="text-text-muted flex items-baseline justify-between text-xs font-semibold tracking-wide uppercase">
-                <span>{day.date.toLocaleDateString()}</span>
+              <button
+                type="button"
+                onClick={() => toggleDay(day.dayKey)}
+                className="text-text-muted hover:text-text flex items-center justify-between gap-2 text-xs font-semibold tracking-wide uppercase"
+              >
+                <span className="flex items-center gap-1.5">
+                  {dayOpen ? (
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  )}
+                  {day.date.toLocaleDateString()}
+                </span>
                 <span className="tabular-nums normal-case">
                   {t('dayRecord', { wins, losses, ties })}
                 </span>
-              </div>
+              </button>
+              {dayOpen && (
               <ul className="divide-border border-border bg-surface divide-y rounded-xl border">
                 {day.rows.map((game) => (
                   <li key={game.id}>
@@ -223,6 +250,7 @@ export default function BattleLogsPage({ initialGames }: { initialGames: BattleL
                   </li>
                 ))}
               </ul>
+              )}
             </div>
           );
         })

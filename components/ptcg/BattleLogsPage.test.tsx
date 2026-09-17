@@ -48,6 +48,29 @@ describe('<BattleLogsPage>', () => {
     expect(screen.queryByText('wentSecond')).not.toBeInTheDocument();
   });
 
+  const gameB: BattleLogGame = {
+    ...gameA,
+    id: 'g2',
+    played_at: '2026-09-10T10:00:00.000Z',
+    opponent_archetype_dex: [],
+  };
+
+  it('starts with only the most recent day expanded, older days collapsed', () => {
+    render(<BattleLogsPage initialGames={[gameA, gameB]} />);
+    expect(screen.getByText(/Amphinobi/)).toBeInTheDocument();
+    expect(screen.queryByText(/Bklee219/)).not.toBeInTheDocument();
+  });
+
+  it('toggles a day open and closed on click', () => {
+    render(<BattleLogsPage initialGames={[gameA, gameB]} />);
+    const dayHeaders = screen.getAllByRole('button', { name: /\d/ });
+    fireEvent.click(dayHeaders[1]);
+    expect(screen.getByText(/Bklee219/)).toBeInTheDocument();
+
+    fireEvent.click(dayHeaders[0]);
+    expect(screen.queryByText(/Amphinobi/)).not.toBeInTheDocument();
+  });
+
   it('pastes a log, resolves it, and opens the Create Log modal pre-filled with the resolved decks', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
