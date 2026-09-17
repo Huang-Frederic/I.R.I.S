@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Modal from '@/components/ui/Modal';
-import PokemonPicker from './PokemonPicker';
+import DeckSlots from './DeckSlots';
 
 export interface ResolvedArchetype {
   me: string;
@@ -33,39 +33,6 @@ interface EditProps {
 }
 
 type Props = CreateProps | EditProps;
-
-/** Up to 2 sprite slots per side — `keyPokemons()` never produces more than
- *  2, so a missing second slot is padded with an empty picker rather than
- *  hidden, letting the user add one the detector didn't find. */
-function DeckSlots({
-  label,
-  dex,
-  onChange,
-}: {
-  label: string;
-  dex: number[];
-  onChange: (dex: number[]) => void;
-}) {
-  const slots = dex.length >= 2 ? dex : [...dex, ...(Array(2 - dex.length).fill(null) as null[])];
-  return (
-    <div>
-      <p className="text-text-muted mb-2 text-xs font-semibold tracking-wide uppercase">{label}</p>
-      <div className="flex gap-3">
-        {slots.map((n, i) => (
-          <PokemonPicker
-            key={i}
-            value={n}
-            onChange={(picked) => {
-              const next = [...slots];
-              next[i] = picked;
-              onChange(next.filter((v): v is number => v !== null));
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default function CreateLogModal(props: Props) {
   const t = useTranslations('ptcg');
