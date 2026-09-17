@@ -173,6 +173,16 @@ export default function BattleLogsPage({ initialGames }: { initialGames: BattleL
           const losses = day.rows.filter((g) => g.result === 'loss').length;
           const ties = day.rows.filter((g) => g.result === 'tie').length;
           const dayOpen = expandedDays.has(day.dayKey);
+          // One sprite per distinct deck played that day — just the first
+          // dex number of each, no cap: a day realistically has a handful of
+          // decks at most.
+          const dayDecks = [
+            ...new Set(
+              day.rows
+                .map((g) => g.my_archetype_dex?.[0])
+                .filter((n): n is number => n !== undefined),
+            ),
+          ];
           return (
             <div key={day.dayKey} className="flex flex-col gap-2">
               <button
@@ -187,6 +197,11 @@ export default function BattleLogsPage({ initialGames }: { initialGames: BattleL
                     <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   )}
                   {day.date.toLocaleDateString()}
+                </span>
+                <span className="flex items-center gap-1">
+                  {dayDecks.map((dex) => (
+                    <DeckSprites key={dex} dex={[dex]} />
+                  ))}
                 </span>
                 <span className="tabular-nums normal-case">
                   {t('dayRecord', { wins, losses, ties })}

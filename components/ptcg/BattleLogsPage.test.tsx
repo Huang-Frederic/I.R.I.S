@@ -78,6 +78,14 @@ describe('<BattleLogsPage>', () => {
     expect(screen.queryByText(/Amphinobi/)).not.toBeInTheDocument();
   });
 
+  it('shows one sprite per distinct deck played that day, deduplicated', () => {
+    const gameC: BattleLogGame = { ...gameA, id: 'g3', my_archetype_dex: [1] };
+    const gameD: BattleLogGame = { ...gameA, id: 'g4' }; // same day, same [157] deck as gameA
+    render(<BattleLogsPage initialGames={[gameA, gameC, gameD]} />);
+    const dayHeader = screen.getAllByRole('button', { name: /\d/ })[0];
+    expect(dayHeader.querySelectorAll('img')).toHaveLength(2);
+  });
+
   it('pastes a log, resolves it, and opens the Create Log modal pre-filled with the resolved decks', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
