@@ -1193,7 +1193,8 @@
     "fanTap": "Swipe the fan to thumb through your deck",
     "fanSeen": "{seen}/{total} seen",
     "fanDone": "Deck fully fanned — your call.",
-    "makeAnswer": "Give my answer"
+    "makeAnswer": "Give my answer",
+    "megaToggleLabel": "Mega form"
   },
   "ptcgStats": {
     "metaTitle": "Stats — I.R.I.S",

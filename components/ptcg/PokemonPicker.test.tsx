@@ -57,4 +57,45 @@ describe('<PokemonPicker>', () => {
     const img = trigger.querySelector('img');
     expect(img?.src).toContain('/charizard.png');
   });
+
+  it('encodes the pick as a Mega form when the Mega toggle is checked', () => {
+    const onChange = vi.fn();
+    render(<PokemonPicker value={null} onChange={onChange} />);
+    openPicker();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'megaToggleLabel' }));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'amphinobi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Amphinobi' }));
+    // 10658 = encodeMegaDex(658) — Amphinobi (Greninja) is dex 658.
+    expect(onChange).toHaveBeenCalledWith(10658);
+  });
+
+  it('defaults a dual-form Mega pick (Charizard) to the X variant', () => {
+    const onChange = vi.fn();
+    render(<PokemonPicker value={null} onChange={onChange} />);
+    openPicker();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'megaToggleLabel' }));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'dracaufeu' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Dracaufeu' }));
+    // 20006 = encodeMegaDex(6, 'x') — Charizard is dex 6.
+    expect(onChange).toHaveBeenCalledWith(20006);
+  });
+
+  it('resets the Mega toggle after a pick, and does not encode a plain pick', () => {
+    const onChange = vi.fn();
+    render(<PokemonPicker value={null} onChange={onChange} />);
+    openPicker();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'dracaufeu' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Dracaufeu' }));
+    expect(onChange).toHaveBeenCalledWith(6);
+
+    openPicker();
+    expect(screen.getByRole('checkbox', { name: 'megaToggleLabel' })).not.toBeChecked();
+  });
+
+  it('renders the Mega sprite on the trigger circle for a Mega-encoded value', () => {
+    render(<PokemonPicker value={10658} onChange={() => {}} />);
+    const trigger = screen.getByRole('button', { name: 'profileSpriteLabel' });
+    const img = trigger.querySelector('img');
+    expect(img?.src).toContain('/greninja-mega.png');
+  });
 });

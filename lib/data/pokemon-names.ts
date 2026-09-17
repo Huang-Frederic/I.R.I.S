@@ -14,7 +14,46 @@ export const POKEMON_NAMES: Readonly<Record<number, PokemonNameEntry>> = Object.
   Object.entries(source).map(([n, { fr, en }]) => [n, { fr, en }]),
 );
 
-/** Fallback to French, then English, then `???`. */
+/**
+ * A Mega-evolved Pokémon shares its base species' national dex number (Mega
+ * Charizard is still dex 6), so a plain dex number can't tell a Mega form's
+ * sprite/identity apart from its base form's. Encoding the Mega-ness into the
+ * number itself — rather than widening every `number[]` archetype-dex column
+ * and type across the app (ptcg_games, ptcg_tournaments, GameForStats, ...)
+ * into a richer shape — keeps every existing consumer working unchanged: an
+ * encoded number still sorts, dedupes (Set), and JSON-round-trips exactly
+ * like a plain one, and only the two functions that need to know about Mega
+ * forms at all (`getPokemonName` here, `pokemonSpriteUrl` in
+ * lib/utils/pokemon-sprite.ts) ever decode it.
+ *
+ * Only Charizard and Mewtwo have ever had TWO simultaneous Mega forms (X/Y);
+ * every other Mega-capable species has exactly one.
+ */
+const MEGA_OFFSET = 10_000;
+const MEGA_X_OFFSET = 20_000;
+const MEGA_Y_OFFSET = 30_000;
+
+export function encodeMegaDex(dex: number, variant?: 'x' | 'y'): number {
+  if (variant === 'x') return dex + MEGA_X_OFFSET;
+  if (variant === 'y') return dex + MEGA_Y_OFFSET;
+  return dex + MEGA_OFFSET;
+}
+
+export function decodeMegaDex(n: number): { dex: number; suffix: 'mega' | 'mega-x' | 'mega-y' | null } {
+  if (n >= MEGA_Y_OFFSET) return { dex: n - MEGA_Y_OFFSET, suffix: 'mega-y' };
+  if (n >= MEGA_X_OFFSET) return { dex: n - MEGA_X_OFFSET, suffix: 'mega-x' };
+  if (n >= MEGA_OFFSET) return { dex: n - MEGA_OFFSET, suffix: 'mega' };
+  return { dex: n, suffix: null };
+}
+
+/** Fallback to French, then English, then `???`. Decodes a Mega-encoded
+ *  number back to its base species' name, prefixed with "Méga"/"Mega" (and,
+ *  for the rare Charizard/Mewtwo dual forms, suffixed with "X"/"Y"). */
 export function getPokemonName(n: number, lang: 'fr' | 'en' = 'fr'): string {
-  return POKEMON_NAMES[n]?.[lang] ?? '???';
+  const { dex, suffix } = decodeMegaDex(n);
+  const base = POKEMON_NAMES[dex]?.[lang] ?? '???';
+  if (!suffix) return base;
+  const megaWord = lang === 'en' ? 'Mega' : 'Méga';
+  const variantSuffix = suffix === 'mega-x' ? ' X' : suffix === 'mega-y' ? ' Y' : '';
+  return `${megaWord} ${base}${variantSuffix}`;
 }

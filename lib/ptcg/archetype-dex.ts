@@ -7,6 +7,7 @@
 import type { PtcgSnapshot } from '@/lib/types';
 import { keyPokemons } from './protagonists';
 import { dexNumberFromCardName } from '@/lib/utils/pokemon-sprite';
+import { decodeMegaDex } from '@/lib/data/pokemon-names';
 
 /**
  * @param override national dex numbers the user explicitly set (`ptcg_games
@@ -23,12 +24,21 @@ export function resolveArchetypeDex(
     .map((p) => dexNumberFromCardName(p.name))
     .filter((n): n is number => n !== null);
   // Different evolution stages of the same species (e.g. "Amphinobi-ex" and
-  // "Méga-Amphinobi-ex") are kept as separate protagonists by keyPokemons
-  // (it sums damage per card id), but both resolve to the same national dex
-  // number. For sprite purposes that's one distinct species, so dedupe here
-  // — keeping the first (highest-damage, since keyPokemons sorts descending)
-  // occurrence of each dex number.
-  return [...new Set(dexNumbers)];
+  // its Mega Evolution "Méga-Amphinobi-ex") are kept as separate protagonists
+  // by keyPokemons (it sums damage per card id), but they're still one
+  // distinct species for sprite purposes — dedupe by base dex (decoding any
+  // Mega encoding first), preferring the Mega-encoded entry when both a base
+  // and a Mega form of the same species occur, since Mega Evolving mid-game
+  // is a strict upgrade and the Mega sprite is the more representative one.
+  const bySpecies = new Map<number, number>();
+  for (const n of dexNumbers) {
+    const { dex } = decodeMegaDex(n);
+    const existing = bySpecies.get(dex);
+    if (existing === undefined || decodeMegaDex(existing).suffix === null) {
+      bySpecies.set(dex, n);
+    }
+  }
+  return [...bySpecies.values()];
 }
 
 /**

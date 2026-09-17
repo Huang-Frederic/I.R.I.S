@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseGame } from './index';
 import { archetypeKey, resolveArchetypeDex } from './archetype-dex';
+import { encodeMegaDex } from '@/lib/data/pokemon-names';
 
 const load = (name: string) =>
   parseGame(readFileSync(join(process.cwd(), `lib/ptcg/fixtures/${name}`), 'utf8'));
@@ -30,13 +31,17 @@ describe('resolveArchetypeDex', () => {
     expect(resolveArchetypeDex([], 'Nobody', null)).toEqual([]);
   });
 
-  it('dedupes by dex number when deriving live, keeping the first (highest-damage) occurrence', () => {
+  it('dedupes by species when deriving live, preferring the Mega form over the base form', () => {
     // loss.opponent's top-2 protagonists are "Amphinobi-ex" and
     // "Méga-Amphinobi-ex" — different cards/evolution stages (keyPokemons
-    // correctly keeps them distinct, since it sums damage by card id), but
-    // both resolve to the same national dex number (658, Greninja). For
-    // sprite purposes this is one distinct species and should appear once.
-    expect(resolveArchetypeDex(loss.state.snapshots, loss.opponent, null)).toEqual([658]);
+    // correctly keeps them distinct, since it sums damage by card id), and
+    // both are the same species (658, Greninja) — dexNumberFromCardName
+    // Mega-encodes the second one (see encodeMegaDex). For sprite purposes
+    // this is one distinct species that got Mega Evolved mid-game, so it
+    // should appear once, as its most-evolved (Mega) form.
+    expect(resolveArchetypeDex(loss.state.snapshots, loss.opponent, null)).toEqual([
+      encodeMegaDex(658),
+    ]);
   });
 });
 

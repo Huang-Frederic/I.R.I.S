@@ -1193,7 +1193,8 @@
     "fanTap": "滑动扇形浏览你的牌库",
     "fanSeen": "已看 {seen}/{total}",
     "fanDone": "牌库翻完了 — 该你了。",
-    "makeAnswer": "提交答案"
+    "makeAnswer": "提交答案",
+    "megaToggleLabel": "超级形态"
   },
   "ptcgStats": {
     "metaTitle": "统计 — I.R.I.S",

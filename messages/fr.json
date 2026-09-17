@@ -1193,7 +1193,8 @@
     "fanTap": "Fais glisser l'éventail pour parcourir ton deck",
     "fanSeen": "{seen}/{total} vues",
     "fanDone": "Deck parcouru — à toi.",
-    "makeAnswer": "Faire mon rendu"
+    "makeAnswer": "Faire mon rendu",
+    "megaToggleLabel": "Forme Méga"
   },
   "ptcgStats": {
     "metaTitle": "Stats — I.R.I.S",

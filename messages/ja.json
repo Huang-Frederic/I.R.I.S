@@ -1193,7 +1193,8 @@
     "fanTap": "スワイプしてデッキをめくる",
     "fanSeen": "{seen}/{total}枚確認",
     "fanDone": "デッキを見終わった — 答えよう。",
-    "makeAnswer": "回答する"
+    "makeAnswer": "回答する",
+    "megaToggleLabel": "メガフォルム"
   },
   "ptcgStats": {
     "metaTitle": "統計 — I.R.I.S",

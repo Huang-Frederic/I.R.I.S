@@ -6,12 +6,18 @@ import { FixedSizeList } from 'react-window';
 import Modal from '@/components/ui/Modal';
 import { searchPokemon, type PokemonSearchResult } from '@/lib/utils/pokemon-search';
 import { pokemonSpriteUrl } from '@/lib/utils/pokemon-sprite';
+import { encodeMegaDex } from '@/lib/data/pokemon-names';
 
 // The grid is virtualized (react-window) rather than rendering all 1025
 // sprites at once — cheap on a phone, and avoids a ~1000-node DOM tree.
 const COLS = 6;
 const ROW_HEIGHT = 64;
 const GRID_HEIGHT = 320;
+
+// The only two species that have ever had TWO simultaneous Mega forms. The
+// Mega toggle below has no per-species X/Y picker (no current card needs
+// one), so a dual-form pick defaults to X — see encodeMegaDex.
+const DUAL_FORM_DEX = new Set([6, 150]);
 
 interface Props {
   /** National dex number, or null when nothing is picked yet. */
@@ -25,6 +31,7 @@ export default function PokemonPicker({ value, onChange }: Props) {
   const t = useTranslations('drill');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [mega, setMega] = useState(false);
   const results = searchPokemon(query);
   const rows = useMemo(() => {
     const chunks: PokemonSearchResult[][] = [];
@@ -33,9 +40,10 @@ export default function PokemonPicker({ value, onChange }: Props) {
   }, [results]);
 
   function pick(number: number) {
-    onChange(number);
+    onChange(mega ? encodeMegaDex(number, DUAL_FORM_DEX.has(number) ? 'x' : undefined) : number);
     setOpen(false);
     setQuery('');
+    setMega(false);
   }
 
   return (
@@ -74,6 +82,10 @@ export default function PokemonPicker({ value, onChange }: Props) {
             placeholder={t('searchPokemonPlaceholder')}
             className="bg-surface-2 border-border focus:border-red w-full rounded-lg border px-3 py-2 text-sm outline-none"
           />
+          <label className="text-text-muted mt-2 flex items-center gap-2 text-xs">
+            <input type="checkbox" checked={mega} onChange={(e) => setMega(e.target.checked)} />
+            {t('megaToggleLabel')}
+          </label>
         </div>
         <FixedSizeList height={GRID_HEIGHT} itemCount={rows.length} itemSize={ROW_HEIGHT} width="100%">
           {({ index, style }) => (
