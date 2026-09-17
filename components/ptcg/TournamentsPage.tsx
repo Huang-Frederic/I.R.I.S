@@ -44,7 +44,7 @@ export default function TournamentsPage({
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <select
           value={categoryFilter}
@@ -82,7 +82,7 @@ export default function TournamentsPage({
               <li key={tn.id}>
                 <Link
                   href={`/ptcg/tournaments/${tn.id}`}
-                  className="hover:bg-surface-2 flex items-center gap-3 p-4 transition"
+                  className="hover:bg-surface-2 flex items-center gap-4 p-5 transition"
                 >
                   <DeckSprites dex={tn.my_archetype_dex} />
                   <div className="flex-1">

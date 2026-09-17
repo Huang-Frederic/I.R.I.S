@@ -8,7 +8,7 @@ import { pokemonSpriteUrl } from '@/lib/utils/pokemon-sprite';
  *  drill-down — both show "which Pokémon represent this side" the same way. */
 export default function DeckSprites({ dex }: { dex: number[] | null }) {
   if (!dex || dex.length === 0) {
-    return <div className="bg-surface-2 h-8 w-8 shrink-0 rounded-full" />;
+    return <div className="bg-surface-2 h-10 w-10 shrink-0 rounded-full" />;
   }
   return (
     <div className="flex -space-x-2">
@@ -21,7 +21,7 @@ export default function DeckSprites({ dex }: { dex: number[] | null }) {
             src={url}
             alt=""
             loading="lazy"
-            className="pixel-sprite border-surface h-8 w-8 rounded-full border-2"
+            className="pixel-sprite border-surface h-10 w-10 rounded-full border-2"
           />
         ) : null;
       })}

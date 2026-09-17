@@ -65,8 +65,8 @@ export default function TournamentDetailPage({
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="border-border bg-surface flex items-center gap-3 rounded-xl border p-4">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
+      <div className="border-border bg-surface flex items-center gap-4 rounded-xl border p-5">
         <DeckSprites dex={tournament.my_archetype_dex} />
         <div className="flex-1">
           <div className="flex items-center gap-2">
@@ -80,15 +80,17 @@ export default function TournamentDetailPage({
               <Pencil className="h-3.5 w-3.5" aria-hidden />
             </button>
           </div>
-          <p className="text-text-muted text-xs">{new Date(tournament.played_at).toLocaleDateString()}</p>
-          <div className="mt-1 flex flex-wrap gap-1.5">
+          <p className="text-text-muted mt-0.5 text-xs">
+            {new Date(tournament.played_at).toLocaleDateString()}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
             {category && (
-              <span className="bg-surface-2 rounded-full px-2 py-0.5 text-xs font-semibold">
+              <span className="bg-surface-2 rounded-full px-2.5 py-1 text-xs font-semibold">
                 {t(category.labelKey)}
               </span>
             )}
             {placement && (
-              <span className="bg-surface-2 rounded-full px-2 py-0.5 text-xs font-semibold">
+              <span className="bg-surface-2 rounded-full px-2.5 py-1 text-xs font-semibold">
                 {t(placement.labelKey)}
               </span>
             )}
@@ -120,12 +122,12 @@ export default function TournamentDetailPage({
           {rounds.map((round) => {
             const outcome = deriveRoundResult(round);
             return (
-              <li key={round.id} className={`flex items-center gap-3 p-4 ${OUTCOME_ROW_CLASS[outcome]}`}>
+              <li key={round.id} className={`flex items-center gap-4 p-5 ${OUTCOME_ROW_CLASS[outcome]}`}>
                 <span className="w-20 shrink-0 text-sm font-semibold">
                   {t('roundLabel', { n: round.round_number })}
                 </span>
                 <DeckSprites dex={round.opponent_archetype_dex} />
-                <span className="flex-1 font-mono text-sm font-semibold">{resultString(round, t)}</span>
+                <span className="flex-1 font-mono text-base font-semibold">{resultString(round, t)}</span>
                 <button
                   type="button"
                   onClick={() => setRoundForm({ mode: 'edit', round })}

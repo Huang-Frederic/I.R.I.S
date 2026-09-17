@@ -2,9 +2,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ChevronDown, ChevronRight, Pencil } from 'lucide-react';
 import { groupByDay } from '@/lib/utils/group-by-day';
+import { getPokemonName } from '@/lib/data/pokemon-names';
 import DeckSprites from './DeckSprites';
 import GameLogViewer from './GameLogViewer';
 import CreateLogModal, { type ResolvedArchetype } from './CreateLogModal';
@@ -18,7 +19,16 @@ export interface BattleLogGame {
   result: 'win' | 'loss' | 'tie';
   my_archetype_dex: number[] | null;
   opponent_archetype_dex: number[] | null;
+  /** Null for games imported before this column existed — renders with no
+   *  1st/2nd badge, same as an unclassified archetype renders with no sprite. */
+  went_first: boolean | null;
 }
+
+const RESULT_ROW_CLASS: Record<'win' | 'loss' | 'tie', string> = {
+  win: 'bg-emerald-500/10',
+  loss: 'bg-red/10',
+  tie: 'bg-amber-500/10',
+};
 
 interface ExpandedGame {
   me: string;
@@ -32,6 +42,8 @@ interface ExpandedGame {
 
 export default function BattleLogsPage({ initialGames }: { initialGames: BattleLogGame[] }) {
   const t = useTranslations('ptcg');
+  const locale = useLocale();
+  const nameLocale = locale === 'en' ? 'en' : 'fr';
   const [games, setGames] = useState(initialGames);
   const [text, setText] = useState('');
   const [resolving, setResolving] = useState(false);
@@ -103,6 +115,13 @@ export default function BattleLogsPage({ initialGames }: { initialGames: BattleL
 
   const days = useMemo(() => groupByDay(games), [games]);
 
+  /** Falls back to the opponent's username when their deck isn't classified
+   *  yet — matches the sprite's own "neutral placeholder" fallback. */
+  function opponentLabel(game: BattleLogGame): string {
+    const names = (game.opponent_archetype_dex ?? []).map((n) => getPokemonName(n, nameLocale));
+    return names.length ? names.join(' / ') : game.opponent;
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <section className="border-border bg-surface rounded-xl border p-4">
@@ -161,7 +180,7 @@ export default function BattleLogsPage({ initialGames }: { initialGames: BattleL
                           void toggleExpand(game);
                         }
                       }}
-                      className="hover:bg-surface-2 flex w-full items-center gap-3 p-4 text-left transition"
+                      className={`hover:bg-surface-2 flex w-full items-center gap-3 p-4 text-left transition ${RESULT_ROW_CLASS[game.result]}`}
                     >
                       {expandedId === game.id ? (
                         <ChevronDown className="text-text-muted h-4 w-4 shrink-0" aria-hidden />
@@ -169,11 +188,15 @@ export default function BattleLogsPage({ initialGames }: { initialGames: BattleL
                         <ChevronRight className="text-text-muted h-4 w-4 shrink-0" aria-hidden />
                       )}
                       <DeckSprites dex={game.my_archetype_dex} />
-                      <DeckSprites dex={game.opponent_archetype_dex} />
-                      <span className="flex-1 truncate text-sm font-semibold">{game.opponent}</span>
-                      <span className="text-text-muted text-xs font-semibold uppercase">
-                        {t(`result_${game.result}`)}
+                      <span className="flex-1 truncate text-sm font-semibold">
+                        {t(`result_${game.result}`)} {t('versus', { opponent: opponentLabel(game) })}
                       </span>
+                      {game.went_first !== null && (
+                        <span className="text-text-muted shrink-0 text-xs font-semibold uppercase">
+                          {t(game.went_first ? 'wentFirst' : 'wentSecond')}
+                        </span>
+                      )}
+                      <DeckSprites dex={game.opponent_archetype_dex} />
                       <button
                         type="button"
                         onClick={(e) => {
@@ -222,6 +245,9 @@ export default function BattleLogsPage({ initialGames }: { initialGames: BattleL
                 result: game.result,
                 my_archetype_dex: createModal.resolved.myArchetypeDex,
                 opponent_archetype_dex: createModal.resolved.opponentArchetypeDex,
+                // Not returned by POST /api/ptcg/games today — the row just
+                // shows no 1st/2nd badge until the page is next reloaded.
+                went_first: null,
               },
               ...prev,
             ]);

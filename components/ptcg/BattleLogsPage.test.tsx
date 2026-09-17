@@ -4,7 +4,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import BattleLogsPage, { type BattleLogGame } from './BattleLogsPage';
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key} ${JSON.stringify(values)}` : key,
+  useLocale: () => 'fr',
 }));
 
 const gameA: BattleLogGame = {
@@ -15,6 +17,7 @@ const gameA: BattleLogGame = {
   result: 'win',
   my_archetype_dex: [157],
   opponent_archetype_dex: [658],
+  went_first: true,
 };
 
 describe('<BattleLogsPage>', () => {
@@ -28,9 +31,21 @@ describe('<BattleLogsPage>', () => {
     expect(screen.getByText('noLogsYet')).toBeInTheDocument();
   });
 
-  it('lists an existing game grouped under its day, showing the opponent name', () => {
+  it('lists an existing game grouped under its day, showing the derived opponent deck name and who went first', () => {
     render(<BattleLogsPage initialGames={[gameA]} />);
-    expect(screen.getByText('Bklee219')).toBeInTheDocument();
+    expect(screen.getByText(/Amphinobi/)).toBeInTheDocument();
+    expect(screen.getByText('wentFirst')).toBeInTheDocument();
+  });
+
+  it("falls back to the opponent's username when their deck isn't classified yet", () => {
+    render(<BattleLogsPage initialGames={[{ ...gameA, opponent_archetype_dex: [] }]} />);
+    expect(screen.getByText(/Bklee219/)).toBeInTheDocument();
+  });
+
+  it('shows no 1st/2nd badge for a game imported before went_first existed', () => {
+    render(<BattleLogsPage initialGames={[{ ...gameA, went_first: null }]} />);
+    expect(screen.queryByText('wentFirst')).not.toBeInTheDocument();
+    expect(screen.queryByText('wentSecond')).not.toBeInTheDocument();
   });
 
   it('pastes a log, resolves it, and opens the Create Log modal pre-filled with the resolved decks', async () => {
@@ -81,7 +96,7 @@ describe('<BattleLogsPage>', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     render(<BattleLogsPage initialGames={[gameA]} />);
-    fireEvent.click(screen.getByText('Bklee219'));
+    fireEvent.click(screen.getByText(/Amphinobi/));
 
     await waitFor(() =>
       expect(screen.getByText('Hisshiden a fait une chose.')).toBeInTheDocument(),
