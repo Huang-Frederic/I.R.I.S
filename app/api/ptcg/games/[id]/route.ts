@@ -21,10 +21,18 @@ const asDexArray = (v: unknown): number[] | undefined =>
 export async function GET(_request: Request, { params }: RouteContext) {
   const { id } = await params;
   const supabase = await createClient();
+  // getSession() reads the already-verified session from cookies with no
+  // network round trip, unlike getUser() (a real request to Supabase Auth
+  // every time). Safe here specifically because proxy.ts's middleware has
+  // already called the network-verified getUser() for every /api/ request
+  // and 401s before this handler ever runs — re-verifying the same token a
+  // second time on the hot path this row's expand-click hits was adding a
+  // full extra round trip for zero additional security.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return unauthorizedResponse();
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return unauthorizedResponse();
+  const user = session.user;
 
   const { data: game, error } = await supabase
     .from('ptcg_games')
@@ -66,10 +74,12 @@ export async function GET(_request: Request, { params }: RouteContext) {
 export async function PATCH(request: Request, { params }: RouteContext) {
   const { id } = await params;
   const supabase = await createClient();
+  // See the comment on GET above — same reasoning applies here.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return unauthorizedResponse();
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return unauthorizedResponse();
+  const user = session.user;
 
   let body: unknown;
   try {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const supabaseMock = { auth: { getUser: vi.fn() }, from: vi.fn() };
+const supabaseMock = { auth: { getSession: vi.fn() }, from: vi.fn() };
 vi.mock('@/lib/supabase/server', () => ({
   createClient: () => Promise.resolve(supabaseMock),
 }));
@@ -19,13 +19,13 @@ describe('GET /api/ptcg/games/[id]', () => {
   afterEach(() => vi.clearAllMocks());
 
   it('returns 401 when unauthenticated', async () => {
-    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: null } });
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: null } });
     const res = await GET(makeRequest('GET'), ctx);
     expect(res.status).toBe(401);
   });
 
   it('returns 404 when the game does not exist (or belongs to another user)', async () => {
-    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u' } } } });
     const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
     supabaseMock.from.mockReturnValue({
       select: () => ({ eq: () => ({ eq: () => ({ maybeSingle }) }) }),
@@ -35,7 +35,7 @@ describe('GET /api/ptcg/games/[id]', () => {
   });
 
   it("derives archetype dex live from state.snapshots when the game's override columns are null", async () => {
-    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u' } } } });
     const game = {
       id: 'g1',
       me: 'Hisshiden',
@@ -59,7 +59,7 @@ describe('GET /api/ptcg/games/[id]', () => {
   });
 
   it("trims each snapshot to line/turnNumber, dropping the per-turn board reconstruction (event/state) that GameLogViewer never reads", async () => {
-    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u' } } } });
     const game = {
       id: 'g1',
       me: 'Hisshiden',
@@ -93,7 +93,7 @@ describe('GET /api/ptcg/games/[id]', () => {
   });
 
   it('returns the stored override verbatim when set, without deriving live', async () => {
-    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u' } } } });
     const game = {
       id: 'g1',
       me: 'Hisshiden',
@@ -118,19 +118,19 @@ describe('PATCH /api/ptcg/games/[id]', () => {
   afterEach(() => vi.clearAllMocks());
 
   it('returns 401 when unauthenticated', async () => {
-    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: null } });
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: null } });
     const res = await PATCH(makeRequest('PATCH', { myArchetypeDex: [1] }), ctx);
     expect(res.status).toBe(401);
   });
 
   it('rejects a body with neither field present', async () => {
-    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u' } } } });
     const res = await PATCH(makeRequest('PATCH', {}), ctx);
     expect(res.status).toBe(400);
   });
 
   it('updates only the provided archetype-dex column(s), scoped to the owning user', async () => {
-    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u' } } } });
     const single = vi
       .fn()
       .mockResolvedValue({ data: { id: 'g1', my_archetype_dex: [157], opponent_archetype_dex: null }, error: null });
