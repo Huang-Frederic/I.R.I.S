@@ -24,10 +24,13 @@ export interface BattleLogGame {
   went_first: boolean | null;
 }
 
-const RESULT_ROW_CLASS: Record<'win' | 'loss' | 'tie', string> = {
+// No 'tie' entry: PTCG Live never produces a real tie — the parser's own
+// 'tie' result is a fallback for when it couldn't determine a winner at all,
+// not a legitimate outcome worth its own color. Coloring it would present an
+// impossible state as if it were a normal one.
+const RESULT_ROW_CLASS: Partial<Record<'win' | 'loss' | 'tie', string>> = {
   win: 'bg-emerald-500/10',
   loss: 'bg-red/10',
-  tie: 'bg-amber-500/10',
 };
 
 interface ExpandedGame {
@@ -207,7 +210,7 @@ export default function BattleLogsPage({ initialGames }: { initialGames: BattleL
                           void toggleExpand(game);
                         }
                       }}
-                      className={`hover:bg-surface-2 flex w-full items-center gap-3 p-4 text-left transition ${RESULT_ROW_CLASS[game.result]}`}
+                      className={`hover:bg-surface-2 flex w-full items-center gap-3 p-4 text-left transition ${RESULT_ROW_CLASS[game.result] ?? ''}`}
                     >
                       {expandedId === game.id ? (
                         <ChevronDown className="text-text-muted h-4 w-4 shrink-0" aria-hidden />

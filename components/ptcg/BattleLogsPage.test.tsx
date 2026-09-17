@@ -42,6 +42,13 @@ describe('<BattleLogsPage>', () => {
     expect(screen.getByText(/Bklee219/)).toBeInTheDocument();
   });
 
+  it('gives a tie no special row color — PTCG Live never produces a real tie', () => {
+    render(<BattleLogsPage initialGames={[{ ...gameA, result: 'tie' }]} />);
+    const row = screen.getByRole('button', { name: /Amphinobi/ });
+    expect(row.className).not.toMatch(/amber/);
+    expect(row.className).not.toMatch(/emerald|bg-red\/10/);
+  });
+
   it('shows no 1st/2nd badge for a game imported before went_first existed', () => {
     render(<BattleLogsPage initialGames={[{ ...gameA, went_first: null }]} />);
     expect(screen.queryByText('wentFirst')).not.toBeInTheDocument();
