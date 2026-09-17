@@ -1128,7 +1128,8 @@
     "editRound": "编辑轮次",
     "deleteRoundAria": "删除轮次",
     "deleteRoundTitle": "删除此轮次？",
-    "deleteRoundBody": "此操作无法撤销。"
+    "deleteRoundBody": "此操作无法撤销。",
+    "roundMoreActions": "更多操作"
   },
   "drill": {
     "metaTitle": "训练 — I.R.I.S",

@@ -1128,7 +1128,8 @@
     "editRound": "Modifier le round",
     "deleteRoundAria": "Supprimer le round",
     "deleteRoundTitle": "Supprimer ce round ?",
-    "deleteRoundBody": "Cette action est irréversible."
+    "deleteRoundBody": "Cette action est irréversible.",
+    "roundMoreActions": "Autres actions"
   },
   "drill": {
     "metaTitle": "Drill — I.R.I.S",

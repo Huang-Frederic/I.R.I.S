@@ -70,12 +70,20 @@ describe('<TournamentDetailPage>', () => {
     expect(screen.getByText('addRoundTitle')).toBeInTheDocument();
   });
 
+  it("opens a round's edit form from its 3-dot menu", () => {
+    render(<TournamentDetailPage tournament={tournament} initialRounds={rounds} />);
+    fireEvent.click(screen.getAllByLabelText('roundMoreActions')[0]);
+    fireEvent.click(screen.getByText('editRound'));
+    expect(screen.getByText('editRoundTitle')).toBeInTheDocument();
+  });
+
   it('deletes a round after confirming', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
     vi.stubGlobal('fetch', fetchMock);
 
     render(<TournamentDetailPage tournament={tournament} initialRounds={rounds} />);
-    fireEvent.click(screen.getAllByLabelText('deleteRoundAria')[0]);
+    fireEvent.click(screen.getAllByLabelText('roundMoreActions')[0]);
+    fireEvent.click(screen.getByText('deleteRoundAria'));
     expect(screen.getByText('deleteRoundTitle')).toBeInTheDocument();
     // Confirm button inside ConfirmDialog carries the shared "delete" label.
     fireEvent.click(screen.getByText('delete'));

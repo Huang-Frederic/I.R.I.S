@@ -1128,7 +1128,8 @@
     "editRound": "Edit round",
     "deleteRoundAria": "Delete round",
     "deleteRoundTitle": "Delete this round?",
-    "deleteRoundBody": "This can't be undone."
+    "deleteRoundBody": "This can't be undone.",
+    "roundMoreActions": "More actions"
   },
   "drill": {
     "metaTitle": "Drill — I.R.I.S",

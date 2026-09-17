@@ -21,7 +21,7 @@ export default function DeckSprites({ dex }: { dex: number[] | null }) {
             src={url}
             alt=""
             loading="lazy"
-            className="pixel-sprite h-10 w-10"
+            className="pixel-sprite h-10 w-10 object-contain"
           />
         ) : null;
       })}

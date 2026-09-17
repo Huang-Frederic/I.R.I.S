@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import DeckSprites from './DeckSprites';
 import TournamentModal from './TournamentModal';
 import RoundForm from './RoundForm';
@@ -42,6 +42,18 @@ export default function TournamentDetailPage({
   >(null);
   const [deleting, setDeleting] = useState<PtcgTournamentRoundRow | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close the open row menu on any click outside it.
+  useEffect(() => {
+    if (!menuOpenId) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpenId(null);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpenId]);
 
   const wins = rounds.filter((r) => deriveRoundResult(r) === 'win').length;
   const losses = rounds.filter((r) => deriveRoundResult(r) === 'loss').length;
@@ -122,28 +134,53 @@ export default function TournamentDetailPage({
           {rounds.map((round) => {
             const outcome = deriveRoundResult(round);
             return (
-              <li key={round.id} className={`flex items-center gap-4 p-5 ${OUTCOME_ROW_CLASS[outcome]}`}>
-                <span className="w-20 shrink-0 text-sm font-semibold">
-                  {t('roundLabel', { n: round.round_number })}
-                </span>
-                <DeckSprites dex={round.opponent_archetype_dex} />
-                <span className="flex-1 font-mono text-base font-semibold">{resultString(round, t)}</span>
-                <button
-                  type="button"
-                  onClick={() => setRoundForm({ mode: 'edit', round })}
-                  aria-label={t('editRound')}
-                  className="hover:bg-surface-2 shrink-0 rounded-lg p-1.5"
-                >
-                  <Pencil className="h-3.5 w-3.5" aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleting(round)}
-                  aria-label={t('deleteRoundAria')}
-                  className="hover:bg-surface-2 text-red shrink-0 rounded-lg p-1.5"
-                >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                </button>
+              <li
+                key={round.id}
+                className={`flex items-center justify-between gap-4 p-5 ${OUTCOME_ROW_CLASS[outcome]}`}
+              >
+                <div className="flex min-w-0 items-center gap-4">
+                  <span className="w-20 shrink-0 text-sm font-semibold">
+                    {t('roundLabel', { n: round.round_number })}
+                  </span>
+                  <DeckSprites dex={round.opponent_archetype_dex} />
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="font-mono text-base font-semibold">{resultString(round, t)}</span>
+                  <div className="relative" ref={menuOpenId === round.id ? menuRef : undefined}>
+                    <button
+                      type="button"
+                      onClick={() => setMenuOpenId(menuOpenId === round.id ? null : round.id)}
+                      aria-label={t('roundMoreActions')}
+                      className="hover:bg-surface-2 rounded-lg p-1.5"
+                    >
+                      <MoreVertical className="h-4 w-4" aria-hidden />
+                    </button>
+                    {menuOpenId === round.id && (
+                      <div className="border-border bg-surface absolute right-0 z-10 mt-1 w-36 overflow-hidden rounded-lg border shadow-lg">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMenuOpenId(null);
+                            setRoundForm({ mode: 'edit', round });
+                          }}
+                          className="hover:bg-surface-2 flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
+                        >
+                          <Pencil className="h-3.5 w-3.5" aria-hidden /> {t('editRound')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMenuOpenId(null);
+                            setDeleting(round);
+                          }}
+                          className="hover:bg-surface-2 text-red flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden /> {t('deleteRoundAria')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </li>
             );
           })}

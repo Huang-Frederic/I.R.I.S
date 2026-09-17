@@ -1128,7 +1128,8 @@
     "editRound": "ラウンドを編集",
     "deleteRoundAria": "ラウンドを削除",
     "deleteRoundTitle": "このラウンドを削除しますか？",
-    "deleteRoundBody": "この操作は取り消せません。"
+    "deleteRoundBody": "この操作は取り消せません。",
+    "roundMoreActions": "その他の操作"
   },
   "drill": {
     "metaTitle": "ドリル — I.R.I.S",
