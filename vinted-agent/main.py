@@ -549,6 +549,7 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
     }).eq("id", job_id).execute()
     _session_posts[user_id] = _session_posts.get(user_id, 0) + 1
     log.info("✅  %s publié → vinted.fr/items/%s", tag, listing_id)
+    await _push_log(supabase, "info", f"{tag}: publié → vinted.fr/items/{listing_id}", user_id=user_id)
     await audit_log(supabase, user_id, "listing.posted",
                     entity_type="card", entity_id=card_id,
                     details={
@@ -722,6 +723,7 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
     ).eq("id", job_id).execute()
     _session_posts[user_id] = _session_posts.get(user_id, 0) + 1
     log.info("✅  %s publié → vinted.fr/items/%s", tag, listing_id)
+    await _push_log(supabase, "info", f"{tag}: publié → vinted.fr/items/{listing_id}", user_id=user_id)
     await audit_log(supabase, user_id, "listing.posted",
                     entity_type="lot", entity_id=lot_id,
                     details={
@@ -746,6 +748,18 @@ async def _fail_job(supabase: AsyncClient, job_id: str, item_id: str, error: str
                         entity_type=entity_type,
                         entity_id=item_id,
                         details={"job_id": job_id, "error": safe_error})
+
+
+async def _push_log(supabase: AsyncClient, level: str, message: str, user_id: str | None = None) -> None:
+    """Mirrors an agent event into vinted_agent_logs for the monitoring UI
+    (a later plan) — never raises: a logging failure must not interrupt the
+    job it's describing."""
+    try:
+        await supabase.table("vinted_agent_logs").insert(
+            {"level": level, "message": message, "user_id": user_id}
+        ).execute()
+    except Exception:
+        log.warning("⚠  échec de l'écriture du log agent dans Supabase (ignoré)")
 
 
 async def _drain_pending_jobs(supabase: AsyncClient) -> None:
@@ -820,6 +834,7 @@ async def _dispatch_job(supabase: AsyncClient, record: dict) -> None:
                 vinted = await loop.run_in_executor(None, _make_vinted_client, cookies_file)
             except Exception as e:
                 log.error("❌  %s session expirée — relancer import_cookies.py : %s", tag, e)
+                await _push_log(supabase, "error", f"{tag}: session expirée — relance import_cookies.py", user_id=user_id)
                 item_id = record.get("card_id") or record.get("lot_id")
                 await _fail_job(supabase, record["id"], item_id, "Session expirée — relance import_cookies.py",
                                 entity_type="lot" if record.get("lot_id") else "card")

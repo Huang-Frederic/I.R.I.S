@@ -228,3 +228,27 @@ def test_sync_cookies_from_supabase_leaves_the_file_untouched_when_no_row_exists
     # No file created, no exception — the caller falls back to whatever
     # local file already exists (or fails the same way it does today).
     asyncio.run(_sync_cookies_from_supabase(supabase, "user-1", "/nonexistent/path/cookies.json"))
+
+
+# Append to vinted-agent/main_test.py
+from main import _push_log
+
+def test_push_log_inserts_a_row():
+    inserted = []
+    execute = AsyncMock(return_value=MagicMock(data=[{"id": "log-1"}]))
+    insert = MagicMock(execute=execute)
+    supabase = MagicMock()
+    supabase.table = MagicMock(return_value=MagicMock(insert=MagicMock(side_effect=lambda row: (inserted.append(row), insert)[1])))
+
+    asyncio.run(_push_log(supabase, "error", "Session expirée", user_id="user-1"))
+
+    assert inserted == [{"level": "error", "message": "Session expirée", "user_id": "user-1"}]
+
+
+def test_push_log_never_raises_when_the_insert_fails():
+    supabase = MagicMock()
+    supabase.table = MagicMock(side_effect=Exception("connection refused"))
+
+    # The whole point of _push_log is that a broken logging path must never
+    # interrupt the job it's describing — this must not raise.
+    asyncio.run(_push_log(supabase, "info", "Publié", user_id="user-1"))
