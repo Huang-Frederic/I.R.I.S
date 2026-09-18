@@ -6,8 +6,29 @@ const supabaseMock = {
   from: vi.fn(),
 };
 
+// The route's fire-and-forget Vinted queue/cross-user sync calls use the
+// service-role client (RLS-bound `supabase` can't see/write sibling users'
+// rows) — default it to a fresh, permissive mock per test so those calls
+// resolve to "nothing to do" unless a test overrides `serviceMock.from`.
+const serviceMock = {
+  from: vi.fn(),
+};
+serviceMock.from.mockReturnValue({
+  select: () => ({
+    eq: () => ({
+      single: () => Promise.resolve({ data: null, error: null }),
+      eq: () => Promise.resolve({ data: [], error: null }),
+    }),
+    not: () => Promise.resolve({ data: [], error: null }),
+  }),
+});
+
 vi.mock('@/lib/supabase/server', () => ({
   createClient: () => Promise.resolve(supabaseMock),
+}));
+
+vi.mock('@/lib/supabase/service', () => ({
+  createServiceClient: () => serviceMock,
 }));
 
 afterEach(() => {
@@ -112,6 +133,24 @@ describe('PATCH /api/cards/[id]', () => {
     expect(res.status).toBe(200);
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({ suggested_price: 12.5, price_confirmed_at: expect.any(String) }),
+    );
+  });
+
+  it('clears price_confirmed_at instead of stamping it when suggested_price is explicitly cleared to null', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'u' } },
+    });
+    const updated = { id: 'abc', suggested_price: null, status: 'for_sale', pokemon_number: 25 };
+    const single = vi.fn().mockResolvedValue({ data: updated, error: null });
+    const select = vi.fn(() => ({ single }));
+    const eq = vi.fn(() => ({ select }));
+    const update = vi.fn(() => ({ eq }));
+    supabaseMock.from.mockReturnValueOnce({ update });
+
+    const res = await PATCH(makeRequest({ suggested_price: null }), ctx('abc'));
+    expect(res.status).toBe(200);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ suggested_price: null, price_confirmed_at: null }),
     );
   });
 
@@ -228,10 +267,19 @@ describe('PATCH /api/cards/[id]', () => {
       .mockReturnValueOnce({ update })                  // PATCH
       .mockReturnValueOnce({ select: forSaleSelect })   // count for_sale
       .mockReturnValueOnce({ select: stockSelect })     // count collection
-      .mockReturnValueOnce({ select: pokedexSelect })   // get pokedex
-      .mockReturnValueOnce({ select: queueSyncSelect }) // syncVintedQueueMembership: cards lookup
-      .mockReturnValueOnce({ select: siblingSelect })   // enqueueCrossUserDeleteJobs: card_listings
-      .mockReturnValueOnce({ insert: jobsInsert });     // enqueueCrossUserDeleteJobs: vinted_post_jobs insert
+      .mockReturnValueOnce({ select: pokedexSelect });  // get pokedex
+
+    // syncVintedQueueMembership and enqueueCrossUserDeleteJobs both run on
+    // the service-role client (RLS blocks reading/writing sibling users'
+    // rows), not the RLS-bound `supabase` used above. Keyed by table name
+    // (rather than call-order mockReturnValueOnce) since the two helpers'
+    // queries interleave and don't resolve in a fixed sequence.
+    serviceMock.from.mockImplementation((table: string) => {
+      if (table === 'cards') return { select: queueSyncSelect };
+      if (table === 'card_listings') return { select: siblingSelect };
+      if (table === 'vinted_post_jobs') return { insert: jobsInsert };
+      throw new Error(`unmocked service table: ${table}`);
+    });
 
     const res = await PATCH(makeRequest({ status: 'sold' }), ctx('abc'));
     expect(res.status).toBe(200);

@@ -12,19 +12,25 @@ export async function enqueueCrossUserDeleteJobs(
   cardId: string,
   soldByUserId: string,
 ): Promise<void> {
-  const { data: siblingListings } = await supabase
+  const { data: siblingListings, error: siblingListingsError } = await supabase
     .from('card_listings')
     .select('user_id, vinted_listing_id')
     .eq('card_id', cardId)
     .neq('user_id', soldByUserId)
     .not('vinted_listing_id', 'is', null);
+  if (siblingListingsError) {
+    console.error('enqueueCrossUserDeleteJobs: failed to fetch sibling listings:', siblingListingsError);
+  }
 
   for (const listing of siblingListings ?? []) {
-    await supabase.from('vinted_post_jobs').insert({
+    const { error: insertError } = await supabase.from('vinted_post_jobs').insert({
       card_id: cardId,
       user_id: listing.user_id,
       job_type: 'delete',
       status: 'pending',
     });
+    if (insertError) {
+      console.error('enqueueCrossUserDeleteJobs: failed to insert delete job:', insertError);
+    }
   }
 }

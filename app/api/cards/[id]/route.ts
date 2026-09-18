@@ -93,7 +93,7 @@ export async function PATCH(
     const sg = sanitizeNumber(body.suggested_price);
     if (sg !== undefined) {
       update.suggested_price = sg;
-      update.price_confirmed_at = new Date().toISOString();
+      update.price_confirmed_at = typeof sg === 'number' ? new Date().toISOString() : null;
     }
     const lo = sanitizeNumber(body.cm_price_low);
     if (lo !== undefined) update.cm_price_low = lo;
@@ -487,11 +487,16 @@ export async function PATCH(
   // required (not just `void`) because, unlike `auditLog`, these helpers
   // don't swallow their own errors — an uncaught rejection here would
   // otherwise surface as an unhandled promise rejection.
-  void syncVintedQueueMembership(supabase, id).catch((err) => {
+  // Uses the service client to bypass RLS — both helpers read/write rows
+  // belonging to a sibling user, which the acting user's own RLS-bound
+  // client can't see or modify (vinted_queue and vinted_post_jobs policies
+  // are keyed on `user_id = auth.uid()`).
+  const vintedSvc = createServiceClient();
+  void syncVintedQueueMembership(vintedSvc, id).catch((err) => {
     console.error('syncVintedQueueMembership failed:', err);
   });
   if (body.status === 'sold') {
-    void enqueueCrossUserDeleteJobs(supabase, id, user.id).catch((err) => {
+    void enqueueCrossUserDeleteJobs(vintedSvc, id, user.id).catch((err) => {
       console.error('enqueueCrossUserDeleteJobs failed:', err);
     });
   }
