@@ -4,7 +4,7 @@ import os
 import random
 import sys
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 from dotenv import load_dotenv
 from supabase import acreate_client, AsyncClient
@@ -13,6 +13,7 @@ from realtime.types import RealtimeSubscribeStates
 from vinted_api import VintedClient, ListingGoneError
 from vinted_api import CONDITION_MAP, CARD_LOTS_CATALOG_ID, POKEMON_BRAND_ID
 from audit_log import audit_log
+from scheduler import decide_next_action
 
 load_dotenv()
 
@@ -915,6 +916,76 @@ async def _heartbeat_loop(supabase: AsyncClient) -> None:
         await asyncio.sleep(30)
 
 
+async def _scheduling_loop(supabase: AsyncClient) -> None:
+    """Runs alongside the heartbeat loop — every few minutes, for each
+    Vinted-enabled user, asks scheduler.decide_next_action what (if
+    anything) to do, and creates the corresponding job. Manual pushes and
+    _dispatch_job's own job processing are untouched by this loop; it only
+    ever adds new 'pending' rows to vinted_post_jobs."""
+    while True:
+        for user_id in VINTED_USERS:
+            try:
+                now = datetime.now()
+                today_start = datetime.combine(now.date(), time.min).isoformat()
+
+                schedule_res = await supabase.table("vinted_bot_schedule").select("day_of_week, starts_at, ends_at") \
+                    .eq("user_id", user_id).execute()
+                config_res = await supabase.table("vinted_bot_config").select("daily_quota, repost_after_days") \
+                    .eq("user_id", user_id).maybe_single().execute()
+                daily_quota = (config_res.data or {}).get("daily_quota", 8)
+                jobs_today_res = await supabase.table("vinted_post_jobs").select("id") \
+                    .eq("user_id", user_id).in_("job_type", ["post", "repost"]) \
+                    .gte("created_at", today_start).execute()
+                queue_res = await supabase.table("vinted_queue").select("card_id, lot_id, position") \
+                    .eq("user_id", user_id).order("position").limit(1).execute()
+
+                repost_after_days = (config_res.data or {}).get("repost_after_days", 14)
+                repost_cutoff = (now - timedelta(days=repost_after_days)).isoformat()
+
+                card_repost_res = await supabase.table("card_listings") \
+                    .select("card_id, vinted_posted_at, cards!inner(status)") \
+                    .eq("user_id", user_id).eq("cards.status", "for_sale") \
+                    .lt("vinted_posted_at", repost_cutoff) \
+                    .not_.is_("vinted_listing_id", "null") \
+                    .order("vinted_posted_at").limit(1).execute()
+                lot_repost_res = await supabase.table("lot_listings") \
+                    .select("lot_id, vinted_posted_at, lots!inner(status)") \
+                    .eq("user_id", user_id).eq("lots.status", "for_sale") \
+                    .lt("vinted_posted_at", repost_cutoff) \
+                    .not_.is_("vinted_listing_id", "null") \
+                    .order("vinted_posted_at").limit(1).execute()
+
+                candidates = (
+                    [{"card_id": r["card_id"], "lot_id": None, "vinted_posted_at": r["vinted_posted_at"]}
+                     for r in (card_repost_res.data or [])]
+                    + [{"card_id": None, "lot_id": r["lot_id"], "vinted_posted_at": r["vinted_posted_at"]}
+                       for r in (lot_repost_res.data or [])]
+                )
+                repost_candidates = sorted(candidates, key=lambda r: r["vinted_posted_at"])
+
+                decision = decide_next_action(
+                    now, schedule_res.data or [], len(jobs_today_res.data or []), daily_quota,
+                    queue_res.data or [], repost_candidates,
+                )
+                if decision:
+                    await supabase.table("vinted_post_jobs").insert({
+                        "user_id": user_id,
+                        "card_id": decision["card_id"],
+                        "lot_id": decision["lot_id"],
+                        "job_type": decision["action"],
+                        "status": "pending",
+                    }).execute()
+                    if decision["card_id"]:
+                        await supabase.table("vinted_queue").delete() \
+                            .eq("user_id", user_id).eq("card_id", decision["card_id"]).execute()
+                    elif decision["lot_id"]:
+                        await supabase.table("vinted_queue").delete() \
+                            .eq("user_id", user_id).eq("lot_id", decision["lot_id"]).execute()
+            except Exception as e:
+                log.warning("⚠  Scheduling loop — %s (%s)", e, _utag(user_id))
+        await asyncio.sleep(300)  # 5 minutes
+
+
 async def main() -> None:
     names = " + ".join(VINTED_NAMES.get(uid, uid[:8]) for uid in VINTED_USERS)
     log.info("⚡  IRIS Vinted Agent — %s", names or "(aucun compte)")
@@ -928,6 +999,7 @@ async def main() -> None:
     channel = await _subscribe_with_retry(supabase, on_job)
     await _drain_pending_jobs(supabase)
     asyncio.create_task(_heartbeat_loop(supabase))
+    asyncio.create_task(_scheduling_loop(supabase))
 
     log.info("⚡  En écoute… Ctrl+C pour arrêter")
     try:
