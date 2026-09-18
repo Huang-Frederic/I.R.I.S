@@ -97,6 +97,24 @@ describe('PATCH /api/cards/[id]', () => {
     expect(update).toHaveBeenCalledTimes(1);
   });
 
+  it('sets price_confirmed_at when suggested_price is explicitly provided', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'u' } },
+    });
+    const updated = { id: 'abc', suggested_price: 12.5, status: 'for_sale', pokemon_number: 25 };
+    const single = vi.fn().mockResolvedValue({ data: updated, error: null });
+    const select = vi.fn(() => ({ single }));
+    const eq = vi.fn(() => ({ select }));
+    const update = vi.fn(() => ({ eq }));
+    supabaseMock.from.mockReturnValueOnce({ update });
+
+    const res = await PATCH(makeRequest({ suggested_price: 12.5 }), ctx('abc'));
+    expect(res.status).toBe(200);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ suggested_price: 12.5, price_confirmed_at: expect.any(String) }),
+    );
+  });
+
   it('marks sold and returns restock when last for_sale + pokedex exists', async () => {
     supabaseMock.auth.getUser.mockResolvedValue({
       data: { user: { id: 'u' } },
@@ -175,6 +193,57 @@ describe('PATCH /api/cards/[id]', () => {
     );
     const json = await res.json();
     expect(json.restock).toBeNull();
+  });
+
+  it('enqueues a cross-user delete job when a card with a sibling active listing is marked sold', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    const sold = { id: 'abc', status: 'sold', pokemon_number: 25 };
+    const updSingle = vi.fn().mockResolvedValue({ data: sold, error: null });
+    const update = vi.fn(() => ({ eq: () => ({ select: () => ({ single: updSingle }) }) }));
+
+    const forSaleEq2 = vi.fn(() => Promise.resolve({ data: [], error: null }));
+    const forSaleSelect = vi.fn(() => ({ eq: () => ({ eq: forSaleEq2 }) }));
+
+    const stockEq2 = vi.fn(() => Promise.resolve({ data: [], error: null }));
+    const stockSelect = vi.fn(() => ({ eq: () => ({ eq: stockEq2 }) }));
+
+    const pokedexMaybe = vi.fn(() => Promise.resolve({ data: null, error: null }));
+    const pokedexSelect = vi.fn(() => ({ eq: () => ({ eq: () => ({ maybeSingle: pokedexMaybe }) }) }));
+
+    // syncVintedQueueMembership's own `cards` lookup — return no row so it
+    // bails out immediately without issuing further queries of its own.
+    const queueSyncSingle = vi.fn(() => Promise.resolve({ data: null, error: null }));
+    const queueSyncSelect = vi.fn(() => ({ eq: () => ({ single: queueSyncSingle }) }));
+
+    // enqueueCrossUserDeleteJobs' card_listings lookup — one sibling listing
+    // owned by a different user, still live on Vinted.
+    const siblingListings = vi.fn(() =>
+      Promise.resolve({ data: [{ user_id: 'other-user', vinted_listing_id: 'vl-123' }], error: null }),
+    );
+    const siblingSelect = vi.fn(() => ({ eq: () => ({ neq: () => ({ not: siblingListings }) }) }));
+
+    const jobsInsert = vi.fn(() => Promise.resolve({ data: null, error: null }));
+
+    supabaseMock.from
+      .mockReturnValueOnce({ update })                  // PATCH
+      .mockReturnValueOnce({ select: forSaleSelect })   // count for_sale
+      .mockReturnValueOnce({ select: stockSelect })     // count collection
+      .mockReturnValueOnce({ select: pokedexSelect })   // get pokedex
+      .mockReturnValueOnce({ select: queueSyncSelect }) // syncVintedQueueMembership: cards lookup
+      .mockReturnValueOnce({ select: siblingSelect })   // enqueueCrossUserDeleteJobs: card_listings
+      .mockReturnValueOnce({ insert: jobsInsert });     // enqueueCrossUserDeleteJobs: vinted_post_jobs insert
+
+    const res = await PATCH(makeRequest({ status: 'sold' }), ctx('abc'));
+    expect(res.status).toBe(200);
+
+    // The queue sync + cross-user delete enqueue are fire-and-forget (not
+    // awaited by the route) — flush the microtask queue so they settle
+    // before asserting on their side effects.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(jobsInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ card_id: 'abc', user_id: 'other-user', job_type: 'delete' }),
+    );
   });
 
   it('marks traded with photo + date and fires the same restock detection as sold', async () => {

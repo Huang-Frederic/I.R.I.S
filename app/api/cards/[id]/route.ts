@@ -10,6 +10,8 @@ import {
   notFoundResponse,
 } from '@/lib/utils/api-response';
 import { auditLog } from '@/lib/utils/audit-log';
+import { syncVintedQueueMembership } from '@/lib/vinted/queue-sync';
+import { enqueueCrossUserDeleteJobs } from '@/lib/vinted/cross-user-sync';
 import type { CardStatus, Card } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -89,7 +91,10 @@ export async function PATCH(
     const sp = sanitizeNumber(body.sold_price);
     if (sp !== undefined) update.sold_price = sp;
     const sg = sanitizeNumber(body.suggested_price);
-    if (sg !== undefined) update.suggested_price = sg;
+    if (sg !== undefined) {
+      update.suggested_price = sg;
+      update.price_confirmed_at = new Date().toISOString();
+    }
     const lo = sanitizeNumber(body.cm_price_low);
     if (lo !== undefined) update.cm_price_low = lo;
     const tr = sanitizeNumber(body.cm_price_trend);
@@ -470,6 +475,25 @@ export async function PATCH(
         },
       });
     }
+  }
+
+  // Keep the Vinted autonomous-posting queue in sync with this card's new
+  // status/price, and — if this update just sold the card — flag any OTHER
+  // user's still-active Vinted listing for the same physical card for
+  // deletion (it can no longer be sold out from under them). Both are
+  // fire-and-forget: placed last, after every DB write and derived-state
+  // computation above has already completed, so a failure here can never
+  // affect the response already computed for the caller. `.catch()` is
+  // required (not just `void`) because, unlike `auditLog`, these helpers
+  // don't swallow their own errors — an uncaught rejection here would
+  // otherwise surface as an unhandled promise rejection.
+  void syncVintedQueueMembership(supabase, id).catch((err) => {
+    console.error('syncVintedQueueMembership failed:', err);
+  });
+  if (body.status === 'sold') {
+    void enqueueCrossUserDeleteJobs(supabase, id, user.id).catch((err) => {
+      console.error('enqueueCrossUserDeleteJobs failed:', err);
+    });
   }
 
   return NextResponse.json({ card: updated, restock, promote });
