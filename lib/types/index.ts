@@ -61,6 +61,9 @@ export interface Card {
   cm_price_trend: number | null;
   cm_price_avg: number | null;
   suggested_price: number | null;
+  /** When the user confirmed suggested_price is accurate (e.g. before an
+   *  autonomous Vinted listing uses it). NULL if never confirmed. */
+  price_confirmed_at: string | null;
   cm_updated_at: string | null;
   lot_id: string | null;
   date_added: string;
@@ -655,5 +658,50 @@ export interface PtcgTournamentRoundRow {
   /** Up to `best_of` entries. Empty when `outcome` is set. */
   games: TournamentGame[];
   outcome: 'id' | 'no_show' | 'bye' | null;
+  created_at: string;
+}
+
+/** One entry in a user's manually-ordered "new posts" queue for autonomous
+ *  Vinted posting. Exactly one of card_id/lot_id is set. */
+export interface VintedQueueRow {
+  id: string;
+  user_id: string;
+  card_id: string | null;
+  lot_id: string | null;
+  position: number;
+  created_at: string;
+}
+
+/** One posting/reposting window for a given day of week (0 = Sunday). A day
+ *  with no rows means no autonomous post/repost that day. */
+export interface VintedBotScheduleRow {
+  id: string;
+  user_id: string;
+  day_of_week: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  /** "HH:MM:SS", as returned by Postgres for a `time` column. */
+  starts_at: string;
+  ends_at: string;
+}
+
+export interface VintedBotConfigRow {
+  user_id: string;
+  daily_quota: number;
+  repost_after_days: number;
+  updated_at: string;
+}
+
+/** Replaces the agent's local cookies_*.json files. `cookies` is the raw
+ *  JSON blob pasted from the monitoring UI, opaque to the app itself. */
+export interface VintedSessionRow {
+  user_id: string;
+  cookies: Record<string, unknown>;
+  updated_at: string;
+}
+
+export interface VintedAgentLogRow {
+  id: string;
+  user_id: string | null;
+  level: 'info' | 'warn' | 'error';
+  message: string;
   created_at: string;
 }

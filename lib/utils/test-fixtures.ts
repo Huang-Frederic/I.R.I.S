@@ -45,6 +45,7 @@ const CARD_DEFAULTS: Card = {
   cm_price_trend: null,
   cm_price_avg: null,
   suggested_price: null,
+  price_confirmed_at: null,
   cm_updated_at: null,
   lot_id: null,
   date_added: '2026-01-01T00:00:00Z',
