@@ -13,6 +13,10 @@ interface Window {
   ends_at: string;
 }
 
+function isWindowValid(w: Window): boolean {
+  return w.starts_at < w.ends_at;
+}
+
 interface Props {
   userId: string;
   editable: boolean;
@@ -27,6 +31,9 @@ export default function ScheduleEditor({ userId, editable, schedule, onSaved }: 
     return byDay;
   });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const hasInvalidWindow = draft.some((windows) => windows.some((w) => !isWindowValid(w)));
 
   function addWindow(day: number) {
     setDraft((prev) => prev.map((windows, i) => (i === day ? [...windows, { starts_at: '11:00', ends_at: '13:00' }] : windows)));
@@ -41,6 +48,12 @@ export default function ScheduleEditor({ userId, editable, schedule, onSaved }: 
   }
 
   async function save() {
+    setError(null);
+    if (hasInvalidWindow) {
+      setError('Un créneau a une heure de fin antérieure ou égale à l’heure de début — corrige-le avant d’enregistrer.');
+      return;
+    }
+
     setSaving(true);
     try {
       const supabase = createClient();
@@ -50,12 +63,14 @@ export default function ScheduleEditor({ userId, editable, schedule, onSaved }: 
       const { error: deleteError } = await supabase.from('vinted_bot_schedule').delete().eq('user_id', userId);
       if (deleteError) {
         console.error('ScheduleEditor save (delete) failed:', deleteError);
+        setError('Échec de l’enregistrement — le planning précédent a été conservé côté serveur.');
         return;
       }
       if (rows.length > 0) {
         const { error: insertError } = await supabase.from('vinted_bot_schedule').insert(rows);
         if (insertError) {
           console.error('ScheduleEditor save (insert) failed:', insertError);
+          setError('Échec de l’enregistrement — le planning a été effacé côté serveur, réessaie immédiatement.');
           return;
         }
       }
@@ -70,30 +85,38 @@ export default function ScheduleEditor({ userId, editable, schedule, onSaved }: 
       {draft.map((windows, day) => (
         <div key={day} className="flex flex-wrap items-center gap-2">
           <span className="w-10 shrink-0 capitalize">{DAY_NAMES[day]}</span>
-          {windows.map((w, i) => (
-            <span key={i} className="flex items-center gap-1">
-              <input
-                type="time"
-                disabled={!editable}
-                value={w.starts_at}
-                onChange={(e) => updateWindow(day, i, 'starts_at', e.target.value)}
-                className="border-border bg-surface rounded border px-1"
-              />
-              –
-              <input
-                type="time"
-                disabled={!editable}
-                value={w.ends_at}
-                onChange={(e) => updateWindow(day, i, 'ends_at', e.target.value)}
-                className="border-border bg-surface rounded border px-1"
-              />
-              {editable && (
-                <button type="button" onClick={() => removeWindow(day, i)} className="text-red px-1">
-                  ✕
-                </button>
-              )}
-            </span>
-          ))}
+          {windows.map((w, i) => {
+            const invalid = !isWindowValid(w);
+            return (
+              <span key={i} className="flex items-center gap-1">
+                <input
+                  type="time"
+                  disabled={!editable}
+                  value={w.starts_at}
+                  onChange={(e) => updateWindow(day, i, 'starts_at', e.target.value)}
+                  className={`bg-surface rounded border px-1 ${invalid ? 'border-red' : 'border-border'}`}
+                />
+                –
+                <input
+                  type="time"
+                  disabled={!editable}
+                  value={w.ends_at}
+                  onChange={(e) => updateWindow(day, i, 'ends_at', e.target.value)}
+                  className={`bg-surface rounded border px-1 ${invalid ? 'border-red' : 'border-border'}`}
+                />
+                {invalid && (
+                  <span className="text-red text-xs" title="L’heure de fin doit être après l’heure de début.">
+                    ⚠
+                  </span>
+                )}
+                {editable && (
+                  <button type="button" onClick={() => removeWindow(day, i)} className="text-red px-1">
+                    ✕
+                  </button>
+                )}
+              </span>
+            );
+          })}
           {editable && (
             <button type="button" onClick={() => addWindow(day)} className="text-text-muted text-xs">
               + créneau
@@ -101,11 +124,12 @@ export default function ScheduleEditor({ userId, editable, schedule, onSaved }: 
           )}
         </div>
       ))}
+      {error && <span className="text-red">{error}</span>}
       {editable && (
         <button
           type="button"
           onClick={save}
-          disabled={saving}
+          disabled={saving || hasInvalidWindow}
           className="bg-surface-2 border-border mt-1 w-fit rounded border px-3 py-1.5"
         >
           {saving ? 'Enregistrement…' : 'Enregistrer'}
