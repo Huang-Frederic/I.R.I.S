@@ -46,6 +46,7 @@ import { useSelectionMode } from './hooks/useSelectionMode';
 import { useStockCount } from './hooks/useStockCount';
 import { useBumpPolling } from './hooks/useBumpPolling';
 import { useRealtimeListingsRefresh } from './hooks/useRealtimeListingsRefresh';
+import MonitoringSection from './monitoring/MonitoringSection';
 import {
   matchesSearch,
   matchesLotSearch,
@@ -690,6 +691,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
 
   return (
     <div>
+      {vintedEnabled && <MonitoringSection />}
       <VintedFilters
         value={filters}
         onChange={setFilters}
