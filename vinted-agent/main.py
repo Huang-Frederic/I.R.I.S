@@ -407,6 +407,30 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
     tag      = _utag(user_id)
     log.info("▶  %s [carte] %s — job %s", tag, job_type, short)
 
+    if job_type == "delete":
+        old_listing_id = job.get("vinted_listing_id")
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, vinted.delete_listing, old_listing_id)
+            log.info("🗑  %s annonce #%s supprimée (sync cross-user)", tag, old_listing_id)
+            await audit_log(supabase, user_id, "listing.deleted",
+                            entity_type="card", entity_id=card_id,
+                            details={"vinted_listing_id": old_listing_id, "reason": "cross_user_sync"})
+        except ListingGoneError:
+            log.warning("~  %s annonce #%s déjà supprimée", tag, old_listing_id)
+        except Exception as e:
+            log.error("❌  %s delete #%s échoué — job annulé : %s", tag, old_listing_id, e)
+            await _fail_job(supabase, job_id, card_id, f"Delete échoué: {e}", user_id, entity_type="card")
+            return
+        await supabase.table("card_listings").update({
+            "vinted_listing_id": None, "vinted_posted_at": None,
+        }).eq("card_id", card_id).eq("user_id", user_id).execute()
+        await supabase.table("vinted_post_jobs").update({
+            "status": "done", "processed_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", job_id).execute()
+        log.info("✅  %s annonce supprimée sans repost — job %s terminé", tag, short)
+        return
+
     if job_type == "repost":
         meta = await supabase.table("card_listings").select("vinted_listing_id") \
             .eq("card_id", card_id).eq("user_id", user_id).limit(1).execute()
@@ -538,6 +562,30 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
     short    = job_id[:8]
     tag      = _utag(user_id)
     log.info("▶  %s [lot] %s — job %s", tag, job_type, short)
+
+    if job_type == "delete":
+        old_listing_id = job.get("vinted_listing_id")
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, vinted.delete_listing, old_listing_id)
+            log.info("🗑  %s annonce #%s supprimée (sync cross-user)", tag, old_listing_id)
+            await audit_log(supabase, user_id, "listing.deleted",
+                            entity_type="lot", entity_id=lot_id,
+                            details={"vinted_listing_id": old_listing_id, "reason": "cross_user_sync"})
+        except ListingGoneError:
+            log.warning("~  %s annonce #%s déjà supprimée", tag, old_listing_id)
+        except Exception as e:
+            log.error("❌  %s delete #%s échoué — job annulé : %s", tag, old_listing_id, e)
+            await _fail_job(supabase, job_id, lot_id, f"Delete échoué: {e}", user_id, entity_type="lot")
+            return
+        await supabase.table("lot_listings").update({
+            "vinted_listing_id": None, "vinted_posted_at": None,
+        }).eq("lot_id", lot_id).eq("user_id", user_id).execute()
+        await supabase.table("vinted_post_jobs").update({
+            "status": "done", "processed_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", job_id).execute()
+        log.info("✅  %s annonce supprimée sans repost — job %s terminé", tag, short)
+        return
 
     if job_type == "repost" and user_id:
         meta = await supabase.table("lot_listings").select("vinted_listing_id") \
