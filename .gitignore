@@ -102,3 +102,6 @@ iris-mac-transfer/
 /scripts/data/ptcg-cards-cache.json
 # Condensed from a paid Metafy guide — personal use only, repo is public.
 .claude/skills/ptcg-coach/references/typhlosion-playbook.md
+
+# Brainstorming visual-companion mockups (local scratch, not project artifacts).
+.superpowers/
