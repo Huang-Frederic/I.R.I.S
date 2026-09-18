@@ -781,6 +781,18 @@ def _make_vinted_client(cookies_file: str) -> VintedClient:
     return vinted
 
 
+async def _sync_cookies_from_supabase(supabase: AsyncClient, user_id: str, cookies_file: str) -> None:
+    """Supabase's vinted_sessions table is now the source of truth for a
+    user's Vinted session — this overwrites the local cookies file
+    VintedClient reads from, if a row exists. Leaves the local file alone
+    (no-op) when there's no row yet, so a not-yet-migrated user keeps
+    working off whatever's already on disk."""
+    res = await supabase.table("vinted_sessions").select("cookies").eq("user_id", user_id).maybe_single().execute()
+    if res.data and res.data.get("cookies"):
+        path = Path(cookies_file) if Path(cookies_file).is_absolute() else Path(__file__).parent / cookies_file
+        path.write_text(json.dumps(res.data["cookies"]))
+
+
 async def _dispatch_job(supabase: AsyncClient, record: dict) -> None:
     global _global_vinted_lock
     if _global_vinted_lock is None:
@@ -801,6 +813,7 @@ async def _dispatch_job(supabase: AsyncClient, record: dict) -> None:
                 .execute()
             if not claim.data:
                 return  # already claimed by subscribe+drain race — silent skip
+            await _sync_cookies_from_supabase(supabase, user_id, cookies_file)
             try:
                 loop = asyncio.get_running_loop()
                 vinted = await loop.run_in_executor(None, _make_vinted_client, cookies_file)

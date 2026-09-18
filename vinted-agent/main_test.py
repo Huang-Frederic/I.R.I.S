@@ -193,3 +193,38 @@ def test_process_lot_job_delete_type_fails_job_when_no_listing_found():
     listings_update.eq.assert_not_called()
     status_arg = jobs_update_fn.call_args.args[0]
     assert status_arg["status"] == "error"
+
+
+# Append to vinted-agent/main_test.py
+import json
+from pathlib import Path
+from main import _sync_cookies_from_supabase
+
+def test_sync_cookies_from_supabase_writes_the_local_file(tmp_path):
+    cookies_data = {"access_token_web": "abc", "datadome": "xyz"}
+    execute = AsyncMock(return_value=MagicMock(data={"cookies": cookies_data}))
+    maybe_single_result = MagicMock(execute=execute)
+    eq_result = MagicMock(maybe_single=MagicMock(return_value=maybe_single_result))
+    select_result = MagicMock(eq=MagicMock(return_value=eq_result))
+    table_result = MagicMock(select=MagicMock(return_value=select_result))
+    supabase = MagicMock()
+    supabase.table = MagicMock(return_value=table_result)
+
+    cookies_file = tmp_path / "cookies_test.json"
+    asyncio.run(_sync_cookies_from_supabase(supabase, "user-1", str(cookies_file)))
+
+    assert json.loads(cookies_file.read_text()) == cookies_data
+
+
+def test_sync_cookies_from_supabase_leaves_the_file_untouched_when_no_row_exists():
+    execute = AsyncMock(return_value=MagicMock(data=None))
+    maybe_single_result = MagicMock(execute=execute)
+    eq_result = MagicMock(maybe_single=MagicMock(return_value=maybe_single_result))
+    select_result = MagicMock(eq=MagicMock(return_value=eq_result))
+    table_result = MagicMock(select=MagicMock(return_value=select_result))
+    supabase = MagicMock()
+    supabase.table = MagicMock(return_value=table_result)
+
+    # No file created, no exception — the caller falls back to whatever
+    # local file already exists (or fails the same way it does today).
+    asyncio.run(_sync_cookies_from_supabase(supabase, "user-1", "/nonexistent/path/cookies.json"))
