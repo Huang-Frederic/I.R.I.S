@@ -409,6 +409,17 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
 
     if job_type == "delete":
         old_listing_id = job.get("vinted_listing_id")
+        if not old_listing_id:
+            # vinted_post_jobs has no vinted_listing_id column — the caller
+            # (cross-user sync) only ever writes card_id/user_id/job_type, so
+            # this lookup is the only way to find what to delete.
+            existing = await supabase.table("card_listings").select("vinted_listing_id") \
+                .eq("card_id", card_id).eq("user_id", user_id).limit(1).execute()
+            old_listing_id = (existing.data[0] if existing.data else {}).get("vinted_listing_id")
+        if not old_listing_id:
+            log.warning("~  %s aucune annonce active à supprimer pour cette carte — job en échec", tag)
+            await _fail_job(supabase, job_id, card_id, "No active listing to delete", user_id, entity_type="card")
+            return
         try:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, vinted.delete_listing, old_listing_id)
@@ -565,6 +576,17 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
 
     if job_type == "delete":
         old_listing_id = job.get("vinted_listing_id")
+        if not old_listing_id:
+            # vinted_post_jobs has no vinted_listing_id column — the caller
+            # (cross-user sync) only ever writes lot_id/user_id/job_type, so
+            # this lookup is the only way to find what to delete.
+            existing = await supabase.table("lot_listings").select("vinted_listing_id") \
+                .eq("lot_id", lot_id).eq("user_id", user_id).limit(1).execute()
+            old_listing_id = (existing.data[0] if existing.data else {}).get("vinted_listing_id")
+        if not old_listing_id:
+            log.warning("~  %s aucune annonce active à supprimer pour ce lot — job en échec", tag)
+            await _fail_job(supabase, job_id, lot_id, "No active listing to delete", user_id, entity_type="lot")
+            return
         try:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, vinted.delete_listing, old_listing_id)
