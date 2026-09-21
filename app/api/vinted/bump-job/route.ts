@@ -107,6 +107,10 @@ export async function POST(request: Request) {
         vinted_listing_id: myListing.vinted_listing_id,
       },
     });
+    void supabase.from('vinted_queue').delete().eq('user_id', auth.user.id).eq('card_id', card_id!)
+      .then(({ error }) => {
+        if (error) console.error('[vinted/bump-job] vinted_queue cleanup failed:', error.message);
+      });
     return NextResponse.json({ job_id: job.id }, { status: 201 });
   }
 
@@ -172,5 +176,9 @@ export async function POST(request: Request) {
       vinted_listing_id: myLotListing.vinted_listing_id,
     },
   });
+  void supabase.from('vinted_queue').delete().eq('user_id', auth.user.id).eq('lot_id', lot_id!)
+    .then(({ error }) => {
+      if (error) console.error('[vinted/bump-job] vinted_queue cleanup failed:', error.message);
+    });
   return NextResponse.json({ job_id: job.id }, { status: 201 });
 }
