@@ -9,7 +9,7 @@ import { useMonitoringData } from './hooks/useMonitoringData';
 import StatusBar from './StatusBar';
 import AlertBanner from './AlertBanner';
 import GroupedQueueGrid, { type PipelineItem } from './GroupedQueueGrid';
-import RepostPool from './RepostPool';
+import GroupedRepostGrid, { type RepostPoolItem } from './GroupedRepostGrid';
 import SettingsModal from './SettingsModal';
 import LogFeed from './LogFeed';
 
@@ -19,6 +19,7 @@ export default function MonitoringSection() {
   const data = useMonitoringData(viewedUserId);
   const editable = viewedUserId === myUserId;
   const [postingQueueId, setPostingQueueId] = useState<string | null>(null);
+  const [repostingId, setRepostingId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   async function persistReorder(items: PipelineItem[]) {
@@ -43,6 +44,39 @@ export default function MonitoringSection() {
       }
     } finally {
       setPostingQueueId(null);
+    }
+  }
+
+  async function persistRepostReorder(items: RepostPoolItem[]) {
+    const supabase = createClient();
+    await Promise.all(
+      items.map((item, index) => {
+        const table = item.cardId ? 'card_listings' : 'lot_listings';
+        const idColumn = item.cardId ? 'card_id' : 'lot_id';
+        const idValue = (item.cardId ?? item.lotId) as string;
+        return supabase.from(table).update({ repost_position: index + 1 }).eq(idColumn, idValue).eq('user_id', viewedUserId);
+      }),
+    );
+    data.refetch();
+  }
+
+  async function repostNow(item: RepostPoolItem) {
+    const id = (item.cardId ?? item.lotId) as string;
+    setRepostingId(id);
+    try {
+      const body = item.cardId
+        ? { card_id: item.cardId, job_type: 'repost' as const }
+        : { lot_id: item.lotId, job_type: 'repost' as const };
+      const response = await fetch('/api/vinted/post-job', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (response.ok) {
+        data.refetch();
+      }
+    } finally {
+      setRepostingId(null);
     }
   }
 
@@ -85,7 +119,15 @@ export default function MonitoringSection() {
         onPostNow={postNow}
         postingQueueId={postingQueueId}
       />
-      <RepostPool items={data.repostCandidates} active={data.pipeline.length === 0} />
+      <GroupedRepostGrid
+        items={data.repostCandidates}
+        active={data.pipeline.length === 0}
+        groupPriority={data.config.group_priority}
+        editable={editable}
+        onReorder={persistRepostReorder}
+        onRepostNow={repostNow}
+        repostingId={repostingId}
+      />
       <div className="border-border border-t pt-3">
         <LogFeed logs={data.logs} />
       </div>
