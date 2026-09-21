@@ -53,6 +53,7 @@ export default function MonitoringSection() {
       <RepostPool items={data.repostCandidates} active={data.pipeline.length === 0} />
       <div className="border-border grid gap-4 border-t pt-3 md:grid-cols-2">
         <BotConfigForm
+          key={viewedUserId}
           userId={viewedUserId}
           editable={editable}
           dailyQuota={data.config.daily_quota}
