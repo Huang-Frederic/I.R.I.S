@@ -78,8 +78,8 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
         ? supabase.from('cards').select('id, card_name, suggested_price, image_url, tcg_image_url, pokemon_number, language').in('id', cardIds)
         : Promise.resolve({ data: [] as { id: string; card_name: string; suggested_price: number | null; image_url: string | null; tcg_image_url: string | null; pokemon_number: number | null; language: string }[] }),
       lotIds.length
-        ? supabase.from('lots').select('id, name, price, photo_url, brand_id').in('id', lotIds)
-        : Promise.resolve({ data: [] as { id: string; name: string; price: number | null; photo_url: string | null; brand_id: number | null }[] }),
+        ? supabase.from('lots').select('id, name, price, photo_url, brand_id, language').in('id', lotIds)
+        : Promise.resolve({ data: [] as { id: string; name: string; price: number | null; photo_url: string | null; brand_id: number | null; language: string | null }[] }),
     ]);
 
     const cardsById = new Map((cardsRes.data ?? []).map((c) => [c.id, c]));
@@ -108,7 +108,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
         name: lot?.name ?? '?',
         price: lot?.price ?? null,
         imageUrl: lot?.photo_url ?? '',
-        groupKey: groupKeyFor({ cardId: null, language: null, brandId: lot?.brand_id ?? null }),
+        groupKey: groupKeyFor({ cardId: null, language: lot?.language ?? null, brandId: lot?.brand_id ?? null }),
       };
     });
 
