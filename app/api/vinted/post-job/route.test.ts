@@ -100,12 +100,64 @@ describe('POST /api/vinted/post-job', () => {
           single: vi.fn().mockResolvedValue({ data: jobRow, error: null }),
         };
       }
+      if (table === 'vinted_queue') {
+        return {
+          delete: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          then: (resolve: (v: { error: null }) => void) => resolve({ error: null }),
+        };
+      }
       return {};
     });
     const res = await POST(makeRequest({ card_id: 'card-1' }));
     expect(res.status).toBe(201);
     const json = await res.json();
     expect(json.job_id).toBe('job-1');
+  });
+
+  it('removes the matching vinted_queue row after creating a card job', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    const jobRow = { id: 'job-1', card_id: 'card-1', status: 'pending' };
+    const queueDeleteEq = vi.fn().mockReturnThis();
+    supabaseMock.from.mockImplementation((table: string) => {
+      if (table === 'cards') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: mockCard, error: null }),
+        };
+      }
+      if (table === 'card_listings') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        };
+      }
+      if (table === 'vinted_post_jobs') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          insert: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: jobRow, error: null }),
+        };
+      }
+      if (table === 'vinted_queue') {
+        return {
+          delete: vi.fn().mockReturnThis(),
+          eq: queueDeleteEq,
+          then: (resolve: (v: { error: null }) => void) => resolve({ error: null }),
+        };
+      }
+      return {};
+    });
+    const res = await POST(makeRequest({ card_id: 'card-1' }));
+    expect(res.status).toBe(201);
+    expect(queueDeleteEq).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(queueDeleteEq).toHaveBeenCalledWith('card_id', 'card-1');
   });
 
   const mockLot = {
@@ -171,11 +223,63 @@ describe('POST /api/vinted/post-job', () => {
           single: vi.fn().mockResolvedValue({ data: jobRow, error: null }),
         };
       }
+      if (table === 'vinted_queue') {
+        return {
+          delete: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          then: (resolve: (v: { error: null }) => void) => resolve({ error: null }),
+        };
+      }
       return {};
     });
     const res = await POST(makeRequest({ lot_id: 'lot-1' }));
     expect(res.status).toBe(201);
     const json = await res.json();
     expect(json.job_id).toBe('job-2');
+  });
+
+  it('removes the matching vinted_queue row after creating a lot job', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    const jobRow = { id: 'job-2', lot_id: 'lot-1', status: 'pending' };
+    const queueDeleteEq = vi.fn().mockReturnThis();
+    supabaseMock.from.mockImplementation((table: string) => {
+      if (table === 'lots') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: mockLot, error: null }),
+        };
+      }
+      if (table === 'lot_listings') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        };
+      }
+      if (table === 'vinted_post_jobs') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          insert: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: jobRow, error: null }),
+        };
+      }
+      if (table === 'vinted_queue') {
+        return {
+          delete: vi.fn().mockReturnThis(),
+          eq: queueDeleteEq,
+          then: (resolve: (v: { error: null }) => void) => resolve({ error: null }),
+        };
+      }
+      return {};
+    });
+    const res = await POST(makeRequest({ lot_id: 'lot-1' }));
+    expect(res.status).toBe(201);
+    expect(queueDeleteEq).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(queueDeleteEq).toHaveBeenCalledWith('lot_id', 'lot-1');
   });
 });
