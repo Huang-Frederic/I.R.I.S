@@ -282,4 +282,130 @@ describe('POST /api/vinted/post-job', () => {
     expect(queueDeleteEq).toHaveBeenCalledWith('user_id', 'user-1');
     expect(queueDeleteEq).toHaveBeenCalledWith('lot_id', 'lot-1');
   });
+
+  it('returns 400 when a card repost is requested but there is no existing listing', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    supabaseMock.from.mockImplementation((table: string) => {
+      if (table === 'cards') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: mockCard, error: null }),
+        };
+      }
+      if (table === 'card_listings') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        };
+      }
+      return {};
+    });
+    const res = await POST(makeRequest({ card_id: 'card-1', job_type: 'repost' }));
+    expect(res.status).toBe(400);
+  });
+
+  it('creates a repost job for a card that already has a listing, without touching vinted_queue', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    const jobRow = { id: 'job-3', card_id: 'card-1', status: 'pending' };
+    const insertMock = vi.fn().mockReturnThis();
+    const touchedTables: string[] = [];
+    supabaseMock.from.mockImplementation((table: string) => {
+      touchedTables.push(table);
+      if (table === 'cards') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: mockCard, error: null }),
+        };
+      }
+      if (table === 'card_listings') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: { vinted_listing_id: 'existing-id' }, error: null }),
+        };
+      }
+      if (table === 'vinted_post_jobs') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          insert: insertMock,
+          single: vi.fn().mockResolvedValue({ data: jobRow, error: null }),
+        };
+      }
+      return {};
+    });
+    const res = await POST(makeRequest({ card_id: 'card-1', job_type: 'repost' }));
+    expect(res.status).toBe(201);
+    expect(insertMock).toHaveBeenCalledWith({ card_id: 'card-1', user_id: 'user-1', job_type: 'repost' });
+    expect(touchedTables).not.toContain('vinted_queue');
+  });
+
+  it('returns 400 when a lot repost is requested but there is no existing listing', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    supabaseMock.from.mockImplementation((table: string) => {
+      if (table === 'lots') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: mockLot, error: null }),
+        };
+      }
+      if (table === 'lot_listings') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        };
+      }
+      return {};
+    });
+    const res = await POST(makeRequest({ lot_id: 'lot-1', job_type: 'repost' }));
+    expect(res.status).toBe(400);
+  });
+
+  it('creates a repost job for a lot that already has a listing, without touching vinted_queue', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    const jobRow = { id: 'job-4', lot_id: 'lot-1', status: 'pending' };
+    const insertMock = vi.fn().mockReturnThis();
+    const touchedTables: string[] = [];
+    supabaseMock.from.mockImplementation((table: string) => {
+      touchedTables.push(table);
+      if (table === 'lots') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: mockLot, error: null }),
+        };
+      }
+      if (table === 'lot_listings') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: { vinted_listing_id: 'existing-id' }, error: null }),
+        };
+      }
+      if (table === 'vinted_post_jobs') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          insert: insertMock,
+          single: vi.fn().mockResolvedValue({ data: jobRow, error: null }),
+        };
+      }
+      return {};
+    });
+    const res = await POST(makeRequest({ lot_id: 'lot-1', job_type: 'repost' }));
+    expect(res.status).toBe(201);
+    expect(insertMock).toHaveBeenCalledWith({ lot_id: 'lot-1', user_id: 'user-1', job_type: 'repost' });
+    expect(touchedTables).not.toContain('vinted_queue');
+  });
 });

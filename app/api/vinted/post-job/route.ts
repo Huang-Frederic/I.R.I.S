@@ -6,7 +6,7 @@ import { auditLog } from '@/lib/utils/audit-log';
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
-  let body: { card_id?: string; lot_id?: string };
+  let body: { card_id?: string; lot_id?: string; job_type?: 'post' | 'repost' };
   try {
     body = await request.json();
   } catch {
@@ -14,6 +14,7 @@ export async function POST(request: Request) {
   }
 
   const { card_id, lot_id } = body;
+  const jobType = body.job_type === 'repost' ? 'repost' : 'post';
   const isLot = !!lot_id;
   const isCard = !!card_id;
 
@@ -62,8 +63,12 @@ export async function POST(request: Request) {
       .eq('user_id', auth.user.id)
       .maybeSingle();
 
-    if (myListing?.vinted_listing_id) {
-      return apiError('already_posted', { status: 409, message: 'Vous avez déjà une annonce Vinted pour cette carte' });
+    if (jobType === 'post') {
+      if (myListing?.vinted_listing_id) {
+        return apiError('already_posted', { status: 409, message: 'Vous avez déjà une annonce Vinted pour cette carte' });
+      }
+    } else if (!myListing?.vinted_listing_id) {
+      return apiError('not_posted_yet', { status: 400, message: 'Aucune annonce Vinted existante à reposter pour cette carte' });
     }
 
     const { data: activeJob } = await supabase
@@ -81,7 +86,7 @@ export async function POST(request: Request) {
 
     const { data: job, error: jobError } = await supabase
       .from('vinted_post_jobs')
-      .insert({ card_id, user_id: auth.user.id })
+      .insert({ card_id, user_id: auth.user.id, job_type: jobType })
       .select()
       .single();
 
@@ -97,7 +102,7 @@ export async function POST(request: Request) {
       entity_id: card_id,
       details: {
         job_id: job.id,
-        job_type: 'post',
+        job_type: jobType,
         card_name: card.card_name,
         card_id_tcg: card.card_id_tcg,
         set_name: card.set_name,
@@ -109,10 +114,12 @@ export async function POST(request: Request) {
         suggested_price: card.suggested_price,
       },
     });
-    void supabase.from('vinted_queue').delete().eq('user_id', auth.user.id).eq('card_id', card_id!)
-      .then(({ error }) => {
-        if (error) console.error('[vinted/post-job] vinted_queue cleanup failed:', error.message);
-      });
+    if (jobType === 'post') {
+      void supabase.from('vinted_queue').delete().eq('user_id', auth.user.id).eq('card_id', card_id!)
+        .then(({ error }) => {
+          if (error) console.error('[vinted/post-job] vinted_queue cleanup failed:', error.message);
+        });
+    }
     return NextResponse.json({ job_id: job.id }, { status: 201 });
   }
 
@@ -138,8 +145,12 @@ export async function POST(request: Request) {
     .eq('user_id', auth.user.id)
     .maybeSingle();
 
-  if (myLotListing?.vinted_listing_id) {
-    return apiError('already_posted', { status: 409, message: 'Vous avez déjà une annonce Vinted pour ce lot' });
+  if (jobType === 'post') {
+    if (myLotListing?.vinted_listing_id) {
+      return apiError('already_posted', { status: 409, message: 'Vous avez déjà une annonce Vinted pour ce lot' });
+    }
+  } else if (!myLotListing?.vinted_listing_id) {
+    return apiError('not_posted_yet', { status: 400, message: 'Aucune annonce Vinted existante à reposter pour ce lot' });
   }
 
   const { data: activeLotJob } = await supabase
@@ -157,7 +168,7 @@ export async function POST(request: Request) {
 
   const { data: job, error: jobError } = await supabase
     .from('vinted_post_jobs')
-    .insert({ lot_id, user_id: auth.user.id })
+    .insert({ lot_id, user_id: auth.user.id, job_type: jobType })
     .select()
     .single();
 
@@ -173,16 +184,18 @@ export async function POST(request: Request) {
     entity_id: lot_id,
     details: {
       job_id: job.id,
-      job_type: 'post',
+      job_type: jobType,
       lot_name: lot.name,
       price: lot.price,
       language: lot.language,
       condition: lot.condition,
     },
   });
-  void supabase.from('vinted_queue').delete().eq('user_id', auth.user.id).eq('lot_id', lot_id!)
-    .then(({ error }) => {
-      if (error) console.error('[vinted/post-job] vinted_queue cleanup failed:', error.message);
-    });
+  if (jobType === 'post') {
+    void supabase.from('vinted_queue').delete().eq('user_id', auth.user.id).eq('lot_id', lot_id!)
+      .then(({ error }) => {
+        if (error) console.error('[vinted/post-job] vinted_queue cleanup failed:', error.message);
+      });
+  }
   return NextResponse.json({ job_id: job.id }, { status: 201 });
 }
