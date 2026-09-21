@@ -13,6 +13,7 @@ import {
   Crosshair,
   PieChart,
   Trophy,
+  Bot,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -25,6 +26,7 @@ export interface NavItem {
     | 'pokedex'
     | 'stock'
     | 'vinted'
+    | 'vintedBot'
     | 'prices'
     | 'events'
     | 'options'
@@ -44,6 +46,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/stamps', labelKey: 'stamps', icon: Stamp },
   { href: '/submit', labelKey: 'scanner', icon: ScanLine },
   { href: '/vinted', labelKey: 'vinted', icon: Tag },
+  { href: '/vinted/bot', labelKey: 'vintedBot', icon: Bot },
   { href: '/stock', labelKey: 'stock', icon: Package },
   { href: '/ptcg', labelKey: 'ptcg', icon: Swords },
   { href: '/ptcg/tournaments', labelKey: 'ptcgTournaments', icon: Trophy },
