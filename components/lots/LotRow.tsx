@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
-import { Tag, Package } from 'lucide-react';
+import { Tag, Package, CircleCheck, ExternalLink } from 'lucide-react';
 import type { Lot, LotListing } from '@/lib/types';
 import { STALE_MS } from '@/lib/utils/listing-stale';
 import EditablePriceCell from '@/components/vinted/EditablePriceCell';
 import ListingBadges from '@/components/vinted/ListingBadges';
 import VintedPostButton from '@/components/vinted/VintedPostButton'
 import VintedActionModal from '@/components/vinted/VintedActionModal';
+import RowActionsMenu from '@/components/ui/RowActionsMenu';
 import LotQuantityChip from './LotQuantityChip';
 
 interface Props {
@@ -139,20 +140,6 @@ export default function LotRow({
           {t('annonceButton')}
         </button>
 
-        {/* Hide the Vendu button when the lot is already sold (status='sold'
-          but my listing is still up — partner sold it). The ListingBadges X
-          button is the right control to retire my listing. */}
-        {lot.status !== 'sold' && (
-          <button
-            type="button"
-            onClick={() => onSoldClick(lot)}
-            disabled={selectionMode}
-            className="bg-red text-bg shrink-0 rounded px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-40"
-          >
-            {t('soldButton')}
-          </button>
-        )}
-
         {vintedEnabled && !isOnline && !selectionMode && (
           <VintedPostButton
             lotId={lot.id}
@@ -162,34 +149,41 @@ export default function LotRow({
           />
         )}
 
-        {vintedEnabled && isOnline && !selectionMode && myListing?.vinted_listing_id && (
-          myListing.vinted_posted_at ? (
-            // Posted via IRIS — clickable logo opens the bump modal. Stale state
-            // is shown by the orange ring on the logo (the old "⏰ Stale" badge
-            // was a redundant duplicate of that).
-            <button
-              type="button"
-              onClick={() => setActionModalOpen(true)}
-              className="shrink-0 hover:opacity-70 transition-opacity"
-              title="Voir ou bumper l'annonce Vinted"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/vinted-logo.jpeg"
-                alt="Vinted"
-                className={`h-6 w-6 rounded sm:h-7 sm:w-7 object-cover ${isStale ? 'ring-2 ring-rarity-ar' : ''}`}
-              />
-            </button>
-          ) : (
-            // Posted externally (no vinted_posted_at) — greyed logo, no modal
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src="/vinted-logo.jpeg"
-              alt="Vinted"
-              className="h-6 w-6 rounded sm:h-7 sm:w-7 object-cover opacity-40 grayscale"
-              title="Annonce Vinted (gérée en dehors d'IRIS)"
-            />
-          )
+        {!selectionMode && (
+          <RowActionsMenu
+            ariaLabel={t('moreActionsAria')}
+            indicator={vintedEnabled && !!myListing?.vinted_posted_at && isStale}
+            items={[
+              // Hide the Vendu item when the lot is already sold (status='sold'
+              // but my listing is still up — partner sold it). The ListingBadges
+              // X button is the right control to retire my listing.
+              ...(lot.status !== 'sold'
+                ? [{
+                    key: 'sold',
+                    label: t('soldButton'),
+                    icon: <CircleCheck className="h-3.5 w-3.5" aria-hidden />,
+                    onClick: () => onSoldClick(lot),
+                    destructive: true,
+                  }]
+                : []),
+              ...(vintedEnabled && isOnline && myListing?.vinted_listing_id
+                ? (myListing.vinted_posted_at
+                    ? [{
+                        key: 'manage',
+                        label: t('manageListing'),
+                        icon: <ExternalLink className="h-3.5 w-3.5" aria-hidden />,
+                        onClick: () => setActionModalOpen(true),
+                      }]
+                    : [{
+                        key: 'manage-external',
+                        label: t('manageListingExternal'),
+                        icon: <ExternalLink className="h-3.5 w-3.5" aria-hidden />,
+                        onClick: () => {},
+                        disabled: true,
+                      }])
+                : []),
+            ]}
+          />
         )}
       </div>
 

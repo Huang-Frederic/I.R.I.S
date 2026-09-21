@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
-import { BookmarkCheck, Bookmark, Tag } from 'lucide-react';
+import { BookmarkCheck, Bookmark, Tag, CircleCheck, ExternalLink } from 'lucide-react';
 import type { Card, CardListing } from '@/lib/types';
 import type { CardGroup } from '@/lib/utils/group-cards';
 import { VARIANT_LABEL, RARITY_COLOR } from '@/lib/utils/labels';
@@ -14,6 +14,7 @@ import ListingBadges from './ListingBadges';
 import StockCountChip from './StockCountChip';
 import VintedPostButton from './VintedPostButton';
 import VintedActionModal from '@/components/vinted/VintedActionModal';
+import RowActionsMenu from '@/components/ui/RowActionsMenu';
 
 function thumbUrl(card: Card): string {
   if (card.image_url) return card.image_url;
@@ -202,33 +203,29 @@ export default function VintedRow({
           )}
 
           {isOnline && !selectionMode && (
-            <>
-              {group.head.status !== 'sold' && group.head.status !== 'traded' && (
-                <button
-                  type="button"
-                  onClick={onSoldClick}
-                  disabled={selectionMode}
-                  className="bg-red text-bg shrink-0 rounded px-2 py-1 text-[10px] font-medium hover:opacity-90 disabled:opacity-40 sm:px-3 sm:py-1.5 sm:text-xs"
-                >
-                  {t('rowSoldButton')}
-                </button>
-              )}
-              {vintedEnabled && (
-                <button
-                  type="button"
-                  onClick={() => setActionModalOpen(true)}
-                  className="shrink-0 hover:opacity-70 transition-opacity"
-                  title="Voir ou bumper l'annonce Vinted"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/vinted-logo.jpeg"
-                    alt="Vinted"
-                    className={`h-6 w-6 rounded sm:h-7 sm:w-7 object-cover ${isStale ? 'ring-2 ring-orange-500' : ''}`}
-                  />
-                </button>
-              )}
-            </>
+            <RowActionsMenu
+              ariaLabel={t('rowMoreActionsAria')}
+              indicator={vintedEnabled && isStale}
+              items={[
+                ...(group.head.status !== 'sold' && group.head.status !== 'traded'
+                  ? [{
+                      key: 'sold',
+                      label: t('rowSoldButton'),
+                      icon: <CircleCheck className="h-3.5 w-3.5" aria-hidden />,
+                      onClick: onSoldClick,
+                      destructive: true,
+                    }]
+                  : []),
+                ...(vintedEnabled
+                  ? [{
+                      key: 'manage',
+                      label: t('rowManageListing'),
+                      icon: <ExternalLink className="h-3.5 w-3.5" aria-hidden />,
+                      onClick: () => setActionModalOpen(true),
+                    }]
+                  : []),
+              ]}
+            />
           )}
         </div>
       </div>
