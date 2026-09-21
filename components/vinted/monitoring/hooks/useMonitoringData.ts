@@ -6,7 +6,7 @@ import type { VintedBotScheduleRow, VintedAgentLogRow } from '@/lib/types';
 import { isRepostEligible } from '@/lib/vinted/repost-eligibility';
 import type { PipelineItem } from '../GroupedQueueGrid';
 import { groupKeyFor } from '@/lib/vinted/group-key';
-import type { RepostPoolItem } from '../RepostPool';
+import type { RepostPoolItem } from '../GroupedRepostGrid';
 import type { SessionStatus } from '../AlertBanner';
 
 const POLL_INTERVAL_MS = 30_000;
@@ -46,7 +46,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [queueRes, scheduleRes, configRes, logsRes, jobsRes, cardListingsRes, sessionRes] = await Promise.all([
+    const [queueRes, scheduleRes, configRes, logsRes, jobsRes, cardListingsRes, lotListingsRes, sessionRes] = await Promise.all([
       supabase.from('vinted_queue').select('id, card_id, lot_id, position').eq('user_id', viewedUserId).order('position'),
       supabase.from('vinted_bot_schedule').select('day_of_week, starts_at, ends_at').eq('user_id', viewedUserId),
       supabase.from('vinted_bot_config').select('daily_quota, repost_after_days, group_priority').eq('user_id', viewedUserId).maybeSingle(),
@@ -64,7 +64,12 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
         .gte('created_at', todayStart.toISOString()),
       supabase
         .from('card_listings')
-        .select('card_id, vinted_listing_id, vinted_posted_at, cards(card_name, suggested_price, image_url, tcg_image_url, pokemon_number, status)')
+        .select('card_id, vinted_listing_id, vinted_posted_at, repost_position, cards(card_name, suggested_price, image_url, tcg_image_url, pokemon_number, status, language)')
+        .eq('user_id', viewedUserId)
+        .not('vinted_listing_id', 'is', null),
+      supabase
+        .from('lot_listings')
+        .select('lot_id, vinted_listing_id, vinted_posted_at, repost_position, lots(name, price, photo_url, brand_id, language, status)')
         .eq('user_id', viewedUserId)
         .not('vinted_listing_id', 'is', null),
       fetch(`/api/vinted/sessions?userId=${viewedUserId}`).then((r) => (r.ok ? r.json() : null)),
@@ -116,7 +121,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
       ? { ...configRes.data, group_priority: (configRes.data.group_priority as string[]) ?? [] }
       : DEFAULT_CONFIG;
     const now = new Date();
-    const repostCandidates: RepostPoolItem[] = (cardListingsRes.data ?? [])
+    const cardRepostCandidates: RepostPoolItem[] = (cardListingsRes.data ?? [])
       .map((row): RepostPoolItem | null => {
         const card = Array.isArray(row.cards) ? row.cards[0] : row.cards;
         if (!card) return null;
@@ -133,10 +138,44 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
           price: card.suggested_price,
           imageUrl: card.image_url ?? card.tcg_image_url ?? fallbackSprite(card.pokemon_number),
           vintedPostedAt: row.vinted_posted_at as string,
+          groupKey: groupKeyFor({ cardId: row.card_id, language: card.language ?? null, brandId: null }),
+          repostPosition: row.repost_position ?? null,
         };
       })
-      .filter((x): x is RepostPoolItem => x !== null)
-      .sort((a, b) => a.vintedPostedAt.localeCompare(b.vintedPostedAt));
+      .filter((x): x is RepostPoolItem => x !== null);
+
+    const lotRepostCandidates: RepostPoolItem[] = (lotListingsRes.data ?? [])
+      .map((row): RepostPoolItem | null => {
+        const lot = Array.isArray(row.lots) ? row.lots[0] : row.lots;
+        if (!lot) return null;
+        const eligible = isRepostEligible(
+          { vintedListingId: row.vinted_listing_id, vintedPostedAt: row.vinted_posted_at, status: lot.status },
+          config.repost_after_days,
+          now,
+        );
+        if (!eligible) return null;
+        return {
+          cardId: null,
+          lotId: row.lot_id,
+          name: lot.name,
+          price: lot.price,
+          imageUrl: lot.photo_url ?? '',
+          vintedPostedAt: row.vinted_posted_at as string,
+          groupKey: groupKeyFor({ cardId: null, language: lot.language ?? null, brandId: lot.brand_id ?? null }),
+          repostPosition: row.repost_position ?? null,
+        };
+      })
+      .filter((x): x is RepostPoolItem => x !== null);
+
+    const repostCandidates: RepostPoolItem[] = [...cardRepostCandidates, ...lotRepostCandidates].sort((a, b) => {
+      const aNull = a.repostPosition === null;
+      const bNull = b.repostPosition === null;
+      if (aNull !== bNull) return aNull ? 1 : -1;
+      if (!aNull && !bNull && a.repostPosition !== b.repostPosition) {
+        return (a.repostPosition as number) - (b.repostPosition as number);
+      }
+      return a.vintedPostedAt.localeCompare(b.vintedPostedAt);
+    });
 
     setState({
       pipeline,
