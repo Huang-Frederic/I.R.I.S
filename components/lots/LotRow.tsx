@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Tag, Package, CircleCheck, ExternalLink } from 'lucide-react';
 import type { Lot, LotListing } from '@/lib/types';
 import { STALE_MS } from '@/lib/utils/listing-stale';
+import { BRAND_LABELS } from '@/lib/vinted/brand-labels';
 import EditablePriceCell from '@/components/vinted/EditablePriceCell';
 import ListingBadges from '@/components/vinted/ListingBadges';
 import VintedPostButton from '@/components/vinted/VintedPostButton'
@@ -218,18 +219,6 @@ function LotTypeBadge({ catalogId }: { catalogId: number | null }) {
     </span>
   );
 }
-
-const BRAND_LABELS: Record<number, string> = {
-  191646: 'Pokémon',
-  89766: 'One Piece',
-  399547: 'Magic',
-  287189: 'Lorcana',
-  312702: 'Yu-Gi-Oh!',
-  284189: 'Digimon',
-  350491: 'Dragon Ball',
-  12800798: 'Wankul',
-  509120: 'Riftbound',
-};
 
 function LotBrandBadge({ brandId }: { brandId: number | null }) {
   const label = brandId == null ? 'Pokémon' : (BRAND_LABELS[brandId] ?? 'Autres');
