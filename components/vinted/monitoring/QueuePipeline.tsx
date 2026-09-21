@@ -1,5 +1,6 @@
 'use client';
 
+import { ArrowLeftToLine, Send } from 'lucide-react';
 import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -20,9 +21,12 @@ interface CardChipProps {
   index: number;
   draggable: boolean;
   showArrowBefore: boolean;
+  onMoveToFront: () => void;
+  onPostNow: () => void;
+  isPosting: boolean;
 }
 
-function CardChip({ item, index, draggable, showArrowBefore }: CardChipProps) {
+function CardChip({ item, index, draggable, showArrowBefore, onMoveToFront, onPostNow, isPosting }: CardChipProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: item.queueId,
     disabled: !draggable,
@@ -47,6 +51,38 @@ function CardChip({ item, index, draggable, showArrowBefore }: CardChipProps) {
         <img src={item.imageUrl} alt="" className="h-9 w-9 rounded object-contain" />
         <span className="text-text line-clamp-2">{item.name}</span>
         {item.price !== null && <span className="text-rarity-r font-semibold">{item.price.toFixed(2)} €</span>}
+        {draggable && (
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveToFront();
+              }}
+              disabled={index === 0}
+              title="Mettre en premier"
+              aria-label="Mettre en premier"
+              className="hover:bg-surface-2 rounded p-0.5 disabled:opacity-30"
+            >
+              <ArrowLeftToLine className="h-3 w-3" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPostNow();
+              }}
+              disabled={isPosting}
+              title="Poster maintenant"
+              aria-label="Poster maintenant"
+              className="hover:bg-surface-2 rounded p-0.5 disabled:opacity-30"
+            >
+              <Send className="h-3 w-3" aria-hidden />
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
@@ -57,9 +93,11 @@ interface Props {
   dailyQuota: number;
   editable: boolean;
   onReorder: (items: PipelineItem[]) => void;
+  onPostNow: (item: PipelineItem) => void;
+  postingQueueId: string | null;
 }
 
-export default function QueuePipeline({ items, dailyQuota, editable, onReorder }: Props) {
+export default function QueuePipeline({ items, dailyQuota, editable, onReorder, onPostNow, postingQueueId }: Props) {
   const { today, later } = splitPipelineByQuota(items, dailyQuota);
 
   function handleDragEnd(event: DragEndEvent) {
@@ -69,6 +107,12 @@ export default function QueuePipeline({ items, dailyQuota, editable, onReorder }
     const newIndex = items.findIndex((i) => i.queueId === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
     onReorder(arrayMove(items, oldIndex, newIndex));
+  }
+
+  function handleMoveToFront(queueId: string) {
+    const oldIndex = items.findIndex((i) => i.queueId === queueId);
+    if (oldIndex <= 0) return;
+    onReorder(arrayMove(items, oldIndex, 0));
   }
 
   if (items.length === 0) {
@@ -84,7 +128,16 @@ export default function QueuePipeline({ items, dailyQuota, editable, onReorder }
               Aujourd&apos;hui · {today.length}/{dailyQuota}
             </span>
             {today.map((item, i) => (
-              <CardChip key={item.queueId} item={item} index={i} draggable={editable} showArrowBefore={i > 0} />
+              <CardChip
+                key={item.queueId}
+                item={item}
+                index={i}
+                draggable={editable}
+                showArrowBefore={i > 0}
+                onMoveToFront={() => handleMoveToFront(item.queueId)}
+                onPostNow={() => onPostNow(item)}
+                isPosting={postingQueueId === item.queueId}
+              />
             ))}
           </div>
           {later.length > 0 && (
@@ -96,6 +149,9 @@ export default function QueuePipeline({ items, dailyQuota, editable, onReorder }
                   index={today.length + i}
                   draggable={editable}
                   showArrowBefore={i > 0}
+                  onMoveToFront={() => handleMoveToFront(item.queueId)}
+                  onPostNow={() => onPostNow(item)}
+                  isPosting={postingQueueId === item.queueId}
                 />
               ))}
             </div>
