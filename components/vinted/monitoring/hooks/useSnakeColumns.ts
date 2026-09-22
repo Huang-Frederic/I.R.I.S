@@ -6,11 +6,11 @@ const SM_QUERY = '(min-width: 640px)'; // Tailwind's `sm` breakpoint
 const LG_QUERY = '(min-width: 1024px)'; // Tailwind's `lg` breakpoint
 
 // Must match PosterCard's actual rendered width at each tier exactly
-// (w-31/sm:w-35/lg:w-40 in PosterCard.tsx) — these drive how many cards
+// (w-34/sm:w-38/lg:w-43 in PosterCard.tsx) — these drive how many cards
 // actually fit per row, not just a rough guess.
-const CARD_WIDTH_BASE = 124;
-const CARD_WIDTH_SM = 140;
-const CARD_WIDTH_LG = 160;
+const CARD_WIDTH_BASE = 136;
+const CARD_WIDTH_SM = 152;
+const CARD_WIDTH_LG = 172;
 
 // Approximate width of one CardConnector ('card' variant: a 16px h-4 w-4
 // icon) plus the gap-2 (8px) on either side of it in the row's flex layout.

@@ -74,7 +74,7 @@ export default function PosterCard({
       onClick={() => setRevealed((r) => !r)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`bg-surface-2 relative aspect-[63/88] w-31 shrink-0 overflow-hidden rounded-lg border sm:w-35 lg:w-40 ${posterCardBorderClasses({ isDragging, isPendingChange })} ${
+      className={`bg-surface-2 relative aspect-[63/88] w-34 shrink-0 overflow-hidden rounded-lg border sm:w-38 lg:w-43 ${posterCardBorderClasses({ isDragging, isPendingChange })} ${
         isDragging ? 'opacity-40' : dimmed ? 'opacity-60' : ''
       }`}
     >
@@ -136,7 +136,7 @@ export function CardConnector({
 export function PosterCardStartSlot() {
   return (
     <div
-      className="border-border bg-surface flex aspect-[63/88] w-31 shrink-0 items-center justify-center rounded-lg border border-dashed sm:w-35 lg:w-40"
+      className="border-border bg-surface flex aspect-[63/88] w-34 shrink-0 items-center justify-center rounded-lg border border-dashed sm:w-38 lg:w-43"
       title="Ta collection"
       aria-hidden
     >
@@ -155,7 +155,7 @@ export function PosterCardStartSlot() {
  */
 export function PosterCardDragPreview({ imageUrl }: { imageUrl: string }) {
   return (
-    <div className="aspect-[63/88] w-28 scale-110 overflow-hidden rounded-lg border border-white bg-white shadow-xl sm:w-32 lg:w-36">
+    <div className="aspect-[63/88] w-34 scale-110 overflow-hidden rounded-lg border border-white bg-white shadow-xl sm:w-38 lg:w-43">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={imageUrl} alt="" className="h-full w-full object-contain" />
     </div>

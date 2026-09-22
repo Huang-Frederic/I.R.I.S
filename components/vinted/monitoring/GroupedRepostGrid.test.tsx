@@ -7,7 +7,7 @@ import GroupedRepostGrid, { computeSnakeReorder, type RepostPoolItem } from './G
 // This suite's environment is happy-dom (vitest.config.ts), whose `matchMedia`
 // always reports `matches: true` regardless of the query or window width, and
 // whose elements always report `clientWidth: 0` (no real layout engine).
-// Stub both so `useSnakeColumns` resolves to the narrow (124px) card-width
+// Stub both so `useSnakeColumns` resolves to the narrow (136px) card-width
 // tier and a 500px measured container width, which computes to exactly 3
 // columns (see useSnakeColumns.test.ts's `computeColumnsForWidth` case) —
 // matching the fixture below, computed for 3 columns.

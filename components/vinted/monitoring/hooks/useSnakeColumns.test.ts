@@ -64,6 +64,7 @@ describe('useSnakeColumns', () => {
     mockMatchMedia({ '(min-width: 640px)': false, '(min-width: 1024px)': false });
     const ref = makeContainerRef(500);
     const { result } = renderHook(() => useSnakeColumns(ref));
+    // 3 cards of 136px + 2 connectors of 32px = 472px; a 4th needs 168 more (640px) — 500px fits 3.
     expect(result.current).toBe(3);
   });
 
@@ -71,7 +72,7 @@ describe('useSnakeColumns', () => {
     mockMatchMedia({ '(min-width: 640px)': true, '(min-width: 1024px)': false });
     const ref = makeContainerRef(600);
     const { result } = renderHook(() => useSnakeColumns(ref));
-    // 3 cards of 140px + 2 connectors of 32px = 484px; a 4th needs 172 more (656px) — 600px fits 3.
+    // 3 cards of 152px + 2 connectors of 32px = 520px; a 4th needs 184 more (704px) — 600px fits 3.
     expect(result.current).toBe(3);
   });
 
@@ -79,18 +80,18 @@ describe('useSnakeColumns', () => {
     mockMatchMedia({ '(min-width: 640px)': true, '(min-width: 1024px)': true });
     const ref = makeContainerRef(1000);
     const { result } = renderHook(() => useSnakeColumns(ref));
-    // 5 cards of 160px + 4 connectors of 32px = 928px; a 6th needs 192 more (1120px) — 1000px fits 5.
+    // 5 cards of 172px + 4 connectors of 32px = 988px; a 6th needs 204 more (1192px) — 1000px fits 5.
     expect(result.current).toBe(5);
   });
 
   it('recomputes the card-width tier when the viewport crosses the sm breakpoint', () => {
     const { triggerChange } = mockMatchMedia({ '(min-width: 640px)': false, '(min-width: 1024px)': false });
-    const ref = makeContainerRef(300);
+    const ref = makeContainerRef(320);
     const { result } = renderHook(() => useSnakeColumns(ref));
-    // 300px at the base 124px tier: 1 card (124) + 0 connectors, a 2nd needs 156 more (280px) — fits 2.
+    // 320px at the base 136px tier: 2 cards + 1 connector = 304px; a 3rd needs 168 more (472px) — fits 2.
     expect(result.current).toBe(2);
     act(() => triggerChange('(min-width: 640px)', true));
-    // Same 300px container, now measured at the wider 140px tier: a 2nd card+connector needs 172 more (312px) — only fits 1.
+    // Same 320px container, now measured at the wider 152px tier: a 2nd card+connector needs 184 more (336px) — only fits 1.
     expect(result.current).toBe(1);
   });
 
