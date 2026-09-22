@@ -24,14 +24,18 @@ export interface PosterCardProps {
   /** Always-visible corner badge, e.g. queue position "#3". */
   badge?: string;
   actions: PosterCardAction[];
+  /** Forces the green dashed "changed" border even when this card isn't the
+   *  live drop target — the parent sets this for any item that moved since
+   *  the last save, so the marker survives past the drag gesture itself. */
+  isPendingChange?: boolean;
 }
 
 /**
  * Pure so the drag-feedback border can be unit-tested without simulating a
  * real dnd-kit drag through DndContext (jsdom can't easily fake pointer
- * geometry). `isDragging`/`isDropTarget` come from the card's own
- * `useSortable()` call — see the design spec's decision #2 for why no state
- * is lifted into the parent grids for this.
+ * geometry). `isDragging` comes straight from `useSortable()`; `isDropTarget`
+ * is the caller's OR of "currently hovered as a drop target" and "marked as
+ * a pending, unsaved change" — this function doesn't need to know which.
  */
 export function posterCardBorderClasses({
   isDragging,
@@ -45,13 +49,30 @@ export function posterCardBorderClasses({
   return 'border-border';
 }
 
-export default function PosterCard({ id, imageUrl, name, price, draggable, dimmed = false, badge, actions }: PosterCardProps) {
+export default function PosterCard({
+  id,
+  imageUrl,
+  name,
+  price,
+  draggable,
+  dimmed = false,
+  badge,
+  actions,
+  isPendingChange = false,
+}: PosterCardProps) {
   const [revealed, setRevealed] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
     id,
     disabled: !draggable,
   });
-  const isDropTarget = isOver && !isDragging;
+  // Tailwind v4 wraps `hover:`/`group-hover:` in `@media (hover: hover)` by
+  // default, which some devices/browsers report as false even with a real
+  // mouse attached — CSS group-hover silently never applies there. Tracking
+  // hover with real mouse events instead is deterministic regardless of
+  // what the device claims about its own capabilities.
+  const isDropTarget = (isOver && !isDragging) || isPendingChange;
+  const showOverlay = revealed || hovered;
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
@@ -60,7 +81,9 @@ export default function PosterCard({ id, imageUrl, name, price, draggable, dimme
       style={style}
       {...(draggable ? { ...attributes, ...listeners } : {})}
       onClick={() => setRevealed((r) => !r)}
-      className={`group bg-surface-2 relative aspect-[63/88] w-28 shrink-0 overflow-hidden rounded-lg border sm:w-32 lg:w-36 ${posterCardBorderClasses({ isDragging, isDropTarget })} ${
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={`bg-surface-2 relative aspect-[63/88] w-28 shrink-0 overflow-hidden rounded-lg border sm:w-32 lg:w-36 ${posterCardBorderClasses({ isDragging, isDropTarget })} ${
         isDragging ? 'opacity-40' : dimmed ? 'opacity-60' : ''
       }`}
     >
@@ -74,7 +97,7 @@ export default function PosterCard({ id, imageUrl, name, price, draggable, dimme
       <div
         data-testid="poster-card-overlay"
         className={`absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-black/60 p-2 text-center backdrop-blur-[1px] transition-opacity ${
-          revealed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          showOverlay ? 'opacity-100' : 'opacity-0'
         }`}
       >
         <p className="line-clamp-2 text-xs font-medium text-white">{name}</p>

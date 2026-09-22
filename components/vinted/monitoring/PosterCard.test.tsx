@@ -25,19 +25,43 @@ function renderCard(overrides: Partial<PosterCardProps> = {}) {
   );
 }
 
+function overlayClasses(): string[] {
+  return screen.getByTestId('poster-card-overlay').className.split(/\s+/);
+}
+
 describe('<PosterCard>', () => {
   it('hides the overlay by default', () => {
     renderCard();
-    expect(screen.getByTestId('poster-card-overlay').className).toMatch(/opacity-0/);
+    expect(overlayClasses()).toContain('opacity-0');
+    expect(overlayClasses()).not.toContain('opacity-100');
   });
 
   it('reveals the overlay on click and lets an action fire', () => {
     const onClick = vi.fn();
     renderCard({ actions: [{ icon: Eye, label: "Voir l'annonce", onClick }] });
     fireEvent.click(screen.getByTestId('poster-card-overlay').parentElement as Element);
-    expect(screen.getByTestId('poster-card-overlay').className).toMatch(/opacity-100/);
+    expect(overlayClasses()).toContain('opacity-100');
     fireEvent.click(screen.getByLabelText("Voir l'annonce"));
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('reveals the overlay on mouse hover and hides it again on mouse leave', () => {
+    renderCard();
+    const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
+    expect(overlayClasses()).toContain('opacity-0');
+    fireEvent.mouseEnter(card);
+    expect(overlayClasses()).toContain('opacity-100');
+    fireEvent.mouseLeave(card);
+    expect(overlayClasses()).toContain('opacity-0');
+  });
+
+  it('keeps the overlay revealed on mouse leave if it was click-toggled open (hover and click are additive, not exclusive)', () => {
+    renderCard();
+    const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
+    fireEvent.click(card);
+    fireEvent.mouseEnter(card);
+    fireEvent.mouseLeave(card);
+    expect(overlayClasses()).toContain('opacity-100');
   });
 
   it('shows the position badge when provided', () => {
@@ -58,6 +82,19 @@ describe('<PosterCard>', () => {
   it('disables an action button when marked disabled', () => {
     renderCard({ actions: [{ icon: Eye, label: "Voir l'annonce", onClick: vi.fn(), disabled: true }] });
     expect(screen.getByLabelText("Voir l'annonce")).toBeDisabled();
+  });
+
+  it('shows the pending-change (green dashed) border when isPendingChange is true, independent of live drag state', () => {
+    renderCard({ isPendingChange: true });
+    const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
+    expect(card.className).toContain('border-staleness-fresh');
+    expect(card.className).toContain('border-dashed');
+  });
+
+  it('does not show the pending-change border by default', () => {
+    renderCard();
+    const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
+    expect(card.className).not.toContain('border-staleness-fresh');
   });
 });
 
