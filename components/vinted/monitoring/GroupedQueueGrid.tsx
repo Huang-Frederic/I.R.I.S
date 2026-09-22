@@ -1,12 +1,12 @@
 // components/vinted/monitoring/GroupedQueueGrid.tsx
 'use client';
 
-import { ArrowLeftToLine, Send } from 'lucide-react';
+import { ArrowLeftToLine, Send, Eye } from 'lucide-react';
 import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
-import { SortableContext, rectSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { SortableContext, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { sortByGroupPriority } from '@/lib/vinted/group-sort';
 import { GROUP_FRAME_CLASSES, GROUP_LABEL_CLASSES, colorKeyForGroup } from '@/lib/vinted/group-frame-colors';
+import PosterCard, { CardConnector, type PosterCardAction } from './PosterCard';
 
 export interface PipelineItem {
   queueId: string;
@@ -38,72 +38,6 @@ function groupContiguousItems(items: PipelineItem[]): Group[] {
   return groups;
 }
 
-interface CardChipProps {
-  item: PipelineItem;
-  globalIndex: number;
-  groupIndex: number;
-  draggable: boolean;
-  dimmed: boolean;
-  onMoveToFront: () => void;
-  onPostNow: () => void;
-  isPosting: boolean;
-}
-
-function CardChip({ item, globalIndex, groupIndex, draggable, dimmed, onMoveToFront, onPostNow, isPosting }: CardChipProps) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-    id: item.queueId,
-    disabled: !draggable,
-  });
-  const style = { transform: CSS.Transform.toString(transform), transition };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...(draggable ? { ...attributes, ...listeners } : {})}
-      className={`border-border bg-surface flex w-24 shrink-0 flex-col items-center gap-1 rounded-lg border p-2 text-center text-xs ${dimmed ? 'opacity-60' : ''}`}
-    >
-      <span className="text-text-faint text-[10px]">#{globalIndex + 1}</span>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={item.imageUrl} alt="" className="h-9 w-9 rounded object-contain" />
-      <span className="text-text line-clamp-2">{item.name}</span>
-      {item.price !== null && <span className="text-rarity-r font-semibold">{item.price.toFixed(2)} €</span>}
-      {draggable && (
-        <div className="flex gap-1">
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onMoveToFront();
-            }}
-            disabled={groupIndex === 0}
-            title="Mettre en premier dans le groupe"
-            aria-label="Mettre en premier dans le groupe"
-            className="hover:bg-surface-2 rounded p-0.5 disabled:opacity-30"
-          >
-            <ArrowLeftToLine className="h-3 w-3" aria-hidden />
-          </button>
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onPostNow();
-            }}
-            disabled={isPosting}
-            title="Poster maintenant"
-            aria-label="Poster maintenant"
-            className="hover:bg-surface-2 rounded p-0.5 disabled:opacity-30"
-          >
-            <Send className="h-3 w-3" aria-hidden />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 interface Props {
   items: PipelineItem[];
   dailyQuota: number;
@@ -112,9 +46,19 @@ interface Props {
   onReorder: (items: PipelineItem[]) => void;
   onPostNow: (item: PipelineItem) => void;
   postingQueueId: string | null;
+  onViewListing: (item: PipelineItem) => void;
 }
 
-export default function GroupedQueueGrid({ items, dailyQuota, groupPriority, editable, onReorder, onPostNow, postingQueueId }: Props) {
+export default function GroupedQueueGrid({
+  items,
+  dailyQuota,
+  groupPriority,
+  editable,
+  onReorder,
+  onPostNow,
+  postingQueueId,
+  onViewListing,
+}: Props) {
   if (items.length === 0) {
     return <p className="text-text-muted text-sm">File de nouveaux posts : vide — plus rien en attente.</p>;
   }
@@ -149,35 +93,58 @@ export default function GroupedQueueGrid({ items, dailyQuota, groupPriority, edi
       </p>
       <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={sortedItems.map((i) => i.queueId)} strategy={rectSortingStrategy}>
-          <div className="flex flex-wrap gap-3">
-            {groups.map((group) => {
+          <div className="flex flex-wrap items-start gap-3">
+            {groups.map((group, groupPos) => {
               const colorKey = colorKeyForGroup(group.key);
               return (
-                <div
-                  key={group.key}
-                  className={`relative flex flex-wrap items-start gap-2 rounded-lg border-2 border-dashed p-3 pt-5 ${GROUP_FRAME_CLASSES[colorKey]}`}
-                >
-                  <span
-                    className={`text-bg absolute -top-2.5 left-3 rounded px-2 text-[10px] font-semibold uppercase ${GROUP_LABEL_CLASSES[colorKey]}`}
+                <div key={group.key} className="flex items-start gap-2">
+                  {groupPos > 0 && <CardConnector variant="group" />}
+                  <div
+                    className={`relative flex flex-wrap items-start gap-2 rounded-lg border-2 border-dashed p-3 pt-5 ${GROUP_FRAME_CLASSES[colorKey]}`}
                   >
-                    {group.key}
-                  </span>
-                  {group.items.map((item, groupIndex) => {
-                    const globalIndex = sortedItems.findIndex((i) => i.queueId === item.queueId);
-                    return (
-                      <CardChip
-                        key={item.queueId}
-                        item={item}
-                        globalIndex={globalIndex}
-                        groupIndex={groupIndex}
-                        draggable={editable}
-                        dimmed={globalIndex >= dailyQuota}
-                        onMoveToFront={() => handleMoveToFront(item.queueId)}
-                        onPostNow={() => onPostNow(item)}
-                        isPosting={postingQueueId === item.queueId}
-                      />
-                    );
-                  })}
+                    <span
+                      className={`text-bg absolute -top-2.5 left-3 rounded px-2 text-[10px] font-semibold uppercase ${GROUP_LABEL_CLASSES[colorKey]}`}
+                    >
+                      {group.key}
+                    </span>
+                    {group.items.map((item, groupIndex) => {
+                      const globalIndex = sortedItems.findIndex((i) => i.queueId === item.queueId);
+                      const actions: PosterCardAction[] = [
+                        ...(editable
+                          ? [
+                              {
+                                icon: ArrowLeftToLine,
+                                label: 'Mettre en premier dans le groupe',
+                                onClick: () => handleMoveToFront(item.queueId),
+                                disabled: groupIndex === 0,
+                              },
+                              {
+                                icon: Send,
+                                label: 'Poster maintenant',
+                                onClick: () => onPostNow(item),
+                                disabled: postingQueueId === item.queueId,
+                              },
+                            ]
+                          : []),
+                        { icon: Eye, label: "Voir l'annonce", onClick: () => onViewListing(item) },
+                      ];
+                      return (
+                        <div key={item.queueId} className="flex items-center gap-2">
+                          {groupIndex > 0 && <CardConnector />}
+                          <PosterCard
+                            id={item.queueId}
+                            imageUrl={item.imageUrl}
+                            name={item.name}
+                            price={item.price}
+                            draggable={editable}
+                            dimmed={globalIndex >= dailyQuota}
+                            badge={`#${globalIndex + 1}`}
+                            actions={actions}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })}
