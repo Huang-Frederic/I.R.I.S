@@ -16,6 +16,17 @@ def _in_a_window(now: datetime, schedule_rows: list[dict]) -> bool:
     return False
 
 
+def sort_repost_candidates(candidates: list[dict]) -> list[dict]:
+    """Sorts repost candidates by their manual `repost_position` override
+    first (missing/None sorts last), falling back to `vinted_posted_at`
+    ascending — a manual reorder from the monitoring UI takes priority over
+    staleness, but only for items the user actually repositioned."""
+    return sorted(
+        candidates,
+        key=lambda r: (r.get("repost_position") is None, r.get("repost_position") or 0, r["vinted_posted_at"]),
+    )
+
+
 def decide_next_action(
     now: datetime,
     schedule_rows: list[dict],

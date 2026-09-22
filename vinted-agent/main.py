@@ -13,7 +13,7 @@ from realtime.types import RealtimeSubscribeStates
 from vinted_api import VintedClient, ListingGoneError
 from vinted_api import CONDITION_MAP, CARD_LOTS_CATALOG_ID, POKEMON_BRAND_ID
 from audit_log import audit_log
-from scheduler import decide_next_action
+from scheduler import decide_next_action, sort_repost_candidates
 
 load_dotenv()
 
@@ -957,26 +957,32 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                 repost_after_days = (config_res.data or {}).get("repost_after_days", 14)
                 repost_cutoff = (now - timedelta(days=repost_after_days)).isoformat()
 
+                # No .order()/.limit(1) here anymore: a manually-repositioned
+                # item might not be the single oldest of its type, so all
+                # eligible candidates are fetched and sort_repost_candidates
+                # (which knows about repost_position) picks the real winner.
                 card_repost_res = await supabase.table("card_listings") \
-                    .select("card_id, vinted_posted_at, cards!inner(status)") \
+                    .select("card_id, vinted_posted_at, repost_position, cards!inner(status)") \
                     .eq("user_id", user_id).eq("cards.status", "for_sale") \
                     .lt("vinted_posted_at", repost_cutoff) \
                     .not_.is_("vinted_listing_id", "null") \
-                    .order("vinted_posted_at").limit(1).execute()
+                    .execute()
                 lot_repost_res = await supabase.table("lot_listings") \
-                    .select("lot_id, vinted_posted_at, lots!inner(status)") \
+                    .select("lot_id, vinted_posted_at, repost_position, lots!inner(status)") \
                     .eq("user_id", user_id).eq("lots.status", "for_sale") \
                     .lt("vinted_posted_at", repost_cutoff) \
                     .not_.is_("vinted_listing_id", "null") \
-                    .order("vinted_posted_at").limit(1).execute()
+                    .execute()
 
                 candidates = (
-                    [{"card_id": r["card_id"], "lot_id": None, "vinted_posted_at": r["vinted_posted_at"]}
+                    [{"card_id": r["card_id"], "lot_id": None, "vinted_posted_at": r["vinted_posted_at"],
+                      "repost_position": r.get("repost_position")}
                      for r in (card_repost_res.data or [])]
-                    + [{"card_id": None, "lot_id": r["lot_id"], "vinted_posted_at": r["vinted_posted_at"]}
+                    + [{"card_id": None, "lot_id": r["lot_id"], "vinted_posted_at": r["vinted_posted_at"],
+                        "repost_position": r.get("repost_position")}
                        for r in (lot_repost_res.data or [])]
                 )
-                repost_candidates = sorted(candidates, key=lambda r: r["vinted_posted_at"])
+                repost_candidates = sort_repost_candidates(candidates)
 
                 decision = decide_next_action(
                     now, schedule_res.data or [], len(jobs_today_res.data or []), daily_quota,
