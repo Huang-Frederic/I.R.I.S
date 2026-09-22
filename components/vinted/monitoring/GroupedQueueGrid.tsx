@@ -1,7 +1,7 @@
 // components/vinted/monitoring/GroupedQueueGrid.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { ArrowLeftToLine, Send, Eye } from 'lucide-react';
 import {
   DndContext,
@@ -96,7 +96,8 @@ export default function GroupedQueueGrid({
   pendingIds,
 }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
-  const columns = useSnakeColumns();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const columns = useSnakeColumns(containerRef);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor),
@@ -152,7 +153,7 @@ export default function GroupedQueueGrid({
         onDragCancel={() => setActiveId(null)}
       >
         <SortableContext items={visualOrder.map((i) => i.queueId)} strategy={rectSortingStrategy}>
-          <div className="flex flex-wrap items-start gap-3">
+          <div ref={containerRef} className="flex flex-wrap items-start gap-3">
             {groups.map((group, groupPos) => {
               const colorKey = colorKeyForGroup(group.key);
               const rows = chunkIntoRows(group.items, columns);
