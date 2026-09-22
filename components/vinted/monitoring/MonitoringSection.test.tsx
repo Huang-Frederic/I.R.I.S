@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import MonitoringSection from './MonitoringSection';
 import { useMonitoringData } from './hooks/useMonitoringData';
@@ -52,7 +52,17 @@ const LOT = {
   status: 'for_sale', is_lot: true, photo_urls: [], brand_label: null, extra_description: null,
 } as unknown as Lot;
 
+// This suite's environment is happy-dom (vitest.config.ts), whose elements
+// always report `clientWidth: 0` (no real layout engine) — left unstubbed,
+// both grids' `useSnakeColumns` would collapse to 1 column, which moves
+// reordered items into a different `rowIndex`-keyed row and unmounts/remounts
+// their DOM node, breaking this suite's captured-element assertions across a
+// reorder. Stub a 500px width so both grids resolve to the same 3-column
+// value assumed by GroupedQueueGrid.test.tsx / GroupedRepostGrid.test.tsx.
+const originalClientWidthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+
 beforeEach(() => {
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 500 });
   vi.mocked(useMonitoringData).mockReturnValue({
     pipeline: [{ queueId: 'q1', cardId: 'c1', lotId: null, position: 1, name: 'Pharamp GX', price: 9.5, imageUrl: 'a.png', groupKey: 'Pokémon FR' }],
     schedule: [],
@@ -64,6 +74,12 @@ beforeEach(() => {
     loading: false,
     refetch: vi.fn(),
   });
+});
+
+afterEach(() => {
+  if (originalClientWidthDescriptor) {
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidthDescriptor);
+  }
 });
 
 describe('<MonitoringSection> view listing', () => {
