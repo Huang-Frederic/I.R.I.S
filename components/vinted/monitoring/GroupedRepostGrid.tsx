@@ -8,8 +8,8 @@ import {
   DragOverlay,
   PointerSensor,
   KeyboardSensor,
-  closestCenter,
   pointerWithin,
+  closestCenter,
   useSensor,
   useSensors,
   type DragStartEvent,
@@ -17,8 +17,10 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { sortByGroupPriority } from '@/lib/vinted/group-sort';
+import { chunkIntoRows, toSnakeOrder } from '@/lib/vinted/snake-order';
 import { GROUP_FRAME_CLASSES, GROUP_LABEL_CLASSES, colorKeyForGroup } from '@/lib/vinted/group-frame-colors';
 import PosterCard, { CardConnector, PosterCardDragPreview, type PosterCardAction } from './PosterCard';
+import { useSnakeColumns } from './hooks/useSnakeColumns';
 
 export interface RepostPoolItem {
   cardId: string | null;
@@ -54,6 +56,25 @@ function groupContiguousItems(items: RepostPoolItem[]): Group[] {
   return groups;
 }
 
+/**
+ * Converts a post-drag visual (on-screen snake) order back into the logical
+ * order to save. `toSnakeOrder` is its own inverse (lib/vinted/snake-order.ts)
+ * — applying it again turns the moved visual order back into logical order.
+ * Group runs are re-derived from the MOVED array (not the pre-drag `groups`)
+ * so a drop that lands in a different group's frame degrades to the same
+ * harmless no-op it already was before the snake layout (the next render's
+ * groupKey-based re-sort overrides it either way).
+ */
+export function computeSnakeReorder(
+  visualOrder: RepostPoolItem[],
+  oldIndex: number,
+  newIndex: number,
+  columns: number,
+): RepostPoolItem[] {
+  const newVisualOrder = arrayMove(visualOrder, oldIndex, newIndex);
+  return groupContiguousItems(newVisualOrder).flatMap((g) => toSnakeOrder(g.items, columns));
+}
+
 interface Props {
   items: RepostPoolItem[];
   active: boolean;
@@ -79,6 +100,7 @@ export default function GroupedRepostGrid({
   pendingIds,
 }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const columns = useSnakeColumns();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor),
@@ -88,16 +110,17 @@ export default function GroupedRepostGrid({
 
   const sortedItems = sortByGroupPriority(items, groupPriority);
   const groups = groupContiguousItems(sortedItems);
-  const activeItem = activeId ? sortedItems.find((i) => itemId(i) === activeId) ?? null : null;
+  const visualOrder = groups.flatMap((g) => toSnakeOrder(g.items, columns));
+  const activeItem = activeId ? visualOrder.find((i) => itemId(i) === activeId) ?? null : null;
 
   function handleDragEnd(event: DragEndEvent) {
     setActiveId(null);
     const { active: activeDrag, over } = event;
     if (!over || activeDrag.id === over.id) return;
-    const oldIndex = sortedItems.findIndex((i) => itemId(i) === activeDrag.id);
-    const newIndex = sortedItems.findIndex((i) => itemId(i) === over.id);
+    const oldIndex = visualOrder.findIndex((i) => itemId(i) === activeDrag.id);
+    const newIndex = visualOrder.findIndex((i) => itemId(i) === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    onReorder(arrayMove(sortedItems, oldIndex, newIndex), activeDrag.id as string);
+    onReorder(computeSnakeReorder(visualOrder, oldIndex, newIndex, columns), activeDrag.id as string);
   }
 
   function handleMoveToFront(id: string) {
@@ -125,53 +148,70 @@ export default function GroupedRepostGrid({
         onDragEnd={handleDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-        <SortableContext items={sortedItems.map(itemId)} strategy={rectSortingStrategy}>
+        <SortableContext items={visualOrder.map(itemId)} strategy={rectSortingStrategy}>
           <div className="flex flex-wrap items-start gap-3">
             {groups.map((group, groupPos) => {
               const colorKey = colorKeyForGroup(group.key);
+              const rows = chunkIntoRows(group.items, columns);
               return (
                 <div key={group.key} className="flex items-start gap-2">
                   {groupPos > 0 && <CardConnector variant="group" />}
                   <div
-                    className={`relative flex flex-wrap items-start gap-2 rounded-lg border-2 border-dashed p-3 pt-5 ${GROUP_FRAME_CLASSES[colorKey]}`}
+                    className={`relative flex flex-col gap-2 rounded-lg border-2 border-dashed p-3 pt-5 ${GROUP_FRAME_CLASSES[colorKey]}`}
                   >
                     <span
                       className={`text-bg absolute -top-2.5 left-3 rounded px-2 text-[10px] font-semibold uppercase ${GROUP_LABEL_CLASSES[colorKey]}`}
                     >
                       Repost · {group.key}
                     </span>
-                    {group.items.map((item, groupIndex) => {
-                      const actions: PosterCardAction[] = [
-                        ...(editable
-                          ? [
-                              {
-                                icon: ArrowLeftToLine,
-                                label: 'Mettre en premier dans le groupe',
-                                onClick: () => handleMoveToFront(itemId(item)),
-                                disabled: groupIndex === 0,
-                              },
-                              {
-                                icon: RotateCw,
-                                label: 'Reposter maintenant',
-                                onClick: () => onRepostNow(item),
-                                disabled: repostingId === itemId(item),
-                              },
-                            ]
-                          : []),
-                        { icon: Eye, label: "Voir l'annonce", onClick: () => onViewListing(item) },
-                      ];
+                    {rows.map((row, rowIndex) => {
+                      const reversed = rowIndex % 2 === 1;
+                      const displayRow = reversed ? [...row].reverse() : row;
                       return (
-                        <div key={itemId(item)} className="flex items-center gap-2">
-                          {groupIndex > 0 && <CardConnector />}
-                          <PosterCard
-                            id={itemId(item)}
-                            imageUrl={item.imageUrl}
-                            name={item.name}
-                            price={item.price}
-                            draggable={editable}
-                            actions={actions}
-                            isPendingChange={pendingIds.has(itemId(item))}
-                          />
+                        <div key={rowIndex} className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            {displayRow.map((item, i) => {
+                              const groupIndex = group.items.findIndex((x) => itemId(x) === itemId(item));
+                              const actions: PosterCardAction[] = [
+                                ...(editable
+                                  ? [
+                                      {
+                                        icon: ArrowLeftToLine,
+                                        label: 'Mettre en premier dans le groupe',
+                                        onClick: () => handleMoveToFront(itemId(item)),
+                                        disabled: groupIndex === 0,
+                                      },
+                                      {
+                                        icon: RotateCw,
+                                        label: 'Reposter maintenant',
+                                        onClick: () => onRepostNow(item),
+                                        disabled: repostingId === itemId(item),
+                                      },
+                                    ]
+                                  : []),
+                                { icon: Eye, label: "Voir l'annonce", onClick: () => onViewListing(item) },
+                              ];
+                              return (
+                                <div key={itemId(item)} className="flex items-center gap-2">
+                                  {i > 0 && <CardConnector direction={reversed ? 'left' : 'right'} />}
+                                  <PosterCard
+                                    id={itemId(item)}
+                                    imageUrl={item.imageUrl}
+                                    name={item.name}
+                                    price={item.price}
+                                    draggable={editable}
+                                    actions={actions}
+                                    isPendingChange={pendingIds.has(itemId(item))}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {rowIndex < rows.length - 1 && (
+                            <div className={`flex ${reversed ? 'justify-start' : 'justify-end'}`}>
+                              <CardConnector direction="up" />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
