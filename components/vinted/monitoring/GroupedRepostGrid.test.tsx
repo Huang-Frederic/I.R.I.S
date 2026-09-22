@@ -51,4 +51,25 @@ describe('<GroupedRepostGrid>', () => {
     expect(screen.queryByLabelText('Reposter maintenant')).toBeNull();
     expect(screen.getAllByLabelText("Voir l'annonce", { selector: 'button' }).length).toBe(ITEMS.length);
   });
+
+  it('still allows a plain click to reveal the overlay — regression test for the "clicking does nothing" bug (dnd-kit swallowing the click when no activationConstraint is set)', () => {
+    renderGrid();
+    const overlay = screen.getByText('Mimiqui V').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    const card = overlay.parentElement as HTMLElement;
+    // Same reproduction as GroupedQueueGrid.test.tsx's equivalent case — see
+    // that file's comment for the exact dnd-kit mechanism this simulates.
+    fireEvent.pointerDown(card, { pointerId: 1, clientX: 100, clientY: 100, button: 0, isPrimary: true });
+    fireEvent.pointerMove(document, { pointerId: 1, clientX: 101, clientY: 100, isPrimary: true });
+    fireEvent.pointerUp(document, { pointerId: 1, clientX: 101, clientY: 100, isPrimary: true });
+    fireEvent.click(card);
+    // Note: `overlay.className` includes the literal substring "opacity-100" in
+    // BOTH the revealed and non-revealed states (the non-revealed variant is
+    // "opacity-0 group-hover:opacity-100"), so a plain toMatch(/opacity-100/)
+    // as written in the task brief would pass vacuously regardless of whether
+    // the click was swallowed. Split into class tokens instead so the
+    // assertion actually distinguishes the two states.
+    const classes = overlay.className.split(/\s+/);
+    expect(classes).toContain('opacity-100');
+    expect(classes).not.toContain('opacity-0');
+  });
 });

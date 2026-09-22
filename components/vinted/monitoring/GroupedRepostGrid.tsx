@@ -1,8 +1,19 @@
 // components/vinted/monitoring/GroupedRepostGrid.tsx
 'use client';
 
+import { useState } from 'react';
 import { ArrowLeftToLine, RotateCw, Eye } from 'lucide-react';
-import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { sortByGroupPriority } from '@/lib/vinted/group-sort';
 import { GROUP_FRAME_CLASSES, GROUP_LABEL_CLASSES, colorKeyForGroup } from '@/lib/vinted/group-frame-colors';
@@ -63,12 +74,20 @@ export default function GroupedRepostGrid({
   repostingId,
   onViewListing,
 }: Props) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor),
+  );
+
   if (items.length === 0) return null;
 
   const sortedItems = sortByGroupPriority(items, groupPriority);
   const groups = groupContiguousItems(sortedItems);
+  const activeItem = activeId ? sortedItems.find((i) => itemId(i) === activeId) ?? null : null;
 
   function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
     const { active: activeDrag, over } = event;
     if (!over || activeDrag.id === over.id) return;
     const oldIndex = sortedItems.findIndex((i) => itemId(i) === activeDrag.id);
@@ -92,7 +111,13 @@ export default function GroupedRepostGrid({
       <p className="text-text-muted mb-2 text-[11px] uppercase">
         Reposts éligibles — {active ? 'actif' : 'en attente'}
       </p>
-      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={(event: DragStartEvent) => setActiveId(event.active.id as string)}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setActiveId(null)}
+      >
         <SortableContext items={sortedItems.map(itemId)} strategy={rectSortingStrategy}>
           <div className="flex flex-wrap items-start gap-3">
             {groups.map((group, groupPos) => {
@@ -148,6 +173,14 @@ export default function GroupedRepostGrid({
             })}
           </div>
         </SortableContext>
+        <DragOverlay>
+          {activeItem ? (
+            <div className="border-border bg-surface-2 aspect-[63/88] w-28 overflow-hidden rounded-lg border shadow-lg sm:w-32 lg:w-36">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={activeItem.imageUrl} alt="" className="h-full w-full object-contain" />
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
     </div>
   );
