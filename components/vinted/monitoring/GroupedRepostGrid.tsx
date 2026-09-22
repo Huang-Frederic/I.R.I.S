@@ -58,10 +58,12 @@ interface Props {
   active: boolean;
   groupPriority: string[];
   editable: boolean;
-  onReorder: (items: RepostPoolItem[]) => void;
+  onReorder: (items: RepostPoolItem[], movedId: string) => void;
   onRepostNow: (item: RepostPoolItem) => void;
   repostingId: string | null;
   onViewListing: (item: RepostPoolItem) => void;
+  /** Ids marked as changed-but-unsaved since the last save — rendered with a persistent green dashed border. */
+  pendingIds: ReadonlySet<string>;
 }
 
 export default function GroupedRepostGrid({
@@ -73,6 +75,7 @@ export default function GroupedRepostGrid({
   onRepostNow,
   repostingId,
   onViewListing,
+  pendingIds,
 }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
@@ -93,7 +96,7 @@ export default function GroupedRepostGrid({
     const oldIndex = sortedItems.findIndex((i) => itemId(i) === activeDrag.id);
     const newIndex = sortedItems.findIndex((i) => itemId(i) === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    onReorder(arrayMove(sortedItems, oldIndex, newIndex));
+    onReorder(arrayMove(sortedItems, oldIndex, newIndex), activeDrag.id as string);
   }
 
   function handleMoveToFront(id: string) {
@@ -103,7 +106,7 @@ export default function GroupedRepostGrid({
     if (groupOldIndex <= 0) return;
     const reorderedGroupItems = arrayMove(group.items, groupOldIndex, 0);
     const newOrder = groups.flatMap((g) => (g.key === group.key ? reorderedGroupItems : g.items));
-    onReorder(newOrder);
+    onReorder(newOrder, id);
   }
 
   return (
@@ -163,6 +166,7 @@ export default function GroupedRepostGrid({
                             price={item.price}
                             draggable={editable}
                             actions={actions}
+                            isPendingChange={pendingIds.has(itemId(item))}
                           />
                         </div>
                       );

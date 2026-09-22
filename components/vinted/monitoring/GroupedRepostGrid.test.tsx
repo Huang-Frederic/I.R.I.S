@@ -21,6 +21,7 @@ function renderGrid(overrides: Partial<ComponentProps<typeof GroupedRepostGrid>>
       onRepostNow={vi.fn()}
       repostingId={null}
       onViewListing={vi.fn()}
+      pendingIds={new Set<string>()}
       {...overrides}
     />,
   );
@@ -62,14 +63,29 @@ describe('<GroupedRepostGrid>', () => {
     fireEvent.pointerMove(document, { pointerId: 1, clientX: 101, clientY: 100, isPrimary: true });
     fireEvent.pointerUp(document, { pointerId: 1, clientX: 101, clientY: 100, isPrimary: true });
     fireEvent.click(card);
-    // Note: `overlay.className` includes the literal substring "opacity-100" in
-    // BOTH the revealed and non-revealed states (the non-revealed variant is
-    // "opacity-0 group-hover:opacity-100"), so a plain toMatch(/opacity-100/)
-    // as written in the task brief would pass vacuously regardless of whether
+    // Note: `overlay.className` includes the literal substring "opacity-100"
+    // in BOTH the revealed and non-revealed states (the non-revealed variant
+    // is now simply "opacity-0"), so a plain `toMatch(/opacity-100/)` as
+    // written in the task brief would pass vacuously regardless of whether
     // the click was swallowed. Split into class tokens instead so the
     // assertion actually distinguishes the two states.
     const classes = overlay.className.split(/\s+/);
     expect(classes).toContain('opacity-100');
     expect(classes).not.toContain('opacity-0');
+  });
+
+  it('calls onReorder with the moved item\'s id when using "move to front"', () => {
+    const onReorder = vi.fn();
+    renderGrid({ onReorder });
+    const overlay = screen.getByText('Démolosse V').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    fireEvent.click(overlay.parentElement as HTMLElement);
+    fireEvent.click(within(overlay).getByLabelText('Mettre en premier dans le groupe'));
+    expect(onReorder).toHaveBeenCalledWith(expect.any(Array), 'c2');
+  });
+
+  it('renders a persistent green dashed border for cards listed in pendingIds', () => {
+    renderGrid({ pendingIds: new Set(['c2']) });
+    const card = screen.getByText('Démolosse V').closest('[data-testid="poster-card-overlay"]')!.parentElement as HTMLElement;
+    expect(card.className).toContain('border-staleness-fresh');
   });
 });
