@@ -20,6 +20,7 @@ function renderGrid(overrides: Partial<ComponentProps<typeof GroupedQueueGrid>> 
       onPostNow={vi.fn()}
       postingQueueId={null}
       onViewListing={vi.fn()}
+      pendingIds={new Set<string>()}
       {...overrides}
     />,
   );
@@ -90,16 +91,31 @@ describe('<GroupedQueueGrid>', () => {
     fireEvent.click(card);
     // Note: `overlay.className` includes the literal substring "opacity-100"
     // in BOTH the revealed and non-revealed states (the non-revealed variant
-    // is "opacity-0 group-hover:opacity-100"), so a plain
-    // `toMatch(/opacity-100/)` as written in the task brief would pass
-    // vacuously regardless of whether the click was swallowed. Split into
-    // class tokens and check for the standalone "opacity-100" token (only
-    // present when revealed) and the absence of "opacity-0" (only present
-    // when not revealed) so the assertion actually distinguishes the two
-    // states — confirmed via direct instrumentation that this reproduces the
-    // real bug (see task-2-report.md for the investigation).
+    // is now simply "opacity-0"), so a plain `toMatch(/opacity-100/)` as
+    // written in the task brief would pass vacuously regardless of whether
+    // the click was swallowed. Split into class tokens and check for the
+    // standalone "opacity-100" token (only present when revealed) and the
+    // absence of "opacity-0" (only present when not revealed) so the
+    // assertion actually distinguishes the two states — confirmed via direct
+    // instrumentation that this reproduces the real bug (see
+    // task-2-report.md for the investigation).
     const overlayClasses = overlay.className.split(/\s+/);
     expect(overlayClasses).toContain('opacity-100');
     expect(overlayClasses).not.toContain('opacity-0');
+  });
+
+  it('calls onReorder with the moved item\'s id when using "move to front"', () => {
+    const onReorder = vi.fn();
+    renderGrid({ onReorder });
+    const overlay = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    fireEvent.click(overlay.parentElement as HTMLElement);
+    fireEvent.click(within(overlay).getByLabelText('Mettre en premier dans le groupe'));
+    expect(onReorder).toHaveBeenCalledWith(expect.any(Array), 'q2');
+  });
+
+  it('renders a persistent green dashed border for cards listed in pendingIds', () => {
+    renderGrid({ pendingIds: new Set(['q2']) });
+    const card = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]')!.parentElement as HTMLElement;
+    expect(card.className).toContain('border-staleness-fresh');
   });
 });

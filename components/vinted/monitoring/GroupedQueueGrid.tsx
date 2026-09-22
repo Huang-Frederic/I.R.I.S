@@ -54,10 +54,12 @@ interface Props {
   dailyQuota: number;
   groupPriority: string[];
   editable: boolean;
-  onReorder: (items: PipelineItem[]) => void;
+  onReorder: (items: PipelineItem[], movedId: string) => void;
   onPostNow: (item: PipelineItem) => void;
   postingQueueId: string | null;
   onViewListing: (item: PipelineItem) => void;
+  /** Ids marked as changed-but-unsaved since the last save — rendered with a persistent green dashed border. */
+  pendingIds: ReadonlySet<string>;
 }
 
 export default function GroupedQueueGrid({
@@ -69,6 +71,7 @@ export default function GroupedQueueGrid({
   onPostNow,
   postingQueueId,
   onViewListing,
+  pendingIds,
 }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
@@ -92,7 +95,7 @@ export default function GroupedQueueGrid({
     const oldIndex = sortedItems.findIndex((i) => i.queueId === active.id);
     const newIndex = sortedItems.findIndex((i) => i.queueId === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    onReorder(arrayMove(sortedItems, oldIndex, newIndex));
+    onReorder(arrayMove(sortedItems, oldIndex, newIndex), active.id as string);
   }
 
   function handleMoveToFront(queueId: string) {
@@ -102,7 +105,7 @@ export default function GroupedQueueGrid({
     if (groupOldIndex <= 0) return;
     const reorderedGroupItems = arrayMove(group.items, groupOldIndex, 0);
     const newOrder = groups.flatMap((g) => (g.key === group.key ? reorderedGroupItems : g.items));
-    onReorder(newOrder);
+    onReorder(newOrder, queueId);
   }
 
   return (
@@ -167,6 +170,7 @@ export default function GroupedQueueGrid({
                             dimmed={globalIndex >= dailyQuota}
                             badge={`#${globalIndex + 1}`}
                             actions={actions}
+                            isPendingChange={pendingIds.has(item.queueId)}
                           />
                         </div>
                       );
