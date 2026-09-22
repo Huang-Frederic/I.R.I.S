@@ -105,9 +105,19 @@ describe('<PosterCard>', () => {
 });
 
 describe('<CardConnector>', () => {
-  it('renders an arrow icon', () => {
+  it('renders a right-pointing chevron by default', () => {
     const { container } = render(<CardConnector />);
-    expect(container.querySelector('svg')).toBeInTheDocument();
+    expect(container.querySelector('svg.lucide-chevron-right')).toBeInTheDocument();
+  });
+
+  it('renders a left-pointing chevron when direction is left', () => {
+    const { container } = render(<CardConnector direction="left" />);
+    expect(container.querySelector('svg.lucide-chevron-left')).toBeInTheDocument();
+  });
+
+  it('renders an up-pointing chevron when direction is up', () => {
+    const { container } = render(<CardConnector direction="up" />);
+    expect(container.querySelector('svg.lucide-chevron-up')).toBeInTheDocument();
   });
 });
 

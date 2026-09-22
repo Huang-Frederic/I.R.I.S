@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronRight, Monitor, type LucideIcon } from 'lucide-react';
+import { ChevronRight, ChevronLeft, ChevronUp, Monitor, type LucideIcon } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -126,10 +126,17 @@ export default function PosterCard({
   );
 }
 
-export function CardConnector({ variant = 'card' }: { variant?: 'card' | 'group' }) {
+export function CardConnector({
+  variant = 'card',
+  direction = 'right',
+}: {
+  variant?: 'card' | 'group';
+  direction?: 'right' | 'left' | 'up';
+}) {
+  const Icon = direction === 'left' ? ChevronLeft : direction === 'up' ? ChevronUp : ChevronRight;
   return (
     <div className="flex shrink-0 items-center self-center" aria-hidden>
-      <ChevronRight className={variant === 'group' ? 'text-text-muted h-5 w-5' : 'text-text-faint h-4 w-4'} />
+      <Icon className={variant === 'group' ? 'text-text-muted h-5 w-5' : 'text-text-faint h-4 w-4'} />
     </div>
   );
 }
