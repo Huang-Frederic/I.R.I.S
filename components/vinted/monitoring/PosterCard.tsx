@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronRight, type LucideIcon } from 'lucide-react';
+import { ChevronRight, Monitor, type LucideIcon } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -26,9 +26,32 @@ export interface PosterCardProps {
   actions: PosterCardAction[];
 }
 
+/**
+ * Pure so the drag-feedback border can be unit-tested without simulating a
+ * real dnd-kit drag through DndContext (jsdom can't easily fake pointer
+ * geometry). `isDragging`/`isDropTarget` come from the card's own
+ * `useSortable()` call — see the design spec's decision #2 for why no state
+ * is lifted into the parent grids for this.
+ */
+export function posterCardBorderClasses({
+  isDragging,
+  isDropTarget,
+}: {
+  isDragging: boolean;
+  isDropTarget: boolean;
+}): string {
+  if (isDragging) return 'border-red border-dashed';
+  if (isDropTarget) return 'border-staleness-fresh border-dashed';
+  return 'border-border';
+}
+
 export default function PosterCard({ id, imageUrl, name, price, draggable, dimmed = false, badge, actions }: PosterCardProps) {
   const [revealed, setRevealed] = useState(false);
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id, disabled: !draggable });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
+    id,
+    disabled: !draggable,
+  });
+  const isDropTarget = isOver && !isDragging;
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
@@ -37,7 +60,9 @@ export default function PosterCard({ id, imageUrl, name, price, draggable, dimme
       style={style}
       {...(draggable ? { ...attributes, ...listeners } : {})}
       onClick={() => setRevealed((r) => !r)}
-      className={`group border-border bg-surface-2 relative aspect-[63/88] w-28 shrink-0 overflow-hidden rounded-lg border sm:w-32 lg:w-36 ${dimmed ? 'opacity-60' : ''}`}
+      className={`group bg-surface-2 relative aspect-[63/88] w-28 shrink-0 overflow-hidden rounded-lg border sm:w-32 lg:w-36 ${posterCardBorderClasses({ isDragging, isDropTarget })} ${
+        isDragging ? 'opacity-40' : dimmed ? 'opacity-60' : ''
+      }`}
     >
       {badge && (
         <span className="bg-bg/80 text-text-faint absolute left-1 top-1 z-10 rounded px-1 font-mono text-[10px]">
@@ -82,6 +107,19 @@ export function CardConnector({ variant = 'card' }: { variant?: 'card' | 'group'
   return (
     <div className="flex shrink-0 items-center self-center" aria-hidden>
       <ChevronRight className={variant === 'group' ? 'text-text-muted h-5 w-5' : 'text-text-faint h-4 w-4'} />
+    </div>
+  );
+}
+
+/** Static lead-in slot rendered before the queue grid's first card, showing where the flow is headed (Vinted). Never draggable/sortable — it's not a real item. */
+export function PosterCardStartSlot() {
+  return (
+    <div
+      className="border-border bg-surface flex aspect-[63/88] w-28 shrink-0 items-center justify-center rounded-lg border border-dashed sm:w-32 lg:w-36"
+      title="Ta collection"
+      aria-hidden
+    >
+      <Monitor className="text-text-faint h-8 w-8" />
     </div>
   );
 }

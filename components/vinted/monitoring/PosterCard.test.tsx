@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';
 import { SortableContext } from '@dnd-kit/sortable';
 import { Eye } from 'lucide-react';
-import PosterCard, { CardConnector, type PosterCardProps } from './PosterCard';
+import PosterCard, { CardConnector, PosterCardStartSlot, posterCardBorderClasses, type PosterCardProps } from './PosterCard';
 
 function renderCard(overrides: Partial<PosterCardProps> = {}) {
   const props: PosterCardProps = {
@@ -65,5 +65,30 @@ describe('<CardConnector>', () => {
   it('renders an arrow icon', () => {
     const { container } = render(<CardConnector />);
     expect(container.querySelector('svg')).toBeInTheDocument();
+  });
+});
+
+describe('posterCardBorderClasses', () => {
+  it('shows a red dashed border for the card being dragged', () => {
+    expect(posterCardBorderClasses({ isDragging: true, isDropTarget: false })).toBe('border-red border-dashed');
+  });
+
+  it('shows a green dashed border for the current drop target', () => {
+    expect(posterCardBorderClasses({ isDragging: false, isDropTarget: true })).toBe('border-staleness-fresh border-dashed');
+  });
+
+  it('falls back to the normal border otherwise', () => {
+    expect(posterCardBorderClasses({ isDragging: false, isDropTarget: false })).toBe('border-border');
+  });
+
+  it('prioritizes the dragging state if somehow both are true at once', () => {
+    expect(posterCardBorderClasses({ isDragging: true, isDropTarget: true })).toBe('border-red border-dashed');
+  });
+});
+
+describe('<PosterCardStartSlot>', () => {
+  it('renders a monitor icon in a card-shaped slot', () => {
+    const { container } = render(<PosterCardStartSlot />);
+    expect(container.querySelector('svg.lucide-monitor')).toBeInTheDocument();
   });
 });
