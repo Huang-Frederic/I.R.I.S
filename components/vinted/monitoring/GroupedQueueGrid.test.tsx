@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import GroupedQueueGrid, { type PipelineItem } from './GroupedQueueGrid';
+import GroupedQueueGrid, { computeSnakeReorder, type PipelineItem } from './GroupedQueueGrid';
 
 // This suite's environment is happy-dom (vitest.config.ts), whose `matchMedia`
 // always reports `matches: true` regardless of the query or window width —
@@ -141,5 +141,18 @@ describe('<GroupedQueueGrid> snake layout', () => {
     fireEvent.click(card);
     fireEvent.click(within(card).getByLabelText("Voir l'annonce", { selector: 'button' }));
     expect(onViewListing).toHaveBeenCalledWith(ITEMS[7]);
+  });
+
+  it('computeSnakeReorder converts a post-drag visual order back into the correct logical save order', () => {
+    const visualOrder: PipelineItem[] = [
+      ITEMS[0], ITEMS[1], ITEMS[2], // row0: Pharamp, Fulguris, Lougaroc
+      ITEMS[5], ITEMS[4], ITEMS[3], // row1 reversed: Démolosse, Mimiqui, Draeuil
+      ITEMS[6], // row2: Cizayox
+      ITEMS[7], // Magic: Zeraora
+    ];
+    const result = computeSnakeReorder(visualOrder, 4, 2, 3);
+    expect(result.map((i) => i.name)).toEqual([
+      'Pharamp GX', 'Fulguris GX', 'Mimiqui V', 'Draeuil V', 'Démolosse V', 'Lougaroc V', 'Cizayox V', 'Zeraora VSTAR',
+    ]);
   });
 });

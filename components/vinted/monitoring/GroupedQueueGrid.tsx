@@ -52,6 +52,25 @@ function groupContiguousItems(items: PipelineItem[]): Group[] {
   return groups;
 }
 
+/**
+ * Converts a post-drag visual (on-screen snake) order back into the logical
+ * order to save. `toSnakeOrder` is its own inverse (lib/vinted/snake-order.ts)
+ * — applying it again turns the moved visual order back into logical order.
+ * Group runs are re-derived from the MOVED array (not the pre-drag `groups`)
+ * so a drop that lands in a different group's frame degrades to the same
+ * harmless no-op it already was before the snake layout (the next render's
+ * groupKey-based re-sort overrides it either way).
+ */
+export function computeSnakeReorder(
+  visualOrder: PipelineItem[],
+  oldIndex: number,
+  newIndex: number,
+  columns: number,
+): PipelineItem[] {
+  const newVisualOrder = arrayMove(visualOrder, oldIndex, newIndex);
+  return groupContiguousItems(newVisualOrder).flatMap((g) => toSnakeOrder(g.items, columns));
+}
+
 interface Props {
   items: PipelineItem[];
   dailyQuota: number;
@@ -104,15 +123,7 @@ export default function GroupedQueueGrid({
     const oldIndex = visualOrder.findIndex((i) => i.queueId === active.id);
     const newIndex = visualOrder.findIndex((i) => i.queueId === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    const newVisualOrder = arrayMove(visualOrder, oldIndex, newIndex);
-    // toSnakeOrder is its own inverse (lib/vinted/snake-order.ts) — applying
-    // it again turns the post-drag visual order back into the logical order
-    // to save. Re-derive group runs from the MOVED array (not the pre-drag
-    // `groups`) so a drop that lands in a different group's frame degrades
-    // to the same harmless no-op it already was before this change (the
-    // next render's groupKey-based re-sort overrides it either way).
-    const newLogicalOrder = groupContiguousItems(newVisualOrder).flatMap((g) => toSnakeOrder(g.items, columns));
-    onReorder(newLogicalOrder, active.id as string);
+    onReorder(computeSnakeReorder(visualOrder, oldIndex, newIndex, columns), active.id as string);
   }
 
   function handleMoveToFront(queueId: string) {
