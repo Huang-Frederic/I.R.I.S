@@ -146,3 +146,20 @@ export function PosterCardStartSlot() {
     </div>
   );
 }
+
+/**
+ * The floating clone that follows the cursor during a drag (rendered inside
+ * each grid's <DragOverlay>). Deliberately styled to look nothing like the
+ * stationary, red, faded source card sitting in the list behind it — a
+ * plain-bordered dark clone was getting visually confused with that source
+ * card, making it look like "the red thing is moving" when it was actually
+ * this preview.
+ */
+export function PosterCardDragPreview({ imageUrl }: { imageUrl: string }) {
+  return (
+    <div className="aspect-[63/88] w-28 scale-110 overflow-hidden rounded-lg border border-white bg-white shadow-xl sm:w-32 lg:w-36">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={imageUrl} alt="" className="h-full w-full object-contain" />
+    </div>
+  );
+}

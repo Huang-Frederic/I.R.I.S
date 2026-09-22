@@ -8,7 +8,7 @@ import {
   DragOverlay,
   PointerSensor,
   KeyboardSensor,
-  closestCenter,
+  pointerWithin,
   useSensor,
   useSensors,
   type DragStartEvent,
@@ -17,7 +17,7 @@ import {
 import { SortableContext, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { sortByGroupPriority } from '@/lib/vinted/group-sort';
 import { GROUP_FRAME_CLASSES, GROUP_LABEL_CLASSES, colorKeyForGroup } from '@/lib/vinted/group-frame-colors';
-import PosterCard, { CardConnector, PosterCardStartSlot, type PosterCardAction } from './PosterCard';
+import PosterCard, { CardConnector, PosterCardStartSlot, PosterCardDragPreview, type PosterCardAction } from './PosterCard';
 
 export interface PipelineItem {
   queueId: string;
@@ -115,7 +115,7 @@ export default function GroupedQueueGrid({
       </p>
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={pointerWithin}
         onDragStart={(event: DragStartEvent) => setActiveId(event.active.id as string)}
         onDragEnd={handleDragEnd}
         onDragCancel={() => setActiveId(null)}
@@ -182,12 +182,7 @@ export default function GroupedQueueGrid({
           </div>
         </SortableContext>
         <DragOverlay>
-          {activeItem ? (
-            <div className="border-border bg-surface-2 aspect-[63/88] w-28 overflow-hidden rounded-lg border shadow-lg sm:w-32 lg:w-36">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={activeItem.imageUrl} alt="" className="h-full w-full object-contain" />
-            </div>
-          ) : null}
+          {activeItem ? <PosterCardDragPreview imageUrl={activeItem.imageUrl} /> : null}
         </DragOverlay>
       </DndContext>
     </div>

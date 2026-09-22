@@ -4,7 +4,13 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';
 import { SortableContext } from '@dnd-kit/sortable';
 import { Eye } from 'lucide-react';
-import PosterCard, { CardConnector, PosterCardStartSlot, posterCardBorderClasses, type PosterCardProps } from './PosterCard';
+import PosterCard, {
+  CardConnector,
+  PosterCardStartSlot,
+  PosterCardDragPreview,
+  posterCardBorderClasses,
+  type PosterCardProps,
+} from './PosterCard';
 
 function renderCard(overrides: Partial<PosterCardProps> = {}) {
   const props: PosterCardProps = {
@@ -127,5 +133,15 @@ describe('<PosterCardStartSlot>', () => {
   it('renders a monitor icon in a card-shaped slot', () => {
     const { container } = render(<PosterCardStartSlot />);
     expect(container.querySelector('svg.lucide-monitor')).toBeInTheDocument();
+  });
+});
+
+describe('<PosterCardDragPreview>', () => {
+  it('renders a scaled-up, solid white floating preview of the card', () => {
+    const { container } = render(<PosterCardDragPreview imageUrl="https://example.com/card.png" />);
+    const box = container.firstChild as HTMLElement;
+    expect(box.className).toContain('scale-110');
+    expect(box.className).toContain('bg-white');
+    expect(box.querySelector('img')).toHaveAttribute('src', 'https://example.com/card.png');
   });
 });
