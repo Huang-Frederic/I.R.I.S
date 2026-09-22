@@ -8,8 +8,8 @@ import {
   DragOverlay,
   PointerSensor,
   KeyboardSensor,
-  closestCenter,
   pointerWithin,
+  closestCenter,
   useSensor,
   useSensors,
   type DragStartEvent,
@@ -17,8 +17,10 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { sortByGroupPriority } from '@/lib/vinted/group-sort';
+import { chunkIntoRows, toSnakeOrder } from '@/lib/vinted/snake-order';
 import { GROUP_FRAME_CLASSES, GROUP_LABEL_CLASSES, colorKeyForGroup } from '@/lib/vinted/group-frame-colors';
 import PosterCard, { CardConnector, PosterCardStartSlot, PosterCardDragPreview, type PosterCardAction } from './PosterCard';
+import { useSnakeColumns } from './hooks/useSnakeColumns';
 
 export interface PipelineItem {
   queueId: string;
@@ -75,6 +77,7 @@ export default function GroupedQueueGrid({
   pendingIds,
 }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const columns = useSnakeColumns();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor),
@@ -87,16 +90,29 @@ export default function GroupedQueueGrid({
   const sortedItems = sortByGroupPriority(items, groupPriority);
   const groups = groupContiguousItems(sortedItems);
   const todayCount = Math.min(dailyQuota, sortedItems.length);
-  const activeItem = activeId ? sortedItems.find((i) => i.queueId === activeId) ?? null : null;
+  // Flat, left-to-right/top-to-bottom reading order of the ON-SCREEN snake —
+  // this is what dnd-kit needs for its sorting preview and drag-end index
+  // math, since it must match what's actually rendered, not the plain
+  // (non-snake) `sortedItems` order.
+  const visualOrder = groups.flatMap((g) => toSnakeOrder(g.items, columns));
+  const activeItem = activeId ? visualOrder.find((i) => i.queueId === activeId) ?? null : null;
 
   function handleDragEnd(event: DragEndEvent) {
     setActiveId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = sortedItems.findIndex((i) => i.queueId === active.id);
-    const newIndex = sortedItems.findIndex((i) => i.queueId === over.id);
+    const oldIndex = visualOrder.findIndex((i) => i.queueId === active.id);
+    const newIndex = visualOrder.findIndex((i) => i.queueId === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    onReorder(arrayMove(sortedItems, oldIndex, newIndex), active.id as string);
+    const newVisualOrder = arrayMove(visualOrder, oldIndex, newIndex);
+    // toSnakeOrder is its own inverse (lib/vinted/snake-order.ts) — applying
+    // it again turns the post-drag visual order back into the logical order
+    // to save. Re-derive group runs from the MOVED array (not the pre-drag
+    // `groups`) so a drop that lands in a different group's frame degrades
+    // to the same harmless no-op it already was before this change (the
+    // next render's groupKey-based re-sort overrides it either way).
+    const newLogicalOrder = groupContiguousItems(newVisualOrder).flatMap((g) => toSnakeOrder(g.items, columns));
+    onReorder(newLogicalOrder, active.id as string);
   }
 
   function handleMoveToFront(queueId: string) {
@@ -124,58 +140,74 @@ export default function GroupedQueueGrid({
         onDragEnd={handleDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-        <SortableContext items={sortedItems.map((i) => i.queueId)} strategy={rectSortingStrategy}>
+        <SortableContext items={visualOrder.map((i) => i.queueId)} strategy={rectSortingStrategy}>
           <div className="flex flex-wrap items-start gap-3">
             {groups.map((group, groupPos) => {
               const colorKey = colorKeyForGroup(group.key);
+              const rows = chunkIntoRows(group.items, columns);
               return (
                 <div key={group.key} className="flex items-start gap-2">
                   {groupPos > 0 && <CardConnector variant="group" />}
                   <div
-                    className={`relative flex flex-wrap items-start gap-2 rounded-lg border-2 border-dashed p-3 pt-5 ${GROUP_FRAME_CLASSES[colorKey]}`}
+                    className={`relative flex flex-col gap-2 rounded-lg border-2 border-dashed p-3 pt-5 ${GROUP_FRAME_CLASSES[colorKey]}`}
                   >
                     <span
                       className={`text-bg absolute -top-2.5 left-3 rounded px-2 text-[10px] font-semibold uppercase ${GROUP_LABEL_CLASSES[colorKey]}`}
                     >
                       {group.key}
                     </span>
-                    {group.items.map((item, groupIndex) => {
-                      const globalIndex = sortedItems.findIndex((i) => i.queueId === item.queueId);
-                      const isVeryFirstCard = groupPos === 0 && groupIndex === 0;
-                      const actions: PosterCardAction[] = [
-                        ...(editable
-                          ? [
-                              {
-                                icon: ArrowLeftToLine,
-                                label: 'Mettre en premier dans le groupe',
-                                onClick: () => handleMoveToFront(item.queueId),
-                                disabled: groupIndex === 0,
-                              },
-                              {
-                                icon: Send,
-                                label: 'Poster maintenant',
-                                onClick: () => onPostNow(item),
-                                disabled: postingQueueId === item.queueId,
-                              },
-                            ]
-                          : []),
-                        { icon: Eye, label: "Voir l'annonce", onClick: () => onViewListing(item) },
-                      ];
+                    {rows.map((row, rowIndex) => {
+                      const reversed = rowIndex % 2 === 1;
+                      const displayRow = reversed ? [...row].reverse() : row;
                       return (
-                        <div key={item.queueId} className="flex items-center gap-2">
-                          {isVeryFirstCard && <PosterCardStartSlot />}
-                          {!isVeryFirstCard && groupIndex > 0 && <CardConnector />}
-                          <PosterCard
-                            id={item.queueId}
-                            imageUrl={item.imageUrl}
-                            name={item.name}
-                            price={item.price}
-                            draggable={editable}
-                            dimmed={globalIndex >= dailyQuota}
-                            badge={`#${globalIndex + 1}`}
-                            actions={actions}
-                            isPendingChange={pendingIds.has(item.queueId)}
-                          />
+                        <div key={rowIndex} className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            {groupPos === 0 && rowIndex === 0 && <PosterCardStartSlot />}
+                            {displayRow.map((item, i) => {
+                              const globalIndex = sortedItems.findIndex((x) => x.queueId === item.queueId);
+                              const groupIndex = group.items.findIndex((x) => x.queueId === item.queueId);
+                              const actions: PosterCardAction[] = [
+                                ...(editable
+                                  ? [
+                                      {
+                                        icon: ArrowLeftToLine,
+                                        label: 'Mettre en premier dans le groupe',
+                                        onClick: () => handleMoveToFront(item.queueId),
+                                        disabled: groupIndex === 0,
+                                      },
+                                      {
+                                        icon: Send,
+                                        label: 'Poster maintenant',
+                                        onClick: () => onPostNow(item),
+                                        disabled: postingQueueId === item.queueId,
+                                      },
+                                    ]
+                                  : []),
+                                { icon: Eye, label: "Voir l'annonce", onClick: () => onViewListing(item) },
+                              ];
+                              return (
+                                <div key={item.queueId} className="flex items-center gap-2">
+                                  {i > 0 && <CardConnector direction={reversed ? 'left' : 'right'} />}
+                                  <PosterCard
+                                    id={item.queueId}
+                                    imageUrl={item.imageUrl}
+                                    name={item.name}
+                                    price={item.price}
+                                    draggable={editable}
+                                    dimmed={globalIndex >= dailyQuota}
+                                    badge={`#${globalIndex + 1}`}
+                                    actions={actions}
+                                    isPendingChange={pendingIds.has(item.queueId)}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {rowIndex < rows.length - 1 && (
+                            <div className={`flex ${reversed ? 'justify-start' : 'justify-end'}`}>
+                              <CardConnector direction="up" />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
