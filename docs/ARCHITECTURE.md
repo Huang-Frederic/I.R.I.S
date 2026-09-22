@@ -10,6 +10,7 @@ Here's how I.R.I.S is built. Read it if you want to understand where things live
 - [Data flow: scan pipeline](#data-flow-scan-pipeline)
 - [Data flow: pricing pipeline](#data-flow-pricing-pipeline)
 - [Data flow: listings (multi-user)](#data-flow-listings-multi-user)
+- [Data flow: autonomous Vinted bot](#data-flow-autonomous-vinted-bot)
 - [Key modules](#key-modules)
 - [Testing strategy](#testing-strategy)
 
@@ -82,6 +83,8 @@ The codebase is organized around Next.js App Router conventions.
 │   ├── ui/                      Reusable widgets (CardmarketLink, PriceFreshnessBadge, RefreshPriceButton)
 │   └── vinted/                  Big one: VintedList, VintedRow, VintedFilters, AnnonceModal,
 │                                SoldModal, BulkSelectionBottomBar, ListingBadges, etc.
+│       └── monitoring/           /vinted/bot control surface for the autonomous agent (see below)
+│                                (GroupedQueueGrid, GroupedRepostGrid, SettingsModal, useMonitoringData)
 │
 ├── lib/
 │   ├── api/                     External-source clients (TCGdex, Gemini, Vision, LimitlessTCG, Cardmarket)
@@ -105,6 +108,9 @@ The codebase is organized around Next.js App Router conventions.
 ├── public/                      Static assets (logo, icons)
 ├── results/                     Benchmark CSV outputs
 ├── backups/                     Catalog snapshots
+├── vinted-agent/                Separate Python service — NOT part of the Next.js app, has its
+│                                own venv (env/) and pytest suite. See "Data flow: autonomous
+│                                Vinted bot" below.
 └── proxy.ts                     Next.js 16 middleware (renamed from middleware.ts)
 ```
 
@@ -307,6 +313,40 @@ RLS:
 **The "Refresh stamp" chip:**
 - Click → `<ConfirmDialog>` → POST `/api/listings/card/<card_id>` (upsert with `listed_at = NOW()`)
 - Effectively re-stamps the listing for Vinted's bump algorithm
+
+---
+
+## 🤖 Data flow: autonomous Vinted bot
+
+`vinted-agent/` is a standalone Python service (own venv, own pytest suite — `env/bin/pytest` from inside that directory, not `npm test`) that posts and reposts listings on Vinted without a human in the loop. I.R.I.S itself only ever reads/writes the same Supabase tables the agent polls — there's no direct API call between the two; the database is the integration point. The monitoring UI lives at `/vinted/bot` (`components/vinted/monitoring/`).
+
+```
+vinted_queue            (manually curated "post this next" list)
+  id          uuid PK
+  user_id     uuid FK → auth.users
+  card_id     uuid FK → cards        (exactly one of card_id/lot_id)
+  lot_id      uuid FK → lots
+  position    integer                — the bot always takes position=1
+
+card_listings.repost_position / lot_listings.repost_position   (nullable)
+  — manual override for which stale listing reposts next; NULL = oldest first
+
+vinted_bot_config       (one row per user)
+  daily_quota, repost_after_days, group_priority (jsonb string[])
+
+vinted_bot_schedule     (day_of_week × starts_at/ends_at windows)
+vinted_sessions         (pasted Vinted cookies, synced down to the agent's local file cache)
+vinted_agent_logs       (mirrors the agent's console for the UI, no server access needed)
+vinted_post_jobs        (job_type: 'post' | 'repost' | 'delete', status: pending/processing/done/error)
+```
+
+**Every few minutes** (`vinted-agent/main.py`'s `_scheduling_loop`, per Vinted-enabled account):
+1. Skip if outside today's schedule window, or today's quota (`post`+`repost` jobs since midnight) is already used.
+2. If `vinted_queue` has anything → post its front item. **A repost is never chosen while the queue has anything in it** — this priority rule lives in `vinted-agent/scheduler.py`'s `decide_next_action`, a pure/tested function, and is not configurable from the UI.
+3. Otherwise, if any listing is past `repost_after_days` → repost one, honoring `repost_position` first (nulls sort last, `vinted-agent/scheduler.py`'s `sort_repost_candidates`) before falling back to the oldest listing.
+4. Either way, insert a row into `vinted_post_jobs` — a separate worker loop in the same process actually executes it against Vinted's site (login, upload photos, publish) and updates `status`.
+
+**On the I.R.I.S side**, `useMonitoringData.ts` polls the same tables every 30s and derives a display-only `groupKey` per queue/repost item (`lib/vinted/group-key.ts`: a card → `"Pokémon {language}"`, a lot → its brand label, or `"Pokémon"` if the brand is null/the default Pokémon brand id) — this grouping is purely a I.R.I.S-side sort/display concern (`lib/vinted/group-sort.ts`, driven by `vinted_bot_config.group_priority`); the Python agent has no concept of it. Manual actions from the UI (drag-reorder, "poster/reposter maintenant") write straight to `vinted_queue.position` / `repost_position` / `vinted_post_jobs` via direct Supabase client calls or `POST /api/vinted/post-job` — no queue/event bus, the agent's next poll just picks up the new state.
 
 ---
 

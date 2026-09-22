@@ -149,6 +149,20 @@ Toggle "Sélection multiple", checkbox per row, bottom bar shows total. The bulk
 
 A `📦 × N` stock count chip displays if `collection` copies exist — click to clone or trim. The "Retire listing" X button opens a modal: move to Stock or delete entirely (with cascade warning if the partner is listing too). Click a card image and a full-screen modal opens with chevron navigation.
 
+### Bot autonome (`/vinted/bot`)
+
+A separate Python agent (`vinted-agent/`, not part of the Next.js app) posts and reposts listings on Vinted on a schedule, without a human clicking anything. I.R.I.S's `/vinted/bot` page (nav entry "Bot Vinted") is the monitoring/control surface for it — everything below lives in `components/vinted/monitoring/`.
+
+**Status bar** — agent online/offline (heartbeat), today's post count vs `daily_quota`, next estimated post time from the configured schedule, and an account switcher (view your own bot activity or your partner's — editing is locked to your own account).
+
+**The queue ("serpent")** — `vinted_queue` holds cards/lots eligible for a first-time post, manually curated. Instead of one flat scrollable row, items are grouped into dashed, tinted frames by category — "Pokémon FR", "Pokémon JP", "Riftbound", "Magic", etc. (derived from a card's `language` or a lot's `brand_id`/`language`, see `lib/vinted/group-key.ts`) — and laid out as a wrapping grid so the whole queue is visible with normal page scroll, no horizontal scrolling. Drag-and-drop (`@dnd-kit`) reorders within or across group frames; a "Mettre en premier dans le groupe" button jumps an item to the front of its own group. A "Poster maintenant" button forces an immediate post, bypassing its queue position. The display order of groups themselves follows a single configurable priority list (see Settings below) — a group not yet in that list just sorts after the ones that are, in first-appearance order.
+
+**Repost pool** — once the queue is empty, the bot reposts stale listings (`vinted_posted_at` older than `repost_after_days`) instead of posting new ones — that priority rule ("queue before repost") lives in the Python agent itself (`scheduler.py`'s `decide_next_action`) and isn't configurable from the UI. The pool uses the exact same grouping/drag mechanics as the queue, with frames labeled "Repost · {groupe}" and a "Reposter maintenant" button instead of "Poster maintenant". Unlike the queue, repost order has no dedicated table — dragging a card here writes a manual override, `repost_position`, directly onto its `card_listings`/`lot_listings` row (`NULL` = no preference, falls back to reposting the oldest listing first). The Python agent reads this same column and honors it before falling back to staleness.
+
+**Settings modal** — a "Paramètres" button next to the status bar opens a modal with: daily quota + repost-after-days threshold, the weekly posting schedule (day/time windows), a textarea to paste refreshed Vinted session cookies, and a drag-reorderable **group priority editor** — the single ordered list of category names that governs both the queue's and the repost pool's group display order.
+
+**What the Python agent does on its own** — every few minutes, for each Vinted-enabled account, it checks the schedule window and today's quota, then either posts the front of `vinted_queue` or reposts the oldest (or manually-prioritized) stale listing, inserting a row into `vinted_post_jobs` that a separate worker loop actually executes against Vinted's site. It never reposts while the queue still has anything in it.
+
 ---
 
 ## 🧺 Lots (bundles)

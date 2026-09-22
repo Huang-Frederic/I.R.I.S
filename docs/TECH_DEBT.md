@@ -130,6 +130,30 @@ Both routes require auth but apply no per-user throttle. A logged-in user could 
 
 ---
 
+## 🤖 Vinted bot
+
+### `vinted-agent`'s repost query fetches all eligible candidates, not just the oldest
+
+`main.py`'s `_scheduling_loop` used to `SELECT ... ORDER BY vinted_posted_at LIMIT 1` per table (cards, lots) to find the single repost candidate. Since the manual `repost_position` override shipped, that `LIMIT 1` was dropped entirely — a manually-repositioned item might not be the single oldest of its type, so the full eligible set is fetched and re-sorted in Python (`sort_repost_candidates`) every scheduling-loop tick (every few minutes).
+
+**Why deferred:** `VINTED_USERS` is a small, fixed set of cookie-configured accounts, not a multi-tenant SaaS — the unbounded fetch is a handful of rows at most in practice. Flagged by the final review of the repost-grouping feature as a deviation from the original plan (which assumed `ORDER BY repost_position NULLS LAST, vinted_posted_at LIMIT 1` was achievable server-side, which it is via postgrest-py's `nullsfirst=` param) rather than a correctness or scaling concern.
+
+**Fix if it ever matters:** re-add `.order("repost_position", nullsfirst=False).order("vinted_posted_at").limit(1)` to both queries and drop the Python-side full re-sort. Small, low-priority.
+
+### `GroupedRepostGrid` shows nothing when the repost pool is empty
+
+`GroupedQueueGrid` renders an explicit "File de nouveaux posts : vide" message when there's nothing to show; `GroupedRepostGrid` just renders `null`. Pre-existing asymmetry inherited from the old `RepostPool.tsx` (not introduced by the repost-grouping work), noted but not closed since it was touching both files anyway.
+
+**Fix:** add a one-line "Aucun repost éligible" message to `GroupedRepostGrid`'s empty branch, matching `GroupedQueueGrid`'s pattern. ~5 min.
+
+### `lib/vinted/pipeline-split.ts` is dead code
+
+`splitPipelineByQuota` (+ its test) was the "today" vs "later" split used by the old horizontal-scroll `QueuePipeline.tsx`. That component was replaced by `GroupedQueueGrid.tsx` during the groups/serpent redesign, which doesn't do a quota-based split — the function's only consumer is gone, but the file was never removed.
+
+**Fix:** delete `lib/vinted/pipeline-split.ts` and `lib/vinted/pipeline-split.test.ts`. Trivial, no other references.
+
+---
+
 ## 📚 Documentation
 
 ### Screenshots not captured
