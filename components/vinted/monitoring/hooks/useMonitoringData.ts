@@ -24,7 +24,7 @@ export interface MonitoringData {
   repostCandidates: RepostPoolItem[];
   sessionStatus: SessionStatus | null;
   loading: boolean;
-  refetch: () => void;
+  refetch: () => Promise<void>;
 }
 
 const DEFAULT_CONFIG = { daily_quota: 8, repost_after_days: 14, group_priority: [] as string[] };

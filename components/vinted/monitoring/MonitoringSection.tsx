@@ -92,7 +92,6 @@ export default function MonitoringSection() {
     await Promise.all(
       items.map((item, index) => supabase.from('vinted_queue').update({ position: index + 1 }).eq('id', item.queueId)),
     );
-    data.refetch();
   }
 
   async function postNow(item: PipelineItem) {
@@ -107,9 +106,12 @@ export default function MonitoringSection() {
       if (response.ok) {
         // A direct post changes the underlying queue independently of
         // ordering — drop any pending local reorder rather than let it go
-        // stale (it may reference an item that just left the queue).
+        // stale (it may reference an item that just left the queue). Await
+        // the refetch before clearing the staged state so the grid doesn't
+        // briefly snap back to the pre-edit order while data.pipeline still
+        // holds stale data.
+        await data.refetch();
         setStagedPipeline(null);
-        data.refetch();
       }
     } finally {
       setPostingQueueId(null);
@@ -126,7 +128,6 @@ export default function MonitoringSection() {
         return supabase.from(table).update({ repost_position: index + 1 }).eq(idColumn, idValue).eq('user_id', viewedUserId);
       }),
     );
-    data.refetch();
   }
 
   async function repostNow(item: RepostPoolItem) {
@@ -142,8 +143,8 @@ export default function MonitoringSection() {
         body: JSON.stringify(body),
       });
       if (response.ok) {
+        await data.refetch();
         setStagedRepostCandidates(null);
-        data.refetch();
       }
     } finally {
       setRepostingId(null);
@@ -155,6 +156,7 @@ export default function MonitoringSection() {
     try {
       if (stagedPipeline) await persistReorder(stagedPipeline);
       if (stagedRepostCandidates) await persistRepostReorder(stagedRepostCandidates);
+      await data.refetch();
       setStagedPipeline(null);
       setStagedRepostCandidates(null);
     } finally {
