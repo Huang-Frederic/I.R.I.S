@@ -185,4 +185,40 @@ describe('<MonitoringSection> staged reorder + save', () => {
     await waitFor(() => expect(screen.queryByText('Enregistrer')).toBeNull());
     vi.unstubAllGlobals();
   });
+
+  it('keeps a persistent green dashed border on the card that moved, until Save clears it', async () => {
+    const refetch = mockPipeline(TWO_ITEM_PIPELINE);
+    render(<MonitoringSection />);
+
+    const overlay = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    const card = overlay.parentElement as HTMLElement;
+    fireEvent.click(card);
+    fireEvent.click(within(overlay).getByLabelText('Mettre en premier dans le groupe'));
+
+    expect(card.className).toContain('border-staleness-fresh');
+    expect(card.className).toContain('border-dashed');
+
+    fireEvent.click(screen.getByText('Enregistrer'));
+    await waitFor(() => expect(refetch).toHaveBeenCalled());
+    await waitFor(() => expect(card.className).not.toContain('border-staleness-fresh'));
+  });
+
+  it('clears the pending-change marker together with the staged pipeline after a successful "Poster maintenant"', async () => {
+    mockPipeline(TWO_ITEM_PIPELINE);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));
+    render(<MonitoringSection />);
+
+    const fulgurisOverlay = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    const fulgurisCard = fulgurisOverlay.parentElement as HTMLElement;
+    fireEvent.click(fulgurisCard);
+    fireEvent.click(within(fulgurisOverlay).getByLabelText('Mettre en premier dans le groupe'));
+    expect(fulgurisCard.className).toContain('border-staleness-fresh');
+
+    const pharampOverlay = screen.getByText('Pharamp GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    fireEvent.click(pharampOverlay.parentElement as HTMLElement);
+    fireEvent.click(within(pharampOverlay).getByLabelText('Poster maintenant'));
+
+    await waitFor(() => expect(fulgurisCard.className).not.toContain('border-staleness-fresh'));
+    vi.unstubAllGlobals();
+  });
 });

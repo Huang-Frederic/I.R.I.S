@@ -34,6 +34,8 @@ export default function MonitoringSection() {
   const [annonceTarget, setAnnonceTarget] = useState<AnnonceTarget | null>(null);
   const [stagedPipeline, setStagedPipeline] = useState<PipelineItem[] | null>(null);
   const [stagedRepostCandidates, setStagedRepostCandidates] = useState<RepostPoolItem[] | null>(null);
+  const [pendingPipelineIds, setPendingPipelineIds] = useState<Set<string>>(new Set());
+  const [pendingRepostIds, setPendingRepostIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const isDirty = stagedPipeline !== null || stagedRepostCandidates !== null;
 
@@ -71,7 +73,19 @@ export default function MonitoringSection() {
     if (isDirty && !window.confirm(DISCARD_CONFIRM_MESSAGE)) return;
     setStagedPipeline(null);
     setStagedRepostCandidates(null);
+    setPendingPipelineIds(new Set());
+    setPendingRepostIds(new Set());
     setViewedUserId(nextUserId);
+  }
+
+  function handleQueueReorder(items: PipelineItem[], movedId: string) {
+    setStagedPipeline(items);
+    setPendingPipelineIds((prev) => new Set(prev).add(movedId));
+  }
+
+  function handleRepostReorder(items: RepostPoolItem[], movedId: string) {
+    setStagedRepostCandidates(items);
+    setPendingRepostIds((prev) => new Set(prev).add(movedId));
   }
 
   async function viewListing(item: { cardId: string | null; lotId: string | null }) {
@@ -112,6 +126,7 @@ export default function MonitoringSection() {
         // holds stale data.
         await data.refetch();
         setStagedPipeline(null);
+        setPendingPipelineIds(new Set());
       }
     } finally {
       setPostingQueueId(null);
@@ -145,6 +160,7 @@ export default function MonitoringSection() {
       if (response.ok) {
         await data.refetch();
         setStagedRepostCandidates(null);
+        setPendingRepostIds(new Set());
       }
     } finally {
       setRepostingId(null);
@@ -159,6 +175,8 @@ export default function MonitoringSection() {
       await data.refetch();
       setStagedPipeline(null);
       setStagedRepostCandidates(null);
+      setPendingPipelineIds(new Set());
+      setPendingRepostIds(new Set());
     } finally {
       setSaving(false);
     }
@@ -211,20 +229,22 @@ export default function MonitoringSection() {
         dailyQuota={data.config.daily_quota}
         groupPriority={data.config.group_priority}
         editable={editable}
-        onReorder={setStagedPipeline}
+        onReorder={handleQueueReorder}
         onPostNow={postNow}
         postingQueueId={postingQueueId}
         onViewListing={viewListing}
+        pendingIds={pendingPipelineIds}
       />
       <GroupedRepostGrid
         items={visibleRepostCandidates}
         active={visiblePipeline.length === 0}
         groupPriority={data.config.group_priority}
         editable={editable}
-        onReorder={setStagedRepostCandidates}
+        onReorder={handleRepostReorder}
         onRepostNow={repostNow}
         repostingId={repostingId}
         onViewListing={viewListing}
+        pendingIds={pendingRepostIds}
       />
       <div className="border-border border-t pt-3">
         <LogFeed logs={data.logs} />
