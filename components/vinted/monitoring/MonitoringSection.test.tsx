@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import MonitoringSection from './MonitoringSection';
 import { useMonitoringData } from './hooks/useMonitoringData';
 import { fetchCardAnnonceTarget, fetchLotAnnonceTarget } from '@/lib/vinted/fetch-annonce-target';
 import type { Card, Lot } from '@/lib/types';
+import type { PipelineItem } from './GroupedQueueGrid';
 
 vi.mock('@/lib/hooks/useUserContext', () => ({
   useUserContext: () => ({ myUserId: 'me', myName: 'Moi', partnerUserId: 'partner', partnerName: 'Partenaire' }),
@@ -18,7 +19,10 @@ vi.mock('@/lib/supabase/client', () => ({
       if (table === 'agent_heartbeats') {
         return { select: () => ({ gte: () => Promise.resolve({ data: [], count: 0, error: null }) }) };
       }
-      return { select: () => Promise.resolve({ data: [], error: null }) };
+      return {
+        select: () => Promise.resolve({ data: [], error: null }),
+        update: () => ({ eq: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }) }),
+      };
     },
   }),
 }));
@@ -100,5 +104,85 @@ describe('<MonitoringSection> view listing', () => {
     fireEvent.click(screen.getByLabelText("Voir l'annonce", { selector: 'button' }));
     await waitFor(() => expect(fetchLotAnnonceTarget).toHaveBeenCalledWith(expect.anything(), 'l1'));
     expect(await screen.findByTestId('lot-annonce-modal')).toHaveTextContent('Lot Dresseurs FR');
+  });
+});
+
+describe('<MonitoringSection> staged reorder + save', () => {
+  const TWO_ITEM_PIPELINE: PipelineItem[] = [
+    { queueId: 'q1', cardId: 'c1', lotId: null, position: 1, name: 'Pharamp GX', price: 9.5, imageUrl: 'a.png', groupKey: 'Pokémon FR' },
+    { queueId: 'q2', cardId: 'c2', lotId: null, position: 2, name: 'Fulguris GX', price: 5, imageUrl: 'b.png', groupKey: 'Pokémon FR' },
+  ];
+
+  function mockPipeline(pipeline: PipelineItem[], refetch = vi.fn()) {
+    vi.mocked(useMonitoringData).mockReturnValue({
+      pipeline,
+      schedule: [],
+      config: { daily_quota: 8, repost_after_days: 14, group_priority: [] },
+      logs: [],
+      todayJobCount: 0,
+      repostCandidates: [],
+      sessionStatus: null,
+      loading: false,
+      refetch,
+    });
+    return refetch;
+  }
+
+  it('stages a reorder locally (no refetch) and shows a Save button; clicking Save commits and clears it', async () => {
+    const refetch = mockPipeline(TWO_ITEM_PIPELINE);
+    render(<MonitoringSection />);
+    expect(screen.queryByText('Enregistrer')).toBeNull();
+
+    const overlay = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    fireEvent.click(overlay.parentElement as HTMLElement);
+    fireEvent.click(within(overlay).getByLabelText('Mettre en premier dans le groupe'));
+
+    expect(screen.getByText('Enregistrer')).toBeInTheDocument();
+    expect(refetch).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Enregistrer'));
+    await waitFor(() => expect(refetch).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByText('Enregistrer')).toBeNull());
+  });
+
+  it('asks for confirmation before discarding a pending reorder when switching to the partner tab, and keeps the pending state if cancelled', () => {
+    mockPipeline(TWO_ITEM_PIPELINE);
+    // happy-dom (this project's test environment) doesn't implement
+    // `window.confirm` at all, so `vi.spyOn(window, 'confirm')` fails with
+    // "can only spy on a function. Received undefined" — stub it directly
+    // via `vi.stubGlobal` instead (same pattern already used below for
+    // `fetch`), since `window` and `globalThis` are the same object here.
+    const confirmMock = vi.fn().mockReturnValue(false);
+    vi.stubGlobal('confirm', confirmMock);
+    render(<MonitoringSection />);
+
+    const overlay = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    fireEvent.click(overlay.parentElement as HTMLElement);
+    fireEvent.click(within(overlay).getByLabelText('Mettre en premier dans le groupe'));
+    expect(screen.getByText('Enregistrer')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Partenaire'));
+
+    expect(confirmMock).toHaveBeenCalledOnce();
+    expect(screen.getByText('Enregistrer')).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it('clears the pending queue reorder after a successful "Poster maintenant"', async () => {
+    mockPipeline(TWO_ITEM_PIPELINE);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));
+    render(<MonitoringSection />);
+
+    const fulgurisOverlay = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    fireEvent.click(fulgurisOverlay.parentElement as HTMLElement);
+    fireEvent.click(within(fulgurisOverlay).getByLabelText('Mettre en premier dans le groupe'));
+    expect(screen.getByText('Enregistrer')).toBeInTheDocument();
+
+    const pharampOverlay = screen.getByText('Pharamp GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    fireEvent.click(pharampOverlay.parentElement as HTMLElement);
+    fireEvent.click(within(pharampOverlay).getByLabelText('Poster maintenant'));
+
+    await waitFor(() => expect(screen.queryByText('Enregistrer')).toBeNull());
+    vi.unstubAllGlobals();
   });
 });

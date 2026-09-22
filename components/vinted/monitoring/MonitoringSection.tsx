@@ -20,6 +20,8 @@ import LogFeed from './LogFeed';
 
 type AnnonceTarget = { kind: 'card'; card: Card; listings: CardListing[] } | { kind: 'lot'; lot: Lot };
 
+const DISCARD_CONFIRM_MESSAGE = 'Modifications non enregistrées — les abandonner ?';
+
 export default function MonitoringSection() {
   const { myUserId, myName, partnerUserId, partnerName } = useUserContext();
   const [viewedUserId, setViewedUserId] = useState(myUserId);
@@ -30,6 +32,10 @@ export default function MonitoringSection() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [vintedConfig, setVintedConfig] = useState<VintedConfig>({ vinted_shipping_note: '', vinted_seller_note: '' });
   const [annonceTarget, setAnnonceTarget] = useState<AnnonceTarget | null>(null);
+  const [stagedPipeline, setStagedPipeline] = useState<PipelineItem[] | null>(null);
+  const [stagedRepostCandidates, setStagedRepostCandidates] = useState<RepostPoolItem[] | null>(null);
+  const [saving, setSaving] = useState(false);
+  const isDirty = stagedPipeline !== null || stagedRepostCandidates !== null;
 
   useEffect(() => {
     const supabase = createClient();
@@ -45,8 +51,28 @@ export default function MonitoringSection() {
       });
   }, []);
 
+  // Warn before a page close/reload while a reorder hasn't been saved yet —
+  // switching the Lui/Elle tab is handled separately by `switchUser` below
+  // since that's an in-app navigation, not a page unload.
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
   const storagePublicUrl = (path: string) =>
     `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/lot-photos/${path}`;
+
+  function switchUser(nextUserId: string) {
+    if (isDirty && !window.confirm(DISCARD_CONFIRM_MESSAGE)) return;
+    setStagedPipeline(null);
+    setStagedRepostCandidates(null);
+    setViewedUserId(nextUserId);
+  }
 
   async function viewListing(item: { cardId: string | null; lotId: string | null }) {
     const supabase = createClient();
@@ -79,6 +105,10 @@ export default function MonitoringSection() {
         body: JSON.stringify(body),
       });
       if (response.ok) {
+        // A direct post changes the underlying queue independently of
+        // ordering — drop any pending local reorder rather than let it go
+        // stale (it may reference an item that just left the queue).
+        setStagedPipeline(null);
         data.refetch();
       }
     } finally {
@@ -112,6 +142,7 @@ export default function MonitoringSection() {
         body: JSON.stringify(body),
       });
       if (response.ok) {
+        setStagedRepostCandidates(null);
         data.refetch();
       }
     } finally {
@@ -119,8 +150,22 @@ export default function MonitoringSection() {
     }
   }
 
+  async function saveChanges() {
+    setSaving(true);
+    try {
+      if (stagedPipeline) await persistReorder(stagedPipeline);
+      if (stagedRepostCandidates) await persistRepostReorder(stagedRepostCandidates);
+      setStagedPipeline(null);
+      setStagedRepostCandidates(null);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const nextPostAt = nextScheduledWindowStart(data.schedule, new Date());
   const presentGroups = Array.from(new Set(data.pipeline.map((item) => item.groupKey)));
+  const visiblePipeline = stagedPipeline ?? data.pipeline;
+  const visibleRepostCandidates = stagedRepostCandidates ?? data.repostCandidates;
 
   return (
     <div className="bg-surface border-border mb-6 flex flex-col gap-3 rounded-xl border p-4">
@@ -132,12 +177,22 @@ export default function MonitoringSection() {
             partnerName={partnerName}
             partnerUserId={partnerUserId}
             viewedUserId={viewedUserId}
-            onSwitchUser={setViewedUserId}
+            onSwitchUser={switchUser}
             todayJobCount={data.todayJobCount}
             dailyQuota={data.config.daily_quota}
             nextPostAt={nextPostAt}
           />
         </div>
+        {isDirty && (
+          <button
+            type="button"
+            onClick={saveChanges}
+            disabled={saving}
+            className="bg-red text-bg rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-50"
+          >
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setSettingsOpen(true)}
@@ -150,21 +205,21 @@ export default function MonitoringSection() {
       </div>
       <AlertBanner sessionStatus={data.sessionStatus} logs={data.logs} />
       <GroupedQueueGrid
-        items={data.pipeline}
+        items={visiblePipeline}
         dailyQuota={data.config.daily_quota}
         groupPriority={data.config.group_priority}
         editable={editable}
-        onReorder={persistReorder}
+        onReorder={setStagedPipeline}
         onPostNow={postNow}
         postingQueueId={postingQueueId}
         onViewListing={viewListing}
       />
       <GroupedRepostGrid
-        items={data.repostCandidates}
-        active={data.pipeline.length === 0}
+        items={visibleRepostCandidates}
+        active={visiblePipeline.length === 0}
         groupPriority={data.config.group_priority}
         editable={editable}
-        onReorder={persistRepostReorder}
+        onReorder={setStagedRepostCandidates}
         onRepostNow={repostNow}
         repostingId={repostingId}
         onViewListing={viewListing}
