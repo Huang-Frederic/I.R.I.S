@@ -5,21 +5,27 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import GroupedRepostGrid, { computeSnakeReorder, type RepostPoolItem } from './GroupedRepostGrid';
 
 // This suite's environment is happy-dom (vitest.config.ts), whose `matchMedia`
-// always reports `matches: true` regardless of the query or window width —
-// unlike real browsers, it never evaluates the condition. Left unmocked,
-// `useSnakeColumns` would resolve to its wide (5-column) value in every test
-// here. Stub it to force the narrow (3-column) value so the fixture below
-// (computed for 3 columns) actually matches what renders — same pattern
-// already used in `./hooks/useSnakeColumns.test.ts` and `GroupedQueueGrid.test.tsx`.
+// always reports `matches: true` regardless of the query or window width, and
+// whose elements always report `clientWidth: 0` (no real layout engine).
+// Stub both so `useSnakeColumns` resolves to the narrow (124px) card-width
+// tier and a 500px measured container width, which computes to exactly 3
+// columns (see useSnakeColumns.test.ts's `computeColumnsForWidth` case) —
+// matching the fixture below, computed for 3 columns.
+const originalClientWidthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+
 beforeEach(() => {
   vi.stubGlobal(
     'matchMedia',
     vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
   );
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 500 });
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  if (originalClientWidthDescriptor) {
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidthDescriptor);
+  }
 });
 
 // 6 items in "Pokémon FR" (two full 3-column rows in tests' default column
