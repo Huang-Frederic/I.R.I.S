@@ -8,9 +8,18 @@ import type { Card } from '@/lib/types';
 vi.mock('@/lib/hooks/useUserContext', () => ({
   useUserContext: () => ({ myUserId: 'me', myName: 'Moi', partnerUserId: 'partner', partnerName: 'Partenaire' }),
 }));
+// Table-aware: `useAgentStatus` (rendered inside <StatusBar>, which
+// <MonitoringSection> mounts) issues a `.select().gte()` chain against
+// `agent_heartbeats`, distinct from this test's own bare `.select('*')`
+// config-table fetch — a single generic `select` stub can't satisfy both.
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({
-    from: () => ({ select: () => Promise.resolve({ data: [], error: null }) }),
+    from: (table: string) => {
+      if (table === 'agent_heartbeats') {
+        return { select: () => ({ gte: () => Promise.resolve({ data: [], count: 0, error: null }) }) };
+      }
+      return { select: () => Promise.resolve({ data: [], error: null }) };
+    },
   }),
 }));
 vi.mock('./hooks/useMonitoringData');
