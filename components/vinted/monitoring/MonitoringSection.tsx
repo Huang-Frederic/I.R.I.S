@@ -1,10 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Settings } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useUserContext } from '@/lib/hooks/useUserContext';
 import { nextScheduledWindowStart } from '@/lib/vinted/next-window';
+import { fetchCardAnnonceTarget, fetchLotAnnonceTarget } from '@/lib/vinted/fetch-annonce-target';
+import type { Card, CardListing, Lot } from '@/lib/types';
+import type { VintedConfig } from '@/lib/utils/vinted-template';
+import AnnonceModal from '@/components/vinted/AnnonceModal';
+import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
 import { useMonitoringData } from './hooks/useMonitoringData';
 import StatusBar from './StatusBar';
 import AlertBanner from './AlertBanner';
@@ -12,6 +17,8 @@ import GroupedQueueGrid, { type PipelineItem } from './GroupedQueueGrid';
 import GroupedRepostGrid, { type RepostPoolItem } from './GroupedRepostGrid';
 import SettingsModal from './SettingsModal';
 import LogFeed from './LogFeed';
+
+type AnnonceTarget = { kind: 'card'; card: Card; listings: CardListing[] } | { kind: 'lot'; lot: Lot };
 
 export default function MonitoringSection() {
   const { myUserId, myName, partnerUserId, partnerName } = useUserContext();
@@ -21,6 +28,38 @@ export default function MonitoringSection() {
   const [postingQueueId, setPostingQueueId] = useState<string | null>(null);
   const [repostingId, setRepostingId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [vintedConfig, setVintedConfig] = useState<VintedConfig>({ vinted_shipping_note: '', vinted_seller_note: '' });
+  const [annonceTarget, setAnnonceTarget] = useState<AnnonceTarget | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from('config')
+      .select('*')
+      .then(({ data: rows }) => {
+        const map = Object.fromEntries(((rows ?? []) as { key: string; value: string }[]).map((r) => [r.key, r.value]));
+        setVintedConfig({
+          vinted_shipping_note: map.vinted_shipping_note ?? '',
+          vinted_seller_note: map.vinted_seller_note ?? '',
+        });
+      });
+  }, []);
+
+  const storagePublicUrl = (path: string) =>
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/lot-photos/${path}`;
+
+  async function viewListing(item: { cardId: string | null; lotId: string | null }) {
+    const supabase = createClient();
+    if (item.cardId) {
+      const result = await fetchCardAnnonceTarget(supabase, item.cardId);
+      if (result) setAnnonceTarget({ kind: 'card', ...result });
+      return;
+    }
+    if (item.lotId) {
+      const result = await fetchLotAnnonceTarget(supabase, item.lotId);
+      if (result) setAnnonceTarget({ kind: 'lot', ...result });
+    }
+  }
 
   async function persistReorder(items: PipelineItem[]) {
     const supabase = createClient();
@@ -118,6 +157,7 @@ export default function MonitoringSection() {
         onReorder={persistReorder}
         onPostNow={postNow}
         postingQueueId={postingQueueId}
+        onViewListing={viewListing}
       />
       <GroupedRepostGrid
         items={data.repostCandidates}
@@ -127,6 +167,7 @@ export default function MonitoringSection() {
         onReorder={persistRepostReorder}
         onRepostNow={repostNow}
         repostingId={repostingId}
+        onViewListing={viewListing}
       />
       <div className="border-border border-t pt-3">
         <LogFeed logs={data.logs} />
@@ -143,6 +184,50 @@ export default function MonitoringSection() {
         presentGroups={presentGroups}
         onSaved={data.refetch}
       />
+      {annonceTarget?.kind === 'card' && (
+        <AnnonceModal
+          card={annonceTarget.card}
+          config={vintedConfig}
+          listings={annonceTarget.listings}
+          myUserId={myUserId}
+          partnerUserId={partnerUserId}
+          partnerName={partnerName}
+          onListingsChanged={data.refetch}
+          onClose={() => setAnnonceTarget(null)}
+          onPriceSaved={(cardId, newPrice) => {
+            setAnnonceTarget((prev) =>
+              prev && prev.kind === 'card' && prev.card.id === cardId
+                ? { ...prev, card: { ...prev.card, suggested_price: newPrice } }
+                : prev,
+            );
+            data.refetch();
+          }}
+          onCardRefreshed={(updated) => {
+            setAnnonceTarget((prev) => (prev && prev.kind === 'card' ? { ...prev, card: updated } : prev));
+          }}
+        />
+      )}
+      {annonceTarget?.kind === 'lot' && (
+        <LotAnnonceModal
+          lot={annonceTarget.lot}
+          storagePublicUrl={storagePublicUrl}
+          onClose={() => setAnnonceTarget(null)}
+          onPriceSaved={(lotId, newPrice) => {
+            setAnnonceTarget((prev) =>
+              prev && prev.kind === 'lot' && prev.lot.id === lotId ? { ...prev, lot: { ...prev.lot, price: newPrice } } : prev,
+            );
+            data.refetch();
+          }}
+          onLotDeleted={() => {
+            setAnnonceTarget(null);
+            data.refetch();
+          }}
+          onMovedToStock={() => {
+            setAnnonceTarget(null);
+            data.refetch();
+          }}
+        />
+      )}
     </div>
   );
 }
