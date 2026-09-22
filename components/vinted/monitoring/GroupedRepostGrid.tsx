@@ -8,6 +8,7 @@ import {
   DragOverlay,
   PointerSensor,
   KeyboardSensor,
+  closestCenter,
   pointerWithin,
   useSensor,
   useSensors,
@@ -116,7 +117,10 @@ export default function GroupedRepostGrid({
       </p>
       <DndContext
         sensors={sensors}
-        collisionDetection={pointerWithin}
+        collisionDetection={(args) => {
+          const pointerCollisions = pointerWithin(args);
+          return pointerCollisions.length > 0 ? pointerCollisions : closestCenter(args);
+        }}
         onDragStart={(event: DragStartEvent) => setActiveId(event.active.id as string)}
         onDragEnd={handleDragEnd}
         onDragCancel={() => setActiveId(null)}
