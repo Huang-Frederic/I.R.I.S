@@ -102,6 +102,18 @@ describe('<PosterCard>', () => {
     const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
     expect(card.className).not.toContain('border-staleness-fresh');
   });
+
+  it('shows a white border by default', () => {
+    renderCard();
+    const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
+    expect(card.className).toContain('border-white');
+  });
+
+  it('turns an action button background red on hover', () => {
+    renderCard();
+    const button = screen.getByLabelText("Voir l'annonce");
+    expect(button.className).toContain('hover:bg-red');
+  });
 });
 
 describe('<CardConnector>', () => {
@@ -122,20 +134,26 @@ describe('<CardConnector>', () => {
 });
 
 describe('posterCardBorderClasses', () => {
-  it('shows a red dashed border for the card being dragged', () => {
-    expect(posterCardBorderClasses({ isDragging: true, isDropTarget: false })).toBe('border-red border-dashed');
+  it('shows a green dashed border for the card being dragged', () => {
+    expect(posterCardBorderClasses({ isDragging: true, isPendingChange: false })).toBe(
+      'border-staleness-fresh border-dashed',
+    );
   });
 
-  it('shows a green dashed border for the current drop target', () => {
-    expect(posterCardBorderClasses({ isDragging: false, isDropTarget: true })).toBe('border-staleness-fresh border-dashed');
+  it('shows a green dashed border for a pending (unsaved) change', () => {
+    expect(posterCardBorderClasses({ isDragging: false, isPendingChange: true })).toBe(
+      'border-staleness-fresh border-dashed',
+    );
   });
 
-  it('falls back to the normal border otherwise', () => {
-    expect(posterCardBorderClasses({ isDragging: false, isDropTarget: false })).toBe('border-border');
+  it('falls back to a white border otherwise', () => {
+    expect(posterCardBorderClasses({ isDragging: false, isPendingChange: false })).toBe('border-white');
   });
 
-  it('prioritizes the dragging state if somehow both are true at once', () => {
-    expect(posterCardBorderClasses({ isDragging: true, isDropTarget: true })).toBe('border-red border-dashed');
+  it('shows the green dashed border if both are true at once', () => {
+    expect(posterCardBorderClasses({ isDragging: true, isPendingChange: true })).toBe(
+      'border-staleness-fresh border-dashed',
+    );
   });
 });
 

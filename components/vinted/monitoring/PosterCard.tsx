@@ -30,23 +30,15 @@ export interface PosterCardProps {
   isPendingChange?: boolean;
 }
 
-/**
- * Pure so the drag-feedback border can be unit-tested without simulating a
- * real dnd-kit drag through DndContext (jsdom can't easily fake pointer
- * geometry). `isDragging` comes straight from `useSortable()`; `isDropTarget`
- * is the caller's OR of "currently hovered as a drop target" and "marked as
- * a pending, unsaved change" — this function doesn't need to know which.
- */
 export function posterCardBorderClasses({
   isDragging,
-  isDropTarget,
+  isPendingChange,
 }: {
   isDragging: boolean;
-  isDropTarget: boolean;
+  isPendingChange: boolean;
 }): string {
-  if (isDragging) return 'border-red border-dashed';
-  if (isDropTarget) return 'border-staleness-fresh border-dashed';
-  return 'border-border';
+  if (isDragging || isPendingChange) return 'border-staleness-fresh border-dashed';
+  return 'border-white';
 }
 
 export default function PosterCard({
@@ -62,7 +54,7 @@ export default function PosterCard({
 }: PosterCardProps) {
   const [revealed, setRevealed] = useState(false);
   const [hovered, setHovered] = useState(false);
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     disabled: !draggable,
   });
@@ -71,7 +63,6 @@ export default function PosterCard({
   // mouse attached — CSS group-hover silently never applies there. Tracking
   // hover with real mouse events instead is deterministic regardless of
   // what the device claims about its own capabilities.
-  const isDropTarget = (isOver && !isDragging) || isPendingChange;
   const showOverlay = revealed || hovered;
   const style = { transform: CSS.Transform.toString(transform), transition };
 
@@ -83,7 +74,7 @@ export default function PosterCard({
       onClick={() => setRevealed((r) => !r)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`bg-surface-2 relative aspect-[63/88] w-28 shrink-0 overflow-hidden rounded-lg border sm:w-32 lg:w-36 ${posterCardBorderClasses({ isDragging, isDropTarget })} ${
+      className={`bg-surface-2 relative aspect-[63/88] w-31 shrink-0 overflow-hidden rounded-lg border sm:w-35 lg:w-40 ${posterCardBorderClasses({ isDragging, isPendingChange })} ${
         isDragging ? 'opacity-40' : dimmed ? 'opacity-60' : ''
       }`}
     >
@@ -115,7 +106,7 @@ export default function PosterCard({
               disabled={action.disabled}
               title={action.label}
               aria-label={action.label}
-              className="rounded bg-white/10 p-1.5 text-white hover:bg-white/20 disabled:opacity-30"
+              className="rounded bg-white/10 p-1.5 text-white hover:bg-red disabled:opacity-30"
             >
               <action.icon className="h-3.5 w-3.5" aria-hidden />
             </button>
@@ -145,7 +136,7 @@ export function CardConnector({
 export function PosterCardStartSlot() {
   return (
     <div
-      className="border-border bg-surface flex aspect-[63/88] w-28 shrink-0 items-center justify-center rounded-lg border border-dashed sm:w-32 lg:w-36"
+      className="border-border bg-surface flex aspect-[63/88] w-31 shrink-0 items-center justify-center rounded-lg border border-dashed sm:w-35 lg:w-40"
       title="Ta collection"
       aria-hidden
     >
