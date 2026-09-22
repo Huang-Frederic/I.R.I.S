@@ -56,4 +56,50 @@ describe('<GroupedQueueGrid>', () => {
     expect(screen.queryByLabelText('Poster maintenant')).toBeNull();
     expect(screen.getAllByLabelText("Voir l'annonce", { selector: 'button' }).length).toBe(ITEMS.length);
   });
+
+  it('renders the PC lead-in slot before the very first card', () => {
+    const { container } = renderGrid();
+    const monitorIcon = container.querySelector('svg.lucide-monitor');
+    expect(monitorIcon).toBeInTheDocument();
+    const firstCardOverlay = screen.getByText('Pharamp GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    // DOCUMENT_POSITION_FOLLOWING means firstCardOverlay comes AFTER monitorIcon
+    // in DOM order — i.e. the slot really is a lead-in, not just present somewhere.
+    const position = monitorIcon!.compareDocumentPosition(firstCardOverlay);
+    expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('still allows a plain click to reveal the overlay — regression test for the "clicking does nothing" bug (dnd-kit swallowing the click when no activationConstraint is set)', () => {
+    renderGrid();
+    const overlay = screen.getByText('Pharamp GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    const card = overlay.parentElement as HTMLElement;
+    // Simulate a real physical click: pointerdown, a sub-pixel jitter (present
+    // on virtually every real click), pointerup, then the click event the
+    // browser fires afterwards. Before the activationConstraint fix, dnd-kit's
+    // PointerSensor treats ANY movement as a drag-start and installs a
+    // capturing document-level click-canceller (see core.esm.js:1505-1506 in
+    // node_modules/@dnd-kit/core) — this test reproduces exactly that
+    // sequence. If it doesn't fail before Step 3's fix (or doesn't pass after
+    // it), the pointer-event simulation isn't reaching dnd-kit's sensor the
+    // same way a real browser does — read PointerSensor's activator/handleMove
+    // logic in that file and adjust the event init dict (pointerId, button,
+    // isPrimary) until it does; don't skip or weaken this test, it's the
+    // direct regression check for the reported bug.
+    fireEvent.pointerDown(card, { pointerId: 1, clientX: 100, clientY: 100, button: 0, isPrimary: true });
+    fireEvent.pointerMove(document, { pointerId: 1, clientX: 101, clientY: 100, isPrimary: true });
+    fireEvent.pointerUp(document, { pointerId: 1, clientX: 101, clientY: 100, isPrimary: true });
+    fireEvent.click(card);
+    // Note: `overlay.className` includes the literal substring "opacity-100"
+    // in BOTH the revealed and non-revealed states (the non-revealed variant
+    // is "opacity-0 group-hover:opacity-100"), so a plain
+    // `toMatch(/opacity-100/)` as written in the task brief would pass
+    // vacuously regardless of whether the click was swallowed. Split into
+    // class tokens and check for the standalone "opacity-100" token (only
+    // present when revealed) and the absence of "opacity-0" (only present
+    // when not revealed) so the assertion actually distinguishes the two
+    // states — confirmed via direct instrumentation that this reproduces the
+    // real bug (see task-2-report.md for the investigation).
+    const overlayClasses = overlay.className.split(/\s+/);
+    expect(overlayClasses).toContain('opacity-100');
+    expect(overlayClasses).not.toContain('opacity-0');
+  });
 });
