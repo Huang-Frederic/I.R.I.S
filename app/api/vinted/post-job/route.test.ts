@@ -342,7 +342,7 @@ describe('POST /api/vinted/post-job', () => {
     });
     const res = await POST(makeRequest({ card_id: 'card-1', job_type: 'repost' }));
     expect(res.status).toBe(201);
-    expect(insertMock).toHaveBeenCalledWith({ card_id: 'card-1', user_id: 'user-1', job_type: 'repost' });
+    expect(insertMock).toHaveBeenCalledWith({ card_id: 'card-1', user_id: 'user-1', job_type: 'repost', triggered_by: 'manual' });
     expect(touchedTables).not.toContain('vinted_queue');
   });
 
@@ -405,7 +405,7 @@ describe('POST /api/vinted/post-job', () => {
     });
     const res = await POST(makeRequest({ lot_id: 'lot-1', job_type: 'repost' }));
     expect(res.status).toBe(201);
-    expect(insertMock).toHaveBeenCalledWith({ lot_id: 'lot-1', user_id: 'user-1', job_type: 'repost' });
+    expect(insertMock).toHaveBeenCalledWith({ lot_id: 'lot-1', user_id: 'user-1', job_type: 'repost', triggered_by: 'manual' });
     expect(touchedTables).not.toContain('vinted_queue');
   });
 });

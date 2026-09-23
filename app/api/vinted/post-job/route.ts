@@ -86,7 +86,7 @@ export async function POST(request: Request) {
 
     const { data: job, error: jobError } = await supabase
       .from('vinted_post_jobs')
-      .insert({ card_id, user_id: auth.user.id, job_type: jobType })
+      .insert({ card_id, user_id: auth.user.id, job_type: jobType, triggered_by: 'manual' })
       .select()
       .single();
 
@@ -168,7 +168,7 @@ export async function POST(request: Request) {
 
   const { data: job, error: jobError } = await supabase
     .from('vinted_post_jobs')
-    .insert({ lot_id, user_id: auth.user.id, job_type: jobType })
+    .insert({ lot_id, user_id: auth.user.id, job_type: jobType, triggered_by: 'manual' })
     .select()
     .single();
 
