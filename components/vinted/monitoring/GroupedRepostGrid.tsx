@@ -150,7 +150,7 @@ export default function GroupedRepostGrid({
         onDragCancel={() => setActiveId(null)}
       >
         <SortableContext items={visualOrder.map(itemId)} strategy={rectSortingStrategy}>
-          <div ref={setContainer} className="flex flex-wrap items-start gap-3">
+          <div ref={setContainer} className="flex flex-wrap items-start justify-center gap-3">
             {groups.map((group, groupPos) => {
               const colorKey = colorKeyForGroup(group.key);
               const rows = chunkIntoRows(group.items, columns);
