@@ -221,7 +221,7 @@ export default function GroupedRepostGrid({
                           </div>
                           {rowIndex < rows.length - 1 && (
                             <div className={`flex ${reversed ? 'justify-start' : 'justify-end'}`}>
-                              <CardConnector direction="up" />
+                              <CardConnector direction="down" />
                             </div>
                           )}
                         </div>

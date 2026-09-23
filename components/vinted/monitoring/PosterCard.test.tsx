@@ -126,9 +126,9 @@ describe('<CardConnector>', () => {
     expect(container.querySelector('svg.lucide-chevron-left')).toBeInTheDocument();
   });
 
-  it('renders an up-pointing chevron when direction is up', () => {
-    const { container } = render(<CardConnector direction="up" />);
-    expect(container.querySelector('svg.lucide-chevron-up')).toBeInTheDocument();
+  it('renders a down-pointing chevron when direction is down', () => {
+    const { container } = render(<CardConnector direction="down" />);
+    expect(container.querySelector('svg.lucide-chevron-down')).toBeInTheDocument();
   });
 
   it('renders a bold red chevron', () => {
@@ -158,9 +158,9 @@ describe('posterCardBorderClasses', () => {
 });
 
 describe('<PosterCardStartSlot>', () => {
-  it('renders a monitor icon in a card-shaped slot', () => {
+  it('renders the Vinted logo in a card-shaped slot', () => {
     const { container } = render(<PosterCardStartSlot />);
-    expect(container.querySelector('svg.lucide-monitor')).toBeInTheDocument();
+    expect(container.querySelector('img[src="/vinted-logo.jpeg"]')).toBeInTheDocument();
   });
 });
 

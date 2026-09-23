@@ -91,10 +91,10 @@ describe('<GroupedQueueGrid> snake layout', () => {
     expect(container.querySelectorAll('svg.lucide-chevron-left').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('renders an up chevron between rows within the same group', () => {
+  it('renders a down chevron between rows within the same group', () => {
     const { container } = renderGrid();
     // "Pokémon FR" has 3 rows (7 items / 3 columns) → 2 row transitions.
-    expect(container.querySelectorAll('svg.lucide-chevron-up').length).toBeGreaterThanOrEqual(2);
+    expect(container.querySelectorAll('svg.lucide-chevron-down').length).toBeGreaterThanOrEqual(2);
   });
 
   it('still calls onReorder with the moved item\'s id when using "move to front"', () => {
@@ -112,13 +112,16 @@ describe('<GroupedQueueGrid> snake layout', () => {
     expect(card.className).toContain('border-staleness-fresh');
   });
 
-  it('renders the PC lead-in slot before the very first card', () => {
+  it('renders the Vinted lead-in slot before the very first card, connected by a chevron', () => {
     const { container } = renderGrid();
-    const monitorIcon = container.querySelector('svg.lucide-monitor');
-    expect(monitorIcon).toBeInTheDocument();
+    const startSlot = container.querySelector('img[src="/vinted-logo.jpeg"]');
+    expect(startSlot).toBeInTheDocument();
     const firstCardOverlay = screen.getByText('Pharamp GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
-    const position = monitorIcon!.compareDocumentPosition(firstCardOverlay);
+    const position = startSlot!.compareDocumentPosition(firstCardOverlay);
     expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // A chevron connects the start slot to the first card, same as between
+    // any two cards in the snake — otherwise "next up" is just proximity.
+    expect(container.querySelectorAll('svg.lucide-chevron-right').length).toBeGreaterThanOrEqual(3);
   });
 
   it('still allows a plain click to reveal the overlay — regression test for the "clicking does nothing" bug', () => {

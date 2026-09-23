@@ -207,9 +207,10 @@ export default function GroupedQueueGrid({
                                   : []),
                                 { icon: Eye, label: "Voir l'annonce", onClick: () => onViewListing(item) },
                               ];
+                              const isFirstOfAll = groupPos === 0 && rowIndex === 0 && i === 0;
                               return (
                                 <div key={item.queueId} className="flex items-center gap-2">
-                                  {i > 0 && <CardConnector direction={reversed ? 'left' : 'right'} />}
+                                  {(i > 0 || isFirstOfAll) && <CardConnector direction={reversed ? 'left' : 'right'} />}
                                   <PosterCard
                                     id={item.queueId}
                                     imageUrl={item.imageUrl}
@@ -227,7 +228,7 @@ export default function GroupedQueueGrid({
                           </div>
                           {rowIndex < rows.length - 1 && (
                             <div className={`flex ${reversed ? 'justify-start' : 'justify-end'}`}>
-                              <CardConnector direction="up" />
+                              <CardConnector direction="down" />
                             </div>
                           )}
                         </div>

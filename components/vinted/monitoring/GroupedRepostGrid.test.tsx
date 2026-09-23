@@ -86,10 +86,10 @@ describe('<GroupedRepostGrid> snake layout', () => {
     expect(container.querySelectorAll('svg.lucide-chevron-left').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('renders an up chevron between rows within the same group', () => {
+  it('renders a down chevron between rows within the same group', () => {
     const { container } = renderGrid();
     // "Pokémon FR" has 2 rows (6 items / 3 columns) → 1 row transition.
-    expect(container.querySelectorAll('svg.lucide-chevron-up').length).toBeGreaterThanOrEqual(1);
+    expect(container.querySelectorAll('svg.lucide-chevron-down').length).toBeGreaterThanOrEqual(1);
   });
 
   it('still calls onReorder with the moved item\'s id when using "move to front"', () => {
