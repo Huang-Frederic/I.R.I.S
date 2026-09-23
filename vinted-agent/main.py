@@ -802,8 +802,11 @@ async def _sync_cookies_from_supabase(supabase: AsyncClient, user_id: str, cooki
     VintedClient reads from, if a row exists. Leaves the local file alone
     (no-op) when there's no row yet, so a not-yet-migrated user keeps
     working off whatever's already on disk."""
+    # postgrest-py 1.0.2's async client returns None (not a response with
+    # .data=None) from .maybe_single().execute() when zero rows match —
+    # guard against that before touching .data.
     res = await supabase.table("vinted_sessions").select("cookies").eq("user_id", user_id).maybe_single().execute()
-    if res.data and res.data.get("cookies"):
+    if res and res.data and res.data.get("cookies"):
         path = Path(cookies_file) if Path(cookies_file).is_absolute() else Path(__file__).parent / cookies_file
         path.write_text(json.dumps(res.data["cookies"]))
 
@@ -947,14 +950,18 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                     .eq("user_id", user_id).execute()
                 config_res = await supabase.table("vinted_bot_config").select("daily_quota, repost_after_days") \
                     .eq("user_id", user_id).maybe_single().execute()
-                daily_quota = (config_res.data or {}).get("daily_quota", 8)
+                # postgrest-py 1.0.2's async client returns None (not a
+                # response with .data=None) from .maybe_single().execute()
+                # when zero rows match — guard before touching .data.
+                config_data = config_res.data if config_res else None
+                daily_quota = (config_data or {}).get("daily_quota", 8)
                 jobs_today_res = await supabase.table("vinted_post_jobs").select("id") \
                     .eq("user_id", user_id).in_("job_type", ["post", "repost"]) \
                     .gte("created_at", today_start).execute()
                 queue_res = await supabase.table("vinted_queue").select("card_id, lot_id, position") \
                     .eq("user_id", user_id).order("position").limit(1).execute()
 
-                repost_after_days = (config_res.data or {}).get("repost_after_days", 14)
+                repost_after_days = (config_data or {}).get("repost_after_days", 14)
                 repost_cutoff = (now - timedelta(days=repost_after_days)).isoformat()
 
                 # No .order()/.limit(1) here anymore: a manually-repositioned

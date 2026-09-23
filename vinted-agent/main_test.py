@@ -230,6 +230,24 @@ def test_sync_cookies_from_supabase_leaves_the_file_untouched_when_no_row_exists
     asyncio.run(_sync_cookies_from_supabase(supabase, "user-1", "/nonexistent/path/cookies.json"))
 
 
+def test_sync_cookies_from_supabase_does_not_crash_when_execute_returns_none():
+    # Regression: postgrest-py 1.0.2's async client returns None itself (not
+    # a response object with .data=None) from .maybe_single().execute() when
+    # zero rows match — this is what actually happens in production for a
+    # user with no vinted_sessions row yet, and previously crashed the
+    # scheduling loop with AttributeError: 'NoneType' object has no
+    # attribute 'data'.
+    execute = AsyncMock(return_value=None)
+    maybe_single_result = MagicMock(execute=execute)
+    eq_result = MagicMock(maybe_single=MagicMock(return_value=maybe_single_result))
+    select_result = MagicMock(eq=MagicMock(return_value=eq_result))
+    table_result = MagicMock(select=MagicMock(return_value=select_result))
+    supabase = MagicMock()
+    supabase.table = MagicMock(return_value=table_result)
+
+    asyncio.run(_sync_cookies_from_supabase(supabase, "user-1", "/nonexistent/path/cookies.json"))
+
+
 # Append to vinted-agent/main_test.py
 from main import _push_log
 
