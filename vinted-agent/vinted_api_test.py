@@ -1,7 +1,8 @@
 import json
+import logging
 import pytest
 from unittest.mock import MagicMock, patch, mock_open
-from vinted_api import VintedClient, CONDITION_MAP, _parse_csrf
+from vinted_api import VintedClient, CONDITION_MAP, _parse_csrf, _log_request_failure
 
 def test_condition_map_covers_all_iris_conditions():
     for cond in ['NM', 'EX', 'GD', 'PL', 'PO']:
@@ -35,3 +36,23 @@ def test_parse_csrf_from_html():
 
 def test_parse_csrf_returns_none_when_missing():
     assert _parse_csrf("<html></html>") is None
+
+def test_log_request_failure_logs_the_last_response_when_present(caplog):
+    resp = MagicMock(status_code=302, url="https://www.vinted.fr/session-refresh", text="challenge body")
+    resp.headers.get.return_value = "https://www.vinted.fr/items/new"
+    e = Exception("Maximum (30) redirects followed")
+    e.response = resp
+
+    with caplog.at_level(logging.ERROR):
+        _log_request_failure(logging.getLogger("test"), "refresh_csrf", e)
+
+    assert "302" in caplog.text
+    assert "session-refresh" in caplog.text
+
+def test_log_request_failure_does_not_crash_when_no_response_is_captured(caplog):
+    e = Exception("Connection reset")
+
+    with caplog.at_level(logging.ERROR):
+        _log_request_failure(logging.getLogger("test"), "refresh_csrf", e)
+
+    assert "no response captured" in caplog.text

@@ -15,6 +15,23 @@ from PIL import Image
 VINTED_BASE = "https://www.vinted.fr"
 
 
+def _log_request_failure(log: logging.Logger, context: str, e: Exception) -> None:
+    """Diagnostic for a failed request (e.g. curl error 47, "Maximum redirects
+    followed") — curl_cffi's exception normally carries the *last* response it
+    saw before giving up, in `.response`. Logging that response's URL/status/
+    Location header/body tells a Cloudflare or DataDome challenge loop apart
+    from a plain expired-session redirect to login, which the bare exception
+    message alone never does."""
+    resp = getattr(e, "response", None)
+    if resp is not None:
+        log.error(
+            "%s failed (%s) — last response: %s %s, Location=%s, body[:200]=%r",
+            context, e, resp.status_code, resp.url, resp.headers.get("location"), resp.text[:200],
+        )
+    else:
+        log.error("%s failed (%s) — no response captured (code=%s)", context, e, getattr(e, "code", "?"))
+
+
 class ListingGoneError(RuntimeError):
     """Raised when Vinted returns 404 on POST .../delete — listing not found.
 
@@ -196,25 +213,34 @@ class VintedClient:
 
     def refresh_csrf(self) -> None:
         """Fetch /items/new and extract the CSRF token, auto-refreshing token if needed."""
-        r = self._session.get(
-            f"{VINTED_BASE}/items/new",
-            headers=self._html_headers(),
-            timeout=15,
-            allow_redirects=True,
-        )
-        r.raise_for_status()
-
-        if "session-refresh" in r.url:
-            logging.getLogger(__name__).info("access_token expired — trying API refresh…")
-            if not self._try_token_refresh():
-                raise RuntimeError("Token refresh failed — relance import_cookies.py --user <user>")
-            # Retry with fresh token
+        log = logging.getLogger(__name__)
+        try:
             r = self._session.get(
                 f"{VINTED_BASE}/items/new",
                 headers=self._html_headers(),
                 timeout=15,
                 allow_redirects=True,
             )
+        except Exception as e:
+            _log_request_failure(log, "refresh_csrf (initial GET /items/new)", e)
+            raise
+        r.raise_for_status()
+
+        if "session-refresh" in r.url:
+            log.info("access_token expired — trying API refresh…")
+            if not self._try_token_refresh():
+                raise RuntimeError("Token refresh failed — relance import_cookies.py --user <user>")
+            # Retry with fresh token
+            try:
+                r = self._session.get(
+                    f"{VINTED_BASE}/items/new",
+                    headers=self._html_headers(),
+                    timeout=15,
+                    allow_redirects=True,
+                )
+            except Exception as e:
+                _log_request_failure(log, "refresh_csrf (retry GET /items/new after token refresh)", e)
+                raise
             r.raise_for_status()
             if "session-refresh" in r.url:
                 raise RuntimeError("Token refresh inefficace — relance import_cookies.py --user <user>")
