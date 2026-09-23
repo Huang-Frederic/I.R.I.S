@@ -1,7 +1,7 @@
 // components/vinted/monitoring/GroupedRepostGrid.tsx
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { ArrowLeftToLine, RotateCw, Eye } from 'lucide-react';
 import {
   DndContext,
@@ -100,17 +100,12 @@ export default function GroupedRepostGrid({
   pendingIds,
 }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const columns = useSnakeColumns(containerRef);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const columns = useSnakeColumns(container);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor),
   );
-  // TEMPORARY DEBUG — remove once the column-count investigation is resolved
-  const [debugWidth, setDebugWidth] = useState<number | null>(null);
-  useEffect(() => {
-    setDebugWidth(containerRef.current?.clientWidth ?? null);
-  }, [columns]);
 
   if (items.length === 0) return null;
 
@@ -141,11 +136,6 @@ export default function GroupedRepostGrid({
 
   return (
     <div className={`border-border mt-3 border-t pt-3 ${active ? '' : 'opacity-40'}`}>
-      {/* TEMPORARY DEBUG — remove once the column-count investigation is resolved */}
-      <p className="fixed bottom-2 right-2 z-50 rounded bg-black px-2 py-1 font-mono text-xs text-yellow-300">
-        DEBUG repost: columns={columns} width={debugWidth ?? 'null'} innerWidth=
-        {typeof window !== 'undefined' ? window.innerWidth : 'n/a'} dpr={typeof window !== 'undefined' ? window.devicePixelRatio : 'n/a'}
-      </p>
       <p className="text-text-muted mb-2 text-[11px] uppercase">
         Reposts éligibles — {active ? 'actif' : 'en attente'}
       </p>
@@ -160,7 +150,7 @@ export default function GroupedRepostGrid({
         onDragCancel={() => setActiveId(null)}
       >
         <SortableContext items={visualOrder.map(itemId)} strategy={rectSortingStrategy}>
-          <div ref={containerRef} className="flex flex-wrap items-start gap-3">
+          <div ref={setContainer} className="flex flex-wrap items-start gap-3">
             {groups.map((group, groupPos) => {
               const colorKey = colorKeyForGroup(group.key);
               const rows = chunkIntoRows(group.items, columns);

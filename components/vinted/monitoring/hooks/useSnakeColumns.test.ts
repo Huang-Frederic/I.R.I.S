@@ -1,16 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { createRef } from 'react';
 import { useSnakeColumns, computeColumnsForWidth } from './useSnakeColumns';
 
-function makeContainerRef(clientWidth: number) {
+function makeContainer(clientWidth: number): HTMLDivElement {
   const element = document.createElement('div');
   Object.defineProperty(element, 'clientWidth', { configurable: true, value: clientWidth });
-  const ref = createRef<HTMLDivElement>();
-  // React 19's createRef() returns `current` as non-configurable (but still writable), so
-  // Object.defineProperty would throw here — a plain assignment works instead.
-  ref.current = element;
-  return ref;
+  return element;
 }
 
 function mockMatchMedia(initial: Record<string, boolean>) {
@@ -62,32 +57,29 @@ describe('computeColumnsForWidth', () => {
 describe('useSnakeColumns', () => {
   it('computes columns from the container width using the base card width below the sm breakpoint', () => {
     mockMatchMedia({ '(min-width: 640px)': false, '(min-width: 1024px)': false });
-    const ref = makeContainerRef(500);
-    const { result } = renderHook(() => useSnakeColumns(ref));
+    const { result } = renderHook(() => useSnakeColumns(makeContainer(500)));
     // 3 cards of 136px + 2 connectors of 32px = 472px; a 4th needs 168 more (640px) — 500px fits 3.
     expect(result.current).toBe(3);
   });
 
   it('uses the wider sm card width once that breakpoint matches', () => {
     mockMatchMedia({ '(min-width: 640px)': true, '(min-width: 1024px)': false });
-    const ref = makeContainerRef(600);
-    const { result } = renderHook(() => useSnakeColumns(ref));
+    const { result } = renderHook(() => useSnakeColumns(makeContainer(600)));
     // 3 cards of 152px + 2 connectors of 32px = 520px; a 4th needs 184 more (704px) — 600px fits 3.
     expect(result.current).toBe(3);
   });
 
   it('uses the widest lg card width once that breakpoint matches', () => {
     mockMatchMedia({ '(min-width: 640px)': true, '(min-width: 1024px)': true });
-    const ref = makeContainerRef(1000);
-    const { result } = renderHook(() => useSnakeColumns(ref));
+    const { result } = renderHook(() => useSnakeColumns(makeContainer(1000)));
     // 5 cards of 172px + 4 connectors of 32px = 988px; a 6th needs 204 more (1192px) — 1000px fits 5.
     expect(result.current).toBe(5);
   });
 
   it('recomputes the card-width tier when the viewport crosses the sm breakpoint', () => {
     const { triggerChange } = mockMatchMedia({ '(min-width: 640px)': false, '(min-width: 1024px)': false });
-    const ref = makeContainerRef(320);
-    const { result } = renderHook(() => useSnakeColumns(ref));
+    const container = makeContainer(320);
+    const { result } = renderHook(() => useSnakeColumns(container));
     // 320px at the base 136px tier: 2 cards + 1 connector = 304px; a 3rd needs 168 more (472px) — fits 2.
     expect(result.current).toBe(2);
     act(() => triggerChange('(min-width: 640px)', true));
@@ -95,10 +87,21 @@ describe('useSnakeColumns', () => {
     expect(result.current).toBe(1);
   });
 
-  it('falls back to 3 columns when the container ref has not mounted yet', () => {
+  it('falls back to 3 columns when there is no container yet', () => {
     mockMatchMedia({ '(min-width: 640px)': false, '(min-width: 1024px)': false });
-    const ref = createRef<HTMLDivElement>();
-    const { result } = renderHook(() => useSnakeColumns(ref));
+    const { result } = renderHook(() => useSnakeColumns(null));
     expect(result.current).toBe(3);
+  });
+
+  it('measures the real width once the container becomes available after starting as null (regression: an async-loaded list renders empty on first paint, then mounts its container once data arrives — the hook must not get stuck at the fallback forever)', () => {
+    mockMatchMedia({ '(min-width: 640px)': true, '(min-width: 1024px)': true });
+    const { result, rerender } = renderHook(({ container }) => useSnakeColumns(container), {
+      initialProps: { container: null as HTMLDivElement | null },
+    });
+    expect(result.current).toBe(3); // fallback, no container yet
+
+    rerender({ container: makeContainer(1000) });
+    // 5 cards of 172px + 4 connectors of 32px = 988px; a 6th needs 204 more (1192px) — 1000px fits 5.
+    expect(result.current).toBe(5);
   });
 });

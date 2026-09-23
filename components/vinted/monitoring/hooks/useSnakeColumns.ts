@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type RefObject } from 'react';
+import { useEffect, useState } from 'react';
 
 const SM_QUERY = '(min-width: 640px)'; // Tailwind's `sm` breakpoint
 const LG_QUERY = '(min-width: 1024px)'; // Tailwind's `lg` breakpoint
@@ -38,30 +38,40 @@ export function computeColumnsForWidth(
 }
 
 /**
- * Measures `containerRef`'s actual rendered width and returns how many
- * cards fit per row at the current breakpoint's card size — replaces a
- * fixed 3-or-5 guess with the real available space, so a wide screen gets
- * as many columns as it can actually show.
+ * Measures `container`'s actual rendered width and returns how many cards
+ * fit per row at the current breakpoint's card size — replaces a fixed
+ * 3-or-5 guess with the real available space, so a wide screen gets as many
+ * columns as it can actually show.
+ *
+ * Takes the DOM node itself (typically from a `useState`-backed callback
+ * ref, e.g. `const [container, setContainer] = useState<HTMLDivElement |
+ * null>(null)`), NOT a `useRef` object. A `useRef` object is a stable
+ * reference that never changes identity, so an effect depending on it only
+ * ever runs once — if the caller's list is empty on first paint (e.g. still
+ * loading async data) and the container div doesn't exist yet, that single
+ * run finds nothing to measure and gives up permanently: `columns` stays
+ * frozen at the fallback forever, even once real data arrives and the div
+ * mounts. Depending on the container VALUE instead means this effect
+ * re-runs the moment the div actually appears (or reappears).
  */
-export function useSnakeColumns(containerRef: RefObject<HTMLElement | null>): number {
+export function useSnakeColumns(container: HTMLElement | null): number {
   const [columns, setColumns] = useState(FALLBACK_COLUMNS);
 
   useEffect(() => {
-    const element = containerRef.current;
-    if (!element) return;
+    if (!container) return;
 
     const smMql = window.matchMedia(SM_QUERY);
     const lgMql = window.matchMedia(LG_QUERY);
 
     const recompute = () => {
       const cardWidth = lgMql.matches ? CARD_WIDTH_LG : smMql.matches ? CARD_WIDTH_SM : CARD_WIDTH_BASE;
-      setColumns(computeColumnsForWidth(element.clientWidth, cardWidth));
+      setColumns(computeColumnsForWidth(container.clientWidth, cardWidth));
     };
 
     recompute();
 
     const resizeObserver = new ResizeObserver(recompute);
-    resizeObserver.observe(element);
+    resizeObserver.observe(container);
     smMql.addEventListener('change', recompute);
     lgMql.addEventListener('change', recompute);
 
@@ -70,7 +80,7 @@ export function useSnakeColumns(containerRef: RefObject<HTMLElement | null>): nu
       smMql.removeEventListener('change', recompute);
       lgMql.removeEventListener('change', recompute);
     };
-  }, [containerRef]);
+  }, [container]);
 
   return columns;
 }

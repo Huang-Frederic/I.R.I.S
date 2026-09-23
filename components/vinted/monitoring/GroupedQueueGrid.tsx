@@ -1,7 +1,7 @@
 // components/vinted/monitoring/GroupedQueueGrid.tsx
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { ArrowLeftToLine, Send, Eye } from 'lucide-react';
 import {
   DndContext,
@@ -96,17 +96,12 @@ export default function GroupedQueueGrid({
   pendingIds,
 }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const columns = useSnakeColumns(containerRef);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const columns = useSnakeColumns(container);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor),
   );
-  // TEMPORARY DEBUG — remove once the column-count investigation is resolved
-  const [debugWidth, setDebugWidth] = useState<number | null>(null);
-  useEffect(() => {
-    setDebugWidth(containerRef.current?.clientWidth ?? null);
-  }, [columns]);
 
   if (items.length === 0) {
     return <p className="text-text-muted text-sm">File de nouveaux posts : vide — plus rien en attente.</p>;
@@ -144,11 +139,6 @@ export default function GroupedQueueGrid({
 
   return (
     <div className="flex flex-col gap-2">
-      {/* TEMPORARY DEBUG — remove once the column-count investigation is resolved */}
-      <p className="fixed bottom-10 right-2 z-50 rounded bg-black px-2 py-1 font-mono text-xs text-yellow-300">
-        DEBUG queue: columns={columns} width={debugWidth ?? 'null'} innerWidth=
-        {typeof window !== 'undefined' ? window.innerWidth : 'n/a'} dpr={typeof window !== 'undefined' ? window.devicePixelRatio : 'n/a'}
-      </p>
       <p className="text-text-muted text-xs">
         Aujourd&apos;hui · {todayCount}/{dailyQuota}
       </p>
@@ -163,7 +153,7 @@ export default function GroupedQueueGrid({
         onDragCancel={() => setActiveId(null)}
       >
         <SortableContext items={visualOrder.map((i) => i.queueId)} strategy={rectSortingStrategy}>
-          <div ref={containerRef} className="flex flex-wrap items-start gap-3">
+          <div ref={setContainer} className="flex flex-wrap items-start gap-3">
             {groups.map((group, groupPos) => {
               const colorKey = colorKeyForGroup(group.key);
               const rows = chunkIntoRows(group.items, columns);
