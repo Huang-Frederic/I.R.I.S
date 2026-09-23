@@ -270,3 +270,62 @@ def test_push_log_never_raises_when_the_insert_fails():
     # The whole point of _push_log is that a broken logging path must never
     # interrupt the job it's describing — this must not raise.
     asyncio.run(_push_log(supabase, "info", "Publié", user_id="user-1"))
+
+
+# Append to vinted-agent/main_test.py
+from main import _strip_ansi, _log
+
+
+def test_strip_ansi_removes_color_codes():
+    # Regression: _utag() wraps a name in color codes for the terminal
+    # (e.g. "\x1b[96m[Fred]\x1b[0m") — pushed to the web UI raw, this shows
+    # up as literal garbage ("[96m[Fred][0m"), which is exactly what a user
+    # reported seeing in a "Dernière erreur" banner.
+    colored = "\x1b[96m[Fred]\x1b[0m: session expirée — relance import_cookies.py"
+    assert _strip_ansi(colored) == "[Fred]: session expirée — relance import_cookies.py"
+
+
+def test_strip_ansi_leaves_plain_text_untouched():
+    assert _strip_ansi("no colors here") == "no colors here"
+
+
+def test_log_pushes_the_formatted_ansi_stripped_message_when_user_id_is_given():
+    inserted = []
+    execute = AsyncMock(return_value=MagicMock(data=[{"id": "log-1"}]))
+    supabase = MagicMock()
+    supabase.table = MagicMock(
+        return_value=MagicMock(insert=MagicMock(side_effect=lambda row: (inserted.append(row), MagicMock(execute=execute))[1]))
+    )
+
+    asyncio.run(_log(supabase, "user-1", "info", "%s publié", "\x1b[96m[Fred]\x1b[0m"))
+
+    assert inserted == [{"level": "info", "message": "[Fred] publié", "user_id": "user-1"}]
+
+
+def test_log_maps_python_warning_level_to_the_db_warn_value():
+    inserted = []
+    execute = AsyncMock(return_value=MagicMock(data=[{"id": "log-1"}]))
+    supabase = MagicMock()
+    supabase.table = MagicMock(
+        return_value=MagicMock(insert=MagicMock(side_effect=lambda row: (inserted.append(row), MagicMock(execute=execute))[1]))
+    )
+
+    asyncio.run(_log(supabase, "user-1", "warning", "careful"))
+
+    # vinted_agent_logs' CHECK constraint only allows 'info'/'warn'/'error' —
+    # Python's own logging level is spelled "warning", which would violate it.
+    assert inserted[0]["level"] == "warn"
+
+
+def test_log_does_not_push_when_there_is_no_user_id():
+    supabase = MagicMock()
+    asyncio.run(_log(supabase, None, "info", "no one to attribute this to"))
+    # Console-only messages (heartbeat, cooldown countdowns, Realtime infra)
+    # call _log with user_id=None — this must never touch Supabase at all.
+    supabase.table.assert_not_called()
+
+
+def test_log_does_not_crash_when_no_supabase_client_is_given():
+    # Some call sites might only have a user_id but not the client handy —
+    # _log must degrade to console-only rather than raising.
+    asyncio.run(_log(None, "user-1", "info", "still just a console message"))
