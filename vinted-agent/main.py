@@ -956,7 +956,7 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                 config_data = config_res.data if config_res else None
                 daily_quota = (config_data or {}).get("daily_quota", 8)
                 jobs_today_res = await supabase.table("vinted_post_jobs").select("id") \
-                    .eq("user_id", user_id).in_("job_type", ["post", "repost"]) \
+                    .eq("user_id", user_id).eq("triggered_by", "schedule").in_("job_type", ["post", "repost"]) \
                     .gte("created_at", today_start).execute()
                 queue_res = await supabase.table("vinted_queue").select("card_id, lot_id, position") \
                     .eq("user_id", user_id).order("position").limit(1).execute()
