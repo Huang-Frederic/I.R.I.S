@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Settings } from 'lucide-react';
+import { ScrollText, Settings } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useUserContext } from '@/lib/hooks/useUserContext';
 import { nextScheduledWindowStart } from '@/lib/vinted/next-window';
@@ -18,7 +18,7 @@ import ActiveJobBanner from './ActiveJobBanner';
 import GroupedQueueGrid, { type PipelineItem } from './GroupedQueueGrid';
 import GroupedRepostGrid, { type RepostPoolItem } from './GroupedRepostGrid';
 import SettingsModal from './SettingsModal';
-import LogFeed from './LogFeed';
+import LogsModal from './LogsModal';
 
 type AnnonceTarget = { kind: 'card'; card: Card; listings: CardListing[] } | { kind: 'lot'; lot: Lot };
 
@@ -33,6 +33,7 @@ export default function MonitoringSection() {
   const [postingQueueId, setPostingQueueId] = useState<string | null>(null);
   const [repostingId, setRepostingId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(false);
   const [vintedConfig, setVintedConfig] = useState<VintedConfig>({ vinted_shipping_note: '', vinted_seller_note: '' });
   const [annonceTarget, setAnnonceTarget] = useState<AnnonceTarget | null>(null);
   const [stagedPipeline, setStagedPipeline] = useState<PipelineItem[] | null>(null);
@@ -218,6 +219,15 @@ export default function MonitoringSection() {
         )}
         <button
           type="button"
+          onClick={() => setLogsOpen(true)}
+          aria-label="Logs"
+          title="Logs"
+          className="bg-surface-2 border-border rounded-lg border p-2"
+        >
+          <ScrollText className="h-4 w-4" aria-hidden />
+        </button>
+        <button
+          type="button"
           onClick={() => setSettingsOpen(true)}
           aria-label="Paramètres"
           title="Paramètres"
@@ -226,7 +236,7 @@ export default function MonitoringSection() {
           <Settings className="h-4 w-4" aria-hidden />
         </button>
       </div>
-      <AlertBanner sessionStatus={data.sessionStatus} logs={data.logs} />
+      <AlertBanner sessionStatus={data.sessionStatus} />
       <ActiveJobBanner activeJob={activeJob} pendingCount={pendingCount} />
       <GroupedQueueGrid
         items={visiblePipeline}
@@ -252,9 +262,7 @@ export default function MonitoringSection() {
         pendingIds={pendingRepostIds}
         activeJobTarget={activeJob ? { cardId: activeJob.cardId, lotId: activeJob.lotId } : null}
       />
-      <div className="border-border border-t pt-3">
-        <LogFeed logs={data.logs} />
-      </div>
+      <LogsModal open={logsOpen} onClose={() => setLogsOpen(false)} logs={data.logs} />
       <SettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

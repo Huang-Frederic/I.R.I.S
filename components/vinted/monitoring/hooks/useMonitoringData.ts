@@ -63,7 +63,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
         .select('id, user_id, level, message, created_at')
         .eq('user_id', viewedUserId)
         .order('created_at', { ascending: false })
-        .limit(20),
+        .limit(200),
       supabase
         .from('vinted_post_jobs')
         .select('id')
