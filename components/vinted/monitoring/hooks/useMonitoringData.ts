@@ -7,7 +7,6 @@ import { isRepostEligible } from '@/lib/vinted/repost-eligibility';
 import type { PipelineItem } from '../GroupedQueueGrid';
 import { groupKeyFor } from '@/lib/vinted/group-key';
 import type { RepostPoolItem } from '../GroupedRepostGrid';
-import type { SessionStatus } from '../AlertBanner';
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -30,7 +29,6 @@ export interface MonitoringData {
   logs: VintedAgentLogRow[];
   todayJobCount: number;
   repostCandidates: RepostPoolItem[];
-  sessionStatus: SessionStatus | null;
   loading: boolean;
   refetch: () => Promise<void>;
 }
@@ -45,7 +43,6 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
     logs: [],
     todayJobCount: 0,
     repostCandidates: [],
-    sessionStatus: null,
     loading: true,
   });
 
@@ -54,7 +51,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [queueRes, scheduleRes, configRes, logsRes, jobsRes, cardListingsRes, lotListingsRes, sessionRes] = await Promise.all([
+    const [queueRes, scheduleRes, configRes, logsRes, jobsRes, cardListingsRes, lotListingsRes] = await Promise.all([
       supabase.from('vinted_queue').select('id, card_id, lot_id, position').eq('user_id', viewedUserId).order('position'),
       supabase.from('vinted_bot_schedule').select('day_of_week, starts_at, ends_at').eq('user_id', viewedUserId),
       supabase.from('vinted_bot_config').select('daily_quota, repost_after_days, group_priority').eq('user_id', viewedUserId).maybeSingle(),
@@ -81,7 +78,6 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
         .select('lot_id, vinted_listing_id, vinted_posted_at, repost_position, lots(name, price, photo_urls, brand_id, language, status)')
         .eq('user_id', viewedUserId)
         .not('vinted_listing_id', 'is', null),
-      fetch(`/api/vinted/sessions?userId=${viewedUserId}`).then((r) => (r.ok ? r.json() : null)),
     ]);
 
     const cardIds = (queueRes.data ?? []).filter((r) => r.card_id).map((r) => r.card_id as string);
@@ -193,7 +189,6 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
       logs: (logsRes.data ?? []) as VintedAgentLogRow[],
       todayJobCount: jobsRes.data?.length ?? 0,
       repostCandidates,
-      sessionStatus: sessionRes,
       loading: false,
     });
   }, [viewedUserId]);

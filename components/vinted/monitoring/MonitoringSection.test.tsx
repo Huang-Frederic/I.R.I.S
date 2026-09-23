@@ -71,7 +71,6 @@ beforeEach(() => {
     logs: [],
     todayJobCount: 0,
     repostCandidates: [],
-    sessionStatus: null,
     loading: false,
     refetch: vi.fn(),
   });
@@ -111,8 +110,7 @@ describe('<MonitoringSection> view listing', () => {
       logs: [],
       todayJobCount: 0,
       repostCandidates: [],
-      sessionStatus: null,
-      loading: false,
+        loading: false,
       refetch: vi.fn(),
     });
     vi.mocked(fetchLotAnnonceTarget).mockResolvedValue({ lot: LOT });
@@ -138,8 +136,7 @@ describe('<MonitoringSection> staged reorder + save', () => {
       logs: [],
       todayJobCount: 0,
       repostCandidates: [],
-      sessionStatus: null,
-      loading: false,
+        loading: false,
       refetch,
     });
     return refetch;

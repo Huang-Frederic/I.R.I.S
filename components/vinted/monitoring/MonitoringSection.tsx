@@ -13,7 +13,6 @@ import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
 import { useMonitoringData } from './hooks/useMonitoringData';
 import { useActiveJob } from './hooks/useActiveJob';
 import StatusBar from './StatusBar';
-import AlertBanner from './AlertBanner';
 import ActiveJobBanner from './ActiveJobBanner';
 import GroupedQueueGrid, { type PipelineItem } from './GroupedQueueGrid';
 import GroupedRepostGrid, { type RepostPoolItem } from './GroupedRepostGrid';
@@ -236,7 +235,6 @@ export default function MonitoringSection() {
           <Settings className="h-4 w-4" aria-hidden />
         </button>
       </div>
-      <AlertBanner sessionStatus={data.sessionStatus} />
       <ActiveJobBanner activeJob={activeJob} pendingCount={pendingCount} />
       <GroupedQueueGrid
         items={visiblePipeline}
