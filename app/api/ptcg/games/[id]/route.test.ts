@@ -145,4 +145,28 @@ describe('PATCH /api/ptcg/games/[id]', () => {
     expect(update).toHaveBeenCalledWith({ my_archetype_dex: [157] });
     expect(res.status).toBe(200);
   });
+
+  it('updates the result column when provided, without touching the dex columns', async () => {
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u' } } } });
+    const single = vi.fn().mockResolvedValue({
+      data: { id: 'g1', my_archetype_dex: [157], opponent_archetype_dex: [658], result: 'win' },
+      error: null,
+    });
+    const select = vi.fn(() => ({ single }));
+    const eq2 = vi.fn(() => ({ select }));
+    const eq1 = vi.fn(() => ({ eq: eq2 }));
+    const update = vi.fn(() => ({ eq: eq1 }));
+    supabaseMock.from.mockReturnValue({ update });
+
+    const res = await PATCH(makeRequest('PATCH', { result: 'win' }), ctx);
+
+    expect(update).toHaveBeenCalledWith({ result: 'win' });
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects an invalid result value the same as an absent body', async () => {
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u' } } } });
+    const res = await PATCH(makeRequest('PATCH', { result: 'draw' }), ctx);
+    expect(res.status).toBe(400);
+  });
 });

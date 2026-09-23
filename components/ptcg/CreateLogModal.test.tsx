@@ -11,6 +11,7 @@ const resolved = {
   opponent: 'Bklee219',
   myArchetypeDex: [157, 156],
   opponentArchetypeDex: [658],
+  result: 'win' as const,
 };
 
 describe('<CreateLogModal> create mode', () => {
@@ -57,8 +58,38 @@ describe('<CreateLogModal> create mode', () => {
           raw: 'the raw log text',
           myArchetypeDex: [157, 156],
           opponentArchetypeDex: [658],
+          result: 'win',
         }),
       }),
+    );
+  });
+
+  it('lets the user override the auto-detected result before saving', async () => {
+    const savedGame = { id: 'g1', played_at: '2026-09-16T10:00:00.000Z', result: 'loss' as const };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ game: savedGame }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const onSaved = vi.fn();
+
+    render(
+      <CreateLogModal
+        mode="create"
+        open
+        onClose={() => {}}
+        raw="the raw log text"
+        resolved={resolved}
+        onSaved={onSaved}
+      />,
+    );
+
+    // resolved.result is 'win' — correct it to 'loss' before saving.
+    fireEvent.click(screen.getByRole('button', { name: 'gameResult_loss' }));
+    fireEvent.click(screen.getByText('save'));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/ptcg/games',
+        expect.objectContaining({ body: expect.stringContaining('"result":"loss"') }),
+      ),
     );
   });
 
@@ -114,14 +145,39 @@ describe('<CreateLogModal> edit mode', () => {
     fireEvent.click(screen.getByText('save'));
 
     await waitFor(() =>
-      expect(onSaved).toHaveBeenCalledWith({ myArchetypeDex: [157, 156], opponentArchetypeDex: [658] }),
+      expect(onSaved).toHaveBeenCalledWith({
+        myArchetypeDex: [157, 156],
+        opponentArchetypeDex: [658],
+        result: 'win',
+      }),
     );
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/ptcg/games/g1',
       expect.objectContaining({
         method: 'PATCH',
-        body: JSON.stringify({ myArchetypeDex: [157, 156], opponentArchetypeDex: [658] }),
+        body: JSON.stringify({ myArchetypeDex: [157, 156], opponentArchetypeDex: [658], result: 'win' }),
       }),
+    );
+  });
+
+  it('lets the user correct the stored result before saving', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ game: { id: 'g1', my_archetype_dex: [157, 156], opponent_archetype_dex: [658], result: 'loss' } }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const onSaved = vi.fn();
+
+    render(
+      <CreateLogModal mode="edit" open onClose={() => {}} gameId="g1" resolved={resolved} onSaved={onSaved} />,
+    );
+
+    // resolved.result is 'win' (the stored value) — correct it to 'loss'.
+    fireEvent.click(screen.getByRole('button', { name: 'gameResult_loss' }));
+    fireEvent.click(screen.getByText('save'));
+
+    await waitFor(() =>
+      expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ result: 'loss' })),
     );
   });
 

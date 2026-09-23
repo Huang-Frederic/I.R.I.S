@@ -1122,6 +1122,7 @@
     "gameResult_win": "Win",
     "gameResult_loss": "Loss",
     "gameResult_tie": "Tie",
+    "resultFieldLabel": "Result",
     "wentFirst": "1st",
     "wentSecond": "2nd",
     "otherOutcomeLabel": "Other outcome",

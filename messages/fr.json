@@ -1122,6 +1122,7 @@
     "gameResult_win": "Victoire",
     "gameResult_loss": "Défaite",
     "gameResult_tie": "Égalité",
+    "resultFieldLabel": "Résultat",
     "wentFirst": "1er",
     "wentSecond": "2e",
     "otherOutcomeLabel": "Autre issue",

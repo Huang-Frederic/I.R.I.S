@@ -53,7 +53,10 @@ export async function POST(request: Request) {
     playedAt?: unknown;
     myArchetypeDex?: unknown;
     opponentArchetypeDex?: unknown;
+    result?: unknown;
   };
+  const resultOverride =
+    asPair.result === 'win' || asPair.result === 'loss' || asPair.result === 'tie' ? asPair.result : undefined;
   const hasAnalysis = !!asPair?.analysis && typeof asPair.analysis === 'object';
   if (typeof asPair?.raw === 'string') {
     if (!asPair.raw.trim()) {
@@ -95,6 +98,12 @@ export async function POST(request: Request) {
           wentFirst,
         },
       );
+      // The parser's own result is a best-effort read of the raw log's end
+      // line — 'tie' in particular is its fallback for "couldn't tell", not a
+      // real PTCG Live outcome. The Create Log modal pre-fills this value but
+      // lets the user correct it before saving, exactly like the archetype
+      // dex overrides above.
+      if (resultOverride) (body as PtcgBundle).game.result = resultOverride;
     } catch (e) {
       // A paste that is not a battle log at all lands here rather than as a 500.
       return apiError('ptcg_unparsable_log', {

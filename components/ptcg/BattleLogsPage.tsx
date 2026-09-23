@@ -126,6 +126,7 @@ export default function BattleLogsPage({ initialGames }: { initialGames: BattleL
         opponent: body.game.opponent,
         myArchetypeDex: body.myArchetypeDex,
         opponentArchetypeDex: body.opponentArchetypeDex,
+        result: body.game.result,
       },
     });
   };
@@ -316,7 +317,12 @@ export default function BattleLogsPage({ initialGames }: { initialGames: BattleL
             setGames((prev) =>
               prev.map((g) =>
                 g.id === editModal.gameId
-                  ? { ...g, my_archetype_dex: dex.myArchetypeDex, opponent_archetype_dex: dex.opponentArchetypeDex }
+                  ? {
+                      ...g,
+                      my_archetype_dex: dex.myArchetypeDex,
+                      opponent_archetype_dex: dex.opponentArchetypeDex,
+                      result: dex.result,
+                    }
                   : g,
               ),
             );

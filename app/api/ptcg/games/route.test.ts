@@ -99,6 +99,38 @@ describe('POST /api/ptcg/games — archetype-dex override', () => {
   });
 });
 
+describe('POST /api/ptcg/games — result override', () => {
+  afterEach(() => vi.clearAllMocks());
+
+  it("stores the parser's own result when no override is provided", async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    const insert = mockGamesInsert();
+
+    await POST(makeRequest({ raw: 'irrelevant — parseGame is mocked' }));
+
+    // mockParsedGame.result is 'loss'.
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ result: 'loss' }));
+  });
+
+  it('stores an explicit result override instead of the parsed one', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    const insert = mockGamesInsert();
+
+    await POST(makeRequest({ raw: 'irrelevant — parseGame is mocked', result: 'win' }));
+
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ result: 'win' }));
+  });
+
+  it('ignores an invalid result value and falls back to the parsed one', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    const insert = mockGamesInsert();
+
+    await POST(makeRequest({ raw: 'irrelevant — parseGame is mocked', result: 'draw' }));
+
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ result: 'loss' }));
+  });
+});
+
 describe('POST /api/ptcg/games — went_first', () => {
   afterEach(() => vi.clearAllMocks());
 

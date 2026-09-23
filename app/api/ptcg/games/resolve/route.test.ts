@@ -56,6 +56,7 @@ describe('POST /api/ptcg/games/resolve', () => {
     expect(body).toEqual({
       me: 'Hisshiden',
       opponent: 'Bklee219',
+      result: 'loss',
       // mockParsedGame.state.snapshots is empty, so resolveArchetypeDex's
       // live-derivation path (the real function, not mocked) yields [] for
       // both sides — this exercises the real chain end to end.

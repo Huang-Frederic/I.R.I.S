@@ -42,6 +42,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     me: parsed.me,
     opponent: parsed.opponent,
+    result: parsed.result,
     myArchetypeDex: resolveArchetypeDex(parsed.state.snapshots, parsed.me, null),
     opponentArchetypeDex: resolveArchetypeDex(parsed.state.snapshots, parsed.opponent, null),
   });

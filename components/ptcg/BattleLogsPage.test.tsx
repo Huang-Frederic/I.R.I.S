@@ -92,6 +92,7 @@ describe('<BattleLogsPage>', () => {
       json: async () => ({
         me: 'Hisshiden',
         opponent: 'NewOpponent',
+        result: 'win',
         myArchetypeDex: [157],
         opponentArchetypeDex: [1],
       }),
