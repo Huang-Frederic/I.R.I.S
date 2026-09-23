@@ -11,8 +11,10 @@ import type { VintedConfig } from '@/lib/utils/vinted-template';
 import AnnonceModal from '@/components/vinted/AnnonceModal';
 import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
 import { useMonitoringData } from './hooks/useMonitoringData';
+import { useActiveJob } from './hooks/useActiveJob';
 import StatusBar from './StatusBar';
 import AlertBanner from './AlertBanner';
+import ActiveJobBanner from './ActiveJobBanner';
 import GroupedQueueGrid, { type PipelineItem } from './GroupedQueueGrid';
 import GroupedRepostGrid, { type RepostPoolItem } from './GroupedRepostGrid';
 import SettingsModal from './SettingsModal';
@@ -26,6 +28,7 @@ export default function MonitoringSection() {
   const { myUserId, myName, partnerUserId, partnerName } = useUserContext();
   const [viewedUserId, setViewedUserId] = useState(myUserId);
   const data = useMonitoringData(viewedUserId);
+  const { activeJob, pendingCount } = useActiveJob(viewedUserId);
   const editable = viewedUserId === myUserId;
   const [postingQueueId, setPostingQueueId] = useState<string | null>(null);
   const [repostingId, setRepostingId] = useState<string | null>(null);
@@ -224,6 +227,7 @@ export default function MonitoringSection() {
         </button>
       </div>
       <AlertBanner sessionStatus={data.sessionStatus} logs={data.logs} />
+      <ActiveJobBanner activeJob={activeJob} pendingCount={pendingCount} />
       <GroupedQueueGrid
         items={visiblePipeline}
         dailyQuota={data.config.daily_quota}

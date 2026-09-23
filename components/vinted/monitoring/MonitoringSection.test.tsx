@@ -27,6 +27,7 @@ vi.mock('@/lib/supabase/client', () => ({
   }),
 }));
 vi.mock('./hooks/useMonitoringData');
+vi.mock('./hooks/useActiveJob', () => ({ useActiveJob: () => ({ activeJob: null, pendingCount: 0 }) }));
 vi.mock('@/lib/vinted/fetch-annonce-target');
 vi.mock('@/components/vinted/AnnonceModal', () => ({
   default: ({ card }: { card: { card_name: string } }) => <div data-testid="annonce-modal">{card.card_name}</div>,
