@@ -68,6 +68,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
         .from('vinted_post_jobs')
         .select('id')
         .eq('user_id', viewedUserId)
+        .eq('triggered_by', 'schedule')
         .in('job_type', ['post', 'repost'])
         .gte('created_at', todayStart.toISOString()),
       supabase

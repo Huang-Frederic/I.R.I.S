@@ -1002,6 +1002,7 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                         "lot_id": decision["lot_id"],
                         "job_type": decision["action"],
                         "status": "pending",
+                        "triggered_by": "schedule",
                     }).execute()
                     if decision["card_id"]:
                         await supabase.table("vinted_queue").delete() \
