@@ -16,8 +16,7 @@ export default function LogsModal({ open, onClose, logs }: Props) {
       open={open}
       onClose={onClose}
       ariaLabel="Logs du bot Vinted"
-      layout="fullscreen"
-      className="bg-surface flex h-full w-full flex-col p-6"
+      className="bg-surface border-border flex max-h-[85vh] w-full max-w-2xl flex-col rounded-lg border p-6 shadow-xl"
     >
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Logs du bot</h2>
@@ -25,7 +24,7 @@ export default function LogsModal({ open, onClose, logs }: Props) {
           ✕
         </button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 overflow-y-auto">
         <LogFeed logs={logs} />
       </div>
     </Modal>
