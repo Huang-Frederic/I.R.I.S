@@ -100,10 +100,10 @@ describe('<GroupedRepostGrid> snake layout', () => {
     expect(onReorder).toHaveBeenCalledWith(expect.any(Array), 'c2');
   });
 
-  it('renders a persistent green dashed border for cards listed in pendingIds', () => {
+  it('renders a persistent thicker red border for cards listed in pendingIds', () => {
     renderGrid({ pendingIds: new Set(['c2']) });
     const card = screen.getByText('Démolosse V').closest('[data-testid="poster-card-overlay"]')!.parentElement as HTMLElement;
-    expect(card.className).toContain('border-staleness-fresh');
+    expect(card.className).toContain('border-2');
   });
 
   it('still allows a plain click to reveal the overlay — regression test for the "clicking does nothing" bug', () => {

@@ -202,7 +202,7 @@ describe('<MonitoringSection> staged reorder + save', () => {
     vi.unstubAllGlobals();
   });
 
-  it('keeps a persistent green dashed border on the card that moved, until Save clears it', async () => {
+  it('keeps a persistent thicker red border on the card that moved, until Save clears it', async () => {
     const refetch = mockPipeline(TWO_ITEM_PIPELINE);
     render(<MonitoringSection />);
 
@@ -211,12 +211,11 @@ describe('<MonitoringSection> staged reorder + save', () => {
     fireEvent.click(card);
     fireEvent.click(within(overlay).getByLabelText('Mettre en premier dans le groupe'));
 
-    expect(card.className).toContain('border-staleness-fresh');
-    expect(card.className).toContain('border-dashed');
+    expect(card.className).toContain('border-2');
 
     fireEvent.click(screen.getByText('Enregistrer'));
     await waitFor(() => expect(refetch).toHaveBeenCalled());
-    await waitFor(() => expect(card.className).not.toContain('border-staleness-fresh'));
+    await waitFor(() => expect(card.className).not.toContain('border-2'));
   });
 
   it('clears the pending-change marker together with the staged pipeline after a successful "Poster maintenant"', async () => {
@@ -228,13 +227,13 @@ describe('<MonitoringSection> staged reorder + save', () => {
     const fulgurisCard = fulgurisOverlay.parentElement as HTMLElement;
     fireEvent.click(fulgurisCard);
     fireEvent.click(within(fulgurisOverlay).getByLabelText('Mettre en premier dans le groupe'));
-    expect(fulgurisCard.className).toContain('border-staleness-fresh');
+    expect(fulgurisCard.className).toContain('border-2');
 
     const pharampOverlay = screen.getByText('Pharamp GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
     fireEvent.click(pharampOverlay.parentElement as HTMLElement);
     fireEvent.click(within(pharampOverlay).getByLabelText('Poster maintenant'));
 
-    await waitFor(() => expect(fulgurisCard.className).not.toContain('border-staleness-fresh'));
+    await waitFor(() => expect(fulgurisCard.className).not.toContain('border-2'));
     vi.unstubAllGlobals();
   });
 });

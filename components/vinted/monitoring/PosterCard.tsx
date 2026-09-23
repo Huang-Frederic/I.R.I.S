@@ -24,12 +24,15 @@ export interface PosterCardProps {
   /** Always-visible corner badge, e.g. queue position "#3". */
   badge?: string;
   actions: PosterCardAction[];
-  /** Forces the green dashed "changed" border even when this card isn't the
-   *  live drop target — the parent sets this for any item that moved since
-   *  the last save, so the marker survives past the drag gesture itself. */
+  /** Forces the bold red "changed" border even when this card isn't the live
+   *  drag source — the parent sets this for any item that moved since the
+   *  last save, so the marker survives past the drag gesture itself. */
   isPendingChange?: boolean;
 }
 
+/** Every card has a red border; a dragged or pending-change card gets a
+ *  thicker one instead of a different color, since red is now the resting
+ *  state too — this is the only thing left distinguishing "changed" cards. */
 export function posterCardBorderClasses({
   isDragging,
   isPendingChange,
@@ -37,8 +40,8 @@ export function posterCardBorderClasses({
   isDragging: boolean;
   isPendingChange: boolean;
 }): string {
-  if (isDragging || isPendingChange) return 'border-staleness-fresh border-dashed';
-  return 'border-white';
+  if (isDragging || isPendingChange) return 'border-2 border-red';
+  return 'border border-red';
 }
 
 export default function PosterCard({
@@ -74,7 +77,7 @@ export default function PosterCard({
       onClick={() => setRevealed((r) => !r)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`bg-surface-2 relative aspect-[63/88] w-34 shrink-0 overflow-hidden rounded-lg border sm:w-38 lg:w-43 ${posterCardBorderClasses({ isDragging, isPendingChange })} ${
+      className={`bg-surface-2 relative aspect-[63/80] w-34 shrink-0 overflow-hidden rounded-lg sm:w-38 lg:w-43 ${posterCardBorderClasses({ isDragging, isPendingChange })} ${
         isDragging ? 'opacity-40' : dimmed ? 'opacity-60' : ''
       }`}
     >
@@ -84,7 +87,7 @@ export default function PosterCard({
         </span>
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={imageUrl} alt="" className="h-full w-full object-contain" />
+      <img src={imageUrl} alt="" className="h-full w-full object-cover" />
       <div
         data-testid="poster-card-overlay"
         className={`absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-black/60 p-2 text-center backdrop-blur-[1px] transition-opacity ${
@@ -127,7 +130,7 @@ export function CardConnector({
   const Icon = direction === 'left' ? ChevronLeft : direction === 'up' ? ChevronUp : ChevronRight;
   return (
     <div className="flex shrink-0 items-center self-center" aria-hidden>
-      <Icon className={variant === 'group' ? 'text-text-muted h-5 w-5' : 'text-text-faint h-4 w-4'} />
+      <Icon strokeWidth={3} className={variant === 'group' ? 'text-red h-5 w-5' : 'text-red h-4 w-4'} />
     </div>
   );
 }
@@ -136,7 +139,7 @@ export function CardConnector({
 export function PosterCardStartSlot() {
   return (
     <div
-      className="border-border bg-surface flex aspect-[63/88] w-34 shrink-0 items-center justify-center rounded-lg border border-dashed sm:w-38 lg:w-43"
+      className="border-border bg-surface flex aspect-[63/80] w-34 shrink-0 items-center justify-center rounded-lg border border-dashed sm:w-38 lg:w-43"
       title="Ta collection"
       aria-hidden
     >
@@ -155,9 +158,9 @@ export function PosterCardStartSlot() {
  */
 export function PosterCardDragPreview({ imageUrl }: { imageUrl: string }) {
   return (
-    <div className="aspect-[63/88] w-34 scale-110 overflow-hidden rounded-lg border border-white bg-white shadow-xl sm:w-38 lg:w-43">
+    <div className="aspect-[63/80] w-34 scale-110 overflow-hidden rounded-lg border border-white bg-white shadow-xl sm:w-38 lg:w-43">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={imageUrl} alt="" className="h-full w-full object-contain" />
+      <img src={imageUrl} alt="" className="h-full w-full object-cover" />
     </div>
   );
 }

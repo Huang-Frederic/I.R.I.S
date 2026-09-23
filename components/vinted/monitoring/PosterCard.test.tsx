@@ -90,23 +90,23 @@ describe('<PosterCard>', () => {
     expect(screen.getByLabelText("Voir l'annonce")).toBeDisabled();
   });
 
-  it('shows the pending-change (green dashed) border when isPendingChange is true, independent of live drag state', () => {
+  it('shows the pending-change (thicker red) border when isPendingChange is true, independent of live drag state', () => {
     renderCard({ isPendingChange: true });
     const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
-    expect(card.className).toContain('border-staleness-fresh');
-    expect(card.className).toContain('border-dashed');
+    expect(card.className).toContain('border-2');
+    expect(card.className).toContain('border-red');
   });
 
-  it('does not show the pending-change border by default', () => {
+  it('does not show the thicker pending-change border by default', () => {
     renderCard();
     const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
-    expect(card.className).not.toContain('border-staleness-fresh');
+    expect(card.className).not.toContain('border-2');
   });
 
-  it('shows a white border by default', () => {
+  it('shows a red border by default', () => {
     renderCard();
     const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
-    expect(card.className).toContain('border-white');
+    expect(card.className).toContain('border-red');
   });
 
   it('turns an action button background red on hover', () => {
@@ -131,29 +131,30 @@ describe('<CardConnector>', () => {
     const { container } = render(<CardConnector direction="up" />);
     expect(container.querySelector('svg.lucide-chevron-up')).toBeInTheDocument();
   });
+
+  it('renders a bold red chevron', () => {
+    const { container } = render(<CardConnector />);
+    const icon = container.querySelector('svg') as SVGElement;
+    expect(icon.getAttribute('class')).toContain('text-red');
+    expect(icon.getAttribute('stroke-width')).toBe('3');
+  });
 });
 
 describe('posterCardBorderClasses', () => {
-  it('shows a green dashed border for the card being dragged', () => {
-    expect(posterCardBorderClasses({ isDragging: true, isPendingChange: false })).toBe(
-      'border-staleness-fresh border-dashed',
-    );
+  it('shows a thicker red border for the card being dragged', () => {
+    expect(posterCardBorderClasses({ isDragging: true, isPendingChange: false })).toBe('border-2 border-red');
   });
 
-  it('shows a green dashed border for a pending (unsaved) change', () => {
-    expect(posterCardBorderClasses({ isDragging: false, isPendingChange: true })).toBe(
-      'border-staleness-fresh border-dashed',
-    );
+  it('shows a thicker red border for a pending (unsaved) change', () => {
+    expect(posterCardBorderClasses({ isDragging: false, isPendingChange: true })).toBe('border-2 border-red');
   });
 
-  it('falls back to a white border otherwise', () => {
-    expect(posterCardBorderClasses({ isDragging: false, isPendingChange: false })).toBe('border-white');
+  it('falls back to a plain red border otherwise', () => {
+    expect(posterCardBorderClasses({ isDragging: false, isPendingChange: false })).toBe('border border-red');
   });
 
-  it('shows the green dashed border if both are true at once', () => {
-    expect(posterCardBorderClasses({ isDragging: true, isPendingChange: true })).toBe(
-      'border-staleness-fresh border-dashed',
-    );
+  it('shows the thicker red border if both are true at once', () => {
+    expect(posterCardBorderClasses({ isDragging: true, isPendingChange: true })).toBe('border-2 border-red');
   });
 });
 
