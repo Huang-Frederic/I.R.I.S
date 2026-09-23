@@ -970,6 +970,9 @@ async def _heartbeat_loop(supabase: AsyncClient) -> None:
         await asyncio.sleep(30)
 
 
+SCHEDULING_POLL_SECONDS = 300  # 5 minutes
+
+
 async def _scheduling_loop(supabase: AsyncClient) -> None:
     """Runs alongside the heartbeat loop — every few minutes, for each
     Vinted-enabled user, asks scheduler.decide_next_action what (if
@@ -1030,6 +1033,7 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                 decision = decide_next_action(
                     now, schedule_res.data or [], len(jobs_today_res.data or []), daily_quota,
                     queue_res.data or [], repost_candidates,
+                    poll_interval_seconds=SCHEDULING_POLL_SECONDS, jitter=random.random(),
                 )
                 if decision:
                     await supabase.table("vinted_post_jobs").insert({
@@ -1048,7 +1052,7 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                             .eq("user_id", user_id).eq("lot_id", decision["lot_id"]).execute()
             except Exception as e:
                 await _log(supabase, user_id, "warning", "⚠  Scheduling loop — %s (%s)", e, _utag(user_id))
-        await asyncio.sleep(300)  # 5 minutes
+        await asyncio.sleep(SCHEDULING_POLL_SECONDS)
 
 
 async def main() -> None:
