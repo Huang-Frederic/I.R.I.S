@@ -13,6 +13,15 @@ from curl_cffi import requests as curl_requests
 from PIL import Image
 
 VINTED_BASE = "https://www.vinted.fr"
+# Bump this whenever the real browser's Chrome updates significantly — a
+# stale version here is exactly what caused the 2026-09-23 session-invalidation
+# loop (User-Agent/sec-ch-ua claimed Chrome 131 while curl_cffi's TLS
+# fingerprint and the real browser had both moved on, and DataDome/Vinted
+# flagged the mismatch). Every UA/impersonate call site reads this one
+# constant so they can never drift out of sync with each other again.
+# curl_cffi has no exact match for very new Chrome releases — pick the
+# highest version its BrowserType enum actually supports.
+CHROME_VERSION = "146"
 
 
 def _log_request_failure(log: logging.Logger, context: str, e: Exception) -> None:
@@ -127,16 +136,16 @@ class VintedClient:
         self._cookies = {k: v for k, v in raw.items() if v and not k.startswith("_comment")}
         # curl_cffi impersonates Chrome's TLS fingerprint (JA3) to bypass DataDome.
         # Must match the Chrome version in the User-Agent to avoid DataDome mismatch detection.
-        self._session = curl_requests.Session(impersonate="chrome131")
+        self._session = curl_requests.Session(impersonate=f"chrome{CHROME_VERSION}")
         self._session.cookies.update(self._cookies)
         self._csrf: Optional[str] = None
 
     def _headers(self) -> dict:
         h = {
-            # Chrome 131 on Windows — matches impersonate="chrome131" TLS fingerprint
+            # Windows — matches impersonate=f"chrome{CHROME_VERSION}" TLS fingerprint
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                f"(KHTML, like Gecko) Chrome/{CHROME_VERSION}.0.0.0 Safari/537.36"
             ),
             "Accept": "application/json,text/plain,*/*,image/webp",
             "Accept-Language": "fr-FR,fr;q=0.9",
@@ -144,7 +153,7 @@ class VintedClient:
             "Origin": VINTED_BASE,
             "Referer": f"{VINTED_BASE}/items/new",
             # Browser hint headers — must match UA above for DataDome consistency check
-            "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+            "sec-ch-ua": f'"Google Chrome";v="{CHROME_VERSION}", "Chromium";v="{CHROME_VERSION}", "Not_A Brand";v="24"',
             "sec-ch-ua-mobile": "?0",
             "sec-ch-ua-platform": '"Windows"',
             "sec-fetch-site": "same-origin",
@@ -188,7 +197,7 @@ class VintedClient:
                 self._save_cookies()
                 # curl_cffi/libcurl has an internal cookie jar that .cookies.set() does not
                 # update reliably — reinitialise the session so the new access_token is used.
-                self._session = curl_requests.Session(impersonate="chrome131")
+                self._session = curl_requests.Session(impersonate=f"chrome{CHROME_VERSION}")
                 self._session.cookies.update(self._cookies)
                 log.info("Token refreshed successfully")
                 return True
@@ -463,7 +472,7 @@ class VintedClient:
             "captchaUrl": captcha_url,
             "userAgent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                f"(KHTML, like Gecko) Chrome/{CHROME_VERSION}.0.0.0 Safari/537.36"
             ),
             "proxyType": parsed.scheme or "socks5",
             "proxyAddress": parsed.hostname or "",
@@ -508,7 +517,7 @@ class VintedClient:
                     new_dd = cookie_str.split("datadome=")[-1].split(";")[0]
                     self._cookies["datadome"] = new_dd
                     self._save_cookies()
-                    self._session = curl_requests.Session(impersonate="chrome131")
+                    self._session = curl_requests.Session(impersonate=f"chrome{CHROME_VERSION}")
                     self._session.cookies.update(self._cookies)
                     log.info("CapSolver DataDome résolu ✓")
                     return True
