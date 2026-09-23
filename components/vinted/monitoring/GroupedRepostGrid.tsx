@@ -86,6 +86,11 @@ interface Props {
   onViewListing: (item: RepostPoolItem) => void;
   /** Ids marked as changed-but-unsaved since the last save — rendered with a persistent green dashed border. */
   pendingIds: ReadonlySet<string>;
+  /** The card/lot the bot is actively processing right now, if any — that
+   *  one item gets dimmed, made non-draggable, and has its posting actions
+   *  disabled, so the user can't reorder or re-trigger something the bot
+   *  already claimed. Everything else in the grid stays fully interactive. */
+  activeJobTarget: { cardId: string | null; lotId: string | null } | null;
 }
 
 export default function GroupedRepostGrid({
@@ -98,6 +103,7 @@ export default function GroupedRepostGrid({
   repostingId,
   onViewListing,
   pendingIds,
+  activeJobTarget,
 }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
@@ -173,6 +179,10 @@ export default function GroupedRepostGrid({
                           <div className="flex items-center gap-2">
                             {displayRow.map((item, i) => {
                               const groupIndex = group.items.findIndex((x) => itemId(x) === itemId(item));
+                              const isBeingProcessed =
+                                activeJobTarget !== null &&
+                                ((item.cardId !== null && item.cardId === activeJobTarget.cardId) ||
+                                  (item.lotId !== null && item.lotId === activeJobTarget.lotId));
                               const actions: PosterCardAction[] = [
                                 ...(editable
                                   ? [
@@ -180,13 +190,13 @@ export default function GroupedRepostGrid({
                                         icon: ArrowLeftToLine,
                                         label: 'Mettre en premier dans le groupe',
                                         onClick: () => handleMoveToFront(itemId(item)),
-                                        disabled: groupIndex === 0,
+                                        disabled: groupIndex === 0 || isBeingProcessed,
                                       },
                                       {
                                         icon: RotateCw,
                                         label: 'Reposter maintenant',
                                         onClick: () => onRepostNow(item),
-                                        disabled: repostingId === itemId(item),
+                                        disabled: repostingId === itemId(item) || isBeingProcessed,
                                       },
                                     ]
                                   : []),
@@ -200,7 +210,8 @@ export default function GroupedRepostGrid({
                                     imageUrl={item.imageUrl}
                                     name={item.name}
                                     price={item.price}
-                                    draggable={editable}
+                                    draggable={editable && !isBeingProcessed}
+                                    dimmed={isBeingProcessed}
                                     actions={actions}
                                     isPendingChange={pendingIds.has(itemId(item))}
                                   />

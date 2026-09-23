@@ -82,6 +82,11 @@ interface Props {
   onViewListing: (item: PipelineItem) => void;
   /** Ids marked as changed-but-unsaved since the last save — rendered with a persistent green dashed border. */
   pendingIds: ReadonlySet<string>;
+  /** The card/lot the bot is actively processing right now, if any — that
+   *  one item gets dimmed, made non-draggable, and has its posting actions
+   *  disabled, so the user can't reorder or re-trigger something the bot
+   *  already claimed. Everything else in the grid stays fully interactive. */
+  activeJobTarget: { cardId: string | null; lotId: string | null } | null;
 }
 
 export default function GroupedQueueGrid({
@@ -94,6 +99,7 @@ export default function GroupedQueueGrid({
   postingQueueId,
   onViewListing,
   pendingIds,
+  activeJobTarget,
 }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
@@ -178,6 +184,10 @@ export default function GroupedQueueGrid({
                             {displayRow.map((item, i) => {
                               const globalIndex = sortedItems.findIndex((x) => x.queueId === item.queueId);
                               const groupIndex = group.items.findIndex((x) => x.queueId === item.queueId);
+                              const isBeingProcessed =
+                                activeJobTarget !== null &&
+                                ((item.cardId !== null && item.cardId === activeJobTarget.cardId) ||
+                                  (item.lotId !== null && item.lotId === activeJobTarget.lotId));
                               const actions: PosterCardAction[] = [
                                 ...(editable
                                   ? [
@@ -185,13 +195,13 @@ export default function GroupedQueueGrid({
                                         icon: ArrowLeftToLine,
                                         label: 'Mettre en premier dans le groupe',
                                         onClick: () => handleMoveToFront(item.queueId),
-                                        disabled: groupIndex === 0,
+                                        disabled: groupIndex === 0 || isBeingProcessed,
                                       },
                                       {
                                         icon: Send,
                                         label: 'Poster maintenant',
                                         onClick: () => onPostNow(item),
-                                        disabled: postingQueueId === item.queueId,
+                                        disabled: postingQueueId === item.queueId || isBeingProcessed,
                                       },
                                     ]
                                   : []),
@@ -205,8 +215,8 @@ export default function GroupedQueueGrid({
                                     imageUrl={item.imageUrl}
                                     name={item.name}
                                     price={item.price}
-                                    draggable={editable}
-                                    dimmed={globalIndex >= dailyQuota}
+                                    draggable={editable && !isBeingProcessed}
+                                    dimmed={globalIndex >= dailyQuota || isBeingProcessed}
                                     badge={`#${globalIndex + 1}`}
                                     actions={actions}
                                     isPendingChange={pendingIds.has(item.queueId)}

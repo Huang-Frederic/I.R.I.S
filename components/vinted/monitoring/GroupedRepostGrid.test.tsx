@@ -52,6 +52,7 @@ function renderGrid(overrides: Partial<ComponentProps<typeof GroupedRepostGrid>>
       repostingId={null}
       onViewListing={vi.fn()}
       pendingIds={new Set<string>()}
+      activeJobTarget={null}
       {...overrides}
     />,
   );
@@ -133,6 +134,24 @@ describe('<GroupedRepostGrid> snake layout', () => {
     fireEvent.click(card);
     fireEvent.click(within(card).getByLabelText("Voir l'annonce", { selector: 'button' }));
     expect(onViewListing).toHaveBeenCalledWith(ITEMS[6]);
+  });
+
+  it('dims, disables dragging, and disables the action buttons for the card the bot is actively processing', () => {
+    renderGrid({ activeJobTarget: { cardId: 'c2', lotId: null } });
+    const overlay = screen.getByText('Démolosse V').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    const card = overlay.parentElement as HTMLElement;
+    fireEvent.click(card);
+    expect(card.className).toContain('opacity-60');
+    expect(within(overlay).getByLabelText('Reposter maintenant')).toBeDisabled();
+    expect(within(overlay).getByLabelText("Voir l'annonce")).not.toBeDisabled();
+  });
+
+  it('leaves every other card fully interactive when a different card is being processed', () => {
+    renderGrid({ activeJobTarget: { cardId: 'some-other-card-id', lotId: null } });
+    const overlay = screen.getByText('Démolosse V').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    const card = overlay.parentElement as HTMLElement;
+    fireEvent.click(card);
+    expect(within(overlay).getByLabelText('Reposter maintenant')).not.toBeDisabled();
   });
 
   it('computeSnakeReorder converts a post-drag visual order back into the correct logical save order', () => {
