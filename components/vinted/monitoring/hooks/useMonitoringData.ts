@@ -15,6 +15,14 @@ function fallbackSprite(pokemonNumber: number | null): string {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemonNumber ?? 0}.png`;
 }
 
+/** `Lot.photo_urls` stores paths relative to the `lot-photos` Storage bucket
+ *  (e.g. "{lot_id}/0.jpg"), not full URLs — same helper every other lot-photo
+ *  call site in the app builds locally (there's no shared export for it). */
+export function lotImageUrl(photoUrls: string[] | null | undefined): string {
+  const path = photoUrls?.[0];
+  return path ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/lot-photos/${path}` : '';
+}
+
 export interface MonitoringData {
   pipeline: PipelineItem[];
   schedule: Pick<VintedBotScheduleRow, 'day_of_week' | 'starts_at' | 'ends_at'>[];
@@ -69,7 +77,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
         .not('vinted_listing_id', 'is', null),
       supabase
         .from('lot_listings')
-        .select('lot_id, vinted_listing_id, vinted_posted_at, repost_position, lots(name, price, photo_url, brand_id, language, status)')
+        .select('lot_id, vinted_listing_id, vinted_posted_at, repost_position, lots(name, price, photo_urls, brand_id, language, status)')
         .eq('user_id', viewedUserId)
         .not('vinted_listing_id', 'is', null),
       fetch(`/api/vinted/sessions?userId=${viewedUserId}`).then((r) => (r.ok ? r.json() : null)),
@@ -83,8 +91,8 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
         ? supabase.from('cards').select('id, card_name, suggested_price, image_url, tcg_image_url, pokemon_number, language').in('id', cardIds)
         : Promise.resolve({ data: [] as { id: string; card_name: string; suggested_price: number | null; image_url: string | null; tcg_image_url: string | null; pokemon_number: number | null; language: string }[] }),
       lotIds.length
-        ? supabase.from('lots').select('id, name, price, photo_url, brand_id, language').in('id', lotIds)
-        : Promise.resolve({ data: [] as { id: string; name: string; price: number | null; photo_url: string | null; brand_id: number | null; language: string | null }[] }),
+        ? supabase.from('lots').select('id, name, price, photo_urls, brand_id, language').in('id', lotIds)
+        : Promise.resolve({ data: [] as { id: string; name: string; price: number | null; photo_urls: string[]; brand_id: number | null; language: string | null }[] }),
     ]);
 
     const cardsById = new Map((cardsRes.data ?? []).map((c) => [c.id, c]));
@@ -112,7 +120,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
         position: row.position,
         name: lot?.name ?? '?',
         price: lot?.price ?? null,
-        imageUrl: lot?.photo_url ?? '',
+        imageUrl: lotImageUrl(lot?.photo_urls),
         groupKey: groupKeyFor({ cardId: null, language: lot?.language ?? null, brandId: lot?.brand_id ?? null }),
       };
     });
@@ -159,7 +167,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
           lotId: row.lot_id,
           name: lot.name,
           price: lot.price,
-          imageUrl: lot.photo_url ?? '',
+          imageUrl: lotImageUrl(lot.photo_urls),
           vintedPostedAt: row.vinted_posted_at as string,
           groupKey: groupKeyFor({ cardId: null, language: lot.language ?? null, brandId: lot.brand_id ?? null }),
           repostPosition: row.repost_position ?? null,
