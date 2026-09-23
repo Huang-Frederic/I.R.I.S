@@ -24,15 +24,12 @@ export interface PosterCardProps {
   /** Always-visible corner badge, e.g. queue position "#3". */
   badge?: string;
   actions: PosterCardAction[];
-  /** Forces the bold red "changed" border even when this card isn't the live
+  /** Forces the green "changed" border even when this card isn't the live
    *  drag source — the parent sets this for any item that moved since the
    *  last save, so the marker survives past the drag gesture itself. */
   isPendingChange?: boolean;
 }
 
-/** Every card has a red border; a dragged or pending-change card gets a
- *  thicker one instead of a different color, since red is now the resting
- *  state too — this is the only thing left distinguishing "changed" cards. */
 export function posterCardBorderClasses({
   isDragging,
   isPendingChange,
@@ -40,7 +37,7 @@ export function posterCardBorderClasses({
   isDragging: boolean;
   isPendingChange: boolean;
 }): string {
-  if (isDragging || isPendingChange) return 'border-2 border-red';
+  if (isDragging || isPendingChange) return 'border border-staleness-fresh';
   return 'border border-red';
 }
 

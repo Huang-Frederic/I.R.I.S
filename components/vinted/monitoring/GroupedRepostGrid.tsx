@@ -136,7 +136,7 @@ export default function GroupedRepostGrid({
 
   return (
     <div className={`border-border mt-3 border-t pt-3 ${active ? '' : 'opacity-40'}`}>
-      <p className="text-text-muted mb-2 text-[11px] uppercase">
+      <p className="text-text-muted mb-4 text-[11px] uppercase">
         Reposts éligibles — {active ? 'actif' : 'en attente'}
       </p>
       <DndContext

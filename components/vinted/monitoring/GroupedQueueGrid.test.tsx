@@ -105,10 +105,10 @@ describe('<GroupedQueueGrid> snake layout', () => {
     expect(onReorder).toHaveBeenCalledWith(expect.any(Array), 'q2');
   });
 
-  it('renders a persistent thicker red border for cards listed in pendingIds', () => {
+  it('renders a persistent green border for cards listed in pendingIds', () => {
     renderGrid({ pendingIds: new Set(['q2']) });
     const card = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]')!.parentElement as HTMLElement;
-    expect(card.className).toContain('border-2');
+    expect(card.className).toContain('border-staleness-fresh');
   });
 
   it('renders the PC lead-in slot before the very first card', () => {

@@ -138,7 +138,7 @@ export default function GroupedQueueGrid({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-4">
       <p className="text-text-muted text-xs">
         Aujourd&apos;hui · {todayCount}/{dailyQuota}
       </p>

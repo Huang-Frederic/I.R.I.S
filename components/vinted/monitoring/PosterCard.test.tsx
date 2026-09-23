@@ -90,17 +90,16 @@ describe('<PosterCard>', () => {
     expect(screen.getByLabelText("Voir l'annonce")).toBeDisabled();
   });
 
-  it('shows the pending-change (thicker red) border when isPendingChange is true, independent of live drag state', () => {
+  it('shows the pending-change (green) border when isPendingChange is true, independent of live drag state', () => {
     renderCard({ isPendingChange: true });
     const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
-    expect(card.className).toContain('border-2');
-    expect(card.className).toContain('border-red');
+    expect(card.className).toContain('border-staleness-fresh');
   });
 
-  it('does not show the thicker pending-change border by default', () => {
+  it('does not show the pending-change border by default', () => {
     renderCard();
     const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
-    expect(card.className).not.toContain('border-2');
+    expect(card.className).not.toContain('border-staleness-fresh');
   });
 
   it('shows a red border by default', () => {
@@ -141,20 +140,20 @@ describe('<CardConnector>', () => {
 });
 
 describe('posterCardBorderClasses', () => {
-  it('shows a thicker red border for the card being dragged', () => {
-    expect(posterCardBorderClasses({ isDragging: true, isPendingChange: false })).toBe('border-2 border-red');
+  it('shows a green border for the card being dragged', () => {
+    expect(posterCardBorderClasses({ isDragging: true, isPendingChange: false })).toBe('border border-staleness-fresh');
   });
 
-  it('shows a thicker red border for a pending (unsaved) change', () => {
-    expect(posterCardBorderClasses({ isDragging: false, isPendingChange: true })).toBe('border-2 border-red');
+  it('shows a green border for a pending (unsaved) change', () => {
+    expect(posterCardBorderClasses({ isDragging: false, isPendingChange: true })).toBe('border border-staleness-fresh');
   });
 
   it('falls back to a plain red border otherwise', () => {
     expect(posterCardBorderClasses({ isDragging: false, isPendingChange: false })).toBe('border border-red');
   });
 
-  it('shows the thicker red border if both are true at once', () => {
-    expect(posterCardBorderClasses({ isDragging: true, isPendingChange: true })).toBe('border-2 border-red');
+  it('shows the green border if both are true at once', () => {
+    expect(posterCardBorderClasses({ isDragging: true, isPendingChange: true })).toBe('border border-staleness-fresh');
   });
 });
 
