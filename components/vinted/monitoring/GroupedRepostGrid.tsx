@@ -204,7 +204,7 @@ export default function GroupedRepostGrid({
                               ];
                               return (
                                 <div key={itemId(item)} className="flex items-center gap-2">
-                                  {i > 0 && <CardConnector direction={reversed ? 'left' : 'right'} />}
+                                  {i > 0 && <CardConnector direction={reversed ? 'right' : 'left'} />}
                                   <PosterCard
                                     id={itemId(item)}
                                     imageUrl={item.imageUrl}

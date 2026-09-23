@@ -83,12 +83,12 @@ describe('<GroupedQueueGrid> snake layout', () => {
     expect(names[6]).toContain('Cizayox V'); // row 2, a single leftover item
   });
 
-  it('uses a left-pointing chevron between cards in an odd (reversed) row and a right-pointing one in an even row', () => {
+  it('uses a right-pointing chevron between cards in an odd (reversed) row and a left-pointing one in an even row', () => {
     const { container } = renderGrid();
-    // Row 0 (even): 2 right-chevrons between its 3 cards. Row 1 (even index
-    // 1 is odd/reversed): 2 left-chevrons between its 3 cards.
-    expect(container.querySelectorAll('svg.lucide-chevron-right').length).toBeGreaterThanOrEqual(2);
+    // Row 0 (even): 2 left-chevrons between its 3 cards. Row 1 (odd/reversed):
+    // 2 right-chevrons between its 3 cards.
     expect(container.querySelectorAll('svg.lucide-chevron-left').length).toBeGreaterThanOrEqual(2);
+    expect(container.querySelectorAll('svg.lucide-chevron-right').length).toBeGreaterThanOrEqual(2);
   });
 
   it('renders a down chevron between rows within the same group', () => {
@@ -121,7 +121,8 @@ describe('<GroupedQueueGrid> snake layout', () => {
     expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // A chevron connects the start slot to the first card, same as between
     // any two cards in the snake — otherwise "next up" is just proximity.
-    expect(container.querySelectorAll('svg.lucide-chevron-right').length).toBeGreaterThanOrEqual(3);
+    // Row 0 is non-reversed, which now renders as left-pointing chevrons.
+    expect(container.querySelectorAll('svg.lucide-chevron-left').length).toBeGreaterThanOrEqual(3);
   });
 
   it('still allows a plain click to reveal the overlay — regression test for the "clicking does nothing" bug', () => {

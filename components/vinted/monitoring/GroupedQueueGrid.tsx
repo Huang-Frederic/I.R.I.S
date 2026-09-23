@@ -210,7 +210,7 @@ export default function GroupedQueueGrid({
                               const isFirstOfAll = groupPos === 0 && rowIndex === 0 && i === 0;
                               return (
                                 <div key={item.queueId} className="flex items-center gap-2">
-                                  {(i > 0 || isFirstOfAll) && <CardConnector direction={reversed ? 'left' : 'right'} />}
+                                  {(i > 0 || isFirstOfAll) && <CardConnector direction={reversed ? 'right' : 'left'} />}
                                   <PosterCard
                                     id={item.queueId}
                                     imageUrl={item.imageUrl}

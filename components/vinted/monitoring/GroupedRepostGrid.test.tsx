@@ -80,7 +80,7 @@ describe('<GroupedRepostGrid> snake layout', () => {
     expect(names[5]).toContain('Draeuil V'); // row 1 (reversed) ends with its FIRST logical item (position 4)
   });
 
-  it('uses a left-pointing chevron between cards in an odd (reversed) row and a right-pointing one in an even row', () => {
+  it('uses a right-pointing chevron between cards in an odd (reversed) row and a left-pointing one in an even row', () => {
     const { container } = renderGrid();
     expect(container.querySelectorAll('svg.lucide-chevron-right').length).toBeGreaterThanOrEqual(2);
     expect(container.querySelectorAll('svg.lucide-chevron-left').length).toBeGreaterThanOrEqual(2);
