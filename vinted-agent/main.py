@@ -870,9 +870,12 @@ async def _dispatch_job(supabase: AsyncClient, record: dict) -> None:
                 loop = asyncio.get_running_loop()
                 vinted = await loop.run_in_executor(None, _make_vinted_client, cookies_file)
             except Exception as e:
-                await _log(supabase, user_id, "error", "❌  %s session expirée — relancer import_cookies.py : %s", tag, e)
+                await _log(supabase, user_id, "error",
+                           "❌  %s session expirée — relance import_cookies.py puis colle le contenu du fichier "
+                           "cookies_*.json dans le dashboard : %s", tag, e)
                 item_id = record.get("card_id") or record.get("lot_id")
-                await _fail_job(supabase, record["id"], item_id, "Session expirée — relance import_cookies.py",
+                await _fail_job(supabase, record["id"], item_id,
+                                "Session expirée — relance import_cookies.py puis colle le fichier dans le dashboard",
                                 entity_type="lot" if record.get("lot_id") else "card")
                 # Cooldown on the failure path too. Without it a queue of N jobs
                 # fires N auth attempts back-to-back the moment a session dies —
