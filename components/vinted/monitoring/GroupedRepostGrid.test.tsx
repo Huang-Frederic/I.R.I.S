@@ -65,31 +65,45 @@ function cardsInDomOrder(container: HTMLElement): string[] {
 }
 
 describe('<GroupedRepostGrid> snake layout', () => {
-  it('renders row 0 left-to-right and row 1 right-to-left within the same group (3-column default in tests)', () => {
+  it('renders the top row (row 1) first, then the bottom row (row 0, earliest items), reversed', () => {
     const { container } = renderGrid();
     // "Pokémon FR"'s 6 cards are the first 6 overlays in DOM order (the lot
     // comes after) — no need to filter (see the queue-grid test's note on why
     // exact-string filtering against `textContent` — which includes the
-    // price — would silently never match).
+    // price — would silently never match). row1 (top) = [Draeuil, Lougaroc,
+    // Pharamp] natural order; row0 (bottom, reversed) = [Cizayox, Démolosse,
+    // Mimiqui].
     const names = cardsInDomOrder(container);
-    expect(names[0]).toContain('Mimiqui V'); // row 0 starts with the first logical item
-    expect(names[1]).toContain('Démolosse V');
-    expect(names[2]).toContain('Cizayox V');
-    expect(names[3]).toContain('Pharamp GX'); // row 1 (reversed) starts with its LAST logical item (position 6)
-    expect(names[4]).toContain('Lougaroc V');
-    expect(names[5]).toContain('Draeuil V'); // row 1 (reversed) ends with its FIRST logical item (position 4)
+    expect(names[0]).toContain('Draeuil V'); // row 1 (top) starts with its first logical item (position 4)
+    expect(names[1]).toContain('Lougaroc V');
+    expect(names[2]).toContain('Pharamp GX');
+    expect(names[3]).toContain('Cizayox V'); // row 0 (bottom, reversed) starts with its LAST logical item (position 3)
+    expect(names[4]).toContain('Démolosse V');
+    expect(names[5]).toContain('Mimiqui V'); // row 0 ends with position #1, right by the start slot
   });
 
-  it('uses a right-pointing chevron between cards in an odd (reversed) row and a left-pointing one in an even row', () => {
+  it('uses a left-pointing chevron in the bottom (row 0) reversed row and a right-pointing one in the row above it', () => {
     const { container } = renderGrid();
+    // Row 0 (bottom, reversed): 2 left-chevrons between its 3 cards, plus 1
+    // more connecting it to the start slot. Row 1 (above it, not reversed):
+    // 2 right-chevrons between its 3 cards.
+    expect(container.querySelectorAll('svg.lucide-chevron-left').length).toBeGreaterThanOrEqual(3);
     expect(container.querySelectorAll('svg.lucide-chevron-right').length).toBeGreaterThanOrEqual(2);
-    expect(container.querySelectorAll('svg.lucide-chevron-left').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('renders a down chevron between rows within the same group', () => {
+  it('renders an up chevron between rows within the same group', () => {
     const { container } = renderGrid();
     // "Pokémon FR" has 2 rows (6 items / 3 columns) → 1 row transition.
-    expect(container.querySelectorAll('svg.lucide-chevron-down').length).toBeGreaterThanOrEqual(1);
+    expect(container.querySelectorAll('svg.lucide-chevron-up').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders the bot lead-in slot after the very last (bottom-most, position #1) card', () => {
+    const { container } = renderGrid();
+    const startSlot = container.querySelector('svg.lucide-bot');
+    expect(startSlot).toBeInTheDocument();
+    const firstCardOverlay = screen.getByText('Mimiqui V').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    const position = firstCardOverlay.compareDocumentPosition(startSlot!);
+    expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('still calls onReorder with the moved item\'s id when using "move to front"', () => {
@@ -170,25 +184,26 @@ describe('<GroupedRepostGrid> snake layout', () => {
   });
 
   it('computeSnakeReorder converts a post-drag visual order back into the correct logical save order', () => {
-    // visualOrder (3 columns): "Pokémon FR" row0 = [c1,c2,c3], row1 reversed =
-    // [c6,c5,c4]; then "Riftbound"'s single-item row = [l1].
+    // Actual on-screen order (top-to-bottom): row1 (top) = [Draeuil, Lougaroc,
+    // Pharamp] natural order; row0 (bottom, reversed) = [Cizayox, Démolosse,
+    // Mimiqui]; then "Riftbound"'s single-item row = [Lot].
     const visualOrder: RepostPoolItem[] = [
-      ITEMS[0], ITEMS[1], ITEMS[2], // row0: Mimiqui, Démolosse, Cizayox
-      ITEMS[5], ITEMS[4], ITEMS[3], // row1 reversed: Pharamp, Lougaroc, Draeuil
+      ITEMS[3], ITEMS[4], ITEMS[5], // row1 (top): Draeuil, Lougaroc, Pharamp
+      ITEMS[2], ITEMS[1], ITEMS[0], // row0 (bottom, reversed): Cizayox, Démolosse, Mimiqui
       ITEMS[6], // Riftbound: Lot Riftbound
     ];
-    // Hand-traced: arrayMove(visualOrder, 4, 1) removes index 4 (Lougaroc)
+    // Hand-traced: arrayMove(visualOrder, 4, 1) removes index 4 (Démolosse)
     // then re-inserts it at index 1 of the now-6-long remainder
-    // [Mimiqui, Démolosse, Cizayox, Pharamp, Draeuil, Lot] →
-    // [Mimiqui, Lougaroc, Démolosse, Cizayox, Pharamp, Draeuil, Lot].
-    // Re-grouping: "Pokémon FR" = [Mimiqui, Lougaroc, Démolosse, Cizayox,
-    // Pharamp, Draeuil] (6 items, contiguous), "Riftbound" = [Lot].
-    // Re-chunking "Pokémon FR" into rows of 3: row0 = [Mimiqui, Lougaroc,
-    // Démolosse] (kept as-is), row1 = [Cizayox, Pharamp, Draeuil] (reversed
-    // → [Draeuil, Pharamp, Cizayox]).
+    // [Draeuil, Lougaroc, Pharamp, Cizayox, Mimiqui, Lot] →
+    // [Draeuil, Démolosse, Lougaroc, Pharamp, Cizayox, Mimiqui, Lot].
+    // Re-grouping: "Pokémon FR" = [Draeuil, Démolosse, Lougaroc, Pharamp,
+    // Cizayox, Mimiqui] (6 items, contiguous), "Riftbound" = [Lot].
+    // Re-chunking bottom-up into rows of 3: visual row0 (bottom) = [Pharamp,
+    // Cizayox, Mimiqui] (reversed back to [Mimiqui, Cizayox, Pharamp]),
+    // visual row1 (top) = [Draeuil, Démolosse, Lougaroc] (kept as-is).
     const result = computeSnakeReorder(visualOrder, 4, 1, 3);
     expect(result.map((i) => i.name)).toEqual([
-      'Mimiqui V', 'Lougaroc V', 'Démolosse V', 'Draeuil V', 'Pharamp GX', 'Cizayox V', 'Lot Riftbound',
+      'Mimiqui V', 'Cizayox V', 'Pharamp GX', 'Draeuil V', 'Démolosse V', 'Lougaroc V', 'Lot Riftbound',
     ]);
   });
 });

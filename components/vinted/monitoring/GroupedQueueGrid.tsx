@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { sortByGroupPriority } from '@/lib/vinted/group-sort';
-import { chunkIntoRows, toSnakeOrder } from '@/lib/vinted/snake-order';
+import { chunkIntoRows, toSnakeOrder, fromSnakeOrder } from '@/lib/vinted/snake-order';
 import { GROUP_FRAME_CLASSES, GROUP_LABEL_CLASSES, colorKeyForGroup } from '@/lib/vinted/group-frame-colors';
 import PosterCard, { CardConnector, PosterCardStartSlot, PosterCardDragPreview, type PosterCardAction } from './PosterCard';
 import { useSnakeColumns } from './hooks/useSnakeColumns';
@@ -54,12 +54,12 @@ function groupContiguousItems(items: PipelineItem[]): Group[] {
 
 /**
  * Converts a post-drag visual (on-screen snake) order back into the logical
- * order to save. `toSnakeOrder` is its own inverse (lib/vinted/snake-order.ts)
- * — applying it again turns the moved visual order back into logical order.
- * Group runs are re-derived from the MOVED array (not the pre-drag `groups`)
- * so a drop that lands in a different group's frame degrades to the same
- * harmless no-op it already was before the snake layout (the next render's
- * groupKey-based re-sort overrides it either way).
+ * order to save, using `fromSnakeOrder` (lib/vinted/snake-order.ts) — the
+ * exact inverse of the `toSnakeOrder` call that built `visualOrder` in the
+ * first place. Group runs are re-derived from the MOVED array (not the
+ * pre-drag `groups`) so a drop that lands in a different group's frame
+ * degrades to the same harmless no-op it already was before the snake
+ * layout (the next render's groupKey-based re-sort overrides it either way).
  */
 export function computeSnakeReorder(
   visualOrder: PipelineItem[],
@@ -68,7 +68,7 @@ export function computeSnakeReorder(
   columns: number,
 ): PipelineItem[] {
   const newVisualOrder = arrayMove(visualOrder, oldIndex, newIndex);
-  return groupContiguousItems(newVisualOrder).flatMap((g) => toSnakeOrder(g.items, columns));
+  return groupContiguousItems(newVisualOrder).flatMap((g) => fromSnakeOrder(g.items, columns));
 }
 
 interface Props {
@@ -177,13 +177,18 @@ export default function GroupedQueueGrid({
                     >
                       {group.key}
                     </span>
-                    {rows.map((row, rowIndex) => {
-                      const reversed = rowIndex % 2 === 1;
+                    {[...rows].reverse().map((row, displayIndex) => {
+                      const rowIndex = rows.length - 1 - displayIndex;
+                      // rowIndex 0 (the earliest items) is the BOTTOM row —
+                      // it renders last here since we're iterating in
+                      // reverse — and reads right-to-left; rows alternate
+                      // from there going up.
+                      const reversed = rowIndex % 2 === 0;
                       const displayRow = reversed ? [...row].reverse() : row;
+                      const isStartRow = groupPos === 0 && rowIndex === 0;
                       return (
                         <div key={rowIndex} className="flex flex-col gap-2">
                           <div className="flex items-center gap-2">
-                            {groupPos === 0 && rowIndex === 0 && <PosterCardStartSlot />}
                             {displayRow.map((item, i) => {
                               const globalIndex = sortedItems.findIndex((x) => x.queueId === item.queueId);
                               const groupIndex = group.items.findIndex((x) => x.queueId === item.queueId);
@@ -210,10 +215,9 @@ export default function GroupedQueueGrid({
                                   : []),
                                 { icon: Eye, label: "Voir l'annonce", onClick: () => onViewListing(item) },
                               ];
-                              const isFirstOfAll = groupPos === 0 && rowIndex === 0 && i === 0;
                               return (
                                 <div key={item.queueId} className="flex items-center gap-2">
-                                  {(i > 0 || isFirstOfAll) && <CardConnector direction={reversed ? 'right' : 'left'} />}
+                                  {i > 0 && <CardConnector direction={reversed ? 'left' : 'right'} />}
                                   <PosterCard
                                     id={item.queueId}
                                     imageUrl={item.imageUrl}
@@ -228,10 +232,12 @@ export default function GroupedQueueGrid({
                                 </div>
                               );
                             })}
+                            {isStartRow && <CardConnector direction="left" />}
+                            {isStartRow && <PosterCardStartSlot />}
                           </div>
-                          {rowIndex < rows.length - 1 && (
-                            <div className={`flex ${reversed ? 'justify-start' : 'justify-end'}`}>
-                              <CardConnector direction="down" />
+                          {rowIndex > 0 && (
+                            <div className={`flex ${reversed ? 'justify-end' : 'justify-start'}`}>
+                              <CardConnector direction="up" />
                             </div>
                           )}
                         </div>

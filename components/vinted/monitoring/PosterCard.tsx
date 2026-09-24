@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronRight, ChevronLeft, ChevronDown, type LucideIcon } from 'lucide-react';
+import { ChevronRight, ChevronLeft, ChevronUp, Bot, type LucideIcon } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -126,9 +126,9 @@ export function CardConnector({
   direction = 'right',
 }: {
   variant?: 'card' | 'group';
-  direction?: 'right' | 'left' | 'down';
+  direction?: 'right' | 'left' | 'up';
 }) {
-  const Icon = direction === 'left' ? ChevronLeft : direction === 'down' ? ChevronDown : ChevronRight;
+  const Icon = direction === 'left' ? ChevronLeft : direction === 'up' ? ChevronUp : ChevronRight;
   return (
     <div className="flex shrink-0 items-center self-center" aria-hidden>
       <Icon strokeWidth={3} className={variant === 'group' ? 'text-red h-5 w-5' : 'text-red h-4 w-4'} />
@@ -136,19 +136,18 @@ export function CardConnector({
   );
 }
 
-/** Static lead-in slot rendered before the queue grid's first card, marking
- *  the start of the snake path so the card right after it (connected by a
- *  chevron) is unambiguously "next up". Never draggable/sortable — it's not
- *  a real item. */
+/** Static lead-in slot rendered at the bottom-right start of the queue's
+ *  snake path — the very next card (connected by a chevron) is unambiguously
+ *  "next up", with the whole queue winding upward from there. Never
+ *  draggable/sortable — it's not a real item. */
 export function PosterCardStartSlot() {
   return (
     <div
       className="border-border bg-surface flex aspect-[63/80] w-34 shrink-0 items-center justify-center rounded-lg border border-dashed sm:w-38 lg:w-43"
-      title="Prochain arrêt : Vinted"
+      title="Le bot commence ici"
       aria-hidden
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/vinted-logo.jpeg" alt="" className="h-8 w-8 rounded object-cover" />
+      <Bot className="text-text-faint h-8 w-8" />
     </div>
   );
 }
