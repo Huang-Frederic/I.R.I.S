@@ -54,6 +54,16 @@ export function computeColumnsForWidth(
  * mounts. Depending on the container VALUE instead means this effect
  * re-runs the moment the div actually appears (or reappears).
  */
+/**
+ * The vertical scrollbar's current width (0 if there's no scrollbar, or the
+ * OS/browser renders an overlay one that doesn't reserve layout space).
+ * Measured live, not hardcoded — Windows/Linux Chrome, Firefox, and macOS
+ * all disagree on how many px a reserved-space scrollbar takes.
+ */
+function scrollbarWidth(): number {
+  return Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+}
+
 export function useSnakeColumns(container: HTMLElement | null): number {
   const [columns, setColumns] = useState(FALLBACK_COLUMNS);
 
@@ -65,7 +75,12 @@ export function useSnakeColumns(container: HTMLElement | null): number {
 
     const recompute = () => {
       const cardWidth = lgMql.matches ? CARD_WIDTH_LG : smMql.matches ? CARD_WIDTH_SM : CARD_WIDTH_BASE;
-      setColumns(computeColumnsForWidth(container.clientWidth, cardWidth));
+      // Add back whatever width the scrollbar is currently reserving — a
+      // modal that locks body scroll (removing the scrollbar) was freeing
+      // just enough width to fit one more column, making the grid visibly
+      // resize itself open/closed. Counting that space as available all the
+      // time keeps the wider layout permanent instead of tied to modal state.
+      setColumns(computeColumnsForWidth(container.clientWidth + scrollbarWidth(), cardWidth));
     };
 
     recompute();

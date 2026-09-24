@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useSnakeColumns, computeColumnsForWidth } from './useSnakeColumns';
 
@@ -33,8 +33,21 @@ function mockMatchMedia(initial: Record<string, boolean>) {
   };
 }
 
+function stubScrollbarWidth(px: number) {
+  // scrollbarWidth() = window.innerWidth - document.documentElement.clientWidth.
+  // happy-dom defaults innerWidth to 1024 and clientWidth to 0, which would
+  // otherwise read as a huge fake scrollbar — pin both explicitly so each
+  // test controls the delta it actually wants to exercise.
+  vi.stubGlobal('innerWidth', 1024);
+  Object.defineProperty(document.documentElement, 'clientWidth', { configurable: true, value: 1024 - px });
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
+  // Own property added directly on the shared `document.documentElement` —
+  // delete it so the next test's `document.documentElement.clientWidth`
+  // reads fall back to the prototype default again instead of leaking here.
+  delete (document.documentElement as unknown as Record<string, unknown>).clientWidth;
 });
 
 describe('computeColumnsForWidth', () => {
@@ -55,6 +68,12 @@ describe('computeColumnsForWidth', () => {
 });
 
 describe('useSnakeColumns', () => {
+  beforeEach(() => {
+    // No scrollbar by default — individual tests below override this to
+    // exercise the compensation.
+    stubScrollbarWidth(0);
+  });
+
   it('computes columns from the container width using the base card width below the sm breakpoint', () => {
     mockMatchMedia({ '(min-width: 640px)': false, '(min-width: 1024px)': false });
     const { result } = renderHook(() => useSnakeColumns(makeContainer(500)));
@@ -102,6 +121,22 @@ describe('useSnakeColumns', () => {
 
     rerender({ container: makeContainer(1000) });
     // 5 cards of 172px + 4 connectors of 32px = 988px; a 6th needs 204 more (1192px) — 1000px fits 5.
+    expect(result.current).toBe(5);
+  });
+
+  it('adds the current scrollbar width to the measured container width, so a modal locking body scroll (which removes the scrollbar) does not change the column count', () => {
+    mockMatchMedia({ '(min-width: 640px)': true, '(min-width: 1024px)': true });
+    // 5 cards of 172px + 4 connectors of 32px = 988px; a 6th needs 1192px.
+    // 1000px alone only fits 5, but +192px of "freed" scrollbar space fits 6.
+    stubScrollbarWidth(192);
+    const { result } = renderHook(() => useSnakeColumns(makeContainer(1000)));
+    expect(result.current).toBe(6);
+  });
+
+  it('treats an overlay scrollbar (0px, e.g. macOS) as no bonus at all', () => {
+    mockMatchMedia({ '(min-width: 640px)': true, '(min-width: 1024px)': true });
+    stubScrollbarWidth(0);
+    const { result } = renderHook(() => useSnakeColumns(makeContainer(1000)));
     expect(result.current).toBe(5);
   });
 });

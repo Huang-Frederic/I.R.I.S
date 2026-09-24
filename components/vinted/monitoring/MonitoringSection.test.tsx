@@ -64,6 +64,12 @@ const originalClientWidthDescriptor = Object.getOwnPropertyDescriptor(HTMLElemen
 
 beforeEach(() => {
   Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 500 });
+  // useSnakeColumns adds back the current scrollbar width (window.innerWidth
+  // minus document.documentElement.clientWidth) — the clientWidth stub above
+  // applies to every HTMLElement including <html>, so pin innerWidth to the
+  // same value to keep that delta at 0, matching the "no scrollbar" 3-column
+  // math this suite's fixtures assume.
+  vi.stubGlobal('innerWidth', 500);
   vi.mocked(useMonitoringData).mockReturnValue({
     pipeline: [{ queueId: 'q1', cardId: 'c1', lotId: null, position: 1, name: 'Pharamp GX', price: 9.5, imageUrl: 'a.png', groupKey: 'Pokémon FR' }],
     schedule: [],

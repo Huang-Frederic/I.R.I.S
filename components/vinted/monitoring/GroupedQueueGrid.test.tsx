@@ -18,6 +18,12 @@ beforeEach(() => {
     vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
   );
   Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 500 });
+  // useSnakeColumns adds back the current scrollbar width (window.innerWidth
+  // minus document.documentElement.clientWidth) — the clientWidth stub above
+  // applies to every HTMLElement including <html>, so pin innerWidth to the
+  // same value to keep that delta at 0, matching the "no scrollbar" 3-column
+  // math the fixtures below assume.
+  vi.stubGlobal('innerWidth', 500);
 });
 
 afterEach(() => {
