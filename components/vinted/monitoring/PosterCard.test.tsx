@@ -55,9 +55,9 @@ describe('<PosterCard>', () => {
     renderCard();
     const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
     expect(overlayClasses()).toContain('opacity-0');
-    fireEvent.mouseEnter(card);
+    fireEvent.pointerEnter(card, { pointerType: 'mouse' });
     expect(overlayClasses()).toContain('opacity-100');
-    fireEvent.mouseLeave(card);
+    fireEvent.pointerLeave(card, { pointerType: 'mouse' });
     expect(overlayClasses()).toContain('opacity-0');
   });
 
@@ -65,9 +65,25 @@ describe('<PosterCard>', () => {
     renderCard();
     const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
     fireEvent.click(card);
-    fireEvent.mouseEnter(card);
-    fireEvent.mouseLeave(card);
+    fireEvent.pointerEnter(card, { pointerType: 'mouse' });
+    fireEvent.pointerLeave(card, { pointerType: 'mouse' });
     expect(overlayClasses()).toContain('opacity-100');
+  });
+
+  it('ignores a touch pointer entering/leaving — a tap must not latch hover permanently open', () => {
+    // Regression: a tap fires a synthetic pointerenter with no matching
+    // pointerleave until something else is touched. Without the pointerType
+    // guard, that latches `hovered` true forever, making a second tap unable
+    // to hide the overlay again — exactly the "reclick doesn't close it" bug
+    // reported on mobile.
+    renderCard();
+    const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
+    fireEvent.pointerEnter(card, { pointerType: 'touch' });
+    expect(overlayClasses()).toContain('opacity-0');
+    fireEvent.click(card);
+    expect(overlayClasses()).toContain('opacity-100');
+    fireEvent.click(card);
+    expect(overlayClasses()).toContain('opacity-0');
   });
 
   it('shows the position badge when provided', () => {

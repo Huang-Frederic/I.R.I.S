@@ -139,9 +139,9 @@ describe('<GroupedQueueGrid> snake layout', () => {
   });
 
   it('a quick tap reveals the overlay on touch instead of being swallowed as a drag attempt', () => {
-    // TouchSensor only starts a drag after 250ms of holding still — a quick
-    // tap-and-release (as tested here) must fall through to a normal click,
-    // exactly the "horrible à toucher" bug this sensor swap fixes.
+    // No TouchSensor is registered at all (drag-and-drop is mouse-only) —
+    // touch events must never be captured by dnd-kit and must always fall
+    // through to a normal click, fixing the "horrible à toucher" bug.
     renderGrid();
     const overlay = screen.getByText('Pharamp GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
     const card = overlay.parentElement as HTMLElement;

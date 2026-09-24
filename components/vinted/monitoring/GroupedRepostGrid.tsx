@@ -7,7 +7,6 @@ import {
   DndContext,
   DragOverlay,
   MouseSensor,
-  TouchSensor,
   KeyboardSensor,
   pointerWithin,
   closestCenter,
@@ -109,16 +108,13 @@ export default function GroupedRepostGrid({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const columns = useSnakeColumns(container);
-  const sensors = useSensors(
-    // Split mouse/touch instead of a single PointerSensor: a touch that
-    // merely drifts a few px while the page is being scrolled must never be
-    // mistaken for a drag start. MouseSensor keeps the instant, distance-based
-    // desktop feel; TouchSensor requires a still 250ms hold first, so a quick
-    // tap or a scroll swipe both fall through to a normal click/scroll.
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
-    useSensor(KeyboardSensor),
-  );
+  // Mouse-only on purpose — no TouchSensor. A long-press-to-drag compromise
+  // was tried and still fought with scrolling/tapping on real devices, so
+  // drag-and-drop reordering is desktop-only for now; touch input is never
+  // captured by dnd-kit at all, leaving scroll and the tap-to-reveal overlay
+  // completely unaffected. Reordering on mobile still works via the
+  // "Mettre en premier" action button.
+  const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor));
 
   if (items.length === 0) return null;
 

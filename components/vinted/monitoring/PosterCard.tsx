@@ -61,8 +61,12 @@ export default function PosterCard({
   // Tailwind v4 wraps `hover:`/`group-hover:` in `@media (hover: hover)` by
   // default, which some devices/browsers report as false even with a real
   // mouse attached — CSS group-hover silently never applies there. Tracking
-  // hover with real mouse events instead is deterministic regardless of
-  // what the device claims about its own capabilities.
+  // hover with real pointer events instead is deterministic regardless of
+  // what the device claims about its own capabilities. Gated to
+  // `pointerType === 'mouse'` so a tap's synthetic pointerenter (fired with
+  // no matching pointerleave until something else is touched) can't latch
+  // `hovered` true forever — that stuck state was making the overlay
+  // impossible to dismiss with a second tap on touch devices.
   const showOverlay = revealed || hovered;
   const style = { transform: CSS.Transform.toString(transform), transition };
 
@@ -72,8 +76,8 @@ export default function PosterCard({
       style={style}
       {...(draggable ? { ...attributes, ...listeners } : {})}
       onClick={() => setRevealed((r) => !r)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onPointerEnter={(e) => e.pointerType === 'mouse' && setHovered(true)}
+      onPointerLeave={(e) => e.pointerType === 'mouse' && setHovered(false)}
       className={`bg-surface-2 relative aspect-[63/80] w-34 shrink-0 overflow-hidden rounded-lg sm:w-38 lg:w-43 ${posterCardBorderClasses({ isDragging, isPendingChange })} ${
         isDragging ? 'opacity-40' : dimmed ? 'opacity-60' : ''
       }`}
