@@ -1,5 +1,8 @@
 # Vinted Agent — Setup
 
+Pour un déploiement sur un VPS Linux (service systemd, sans proxy/scraping
+d'événements), voir [DEPLOY.md](./DEPLOY.md).
+
 ## Onboarder une nouvelle machine (Mac / Windows)
 
 Depuis une machine où tu as exporté tes envs dans un dossier `iris-mac-transfer/`

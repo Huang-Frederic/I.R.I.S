@@ -1,0 +1,27 @@
+# systemd unit for the I.R.I.S Vinted bot — see vinted-agent/DEPLOY.md.
+#
+# Install:
+#   sudo cp vinted-agent/deploy/vinted-agent.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now vinted-agent
+#
+# Before installing, replace every <TON_USER> and the repo path below with
+# your actual VPS username and clone location.
+
+[Unit]
+Description=I.R.I.S Vinted Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=<TON_USER>
+WorkingDirectory=/home/<TON_USER>/I.R.I.S/vinted-agent
+ExecStart=/home/<TON_USER>/I.R.I.S/vinted-agent/env/bin/python3 main.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
