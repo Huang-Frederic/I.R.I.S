@@ -29,7 +29,13 @@ export default async function VintedBotPage() {
   }
 
   return (
-    <section>
+    // Breaks out of the shared layout's `max-w-[1200px]` — this page's
+    // grouped card grid genuinely benefits from the extra width (more
+    // columns, groups sitting side by side) where a text-heavy page
+    // wouldn't. `w-screen` + `left-1/2 -translate-x-1/2` re-centers on the
+    // true viewport regardless of the ancestor's own width/centering; the
+    // fixed, opaque sidebar simply covers whatever spills behind it.
+    <section className="relative left-1/2 w-screen -translate-x-1/2 px-4 md:px-8">
       <PageTitle title={t('botPageTitle')} />
       <div className="mt-6">
         <MonitoringSection />

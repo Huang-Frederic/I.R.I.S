@@ -170,7 +170,7 @@ export default function GroupedQueueGrid({
                 <div key={group.key} className="flex items-start gap-2">
                   {groupPos > 0 && <CardConnector variant="group" />}
                   <div
-                    className={`relative flex flex-col gap-2 rounded-lg border-2 border-dashed p-3 pt-5 ${GROUP_FRAME_CLASSES[colorKey]}`}
+                    className={`relative flex flex-col items-start gap-2 rounded-lg border-2 border-dashed p-3 pt-5 ${GROUP_FRAME_CLASSES[colorKey]}`}
                   >
                     <span
                       className={`text-bg absolute -top-2.5 left-3 rounded px-2 text-[10px] font-semibold uppercase ${GROUP_LABEL_CLASSES[colorKey]}`}
