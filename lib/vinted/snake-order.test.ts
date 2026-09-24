@@ -1,6 +1,6 @@
 // lib/vinted/snake-order.test.ts
 import { describe, it, expect } from 'vitest';
-import { chunkIntoRows, toSnakeOrder, fromSnakeOrder } from './snake-order';
+import { chunkIntoRows, toSnakeOrder } from './snake-order';
 
 describe('chunkIntoRows', () => {
   it('splits items into equal-size chunks', () => {
@@ -24,59 +24,37 @@ describe('chunkIntoRows', () => {
 });
 
 describe('toSnakeOrder', () => {
-  it('puts the last row first (reading top-to-bottom) and reverses the bottom (first) row', () => {
-    // Bottom row (row 0: A-E) reads right-to-left and renders last (at the
-    // bottom); the row above it (F-J) reads left-to-right and renders first.
+  it('keeps the first row as-is and reverses the second row', () => {
     expect(toSnakeOrder(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'], 5)).toEqual([
-      'F', 'G', 'H', 'I', 'J', 'E', 'D', 'C', 'B', 'A',
+      'A', 'B', 'C', 'D', 'E', 'J', 'I', 'H', 'G', 'F',
     ]);
   });
 
-  it('reverses the bottom row correctly even when it is a partial final row', () => {
-    // "F, G" is the partial final chunk (row 1), so it's the row rendered
-    // first/on top — unreversed. "A-E" (row 0) is the bottom, reversed.
+  it('reverses the second row correctly even when it is a partial final row', () => {
     expect(toSnakeOrder(['A', 'B', 'C', 'D', 'E', 'F', 'G'], 5)).toEqual([
-      'F', 'G', 'E', 'D', 'C', 'B', 'A',
+      'A', 'B', 'C', 'D', 'E', 'G', 'F',
     ]);
   });
 
-  it('still reverses a single row (fewer items than columns) — it is always the bottom, right-to-left row', () => {
-    expect(toSnakeOrder(['A', 'B', 'C'], 5)).toEqual(['C', 'B', 'A']);
+  it('leaves a single row (fewer items than columns) unchanged', () => {
+    expect(toSnakeOrder(['A', 'B', 'C'], 5)).toEqual(['A', 'B', 'C']);
   });
 
-});
-
-describe('fromSnakeOrder', () => {
-  it('recovers the original order across two full rows (even row count)', () => {
-    // Reversing row order isn't its own inverse when the row count is even —
-    // this is exactly the case that broke a naive "call toSnakeOrder twice"
-    // approach and is why fromSnakeOrder exists as a separate function.
+  it('is its own inverse — applying it twice recovers the original order', () => {
     const original = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
     const visual = toSnakeOrder(original, 5);
-    expect(fromSnakeOrder(visual, 5)).toEqual(original);
+    expect(toSnakeOrder(visual, 5)).toEqual(original);
   });
 
-  it('recovers the original order across three full rows (odd row count)', () => {
-    const original = Array.from({ length: 15 }, (_, i) => i);
-    const visual = toSnakeOrder(original, 5);
-    expect(fromSnakeOrder(visual, 5)).toEqual(original);
-  });
-
-  it('recovers the original order when the final (bottom) row is partial', () => {
+  it('is its own inverse for a partial final row too', () => {
     const original = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
     const visual = toSnakeOrder(original, 5);
-    expect(fromSnakeOrder(visual, 5)).toEqual(original);
+    expect(toSnakeOrder(visual, 5)).toEqual(original);
   });
 
-  it('recovers the original order for a single row (fewer items than columns)', () => {
-    const original = ['A', 'B', 'C'];
+  it('is its own inverse across three full rows', () => {
+    const original = Array.from({ length: 15 }, (_, i) => i);
     const visual = toSnakeOrder(original, 5);
-    expect(fromSnakeOrder(visual, 5)).toEqual(original);
-  });
-
-  it('recovers the original order across four full rows (even row count, partial-row edge case absent)', () => {
-    const original = Array.from({ length: 20 }, (_, i) => i);
-    const visual = toSnakeOrder(original, 5);
-    expect(fromSnakeOrder(visual, 5)).toEqual(original);
+    expect(toSnakeOrder(visual, 5)).toEqual(original);
   });
 });

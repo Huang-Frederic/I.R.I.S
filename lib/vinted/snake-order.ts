@@ -9,58 +9,26 @@ export function chunkIntoRows<T>(items: T[], columns: number): T[][] {
   return rows;
 }
 
-/** Splits `items` into consecutive chunks whose sizes are given by `sizes`
- *  (which must sum to `items.length`) — used to re-chunk a reordered array
- *  along the original row boundaries, which a fixed-size `chunkIntoRows`
- *  can't do once a differently-sized (partial) row has moved to the front. */
-function chunkBySizes<T>(items: T[], sizes: number[]): T[][] {
-  const rows: T[][] = [];
-  let offset = 0;
-  for (const size of sizes) {
-    rows.push(items.slice(offset, offset + size));
-    offset += size;
-  }
-  return rows;
-}
-
-/** The row sizes `chunkIntoRows(array_of_this_length, columns)` would
- *  produce — every row is `columns` long except a possible shorter last one. */
-function rowSizes(itemCount: number, columns: number): number[] {
-  const sizes = Array(Math.floor(itemCount / columns)).fill(columns);
-  const remainder = itemCount % columns;
-  if (remainder > 0) sizes.push(remainder);
-  return sizes;
-}
-
 /**
- * Converts logical (saved) order to visual (render/drag) order: reverses
- * every other row counting from row 0 (the earliest items) AND reverses the
- * row order itself, so the flattened result read top-to-bottom traces a
- * boustrophedon ("snake") path that *starts at the bottom* row — row 0
- * flows right→left, the row above it left→right, the one above that
- * right→left again, and so on winding upward.
+ * Reverses every other row (the 2nd, 4th, ...) so that reading the
+ * flattened result left-to-right, row by row, traces a boustrophedon
+ * ("snake") path — row 0 (the earliest items) flows left→right, row 1
+ * right→left, row 2 left→right again, and so on. Row 0 renders at the top;
+ * the rendering layer draws its connector arrows in the opposite direction
+ * of this reading order, since the queue is presented as climbing *up* from
+ * the bottom to arrive at row 0's first item (and the bot placeholder next
+ * to it) — but the underlying row/item positions this function computes
+ * are unaffected by that framing.
  *
- * Not its own inverse (reversing row order breaks that trick when the row
- * count is even) — use `fromSnakeOrder` to convert back.
+ * This function is its own inverse: applying it twice with the same
+ * `columns` and the same total item count reproduces the original order.
+ * That's what lets one helper serve both directions of a drag — convert
+ * the logical (saved) order to visual (render/drag) order before a drag,
+ * then convert the post-drag visual order straight back to logical order
+ * with the exact same call, no separate "unswap" function needed.
  */
 export function toSnakeOrder<T>(items: T[], columns: number): T[] {
-  return chunkIntoRows(items, columns)
-    .map((row, rowIndex) => (rowIndex % 2 === 0 ? [...row].reverse() : row))
-    .reverse()
-    .flat();
-}
-
-/**
- * The exact inverse of `toSnakeOrder`: converts a (possibly drag-reordered)
- * visual-order array back to logical order. Re-chunks using the original
- * row-size sequence (reversed, since `toSnakeOrder` put the last — possibly
- * partial — row first) rather than a fixed-size `chunkIntoRows`, which
- * would misalign the boundaries whenever the partial row isn't full size.
- */
-export function fromSnakeOrder<T>(visual: T[], columns: number): T[] {
-  const sizesInVisualOrder = [...rowSizes(visual.length, columns)].reverse();
-  return chunkBySizes(visual, sizesInVisualOrder)
-    .reverse()
-    .map((row, rowIndex) => (rowIndex % 2 === 0 ? [...row].reverse() : row))
-    .flat();
+  return chunkIntoRows(items, columns).flatMap((row, rowIndex) =>
+    rowIndex % 2 === 1 ? [...row].reverse() : row,
+  );
 }
