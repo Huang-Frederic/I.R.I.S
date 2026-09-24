@@ -1,6 +1,7 @@
 import Sidebar from '@/components/layout/Sidebar';
 import BottomNav from '@/components/layout/BottomNav';
 import InstallPrompt from '@/components/layout/InstallPrompt';
+import PageWidthContainer from '@/components/layout/PageWidthContainer';
 import { UserContextProvider, type UserContextValue } from '@/lib/hooks/useUserContext';
 import { PriceTrendsProvider } from '@/components/ui/PriceTrendsProvider';
 import { createClient } from '@/lib/supabase/server';
@@ -45,7 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               paddingBottom: 'env(safe-area-inset-bottom)',
             }}
           >
-            <div className="mx-auto max-w-[1200px] px-4 pb-20 pt-6 md:px-8 md:pb-8">{children}</div>
+            <PageWidthContainer>{children}</PageWidthContainer>
           </main>
           <BottomNav />
           <InstallPrompt />
