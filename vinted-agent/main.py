@@ -845,6 +845,28 @@ async def _sync_cookies_from_supabase(supabase: AsyncClient, user_id: str, cooki
         path.write_text(json.dumps(res.data["cookies"]))
 
 
+async def _sync_cookies_to_supabase(supabase: AsyncClient, user_id: str, cookies_file: str) -> None:
+    """The mirror of _sync_cookies_from_supabase, run right after a job —
+    VintedClient auto-refreshes access_token_web/refresh_token_web mid-job
+    (vinted_api.py::_try_token_refresh) and saves the rotation to the local
+    file only. Without pushing that rotation back here too, the NEXT job's
+    _sync_cookies_from_supabase would silently overwrite it with the old,
+    already-used refresh token — which Vinted then rejects outright (401
+    invalid_grant, "revoked"), permanently breaking the account until a
+    fresh manual cookie paste. Never raises: a failed sync here must not
+    interrupt the job it followed."""
+    path = Path(cookies_file) if Path(cookies_file).is_absolute() else Path(__file__).parent / cookies_file
+    if not path.exists():
+        return
+    try:
+        cookies = json.loads(path.read_text())
+        await supabase.table("vinted_sessions").upsert(
+            {"user_id": user_id, "cookies": cookies, "updated_at": datetime.now(timezone.utc).isoformat()}
+        ).execute()
+    except Exception:
+        log.warning("⚠  échec de la synchronisation des cookies vers Supabase (ignoré)")
+
+
 async def _dispatch_job(supabase: AsyncClient, record: dict) -> None:
     global _global_vinted_lock
     if _global_vinted_lock is None:
@@ -869,6 +891,10 @@ async def _dispatch_job(supabase: AsyncClient, record: dict) -> None:
             try:
                 loop = asyncio.get_running_loop()
                 vinted = await loop.run_in_executor(None, _make_vinted_client, cookies_file)
+                # _make_vinted_client's refresh_csrf() call is the most common
+                # place a dead access_token_web gets silently rotated — push
+                # that rotation back now, before anything else can revert it.
+                await _sync_cookies_to_supabase(supabase, user_id, cookies_file)
             except Exception as e:
                 await _log(supabase, user_id, "error",
                            "❌  %s session expirée — relance import_cookies.py puis colle le contenu du fichier "
@@ -890,6 +916,10 @@ async def _dispatch_job(supabase: AsyncClient, record: dict) -> None:
                 await process_lot_job(supabase, vinted, record)
             else:
                 await process_job(supabase, vinted, record)
+            # Catches a rotation from a mid-job session-expired retry too
+            # (e.g. vinted_api.py's delete/post retry paths), not just the
+            # one right after client creation above.
+            await _sync_cookies_to_supabase(supabase, user_id, cookies_file)
             delay = random.uniform(45, 90)
             log.info("⏳  %s ~%.0fs avant prochain job…", tag, delay)
             await asyncio.sleep(delay)

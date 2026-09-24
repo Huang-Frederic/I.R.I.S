@@ -198,7 +198,7 @@ def test_process_lot_job_delete_type_fails_job_when_no_listing_found():
 # Append to vinted-agent/main_test.py
 import json
 from pathlib import Path
-from main import _sync_cookies_from_supabase
+from main import _sync_cookies_from_supabase, _sync_cookies_to_supabase
 
 def test_sync_cookies_from_supabase_writes_the_local_file(tmp_path):
     cookies_data = {"access_token_web": "abc", "datadome": "xyz"}
@@ -228,6 +228,47 @@ def test_sync_cookies_from_supabase_leaves_the_file_untouched_when_no_row_exists
     # No file created, no exception — the caller falls back to whatever
     # local file already exists (or fails the same way it does today).
     asyncio.run(_sync_cookies_from_supabase(supabase, "user-1", "/nonexistent/path/cookies.json"))
+
+
+def test_sync_cookies_to_supabase_upserts_the_local_files_current_content(tmp_path):
+    # Regression: VintedClient rotates access_token_web/refresh_token_web
+    # locally on refresh (vinted_api.py::_try_token_refresh) but never told
+    # Supabase — the next job's _sync_cookies_from_supabase then overwrote the
+    # rotation with the old, already-used refresh token, which Vinted rejects
+    # outright (401 invalid_grant), permanently breaking the account.
+    cookies_data = {"access_token_web": "new-access", "refresh_token_web": "new-refresh"}
+    cookies_file = tmp_path / "cookies_test.json"
+    cookies_file.write_text(json.dumps(cookies_data))
+
+    upserted = []
+    execute = AsyncMock(return_value=MagicMock(data=[{"user_id": "user-1"}]))
+    supabase = MagicMock()
+    supabase.table = MagicMock(
+        return_value=MagicMock(upsert=MagicMock(side_effect=lambda row: (upserted.append(row), MagicMock(execute=execute))[1]))
+    )
+
+    asyncio.run(_sync_cookies_to_supabase(supabase, "user-1", str(cookies_file)))
+
+    assert len(upserted) == 1
+    assert upserted[0]["user_id"] == "user-1"
+    assert upserted[0]["cookies"] == cookies_data
+    assert "updated_at" in upserted[0]
+
+
+def test_sync_cookies_to_supabase_is_a_no_op_when_the_local_file_does_not_exist():
+    supabase = MagicMock()
+    asyncio.run(_sync_cookies_to_supabase(supabase, "user-1", "/nonexistent/path/cookies.json"))
+    supabase.table.assert_not_called()
+
+
+def test_sync_cookies_to_supabase_does_not_raise_when_the_upsert_fails(tmp_path):
+    cookies_file = tmp_path / "cookies_test.json"
+    cookies_file.write_text(json.dumps({"access_token_web": "abc"}))
+
+    supabase = MagicMock()
+    supabase.table = MagicMock(side_effect=RuntimeError("network error"))
+
+    asyncio.run(_sync_cookies_to_supabase(supabase, "user-1", str(cookies_file)))  # must not raise
 
 
 def test_sync_cookies_from_supabase_does_not_crash_when_execute_returns_none():
