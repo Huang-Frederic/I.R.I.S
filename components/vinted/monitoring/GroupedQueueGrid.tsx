@@ -6,7 +6,8 @@ import { ArrowLeftToLine, Send, Eye } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   KeyboardSensor,
   pointerWithin,
   closestCenter,
@@ -105,7 +106,13 @@ export default function GroupedQueueGrid({
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const columns = useSnakeColumns(container);
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    // Split mouse/touch instead of a single PointerSensor: a touch that
+    // merely drifts a few px while the page is being scrolled must never be
+    // mistaken for a drag start. MouseSensor keeps the instant, distance-based
+    // desktop feel; TouchSensor requires a still 250ms hold first, so a quick
+    // tap or a scroll swipe both fall through to a normal click/scroll.
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor),
   );
 

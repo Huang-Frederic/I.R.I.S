@@ -111,9 +111,24 @@ describe('<GroupedRepostGrid> snake layout', () => {
     renderGrid();
     const overlay = screen.getByText('Mimiqui V').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
     const card = overlay.parentElement as HTMLElement;
-    fireEvent.pointerDown(card, { pointerId: 1, clientX: 100, clientY: 100, button: 0, isPrimary: true });
-    fireEvent.pointerMove(document, { pointerId: 1, clientX: 101, clientY: 100, isPrimary: true });
-    fireEvent.pointerUp(document, { pointerId: 1, clientX: 101, clientY: 100, isPrimary: true });
+    fireEvent.mouseDown(card, { clientX: 100, clientY: 100, button: 0 });
+    fireEvent.mouseMove(document, { clientX: 101, clientY: 100 });
+    fireEvent.mouseUp(document, { clientX: 101, clientY: 100 });
+    fireEvent.click(card);
+    const classes = overlay.className.split(/\s+/);
+    expect(classes).toContain('opacity-100');
+    expect(classes).not.toContain('opacity-0');
+  });
+
+  it('a quick tap reveals the overlay on touch instead of being swallowed as a drag attempt', () => {
+    // TouchSensor only starts a drag after 250ms of holding still — a quick
+    // tap-and-release (as tested here) must fall through to a normal click,
+    // exactly the "horrible à toucher" bug this sensor swap fixes.
+    renderGrid();
+    const overlay = screen.getByText('Mimiqui V').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    const card = overlay.parentElement as HTMLElement;
+    fireEvent.touchStart(card, { touches: [{ clientX: 100, clientY: 100, identifier: 1 }] });
+    fireEvent.touchEnd(card, { touches: [] });
     fireEvent.click(card);
     const classes = overlay.className.split(/\s+/);
     expect(classes).toContain('opacity-100');
