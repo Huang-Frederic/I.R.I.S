@@ -201,19 +201,28 @@ describe('<MonitoringSection> staged reorder + save', () => {
   });
 
   it('keeps a persistent green border on the card that moved, until Save clears it', async () => {
+    // Re-query the card after each action rather than holding a captured
+    // element across it: the group's first row reserves one slot for the
+    // bot placeholder, so with only 2 items here, moving one to the front
+    // (or a save reverting to the mocked pipeline's original order) can move
+    // it to a different row, and React remounts a fresh DOM node when a
+    // keyed element moves to a different row wrapper.
     const refetch = mockPipeline(TWO_ITEM_PIPELINE);
     render(<MonitoringSection />);
 
     const overlay = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
-    const card = overlay.parentElement as HTMLElement;
-    fireEvent.click(card);
+    fireEvent.click(overlay.parentElement as HTMLElement);
     fireEvent.click(within(overlay).getByLabelText('Mettre en premier dans le groupe'));
 
-    expect(card.className).toContain('border-staleness-fresh');
+    const cardAfterMove = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]')!.parentElement as HTMLElement;
+    expect(cardAfterMove.className).toContain('border-staleness-fresh');
 
     fireEvent.click(screen.getByText('Enregistrer'));
     await waitFor(() => expect(refetch).toHaveBeenCalled());
-    await waitFor(() => expect(card.className).not.toContain('border-staleness-fresh'));
+    await waitFor(() => {
+      const cardAfterSave = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]')!.parentElement as HTMLElement;
+      expect(cardAfterSave.className).not.toContain('border-staleness-fresh');
+    });
   });
 
   it('clears the pending-change marker together with the staged pipeline after a successful "Poster maintenant"', async () => {
@@ -222,16 +231,19 @@ describe('<MonitoringSection> staged reorder + save', () => {
     render(<MonitoringSection />);
 
     const fulgurisOverlay = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
-    const fulgurisCard = fulgurisOverlay.parentElement as HTMLElement;
-    fireEvent.click(fulgurisCard);
+    fireEvent.click(fulgurisOverlay.parentElement as HTMLElement);
     fireEvent.click(within(fulgurisOverlay).getByLabelText('Mettre en premier dans le groupe'));
-    expect(fulgurisCard.className).toContain('border-staleness-fresh');
+    const fulgurisCardAfterMove = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]')!.parentElement as HTMLElement;
+    expect(fulgurisCardAfterMove.className).toContain('border-staleness-fresh');
 
     const pharampOverlay = screen.getByText('Pharamp GX').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
     fireEvent.click(pharampOverlay.parentElement as HTMLElement);
     fireEvent.click(within(pharampOverlay).getByLabelText('Poster maintenant'));
 
-    await waitFor(() => expect(fulgurisCard.className).not.toContain('border-staleness-fresh'));
+    await waitFor(() => {
+      const fulgurisCardAfterPost = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]')!.parentElement as HTMLElement;
+      expect(fulgurisCardAfterPost.className).not.toContain('border-staleness-fresh');
+    });
     vi.unstubAllGlobals();
   });
 });

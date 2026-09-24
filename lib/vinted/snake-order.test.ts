@@ -1,6 +1,6 @@
 // lib/vinted/snake-order.test.ts
 import { describe, it, expect } from 'vitest';
-import { chunkIntoRows, toSnakeOrder } from './snake-order';
+import { chunkIntoRows, toSnakeOrder, chunkIntoRowsWithLeadIn, toSnakeOrderWithLeadIn } from './snake-order';
 
 describe('chunkIntoRows', () => {
   it('splits items into equal-size chunks', () => {
@@ -56,5 +56,44 @@ describe('toSnakeOrder', () => {
     const original = Array.from({ length: 15 }, (_, i) => i);
     const visual = toSnakeOrder(original, 5);
     expect(toSnakeOrder(visual, 5)).toEqual(original);
+  });
+});
+
+describe('chunkIntoRowsWithLeadIn', () => {
+  it('gives the first row one fewer slot than the rest', () => {
+    expect(chunkIntoRowsWithLeadIn([1, 2, 3, 4, 5, 6, 7], 3)).toEqual([
+      [1, 2],
+      [3, 4, 5],
+      [6, 7],
+    ]);
+  });
+
+  it('drops the first row entirely when there are no items left for it', () => {
+    expect(chunkIntoRowsWithLeadIn([], 3)).toEqual([]);
+  });
+
+  it('falls back to plain chunking when columns is 1 (no room to reserve a slot)', () => {
+    expect(chunkIntoRowsWithLeadIn([1, 2, 3], 1)).toEqual([[1], [2], [3]]);
+  });
+});
+
+describe('toSnakeOrderWithLeadIn', () => {
+  it('reserves the first row a slot, then alternates rows the same way toSnakeOrder does', () => {
+    // rows: [A,B] [C,D,E] [F,G] -> row 1 (index 1) reverses.
+    expect(toSnakeOrderWithLeadIn(['A', 'B', 'C', 'D', 'E', 'F', 'G'], 3)).toEqual([
+      'A', 'B', 'E', 'D', 'C', 'F', 'G',
+    ]);
+  });
+
+  it('is its own inverse — applying it twice recovers the original order', () => {
+    const original = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    const visual = toSnakeOrderWithLeadIn(original, 3);
+    expect(toSnakeOrderWithLeadIn(visual, 3)).toEqual(original);
+  });
+
+  it('is its own inverse for a larger, evenly-divisible set', () => {
+    const original = Array.from({ length: 20 }, (_, i) => i);
+    const visual = toSnakeOrderWithLeadIn(original, 4);
+    expect(toSnakeOrderWithLeadIn(visual, 4)).toEqual(original);
   });
 });

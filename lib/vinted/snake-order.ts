@@ -32,3 +32,28 @@ export function toSnakeOrder<T>(items: T[], columns: number): T[] {
     rowIndex % 2 === 1 ? [...row].reverse() : row,
   );
 }
+
+/** Same as `chunkIntoRows`, but the first row has one fewer slot — reserved
+ *  for a lead-in element (the bot placeholder) rendered alongside it, so the
+ *  first row's total visual width still matches every other row instead of
+ *  running one card wider. */
+export function chunkIntoRowsWithLeadIn<T>(items: T[], columns: number): T[][] {
+  if (columns <= 1) return chunkIntoRows(items, columns);
+  const firstRow = items.slice(0, columns - 1);
+  const rest = chunkIntoRows(items.slice(columns - 1), columns);
+  return firstRow.length > 0 ? [firstRow, ...rest] : rest;
+}
+
+/**
+ * `toSnakeOrder`'s counterpart for the group that has the lead-in bot
+ * placeholder — uses `chunkIntoRowsWithLeadIn`'s row boundaries instead of
+ * `chunkIntoRows`'s. Row sizes are a deterministic function of the array's
+ * own length and `columns`, so re-chunking a reordered array reproduces the
+ * exact same boundaries: this stays its own inverse for the same reason
+ * `toSnakeOrder` is.
+ */
+export function toSnakeOrderWithLeadIn<T>(items: T[], columns: number): T[] {
+  return chunkIntoRowsWithLeadIn(items, columns).flatMap((row, rowIndex) =>
+    rowIndex % 2 === 1 ? [...row].reverse() : row,
+  );
+}

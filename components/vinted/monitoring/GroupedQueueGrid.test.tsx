@@ -68,21 +68,22 @@ function cardsInDomOrder(container: HTMLElement): string[] {
 describe('<GroupedQueueGrid> snake layout', () => {
   it('renders row 0 (position #1, top, next to the start slot) first, then winds down the group', () => {
     const { container } = renderGrid();
-    // "Pokémon FR" has 7 items at 3 columns: row0 = [Pharamp,Fulguris,Lougaroc]
-    // (top, natural DOM order), row1 = [Draeuil,Mimiqui,Démolosse] (middle,
-    // reversed for DOM order), row2 = [Cizayox] (bottom, the lone leftover
-    // row). Its cards are the first 7 overlays in DOM order (the "Magic"
+    // "Pokémon FR" has 7 items at 3 columns, but row 0 gives up one slot to
+    // the start placeholder: row0 = [Pharamp,Fulguris] (top, natural DOM
+    // order, 2 cards), row1 = [Lougaroc,Draeuil,Mimiqui] (middle, reversed
+    // for DOM order, 3 cards), row2 = [Démolosse,Cizayox] (bottom, natural,
+    // 2 cards). Its cards are the first 7 overlays in DOM order (the "Magic"
     // item comes after) — no need to filter, `textContent` includes the
     // price too so exact-string filtering/array-containing would silently
     // never match.
     const names = cardsInDomOrder(container);
     expect(names[0]).toContain('Pharamp GX'); // row 0 starts with position #1, right by the start slot
     expect(names[1]).toContain('Fulguris GX');
-    expect(names[2]).toContain('Lougaroc V');
-    expect(names[3]).toContain('Démolosse V'); // row 1 (reversed) starts with its LAST logical item
-    expect(names[4]).toContain('Mimiqui V');
-    expect(names[5]).toContain('Draeuil V'); // row 1 (reversed) ends with its FIRST logical item
-    expect(names[6]).toContain('Cizayox V'); // row 2 (bottom), a single leftover item
+    expect(names[2]).toContain('Mimiqui V'); // row 1 (reversed) starts with its LAST logical item
+    expect(names[3]).toContain('Draeuil V');
+    expect(names[4]).toContain('Lougaroc V'); // row 1 (reversed) ends with its FIRST logical item
+    expect(names[5]).toContain('Démolosse V'); // row 2 (bottom), natural order
+    expect(names[6]).toContain('Cizayox V');
   });
 
   it('uses a left-pointing chevron in row 0 (climbing up toward the start slot) and a right-pointing one in row 1', () => {
@@ -190,15 +191,26 @@ describe('<GroupedQueueGrid> snake layout', () => {
   });
 
   it('computeSnakeReorder converts a post-drag visual order back into the correct logical save order', () => {
+    // Group 0 reserves a slot for the start placeholder: row0 = [Pharamp,
+    // Fulguris] (2 cards), row1 = [Mimiqui, Draeuil, Lougaroc] (reversed for
+    // DOM order), row2 = [Démolosse, Cizayox].
     const visualOrder: PipelineItem[] = [
-      ITEMS[0], ITEMS[1], ITEMS[2], // row0: Pharamp, Fulguris, Lougaroc
-      ITEMS[5], ITEMS[4], ITEMS[3], // row1 reversed: Démolosse, Mimiqui, Draeuil
-      ITEMS[6], // row2: Cizayox
+      ITEMS[0], ITEMS[1], // row0: Pharamp, Fulguris
+      ITEMS[4], ITEMS[3], ITEMS[2], // row1 reversed: Mimiqui, Draeuil, Lougaroc
+      ITEMS[5], ITEMS[6], // row2: Démolosse, Cizayox
       ITEMS[7], // Magic: Zeraora
     ];
+    // Drag "Lougaroc" (visual index 4) up to index 2 — arrayMove removes it
+    // then reinserts at index 2 of the now-7-long remainder [Pharamp,
+    // Fulguris, Mimiqui, Draeuil, Démolosse, Cizayox, Zeraora] →
+    // [Pharamp, Fulguris, Lougaroc, Mimiqui, Draeuil, Démolosse, Cizayox,
+    // Zeraora]. Re-chunking "Pokémon FR" with the lead-in reservation:
+    // row0 = [Pharamp, Fulguris] (unchanged), row1 = [Lougaroc, Mimiqui,
+    // Draeuil] (reversed → [Draeuil, Mimiqui, Lougaroc]), row2 = [Démolosse,
+    // Cizayox] (unchanged).
     const result = computeSnakeReorder(visualOrder, 4, 2, 3);
     expect(result.map((i) => i.name)).toEqual([
-      'Pharamp GX', 'Fulguris GX', 'Mimiqui V', 'Draeuil V', 'Démolosse V', 'Lougaroc V', 'Cizayox V', 'Zeraora VSTAR',
+      'Pharamp GX', 'Fulguris GX', 'Draeuil V', 'Mimiqui V', 'Lougaroc V', 'Démolosse V', 'Cizayox V', 'Zeraora VSTAR',
     ]);
   });
 });

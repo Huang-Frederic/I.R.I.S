@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { sortByGroupPriority } from '@/lib/vinted/group-sort';
-import { chunkIntoRows, toSnakeOrder } from '@/lib/vinted/snake-order';
+import { chunkIntoRows, toSnakeOrder, chunkIntoRowsWithLeadIn, toSnakeOrderWithLeadIn } from '@/lib/vinted/snake-order';
 import { GROUP_FRAME_CLASSES, GROUP_LABEL_CLASSES, colorKeyForGroup } from '@/lib/vinted/group-frame-colors';
 import PosterCard, { CardConnector, PosterCardStartSlot, PosterCardDragPreview, type PosterCardAction } from './PosterCard';
 import { useSnakeColumns } from './hooks/useSnakeColumns';
@@ -52,14 +52,23 @@ function groupContiguousItems(items: PipelineItem[]): Group[] {
   return groups;
 }
 
+/** The very first group reserves a slot in its first row for the bot
+ *  placeholder (`chunkIntoRowsWithLeadIn`/`toSnakeOrderWithLeadIn`), so its
+ *  first row isn't one card wider than every other row. Every other group
+ *  uses the plain snake order. */
+function snakeOrderForGroup(items: PipelineItem[], columns: number, groupPos: number): PipelineItem[] {
+  return groupPos === 0 ? toSnakeOrderWithLeadIn(items, columns) : toSnakeOrder(items, columns);
+}
+
 /**
  * Converts a post-drag visual (on-screen snake) order back into the logical
- * order to save. `toSnakeOrder` is its own inverse (lib/vinted/snake-order.ts)
- * — applying it again turns the moved visual order back into logical order.
- * Group runs are re-derived from the MOVED array (not the pre-drag `groups`)
- * so a drop that lands in a different group's frame degrades to the same
- * harmless no-op it already was before the snake layout (the next render's
- * groupKey-based re-sort overrides it either way).
+ * order to save. `snakeOrderForGroup` is its own inverse for a fixed group
+ * position (lib/vinted/snake-order.ts) — applying it again turns the moved
+ * visual order back into logical order. Group runs are re-derived from the
+ * MOVED array (not the pre-drag `groups`) so a drop that lands in a
+ * different group's frame degrades to the same harmless no-op it already
+ * was before the snake layout (the next render's groupKey-based re-sort
+ * overrides it either way).
  */
 export function computeSnakeReorder(
   visualOrder: PipelineItem[],
@@ -68,7 +77,7 @@ export function computeSnakeReorder(
   columns: number,
 ): PipelineItem[] {
   const newVisualOrder = arrayMove(visualOrder, oldIndex, newIndex);
-  return groupContiguousItems(newVisualOrder).flatMap((g) => toSnakeOrder(g.items, columns));
+  return groupContiguousItems(newVisualOrder).flatMap((g, groupPos) => snakeOrderForGroup(g.items, columns, groupPos));
 }
 
 interface Props {
@@ -123,7 +132,7 @@ export default function GroupedQueueGrid({
   // this is what dnd-kit needs for its sorting preview and drag-end index
   // math, since it must match what's actually rendered, not the plain
   // (non-snake) `sortedItems` order.
-  const visualOrder = groups.flatMap((g) => toSnakeOrder(g.items, columns));
+  const visualOrder = groups.flatMap((g, groupPos) => snakeOrderForGroup(g.items, columns, groupPos));
   const activeItem = activeId ? visualOrder.find((i) => i.queueId === activeId) ?? null : null;
 
   function handleDragEnd(event: DragEndEvent) {
@@ -165,7 +174,7 @@ export default function GroupedQueueGrid({
           <div ref={setContainer} className="flex flex-wrap items-start justify-center gap-3">
             {groups.map((group, groupPos) => {
               const colorKey = colorKeyForGroup(group.key);
-              const rows = chunkIntoRows(group.items, columns);
+              const rows = groupPos === 0 ? chunkIntoRowsWithLeadIn(group.items, columns) : chunkIntoRows(group.items, columns);
               return (
                 <div key={group.key} className="flex items-start gap-2">
                   {groupPos > 0 && <CardConnector variant="group" />}
