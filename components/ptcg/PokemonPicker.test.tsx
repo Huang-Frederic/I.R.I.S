@@ -69,6 +69,36 @@ describe('<PokemonPicker>', () => {
     expect(onChange).toHaveBeenCalledWith(10658);
   });
 
+  it('shows the Mega sprite in the grid itself once the Mega toggle is checked, not just after picking', () => {
+    // Regression: checking "Méga" changed nothing visible in the grid before
+    // this — every tile kept the base-form sprite, so the toggle looked
+    // like it did nothing until after a pick was already made.
+    render(<PokemonPicker value={null} onChange={() => {}} />);
+    openPicker();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'amphinobi' } });
+    const before = screen.getByRole('button', { name: 'Amphinobi' }).querySelector('img');
+    expect(before?.src).toContain('/greninja.png');
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'megaToggleLabel' }));
+    // Re-queried, not the captured `before` node — react-window's row
+    // renderer doesn't guarantee the same DOM node survives a re-render.
+    const after = screen.getByRole('button', { name: 'Amphinobi' }).querySelector('img');
+    expect(after?.src).toContain('/greninja-mega.png');
+  });
+
+  it('falls back to the base sprite in the grid if the Mega sprite 404s (most species have no Mega form)', () => {
+    render(<PokemonPicker value={null} onChange={() => {}} />);
+    openPicker();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'megaToggleLabel' }));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'bulbizarre' } });
+    const img = screen.getByRole('button', { name: 'Bulbizarre' }).querySelector('img') as HTMLImageElement;
+    expect(img.src).toContain('/bulbasaur-mega.png');
+
+    fireEvent.error(img);
+    expect(img.src).toContain('/bulbasaur.png');
+    expect(img.src).not.toContain('-mega');
+  });
+
   it('defaults a dual-form Mega pick (Charizard) to the X variant', () => {
     const onChange = vi.fn();
     render(<PokemonPicker value={null} onChange={onChange} />);

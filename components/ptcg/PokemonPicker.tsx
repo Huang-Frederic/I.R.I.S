@@ -114,10 +114,23 @@ export default function PokemonPicker({ value, onChange }: Props) {
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={pokemonSpriteUrl(r.number) ?? undefined}
+                      src={
+                        (mega
+                          ? pokemonSpriteUrl(encodeMegaDex(r.number, DUAL_FORM_DEX.has(r.number) ? 'x' : undefined))
+                          : pokemonSpriteUrl(r.number)) ?? undefined
+                      }
                       alt={r.fr}
                       loading="lazy"
                       className="pixel-sprite max-h-12 max-w-12"
+                      // The "Méga" toggle changed nothing visible in the grid
+                      // before this — every tile kept showing the base-form
+                      // sprite, so checking it looked like it did nothing.
+                      // Most species have no Mega form at all, so falling
+                      // back to the base sprite on a 404 avoids a grid full
+                      // of broken images for everything except the ~46 that do.
+                      onError={(e) => {
+                        if (mega) e.currentTarget.src = pokemonSpriteUrl(r.number) ?? '';
+                      }}
                     />
                   </button>
                 ),
