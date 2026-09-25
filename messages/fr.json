@@ -1159,6 +1159,7 @@
     "parseDecklist": "Analyser",
     "unresolvedWarning": "Non trouvée dans le catalogue — affichée en texte.",
     "selectTargetsLabel": "Coche les cartes à checker",
+    "noTargetsSelected": "Sélectionne au moins une carte à checker pour pouvoir enregistrer.",
     "profileNameLabel": "Nom du profil",
     "profileNamePlaceholder": "ex. Typhlosion",
     "profileSpriteLabel": "Sprite du profil",

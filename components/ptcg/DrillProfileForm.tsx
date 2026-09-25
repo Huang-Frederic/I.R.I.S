@@ -224,6 +224,9 @@ export default function DrillProfileForm({ open, editing, onClose, onSaved }: Pr
                 </div>
               );
             })}
+            {targetIds.size === 0 && (
+              <p className="text-red text-xs">{t('noTargetsSelected')}</p>
+            )}
           </div>
         )}
       </div>

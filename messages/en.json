@@ -1159,6 +1159,7 @@
     "parseDecklist": "Analyse",
     "unresolvedWarning": "Not found in the catalog — will show as text.",
     "selectTargetsLabel": "Check the cards to quiz on",
+    "noTargetsSelected": "Select at least one card to quiz on before saving.",
     "profileNameLabel": "Profile name",
     "profileNamePlaceholder": "e.g. Typhlosion",
     "profileSpriteLabel": "Profile sprite",

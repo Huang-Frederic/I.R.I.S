@@ -1158,6 +1158,7 @@
     "parseDecklist": "解析",
     "unresolvedWarning": "未在图鉴中找到，将以文本显示。",
     "selectTargetsLabel": "勾选要检查的卡牌",
+    "noTargetsSelected": "保存前请至少勾选一张要检查的卡牌。",
     "profileNameLabel": "档案名称",
     "profileNamePlaceholder": "例如：火暴兽",
     "profileSpriteLabel": "档案精灵图标",

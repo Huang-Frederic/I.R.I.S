@@ -1158,6 +1158,7 @@
     "parseDecklist": "解析",
     "unresolvedWarning": "カタログに見つかりません。テキストで表示されます。",
     "selectTargetsLabel": "チェックするカードを選択",
+    "noTargetsSelected": "保存する前に、チェックするカードを少なくとも1枚選択してください。",
     "profileNameLabel": "プロファイル名",
     "profileNamePlaceholder": "例：バクフーン",
     "profileSpriteLabel": "プロファイルのスプライト",
