@@ -268,7 +268,7 @@ export async function PATCH(
   if (body.status === 'for_sale' && updated.card_id_tcg) {
     const { data: oldCards } = await supabase
       .from('cards')
-      .select('id, variant, suggested_price, status, sold_by_user_id')
+      .select('id, variant, suggested_price, price_confirmed_at, status, sold_by_user_id')
       .eq('card_id_tcg', updated.card_id_tcg)
       .eq('language', updated.language)
       .eq('condition', updated.condition)
@@ -283,9 +283,14 @@ export async function PATCH(
     if (sameGroupOld.length > 0) {
       const svc = createServiceClient();
       let priceToCopy: number | null = null;
+      let priceConfirmedAtToCopy: string | null = null;
       for (const oldCard of sameGroupOld) {
         if (!priceToCopy && typeof oldCard.suggested_price === 'number') {
           priceToCopy = oldCard.suggested_price;
+          // Carried from the SAME sibling the price came from — a price that
+          // was never confirmed on the old card (e.g. an unreviewed TCGdex
+          // estimate) must not look confirmed just because it got copied.
+          priceConfirmedAtToCopy = oldCard.price_confirmed_at ?? null;
         }
 
         // Fetch existing listings on this old card so we can decide per-row:
@@ -390,9 +395,16 @@ export async function PATCH(
         await svc.from('card_listings').delete().eq('card_id', oldCard.id);
       }
 
-      // Copy suggested_price from old card to the new card if it has none.
+      // Copy suggested_price from old card to the new card if it has none —
+      // and carry over whether that price was ever human-confirmed, so a
+      // price that was never reviewed on the old card doesn't silently start
+      // passing the Vinted queue's price_confirmed_at gate just because it
+      // moved to a new row (lib/vinted/queue-eligibility.ts).
       if (!updated.suggested_price && priceToCopy) {
-        await svc.from('cards').update({ suggested_price: priceToCopy }).eq('id', id);
+        await svc.from('cards').update({
+          suggested_price: priceToCopy,
+          price_confirmed_at: priceConfirmedAtToCopy,
+        }).eq('id', id);
       }
     }
   }

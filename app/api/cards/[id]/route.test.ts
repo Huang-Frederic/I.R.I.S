@@ -154,6 +154,73 @@ describe('PATCH /api/cards/[id]', () => {
     );
   });
 
+  it('copies price_confirmed_at alongside suggested_price when promoting a stock copy inherits its price from a sold sibling', async () => {
+    // Regression: promoting a duplicate from stock to for_sale copies the
+    // sibling's suggested_price when the promoted card has none, but was
+    // leaving price_confirmed_at untouched (null on the newly-promoted row)
+    // — silently excluding it from the Vinted queue (queue-eligibility.ts
+    // requires price_confirmed_at) even though the price itself was legit.
+    // The sibling's own price was NEVER confirmed either (e.g. an
+    // auto-estimated TCGdex price) — copying null must not turn into a
+    // confirmed timestamp.
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+
+    const target = { card_id_tcg: 'tcg-1', language: 'JP', condition: 'NM', variant: null, status: 'collection' };
+    const targetSingle = vi.fn().mockResolvedValue({ data: target, error: null });
+    const targetSelect = vi.fn(() => ({ eq: () => ({ single: targetSingle }) }));
+
+    const conflictNeq = vi.fn(() => Promise.resolve({ data: [], error: null }));
+    const conflictSelect = vi.fn(() => ({
+      eq: () => ({ eq: () => ({ eq: () => ({ eq: () => ({ neq: conflictNeq }) }) }) }),
+    }));
+
+    const updatedCard = {
+      id: 'abc', card_id_tcg: 'tcg-1', language: 'JP', condition: 'NM', variant: null,
+      suggested_price: null, status: 'for_sale', card_name: 'Test Card',
+    };
+    const mainUpdateSingle = vi.fn().mockResolvedValue({ data: updatedCard, error: null });
+    const mainUpdateSelect = vi.fn(() => ({ single: mainUpdateSingle }));
+    const mainUpdateEq = vi.fn(() => ({ select: mainUpdateSelect }));
+    const mainUpdate = vi.fn(() => ({ eq: mainUpdateEq }));
+
+    const oldCards = [
+      { id: 'old-1', variant: null, suggested_price: 5, price_confirmed_at: null, status: 'sold', sold_by_user_id: 'u' },
+    ];
+    const oldCardsNeq2 = vi.fn(() => Promise.resolve({ data: oldCards, error: null }));
+    const oldCardsSelect = vi.fn(() => ({
+      eq: () => ({ eq: () => ({ eq: () => ({ neq: () => ({ neq: oldCardsNeq2 }) }) }) }),
+    }));
+
+    supabaseMock.from
+      .mockReturnValueOnce({ select: targetSelect })   // for_sale precheck: read target group key
+      .mockReturnValueOnce({ select: conflictSelect }) // for_sale precheck: existing-listing conflict
+      .mockReturnValueOnce({ update: mainUpdate })      // the PATCH itself
+      .mockReturnValueOnce({ select: oldCardsSelect }); // sibling lookup for the price-copy
+
+    // syncVintedQueueMembership's own `cards` lookup — return no row so it
+    // bails out immediately (same pattern as the "marked sold" test above).
+    const queueSyncSingle = vi.fn(() => Promise.resolve({ data: null, error: null }));
+    const queueSyncSelect = vi.fn(() => ({ eq: () => ({ single: queueSyncSingle }) }));
+
+    // The old sibling has no card_listings row → the listing-migration loop
+    // hits its `continue` immediately, leaving only the price copy itself.
+    const oldListingsEq = vi.fn(() => Promise.resolve({ data: [], error: null }));
+    const oldListingsSelect = vi.fn(() => ({ eq: oldListingsEq }));
+
+    const priceCopyUpdate = vi.fn(() => ({ eq: () => Promise.resolve({ data: null, error: null }) }));
+
+    serviceMock.from.mockImplementation((table: string) => {
+      if (table === 'cards') return { select: queueSyncSelect, update: priceCopyUpdate };
+      if (table === 'card_listings') return { select: oldListingsSelect };
+      throw new Error(`unmocked service table: ${table}`);
+    });
+
+    const res = await PATCH(makeRequest({ status: 'for_sale' }), ctx('abc'));
+    expect(res.status).toBe(200);
+
+    expect(priceCopyUpdate).toHaveBeenCalledWith({ suggested_price: 5, price_confirmed_at: null });
+  });
+
   it('marks sold and returns restock when last for_sale + pokedex exists', async () => {
     supabaseMock.auth.getUser.mockResolvedValue({
       data: { user: { id: 'u' } },
