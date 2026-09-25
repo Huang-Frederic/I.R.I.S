@@ -38,7 +38,11 @@ const HEADER_CATEGORY: Record<string, DrillCategory> = {
 
 const HEADER_RE = /^(Pokémon|Dresseur|Énergie)\s*:\s*\d+$/;
 const FOOTER_RE = /^Total de cartes\s*:/;
-const LINE_RE = /^(\d+)\s+(.+?)\s+([A-Z]{2,5})\s+(\d+)$/;
+// Set code allows an optional hyphenated subset suffix (e.g. "LOR-TG" for a
+// Lost Origin Trainer Gallery print, "CRZ-GG" for Galarian Gallery) — without
+// it, a line for one of these prints doesn't match at all and is silently
+// dropped instead of at least reaching the "unresolved card" fallback.
+const LINE_RE = /^(\d+)\s+(.+?)\s+([A-Z]{2,5}(?:-[A-Z]{1,4})?)\s+(\d+)$/;
 
 export function parseDecklist(text: string): ParsedDecklistLine[] {
   const merged = new Map<string, ParsedDecklistLine>();
@@ -96,7 +100,12 @@ export function decklistTextFromCards(cards: DrillCard[]): string {
     if (!list || list.length === 0) continue;
     const total = list.reduce((sum, c) => sum + c.count, 0);
     const lines = list.map((c) => {
-      const [setCode, setNumber] = c.id.split('-');
+      // Split on the LAST hyphen, not every hyphen — a hyphenated subset
+      // code (e.g. "LOR-TG-24") would otherwise split into 3 pieces and
+      // silently corrupt back into the wrong setCode/setNumber pair.
+      const splitAt = c.id.lastIndexOf('-');
+      const setCode = c.id.slice(0, splitAt);
+      const setNumber = c.id.slice(splitAt + 1);
       return `${c.count} ${c.name} ${setCode} ${setNumber}`;
     });
     sections.push(`${CATEGORY_HEADER[category]} : ${total}\n${lines.join('\n')}`);

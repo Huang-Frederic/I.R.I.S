@@ -84,6 +84,18 @@ describe('parseDecklist', () => {
   it('ignores lines that appear before any category header', () => {
     expect(parseDecklist('3 Weedle CRI 1\nPokémon : 1\n1 Rabsca TEF 24')).toHaveLength(1);
   });
+
+  it('parses a hyphenated subset set code (e.g. a Trainer Gallery print) instead of silently dropping the line', () => {
+    // Regression: a plain [A-Z]{2,5} set-code pattern doesn't match "LOR-TG",
+    // so this line failed the regex entirely and vanished with no trace —
+    // not even reaching the "unresolved card" fallback the resolver has for
+    // a genuinely unknown (setCode, setNumber) pair.
+    const text = "Dresseur : 1\n1 Boss's Orders LOR-TG 24\n\nTotal de cartes : 1";
+    const lines = parseDecklist(text);
+    expect(lines).toEqual([
+      { name: "Boss's Orders", setCode: 'LOR-TG', setNumber: '24', count: 1, category: 'trainer' },
+    ]);
+  });
 });
 
 describe('decklistTextFromCards', () => {
@@ -112,5 +124,20 @@ describe('decklistTextFromCards', () => {
     const text = decklistTextFromCards(cards);
     expect(text).not.toContain('Dresseur');
     expect(text).not.toContain('Énergie');
+  });
+
+  it('splits a hyphenated subset id on the LAST hyphen, not every hyphen', () => {
+    // Regression: `id.split('-')` on "LOR-TG-24" gives 3 pieces
+    // (["LOR","TG","24"]), so destructuring the first two silently produced
+    // setCode="LOR"/setNumber="TG" — dropping the real card number and
+    // corrupting the round-trip through the textarea.
+    const cards: DrillCard[] = [{ id: 'LOR-TG-24', name: "Boss's Orders", count: 1, category: 'trainer' }];
+    const text = decklistTextFromCards(cards);
+    expect(text).toContain("1 Boss's Orders LOR-TG 24");
+
+    const reparsed = parseDecklist(text);
+    expect(reparsed).toEqual([
+      { name: "Boss's Orders", setCode: 'LOR-TG', setNumber: '24', count: 1, category: 'trainer' },
+    ]);
   });
 });
