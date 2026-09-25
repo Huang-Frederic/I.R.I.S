@@ -539,6 +539,12 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
                 "listed_at": now,
                 "vinted_listing_id": listing_id,
                 "vinted_posted_at": now,
+                # Clears a one-off manual "bump to front" from the dashboard —
+                # left in place, it would keep winning over staleness-based
+                # selection every time this card cycles back to eligible,
+                # permanently starving lower-priority groups instead of
+                # being the one-time nudge it was meant to be.
+                "repost_position": None,
             }).execute()
         except Exception as e:
             await _log(supabase, user_id, "error", "❌  %s card_listings upsert — carte IS sur Vinted (#%s) mais IRIS désynchronisé : %s", tag, listing_id, e)
@@ -712,6 +718,9 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
                 "listed_at": now,
                 "vinted_listing_id": listing_id,
                 "vinted_posted_at": now,
+                # See the matching card_listings upsert above for why this
+                # one-off manual override must be cleared on every listing.
+                "repost_position": None,
             }).execute()
         except Exception as e:
             await _log(supabase, user_id, "error", "❌  %s lot_listings upsert — lot IS sur Vinted (#%s) mais IRIS désynchronisé : %s", tag, listing_id, e)
