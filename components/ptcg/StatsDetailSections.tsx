@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { Dices, Rocket, Flame, Timer, Layers, Coins, Swords, Link2, Undo2 } from 'lucide-react';
 import type { AggregatedStats } from '@/lib/ptcg/game-stats';
+import { isInCurrentDecklist } from '@/lib/ptcg/current-decklist';
 
 function Meter({ label, pct, hint }: { label: string; pct: number; hint?: string }) {
   const tone = pct >= 60 ? 'bg-emerald-500' : pct >= 35 ? 'bg-amber-500' : 'bg-red';
@@ -66,7 +67,20 @@ export default function StatsDetailSections({ stats: s }: { stats: AggregatedSta
     </div>
   );
 
-  const maxStarter = Math.max(...s.starters.map((x) => x.pct), 1);
+  // Hide leftover noise from games logged before the decklist was finalized
+  // (cut tech cards, abandoned starters, …) — a UI-layer filter, so the
+  // extraction engine itself stays deck-agnostic.
+  const starters = s.starters.filter((x) => isInCurrentDecklist(x.name));
+  const cards = s.cards.filter((c) => isInCurrentDecklist(c.name));
+  const attackers = s.attackers.filter((a) => isInCurrentDecklist(a.name));
+  const attachments = s.attachments.filter(
+    (a) => isInCurrentDecklist(a.card) && isInCurrentDecklist(a.target),
+  );
+  const recoveries = s.recoveries.filter(
+    (r) => isInCurrentDecklist(r.source) && isInCurrentDecklist(r.card),
+  );
+
+  const maxStarter = Math.max(...starters.map((x) => x.pct), 1);
 
   return (
     <div className="flex flex-col gap-4">
@@ -126,7 +140,7 @@ export default function StatsDetailSections({ stats: s }: { stats: AggregatedSta
               {t('starterDist')}
             </p>
             <div className="flex flex-col gap-1.5">
-              {s.starters.map((st) => (
+              {starters.map((st) => (
                 <div key={st.name} className="flex items-center gap-2 text-xs">
                   <span className="w-28 shrink-0 truncate">{st.name}</span>
                   <div className="bg-surface-2 h-4 flex-1 overflow-hidden rounded">
@@ -208,7 +222,7 @@ export default function StatsDetailSections({ stats: s }: { stats: AggregatedSta
               </tr>
             </thead>
             <tbody>
-              {s.cards.map((c) => {
+              {cards.map((c) => {
                 const dead = c.played === 0 && c.discarded > 0;
                 return (
                   <tr key={c.name} className="border-border border-t">
@@ -237,7 +251,7 @@ export default function StatsDetailSections({ stats: s }: { stats: AggregatedSta
 
       <Section icon={<Swords className="text-red h-4 w-4" aria-hidden />} title={t('sectionAttackers')}>
         <p className="text-text-faint mb-2 text-[11px]">{t('attackersHint')}</p>
-        {s.attackers.length === 0 ? (
+        {attackers.length === 0 ? (
           <p className="text-text-faint text-sm">{t('noAttackers')}</p>
         ) : (
           <div className="overflow-x-auto">
@@ -251,7 +265,7 @@ export default function StatsDetailSections({ stats: s }: { stats: AggregatedSta
                 </tr>
               </thead>
               <tbody>
-                {s.attackers.map((a) => (
+                {attackers.map((a) => (
                   <tr key={a.name} className="border-border border-t">
                     <td className="py-2 pr-2">{a.name}</td>
                     <td className="px-2 py-2 text-right font-mono tabular-nums">{a.attacks}</td>
@@ -267,11 +281,11 @@ export default function StatsDetailSections({ stats: s }: { stats: AggregatedSta
 
       <Section icon={<Link2 className="text-red h-4 w-4" aria-hidden />} title={t('sectionAttachments')}>
         <p className="text-text-faint mb-2 text-[11px]">{t('attachmentsHint')}</p>
-        {s.attachments.length === 0 ? (
+        {attachments.length === 0 ? (
           <p className="text-text-faint text-sm">{t('noAttachments')}</p>
         ) : (
           <ul className="divide-border divide-y">
-            {s.attachments.map((a) => (
+            {attachments.map((a) => (
               <li key={`${a.card}→${a.target}`} className="flex items-center justify-between gap-2 py-1.5 text-sm">
                 <span className="min-w-0 truncate">
                   {a.card} → {a.target}
@@ -285,11 +299,11 @@ export default function StatsDetailSections({ stats: s }: { stats: AggregatedSta
 
       <Section icon={<Undo2 className="text-red h-4 w-4" aria-hidden />} title={t('sectionRecoveries')}>
         <p className="text-text-faint mb-2 text-[11px]">{t('recoveriesHint')}</p>
-        {s.recoveries.length === 0 ? (
+        {recoveries.length === 0 ? (
           <p className="text-text-faint text-sm">{t('noRecoveries')}</p>
         ) : (
           <ul className="divide-border divide-y">
-            {s.recoveries.map((r) => (
+            {recoveries.map((r) => (
               <li key={`${r.source}→${r.card}`} className="flex items-center justify-between gap-2 py-1.5 text-sm">
                 <span className="min-w-0 truncate">
                   {r.source} → {r.card}

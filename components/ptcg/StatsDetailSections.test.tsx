@@ -83,4 +83,33 @@ describe('<StatsDetailSections>', () => {
     expect(screen.getByText('noAttachments')).toBeInTheDocument();
     expect(screen.getByText('noRecoveries')).toBeInTheDocument();
   });
+
+  it('hides starters, cards, attackers, attachments and recoveries that are not in the current decklist', () => {
+    // "Héricendre de Luth" (the base fixture's own starter) isn't in the
+    // current decklist either, so it's already exercising this — this test
+    // makes that explicit and covers every other filtered table too.
+    const withOutOfDeckEntries: AggregatedStats = {
+      ...stats,
+      starters: [...stats.starters, { name: 'Dardargnan-ex', pct: 50 }],
+      cards: [...stats.cards, { name: 'Max Canne', played: 4, discarded: 0, perGame: 0.4 }],
+      attackers: [...stats.attackers, { name: 'Dardargnan-ex', attacks: 3, damage: 900, dmgPerAttack: 300 }],
+      attachments: [
+        ...stats.attachments,
+        { card: 'Bracelet Vaillant', target: 'Méga-Lockpin-ex', count: 2 }, // card not in deck
+        { card: 'Énergie Enrichissante', target: 'Dardargnan-ex', count: 1 }, // target not in deck
+      ],
+      recoveries: [...stats.recoveries, { source: 'Max Canne', card: 'Limonde', count: 1 }],
+    };
+    render(<StatsDetailSections stats={withOutOfDeckEntries} />);
+    expect(screen.queryByText('Dardargnan-ex')).toBeNull();
+    expect(screen.queryByText('Héricendre de Luth')).toBeNull();
+    expect(screen.queryByText('Max Canne')).toBeNull();
+    expect(screen.queryByText('Bracelet Vaillant → Méga-Lockpin-ex')).toBeNull();
+    expect(screen.queryByText('Énergie Enrichissante → Dardargnan-ex')).toBeNull();
+    expect(screen.queryByText('Max Canne → Limonde')).toBeNull();
+    // What IS in the decklist stays.
+    expect(screen.getByText('Ordres du Boss')).toBeInTheDocument();
+    expect(screen.getByText('Énergie Enrichissante → Méga-Lockpin-ex')).toBeInTheDocument();
+    expect(screen.getByText('Civière Nocturne → Limonde')).toBeInTheDocument();
+  });
 });
