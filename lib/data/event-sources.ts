@@ -62,7 +62,7 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
   {
     id: 'troll2jeux',
     name: 'Troll2Jeux',
-    city: '',
+    city: 'Paris',
     eventsUrl: 'https://troll2jeux.com/calendrier?category=10002446',
     scraped: true,
     color: '#a78bfa', // violet
