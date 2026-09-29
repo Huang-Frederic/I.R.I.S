@@ -672,12 +672,13 @@ export interface VintedQueueRow {
   created_at: string;
 }
 
-/** One posting/reposting window for a given day of week (0 = Sunday). A day
- *  with no rows means no autonomous post/repost that day. */
+/** One posting/reposting window for a "weekday" (Mon-Fri) or "weekend"
+ *  (Sat+Sun) bucket. A block with no rows means no autonomous post/repost
+ *  during it. */
 export interface VintedBotScheduleRow {
   id: string;
   user_id: string;
-  day_of_week: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  block: 'weekday' | 'weekend';
   /** "HH:MM:SS", as returned by Postgres for a `time` column. */
   starts_at: string;
   ends_at: string;

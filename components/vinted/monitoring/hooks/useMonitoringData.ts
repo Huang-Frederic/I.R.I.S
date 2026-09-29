@@ -24,7 +24,7 @@ export function lotImageUrl(photoUrls: string[] | null | undefined): string {
 
 export interface MonitoringData {
   pipeline: PipelineItem[];
-  schedule: Pick<VintedBotScheduleRow, 'day_of_week' | 'starts_at' | 'ends_at'>[];
+  schedule: Pick<VintedBotScheduleRow, 'block' | 'starts_at' | 'ends_at'>[];
   config: { daily_quota: number; repost_after_days: number; group_priority: string[] };
   logs: VintedAgentLogRow[];
   todayJobCount: number;
@@ -53,7 +53,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
 
     const [queueRes, scheduleRes, configRes, logsRes, jobsRes, cardListingsRes, lotListingsRes] = await Promise.all([
       supabase.from('vinted_queue').select('id, card_id, lot_id, position').eq('user_id', viewedUserId).order('position'),
-      supabase.from('vinted_bot_schedule').select('day_of_week, starts_at, ends_at').eq('user_id', viewedUserId),
+      supabase.from('vinted_bot_schedule').select('block, starts_at, ends_at').eq('user_id', viewedUserId),
       supabase.from('vinted_bot_config').select('daily_quota, repost_after_days, group_priority').eq('user_id', viewedUserId).maybeSingle(),
       supabase
         .from('vinted_agent_logs')
@@ -184,7 +184,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
 
     setState({
       pipeline,
-      schedule: (scheduleRes.data ?? []) as Pick<VintedBotScheduleRow, 'day_of_week' | 'starts_at' | 'ends_at'>[],
+      schedule: (scheduleRes.data ?? []) as Pick<VintedBotScheduleRow, 'block' | 'starts_at' | 'ends_at'>[],
       config,
       logs: (logsRes.data ?? []) as VintedAgentLogRow[],
       todayJobCount: jobsRes.data?.length ?? 0,

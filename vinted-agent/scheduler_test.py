@@ -3,7 +3,7 @@ from datetime import datetime
 from scheduler import decide_next_action, sort_repost_candidates
 
 MONDAY_NOON = datetime(2026, 9, 21, 12, 0)  # a Monday
-SCHEDULE_WEEKDAY = [{"day_of_week": 1, "starts_at": "11:00:00", "ends_at": "13:00:00"}]
+SCHEDULE_WEEKDAY = [{"block": "weekday", "starts_at": "11:00:00", "ends_at": "13:00:00"}]
 QUEUE_ONE_CARD = [{"card_id": "card-1", "lot_id": None, "position": 1}]
 NO_REPOSTS = []
 ONE_REPOST = [{"card_id": "old-card", "lot_id": None}]
@@ -36,9 +36,21 @@ def test_returns_none_when_queue_and_reposts_are_both_empty():
 
 
 def test_a_day_with_no_schedule_rows_never_posts():
-    sunday = datetime(2026, 9, 20, 12, 0)  # no rows for day_of_week 0 in SCHEDULE_WEEKDAY
+    sunday = datetime(2026, 9, 20, 12, 0)  # Sunday -> 'weekend' block, no rows for it in SCHEDULE_WEEKDAY
     result = decide_next_action(sunday, SCHEDULE_WEEKDAY, 0, 8, QUEUE_ONE_CARD, NO_REPOSTS)
     assert result is None
+
+
+def test_saturday_and_sunday_share_the_weekend_block():
+    weekend_schedule = [{"block": "weekend", "starts_at": "09:00:00", "ends_at": "18:00:00"}]
+    saturday_noon = datetime(2026, 9, 26, 12, 0)
+    sunday_noon = datetime(2026, 9, 27, 12, 0)
+    assert decide_next_action(saturday_noon, weekend_schedule, 0, 8, QUEUE_ONE_CARD, NO_REPOSTS) == {
+        "action": "post", "card_id": "card-1", "lot_id": None,
+    }
+    assert decide_next_action(sunday_noon, weekend_schedule, 0, 8, QUEUE_ONE_CARD, NO_REPOSTS) == {
+        "action": "post", "card_id": "card-1", "lot_id": None,
+    }
 
 
 def test_sort_repost_candidates_prioritizes_a_manual_position_over_an_older_unpositioned_item():
@@ -67,7 +79,7 @@ def test_sort_repost_candidates_falls_back_to_staleness_when_no_position_is_set(
 # observer can't set their watch by it. `jitter` is the caller's random draw
 # (injected, not called internally) so these tests stay deterministic.
 
-WIDE_WINDOW = [{"day_of_week": 1, "starts_at": "11:00:00", "ends_at": "13:00:00"}]  # 2h window
+WIDE_WINDOW = [{"block": "weekday", "starts_at": "11:00:00", "ends_at": "13:00:00"}]  # 2h window
 
 
 def test_without_jitter_param_fires_immediately_like_before():

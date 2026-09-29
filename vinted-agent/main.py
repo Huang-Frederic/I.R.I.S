@@ -1024,7 +1024,7 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                 now = datetime.now()
                 today_start = datetime.combine(now.date(), time.min).isoformat()
 
-                schedule_res = await supabase.table("vinted_bot_schedule").select("day_of_week, starts_at, ends_at") \
+                schedule_res = await supabase.table("vinted_bot_schedule").select("block, starts_at, ends_at") \
                     .eq("user_id", user_id).execute()
                 config_res = await supabase.table("vinted_bot_config").select("daily_quota, repost_after_days") \
                     .eq("user_id", user_id).maybe_single().execute()

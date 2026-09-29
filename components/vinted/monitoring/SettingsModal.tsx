@@ -15,7 +15,7 @@ interface Props {
   editable: boolean;
   dailyQuota: number;
   repostAfterDays: number;
-  schedule: Pick<VintedBotScheduleRow, 'day_of_week' | 'starts_at' | 'ends_at'>[];
+  schedule: Pick<VintedBotScheduleRow, 'block' | 'starts_at' | 'ends_at'>[];
   groupPriority: string[];
   presentGroups: string[];
   onSaved: () => void;

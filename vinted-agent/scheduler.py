@@ -5,12 +5,18 @@ everything it needs is passed in, so it's testable without a running agent.
 from datetime import datetime, time
 
 
+def _block_for(now: datetime) -> str:
+    """'weekend' for Saturday/Sunday, 'weekday' otherwise. Python's
+    `datetime.weekday()` is 0=Monday..6=Sunday, so Sat/Sun are >= 5."""
+    return "weekend" if now.weekday() >= 5 else "weekday"
+
+
 def _current_window_end(now: datetime, schedule_rows: list[dict]) -> time | None:
     """End time of the schedule row `now` currently falls inside, or None if
     it's outside every window today. Also doubles as the in-a-window check —
     the jitter gate below needs this end time to know how much window is
     left, not just a yes/no."""
-    todays_rows = [r for r in schedule_rows if r["day_of_week"] == (now.weekday() + 1) % 7]
+    todays_rows = [r for r in schedule_rows if r["block"] == _block_for(now)]
     now_time = now.time()
     for row in todays_rows:
         starts = time.fromisoformat(row["starts_at"])
@@ -42,9 +48,8 @@ def decide_next_action(
     jitter: float | None = None,
 ) -> dict | None:
     """
-    day_of_week convention: 0 = Sunday, matching Postgres's own `extract(dow
-    from ...)` — Python's `datetime.weekday()` returns 0 = Monday, hence the
-    `(now.weekday() + 1) % 7` conversion.
+    Schedule rows are keyed by `block` ('weekday' Mon-Fri or 'weekend'
+    Sat+Sun) — see `_block_for`.
 
     Priority: a fully-drained new-post queue is required before any repost
     is chosen — never both in the same tick, and never a repost while the

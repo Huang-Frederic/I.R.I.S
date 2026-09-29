@@ -1,15 +1,17 @@
 // lib/vinted/next-window.ts
 import type { VintedBotScheduleRow } from '@/lib/types';
 
+/** `Date.getDay()`: 0 = Sunday, 6 = Saturday — both are the "weekend" block. */
+function blockForDay(dayOfWeek: number): 'weekday' | 'weekend' {
+  return dayOfWeek === 0 || dayOfWeek === 6 ? 'weekend' : 'weekday';
+}
+
 /**
  * Estimates the next time the bot's schedule opens a posting window, for
- * the "prochain post estimé" display. `Date.getDay()` already returns
- * 0=Sunday, matching the spec's day_of_week convention directly — no
- * conversion needed (unlike the Python agent's `(weekday()+1)%7`, since
- * Python's own `weekday()` is 0=Monday).
+ * the "prochain post estimé" display.
  */
 export function nextScheduledWindowStart(
-  schedule: Pick<VintedBotScheduleRow, 'day_of_week' | 'starts_at' | 'ends_at'>[],
+  schedule: Pick<VintedBotScheduleRow, 'block' | 'starts_at' | 'ends_at'>[],
   now: Date,
 ): Date | null {
   if (schedule.length === 0) return null;
@@ -17,9 +19,9 @@ export function nextScheduledWindowStart(
   for (let offset = 0; offset <= 7; offset++) {
     const day = new Date(now);
     day.setDate(day.getDate() + offset);
-    const dayOfWeek = day.getDay();
+    const block = blockForDay(day.getDay());
     const todaysWindows = schedule
-      .filter((w) => w.day_of_week === dayOfWeek)
+      .filter((w) => w.block === block)
       .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
 
     for (const window of todaysWindows) {
