@@ -50,6 +50,14 @@ export interface GameLogStats {
   cardUse: Record<string, CardUse>;
   kosDealt: number;
   kosTaken: number;
+  /** Every card I attached, and what it landed on — e.g. an Energy or Tool
+   *  onto a specific Pokémon. */
+  attachments: { card: string; target: string }[];
+  /** Every "played X, which moved Y from the discard pile to my hand" event
+   *  (Civière Nocturne and similar effects). */
+  recoveries: { source: string; card: string }[];
+  /** My Pokémon that attacked → how many times, and total damage dealt. */
+  attackers: Record<string, { attacks: number; damage: number }>;
 }
 
 // Optional "(sv10_34) " card-id prefix — PTCG Live dropped it from the battle
@@ -87,11 +95,26 @@ export function extractGameStats(
   const reEvo = new RegExp(`^${M} a fait évoluer ${CARD}(.+?) en ${CARD}(.+?) sur`);
   const reAbility = new RegExp(`^${CARD}.+? de ${M} a utilisé (.+?)\\.\\s*$`);
   // Tools and Energy are ATTACHED, not "played on" — counting the attach keeps
-  // a Tool like Bracelet Vaillant from looking dead in the usage table.
-  const reAttach = new RegExp(`^${M} a attaché ${CARD}(.+?) à `);
+  // a Tool like Bracelet Vaillant from looking dead in the usage table. The
+  // target is captured too, up to "sur le Poste Actif/Banc" — every attach
+  // line ends that way.
+  const reAttach = new RegExp(`^${M} a attaché ${CARD}(.+?) à ${CARD}(.+?) sur le `);
+  // Attacker name is captured too (group 1) — matching " de {M}" by the exact
+  // player name, not a generic word boundary, is what lets this work even
+  // when the attacker's own card name happens to contain " de X" (e.g. a
+  // "de N" Pokémon) without confusing the two.
   const reAttack = new RegExp(
-    `^${CARD}.+? de ${M} a utilisé .+? sur ${CARD}(.+?) (?:de .+? )?et a infligé (\\d+)`,
+    `^${CARD}(.+?) de ${M} a utilisé .+? sur ${CARD}(.+?) (?:de .+? )?et a infligé (\\d+)`,
   );
+  // "X a joué Civière Nocturne." then "- X a déplacé Y de X vers sa main." —
+  // the second line only means something right after a play, so it's read
+  // via the same one-line "pending" pattern as pendingBench/pendingDiscard.
+  const reMoveToHand = new RegExp(`^-? ?${M} a déplacé ${CARD}(.+?) de ${M} vers sa main`);
+  // Bulk form ("Max Canne a déplacé 4 cartes de X vers sa main.") — the real
+  // names are itemized on the next "•" sub-line, exactly like bulk bench/
+  // discard. Checked first so reMoveToHand never mistakes "4 cartes" for a
+  // real card name.
+  const reMoveToHandBulk = new RegExp(`^-? ?${M} a déplacé \\d+ cartes? de ${M} vers sa main`);
   const reKo = / de (\S+) a été mis K\.O\./;
   const reKoTarget = new RegExp(`^${CARD}(.+?) de `);
   // Bulk discard ("a défaussé 2 cartes") → names on the next "•" sub-line. The
@@ -123,6 +146,9 @@ export function extractGameStats(
     cardUse: {},
     kosDealt: 0,
     kosTaken: 0,
+    attachments: [],
+    recoveries: [],
+    attackers: {},
   };
   const firedThisGame = new Set<string>();
 
@@ -141,6 +167,13 @@ export function extractGameStats(
   let onMyTurn = false;
   let pendingBench = false;
   let pendingDiscard = false;
+  // Name of the card I just played, valid for exactly one line — set by
+  // rePlayAny, consumed by reMoveToHand, cleared either way so a recovery
+  // only ever attaches to the play immediately before it.
+  let pendingRecoverySource: string | null = null;
+  // Set instead of pushing immediately when the move is the bulk form — the
+  // actual names are on the following "•" sub-line.
+  let pendingBulkRecoverySource: string | null = null;
   // Turns on which I played a Supporter — a Set so two in one turn count once.
   const supporterTurnSet = new Set<number>();
 
@@ -177,6 +210,7 @@ export function extractGameStats(
         myTurn = out.myTurns;
       }
       pendingBench = pendingDiscard = false;
+      pendingRecoverySource = pendingBulkRecoverySource = null;
       continue;
     }
 
@@ -213,6 +247,18 @@ export function extractGameStats(
 
     // --- board maintenance (both from my plays and my bulk-bench sub-lines) ---
     if (onMyTurn) {
+      // Checked first and cleared unconditionally right after: only the
+      // single line right after a play can be that play's recovery.
+      if (reMoveToHandBulk.test(line) && pendingRecoverySource) {
+        pendingBulkRecoverySource = pendingRecoverySource;
+      } else {
+        const moved = reMoveToHand.exec(line);
+        if (moved && pendingRecoverySource) {
+          out.recoveries.push({ source: pendingRecoverySource, card: moved[1] });
+        }
+      }
+      pendingRecoverySource = null;
+
       const b = rePlayBench.exec(line);
       if (b) put(b[1]);
       if (reBulkBench.test(line)) pendingBench = true;
@@ -224,6 +270,9 @@ export function extractGameStats(
         } else if (pendingDiscard) {
           for (const n of subLineNames(line)) myDiscard(n);
           pendingDiscard = false;
+        } else if (pendingBulkRecoverySource) {
+          for (const n of subLineNames(line)) out.recoveries.push({ source: pendingBulkRecoverySource, card: n });
+          pendingBulkRecoverySource = null;
         }
       }
       const evo = reEvo.exec(line);
@@ -237,9 +286,13 @@ export function extractGameStats(
       if (p) {
         play(p[1]);
         if (supporters.has(norm(p[1]))) supporterTurnSet.add(myTurn);
+        pendingRecoverySource = p[1];
       }
       const att = reAttach.exec(line);
-      if (att) play(att[1]);
+      if (att) {
+        play(att[1]);
+        out.attachments.push({ card: att[1], target: att[2] });
+      }
       // Single-card discard: "Hisshiden a défaussé Name." — but NOT the bulk-cost
       // line "Hisshiden a défaussé 2 cartes." (Hyper Ball / Secret Box): with the
       // id prefix now optional, reDiscardOne would grab "2 cartes" as a pseudo-card.
@@ -257,8 +310,14 @@ export function extractGameStats(
       firedThisGame.add(ab[1]);
     }
 
-    // --- my first attack, as a setup-speed marker ---
-    if (out.firstAttackTurn === null && reAttack.test(line)) out.firstAttackTurn = myTurn;
+    // --- my attacks: first-attack timing, and per-attacker usage/damage ---
+    const atk = reAttack.exec(line);
+    if (atk) {
+      if (out.firstAttackTurn === null) out.firstAttackTurn = myTurn;
+      const rec = (out.attackers[atk[1]] ??= { attacks: 0, damage: 0 });
+      rec.attacks += 1;
+      rec.damage += Number(atk[3]);
+    }
 
     // --- KOs ---
     const ko = reKo.exec(line);
@@ -424,6 +483,13 @@ export interface AggregatedStats {
   turnsAvg: number;
   /** Every card I played, with total plays/discards and per-game rates. */
   cards: { name: string; played: number; discarded: number; perGame: number }[];
+  /** Every (card, target) attach pairing, most-attached first. */
+  attachments: { card: string; target: string; count: number }[];
+  /** Every (source card, recovered card) pairing from a "moved to hand" event,
+   *  most-common first. */
+  recoveries: { source: string; card: string; count: number }[];
+  /** My attacking Pokémon, most-used first, with total damage dealt. */
+  attackers: { name: string; attacks: number; damage: number; dmgPerAttack: number }[];
 }
 
 /** Win rate for the subset of `rows` where `wentFirst === went` — shared by
@@ -445,6 +511,9 @@ export function aggregateStats(rows: GameForStats[]): AggregatedStats {
   const abilityTotals = new Map<string, number>();
   const abilityGameHits = new Map<string, number>();
   const cardTotals = new Map<string, CardUse>();
+  const attachmentTotals = new Map<string, { card: string; target: string; count: number }>();
+  const recoveryTotals = new Map<string, { source: string; card: string; count: number }>();
+  const attackerTotals = new Map<string, { attacks: number; damage: number }>();
   // Rows with a battle log — the denominator for every metric below that
   // reads r.stats. A tournament round with no log still counts toward
   // games/wins/losses/winratePct above (those only ever read r.result), but
@@ -494,6 +563,24 @@ export function aggregateStats(rows: GameForStats[]): AggregatedStats {
       t.discarded += u.discarded;
       cardTotals.set(name, t);
     }
+    for (const a of s.attachments) {
+      const key = `${a.card}→${a.target}`;
+      const t = attachmentTotals.get(key) ?? { card: a.card, target: a.target, count: 0 };
+      t.count++;
+      attachmentTotals.set(key, t);
+    }
+    for (const rcv of s.recoveries) {
+      const key = `${rcv.source}→${rcv.card}`;
+      const t = recoveryTotals.get(key) ?? { source: rcv.source, card: rcv.card, count: 0 };
+      t.count++;
+      recoveryTotals.set(key, t);
+    }
+    for (const [name, v] of Object.entries(s.attackers)) {
+      const t = attackerTotals.get(name) ?? { attacks: 0, damage: 0 };
+      t.attacks += v.attacks;
+      t.damage += v.damage;
+      attackerTotals.set(name, t);
+    }
   }
 
   const pct = (v: number, denom: number) => (denom ? (v / denom) * 100 : 0);
@@ -537,5 +624,15 @@ export function aggregateStats(rows: GameForStats[]): AggregatedStats {
         perGame: nLogged ? u.played / nLogged : 0,
       }))
       .sort((a, b) => b.played + b.discarded - (a.played + a.discarded)),
+    attachments: [...attachmentTotals.values()].sort((a, b) => b.count - a.count),
+    recoveries: [...recoveryTotals.values()].sort((a, b) => b.count - a.count),
+    attackers: [...attackerTotals.entries()]
+      .map(([name, v]) => ({
+        name,
+        attacks: v.attacks,
+        damage: v.damage,
+        dmgPerAttack: v.attacks ? v.damage / v.attacks : 0,
+      }))
+      .sort((a, b) => b.attacks - a.attacks),
   };
 }

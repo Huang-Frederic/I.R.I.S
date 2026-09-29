@@ -1218,6 +1218,7 @@
     "unclassified": "未分类",
     "backToArchetypes": "返回卡组列表",
     "backToMatchups": "返回对局列表",
+    "vsAll": "vs All",
     "kpiGames": "对局",
     "kpiWinrate": "胜率",
     "kpiRecord": "战绩",
@@ -1272,6 +1273,19 @@
     "cardDead": "无用？",
     "sectionTurnOrder": "先手 / 后手",
     "goingFirst": "先手",
-    "goingSecond": "后手"
+    "goingSecond": "后手",
+    "sectionAttackers": "攻击者",
+    "attackersHint": "谁攻击了、几次、造成多少伤害",
+    "noAttackers": "未检测到攻击。",
+    "colAttacker": "宝可梦",
+    "colAttacks": "攻击次数",
+    "colDamage": "总伤害",
+    "colDmgPerAttack": "伤害 / 次",
+    "sectionAttachments": "贴附",
+    "attachmentsHint": "哪张卡贴附到哪只宝可梦，以及次数",
+    "noAttachments": "未检测到贴附。",
+    "sectionRecoveries": "回收",
+    "recoveriesHint": "使用的卡 → 回收的卡（夜行棺材等效果）",
+    "noRecoveries": "未检测到回收。"
   }
 }

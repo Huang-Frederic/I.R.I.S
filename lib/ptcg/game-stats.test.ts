@@ -118,6 +118,84 @@ describe('extractGameStats', () => {
   it('never throws on an unrelated paste', () => {
     expect(() => extractGameStats('bonjour\nceci n est pas un log', 'X')).not.toThrow();
   });
+
+  it('records what an attach landed on, not just that it happened', () => {
+    const log = [
+      'Tour de Hisshiden',
+      'Hisshiden a attaché (sv8_191) Énergie Enrichissante à (me2_84) Méga-Lockpin-ex sur le Poste Actif.',
+      'Hisshiden a attaché (mee_4) Énergie Électrique de base à (sv9_56) Mélofée-ex sur le Banc.',
+    ].join('\n');
+    const s = extractGameStats(log, 'Hisshiden');
+    expect(s.attachments).toEqual([
+      { card: 'Énergie Enrichissante', target: 'Méga-Lockpin-ex' },
+      { card: 'Énergie Électrique de base', target: 'Mélofée-ex' },
+    ]);
+  });
+
+  it('links a card moved to hand to the trainer that was just played', () => {
+    const log = [
+      'Tour de Hisshiden',
+      'Hisshiden a joué (me1_173) Civière Nocturne.',
+      '- Hisshiden a déplacé (me2-5_62_ph2) Limonde de Hisshiden vers sa main.',
+    ].join('\n');
+    const s = extractGameStats(log, 'Hisshiden');
+    expect(s.recoveries).toEqual([{ source: 'Civière Nocturne', card: 'Limonde' }]);
+  });
+
+  it('does not link a "moved to hand" line to a play from two lines earlier', () => {
+    const log = [
+      'Tour de Hisshiden',
+      'Hisshiden a joué (a) Ordres du Boss.',
+      'Hisshiden a joué (b) Hyper Ball.',
+      '- Hisshiden a déplacé (c) Limonde de Hisshiden vers sa main.',
+    ].join('\n');
+    // The line right before the move is "Hyper Ball", not "Ordres du Boss" —
+    // only the immediately preceding play may be credited.
+    const s = extractGameStats(log, 'Hisshiden');
+    expect(s.recoveries).toEqual([{ source: 'Hyper Ball', card: 'Limonde' }]);
+  });
+
+  it('itemizes a bulk "moved N cards to hand" recovery from its "•" sub-line, one entry per card', () => {
+    const log = [
+      'Tour de Hisshiden',
+      'Hisshiden a joué (a) Max Canne.',
+      '- Hisshiden a déplacé 4 cartes de Hisshiden vers sa main.',
+      '   • (b) Dardargnan-ex, (c) Énergie Plante de base, (c) Énergie Plante de base, (c) Énergie Plante de base',
+    ].join('\n');
+    const s = extractGameStats(log, 'Hisshiden');
+    expect(s.recoveries).toEqual([
+      { source: 'Max Canne', card: 'Dardargnan-ex' },
+      { source: 'Max Canne', card: 'Énergie Plante de base' },
+      { source: 'Max Canne', card: 'Énergie Plante de base' },
+      { source: 'Max Canne', card: 'Énergie Plante de base' },
+    ]);
+  });
+
+  it('counts attacks and total damage per attacking Pokémon', () => {
+    const log = [
+      'Tour de Hisshiden',
+      '(me2-5_62_ph2) Limonde de Hisshiden a utilisé Piège Bondissant sur (sv6_130) Lanssorien-ex de Alice et a infligé 30 dégâts.',
+      'Tour de Alice',
+      'Tour de Hisshiden',
+      '(me2-5_62_ph2) Limonde de Hisshiden a utilisé Piège Bondissant sur (sv6_130) Lanssorien-ex de Alice et a infligé 130 dégâts.',
+      '(me2_84) Méga-Lockpin-ex de Hisshiden a utilisé Coup d\'Bourrasque sur (sv6_130) Lanssorien-ex de Alice et a infligé 230 dégâts.',
+    ].join('\n');
+    const s = extractGameStats(log, 'Hisshiden');
+    expect(s.attackers['Limonde']).toEqual({ attacks: 2, damage: 160 });
+    expect(s.attackers['Méga-Lockpin-ex']).toEqual({ attacks: 1, damage: 230 });
+  });
+
+  it('does not attribute an attack to a "de N"-style attacker name to the opponent', () => {
+    // Zorua de N is a real card name (not "Zorua, owned by player N") — the
+    // attacker regex must still resolve the boundary correctly against my
+    // actual username.
+    const log = [
+      'Tour de Hisshiden',
+      '(sv9_97) Zorua de N de Hisshiden a utilisé Griffe sur (x) Aspicot de Alice et a infligé 20 dégâts.',
+    ].join('\n');
+    const s = extractGameStats(log, 'Hisshiden');
+    expect(s.attackers['Zorua de N']).toEqual({ attacks: 1, damage: 20 });
+  });
 });
 
 describe('deck-agnostic metrics', () => {
@@ -416,6 +494,41 @@ describe('aggregateStats', () => {
     const a = aggregateStats([g]);
     expect(a.cards.some((c) => c.name === 'Ordres du Boss')).toBe(true);
     expect(a.cards.some((c) => /Énergie/.test(c.name))).toBe(false);
+  });
+
+  it('aggregates attachments, recoveries and attackers across games, most-common first', () => {
+    const rows = [
+      mk({
+        stats: {
+          ...extractGameStats('', 'X'),
+          attachments: [{ card: 'Énergie Enrichissante', target: 'Méga-Lockpin-ex' }],
+          recoveries: [{ source: 'Civière Nocturne', card: 'Limonde' }],
+          attackers: { Limonde: { attacks: 2, damage: 60 } },
+        },
+      }),
+      mk({
+        stats: {
+          ...extractGameStats('', 'X'),
+          attachments: [
+            { card: 'Énergie Enrichissante', target: 'Méga-Lockpin-ex' },
+            { card: 'Ballon', target: 'Limonde' },
+          ],
+          recoveries: [{ source: 'Civière Nocturne', card: 'Sulfura' }],
+          attackers: { 'Méga-Lockpin-ex': { attacks: 3, damage: 690 } },
+        },
+      }),
+    ];
+    const a = aggregateStats(rows);
+    expect(a.attachments[0]).toEqual({ card: 'Énergie Enrichissante', target: 'Méga-Lockpin-ex', count: 2 });
+    expect(a.attachments).toContainEqual({ card: 'Ballon', target: 'Limonde', count: 1 });
+    expect(a.recoveries).toContainEqual({ source: 'Civière Nocturne', card: 'Limonde', count: 1 });
+    expect(a.recoveries).toContainEqual({ source: 'Civière Nocturne', card: 'Sulfura', count: 1 });
+    const lockpin = a.attackers.find((x) => x.name === 'Méga-Lockpin-ex')!;
+    expect(lockpin).toMatchObject({ attacks: 3, damage: 690, dmgPerAttack: 230 });
+    const limonde = a.attackers.find((x) => x.name === 'Limonde')!;
+    expect(limonde).toMatchObject({ attacks: 2, damage: 60 });
+    // Most-attacked first.
+    expect(a.attackers[0].name).toBe('Méga-Lockpin-ex');
   });
 
   it('returns zeros, not NaN, on an empty set', () => {

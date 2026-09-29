@@ -8,6 +8,7 @@ import {
   aggregateStats,
   groupByMyArchetype,
   matchupsForArchetype,
+  splitByWentFirst,
   type GameForStats,
 } from '@/lib/ptcg/game-stats';
 import { archetypeKey } from '@/lib/ptcg/archetype-dex';
@@ -23,22 +24,38 @@ function recordLabel(wins: number, losses: number, ties: number): string {
   return `${wins}-${losses}${ties ? `-${ties}` : ''}`;
 }
 
+/** Sentinel oppKey for the pinned "vs All" row — never collides with a real
+ *  archetypeKey, which is either empty or a comma-joined list of numbers. */
+const ALL_KEY = '__all__';
+
 export default function StatsPage({ games }: { games: StatsGame[] }) {
   const t = useTranslations('ptcgStats');
   const [myKey, setMyKey] = useState<string | null>(null);
   const [oppKey, setOppKey] = useState<string | null>(null);
 
   const archetypes = useMemo(() => groupByMyArchetype(games), [games]);
+  const myArchetype = useMemo(
+    () => archetypes.find((a) => archetypeKey(a.dex) === myKey),
+    [archetypes, myKey],
+  );
 
   const myGames = useMemo(
     () => (myKey === null ? [] : games.filter((g) => archetypeKey(g.myArchetypeDex) === myKey)),
     [games, myKey],
   );
   const matchups = useMemo(() => matchupsForArchetype(myGames), [myGames]);
+  const myFirst = useMemo(() => splitByWentFirst(myGames, true), [myGames]);
+  const mySecond = useMemo(() => splitByWentFirst(myGames, false), [myGames]);
 
+  // "vs All" (oppKey === ALL_KEY) uses every game with this deck, unfiltered
+  // by opponent — everywhere else, one specific opponent archetype's games.
   const matchupGames = useMemo(
     () =>
-      oppKey === null ? [] : myGames.filter((g) => archetypeKey(g.opponentArchetypeDex) === oppKey),
+      oppKey === null
+        ? []
+        : oppKey === ALL_KEY
+          ? myGames
+          : myGames.filter((g) => archetypeKey(g.opponentArchetypeDex) === oppKey),
     [myGames, oppKey],
   );
   const matchupStats = useMemo(() => aggregateStats(matchupGames), [matchupGames]);
@@ -60,9 +77,10 @@ export default function StatsPage({ games }: { games: StatsGame[] }) {
     );
   }
 
-  // Level 3: a matchup is selected — the rich detail for that exact pairing.
+  // Level 3: a matchup (or "vs All") is selected — the rich detail for that slice.
   if (myKey !== null && oppKey !== null) {
-    const matchup = matchups.find((m) => archetypeKey(m.dex) === oppKey);
+    const matchup = oppKey === ALL_KEY ? undefined : matchups.find((m) => archetypeKey(m.dex) === oppKey);
+    const headerDex = oppKey === ALL_KEY ? (myArchetype?.dex ?? []) : (matchup?.dex ?? []);
     return (
       <div className="flex flex-col gap-4">
         <button
@@ -73,9 +91,10 @@ export default function StatsPage({ games }: { games: StatsGame[] }) {
           <ChevronLeft className="h-3.5 w-3.5" aria-hidden /> {t('backToMatchups')}
         </button>
         <div className="flex items-center gap-3">
-          <DeckSprites dex={matchup?.dex ?? []} />
+          <DeckSprites dex={headerDex} />
+          {oppKey === ALL_KEY && <p className="text-sm font-semibold">{t('vsAll')}</p>}
           <p className="text-sm font-semibold">
-            {matchup ? recordLabel(matchup.wins, matchup.losses, matchup.ties) : ''}
+            {recordLabel(matchupStats.wins, matchupStats.losses, matchupStats.ties)}
           </p>
         </div>
         <StatsDetailSections stats={matchupStats} />
@@ -95,6 +114,35 @@ export default function StatsPage({ games }: { games: StatsGame[] }) {
           <ChevronLeft className="h-3.5 w-3.5" aria-hidden /> {t('backToArchetypes')}
         </button>
         <ul className="divide-border border-border bg-surface divide-y rounded-xl border">
+          <li>
+            <button
+              type="button"
+              onClick={() => setOppKey(ALL_KEY)}
+              className="hover:bg-surface-2 flex w-full items-center gap-3 p-4 text-left transition"
+            >
+              <DeckSprites dex={myArchetype?.dex ?? []} />
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="text-sm font-semibold">{t('vsAll')}</span>
+                <span className="text-text-faint text-[11px] tabular-nums">
+                  {t('goingFirst')} {myFirst.games ? `${myFirst.winratePct.toFixed(0)}%` : '—'} ·{' '}
+                  {t('goingSecond')} {mySecond.games ? `${mySecond.winratePct.toFixed(0)}%` : '—'}
+                </span>
+              </span>
+              <span className="text-text-muted text-xs tabular-nums">
+                {recordLabel(myArchetype?.wins ?? 0, myArchetype?.losses ?? 0, myArchetype?.ties ?? 0)}
+              </span>
+              <span
+                className={`font-mono text-sm font-bold tabular-nums ${
+                  (myArchetype?.winratePct ?? 0) >= 50 ? 'text-emerald-500' : 'text-red'
+                }`}
+              >
+                {(myArchetype?.winratePct ?? 0).toFixed(0)}%
+              </span>
+              <span className="text-text-faint text-xs tabular-nums">
+                {t('lastPlayed')} {(myArchetype?.lastPlayed ?? '').slice(0, 10)}
+              </span>
+            </button>
+          </li>
           {matchups.map((m) => {
             const key = archetypeKey(m.dex);
             return (

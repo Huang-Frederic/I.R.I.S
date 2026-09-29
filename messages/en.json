@@ -1219,6 +1219,7 @@
     "unclassified": "Unclassified",
     "backToArchetypes": "Back to decks",
     "backToMatchups": "Back to matchups",
+    "vsAll": "vs All",
     "kpiGames": "Games",
     "kpiWinrate": "Winrate",
     "kpiRecord": "Record",
@@ -1261,6 +1262,19 @@
     "koRatio": "KOs dealt / taken",
     "koRatioHint": "Per game",
     "turnsAvg": "Turns per game",
-    "turnsAvgHint": "Your turns played — short games mean a fast deck or clean losses"
+    "turnsAvgHint": "Your turns played — short games mean a fast deck or clean losses",
+    "sectionAttackers": "Attackers",
+    "attackersHint": "Who attacks, how often, and for how much damage",
+    "noAttackers": "No attacks detected.",
+    "colAttacker": "Pokémon",
+    "colAttacks": "Attacks",
+    "colDamage": "Total damage",
+    "colDmgPerAttack": "Damage / attack",
+    "sectionAttachments": "Attachments",
+    "attachmentsHint": "Which card attached to which Pokémon, and how often",
+    "noAttachments": "No attachments detected.",
+    "sectionRecoveries": "Recoveries",
+    "recoveriesHint": "Card played → card recovered (Night Stretcher and similar effects)",
+    "noRecoveries": "No recoveries detected."
   }
 }

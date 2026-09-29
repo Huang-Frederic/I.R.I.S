@@ -1218,6 +1218,7 @@
     "unclassified": "未分類",
     "backToArchetypes": "デッキ一覧に戻る",
     "backToMatchups": "対戦相手一覧に戻る",
+    "vsAll": "vs All",
     "kpiGames": "対戦数",
     "kpiWinrate": "勝率",
     "kpiRecord": "成績",
@@ -1272,6 +1273,19 @@
     "cardDead": "不要？",
     "sectionTurnOrder": "先攻 / 後攻",
     "goingFirst": "先攻",
-    "goingSecond": "後攻"
+    "goingSecond": "後攻",
+    "sectionAttackers": "アタッカー",
+    "attackersHint": "誰が何回攻撃し、合計ダメージはいくつか",
+    "noAttackers": "攻撃が検出されませんでした。",
+    "colAttacker": "ポケモン",
+    "colAttacks": "攻撃回数",
+    "colDamage": "合計ダメージ",
+    "colDmgPerAttack": "ダメージ / 攻撃",
+    "sectionAttachments": "エネルギー・道具の付与",
+    "attachmentsHint": "どのカードをどのポケモンに何回付けたか",
+    "noAttachments": "付与が検出されませんでした。",
+    "sectionRecoveries": "回収",
+    "recoveriesHint": "使用したカード → 回収したカード（ナイトストレッチャー等）",
+    "noRecoveries": "回収が検出されませんでした。"
   }
 }

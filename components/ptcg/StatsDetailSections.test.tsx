@@ -29,6 +29,9 @@ const stats: AggregatedStats = {
   kosTakenAvg: 2,
   turnsAvg: 9,
   cards: [{ name: 'Ordres du Boss', played: 12, discarded: 1, perGame: 1.2 }],
+  attachments: [{ card: 'Énergie Enrichissante', target: 'Méga-Lockpin-ex', count: 5 }],
+  recoveries: [{ source: 'Civière Nocturne', card: 'Limonde', count: 3 }],
+  attackers: [{ name: 'Limonde', attacks: 8, damage: 320, dmgPerAttack: 40 }],
 };
 
 describe('<StatsDetailSections>', () => {
@@ -47,6 +50,9 @@ describe('<StatsDetailSections>', () => {
       'sectionEngine',
       'sectionTempo',
       'sectionCards',
+      'sectionAttackers',
+      'sectionAttachments',
+      'sectionRecoveries',
     ]) {
       expect(screen.getByText(key)).toBeInTheDocument();
     }
@@ -61,5 +67,20 @@ describe('<StatsDetailSections>', () => {
   it('shows a "no abilities" message when none fired', () => {
     render(<StatsDetailSections stats={{ ...stats, abilities: [] }} />);
     expect(screen.getByText('noAbilities')).toBeInTheDocument();
+  });
+
+  it('lists attacker, attachment and recovery rows', () => {
+    render(<StatsDetailSections stats={stats} />);
+    expect(screen.getByText('Limonde')).toBeInTheDocument();
+    expect(screen.getByText('320')).toBeInTheDocument();
+    expect(screen.getByText('Énergie Enrichissante → Méga-Lockpin-ex')).toBeInTheDocument();
+    expect(screen.getByText('Civière Nocturne → Limonde')).toBeInTheDocument();
+  });
+
+  it('shows empty-state messages for attackers, attachments and recoveries when none were extracted', () => {
+    render(<StatsDetailSections stats={{ ...stats, attackers: [], attachments: [], recoveries: [] }} />);
+    expect(screen.getByText('noAttackers')).toBeInTheDocument();
+    expect(screen.getByText('noAttachments')).toBeInTheDocument();
+    expect(screen.getByText('noRecoveries')).toBeInTheDocument();
   });
 });
