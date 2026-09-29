@@ -9,6 +9,7 @@
  * Usage:
  *   npx tsx scripts/store-events/core.ts             # scrape + write to Supabase
  *   npx tsx scripts/store-events/core.ts --dry-run   # scrape + print, no writes
+ *   npx tsx scripts/store-events/core.ts --no-browser # skip JS-rendered shops
  *
  * Env (for writes): NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
  */
@@ -22,8 +23,9 @@ import { SOURCES } from './sources';
 import type { Source, StoreEvent } from './types';
 
 const DRY_RUN = process.argv.includes('--dry-run');
-// CI (GitHub Action) passes --no-browser: skip the JS-rendered shops that need
-// a headless browser. Those run on the WSL box alongside the Vinted agent.
+// --no-browser: skip the JS-rendered shops that need a headless browser —
+// useful for a quick local run without Chromium installed. The GitHub Action
+// runs everything (it installs Chromium first).
 const NO_BROWSER = process.argv.includes('--no-browser');
 
 function toRow(e: StoreEvent) {

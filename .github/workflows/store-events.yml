@@ -1,14 +1,16 @@
 # .github/workflows/store-events.yml
 #
-# Daily scrape of local Pokémon shop events into the store_events table.
-# Reads THE LIST (scripts/store-events/sources.ts), runs each extractor, and
-# replaces each source's rows on success. The IRIS /events page reads the table.
+# Scrape local Pokémon shop events into the store_events table every 30
+# minutes. Reads THE LIST (scripts/store-events/sources.ts), runs each
+# extractor (including the browser-rendered shops — Playwright/Chromium is
+# installed below), and replaces each source's rows on success. The IRIS
+# /events page reads the table.
 
 name: Scrape store events
 
 on:
   schedule:
-    - cron: '20 5 * * *' # 05:20 UTC every day
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -26,11 +28,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # --no-browser: skip JS-rendered shops (Play-in, …) that need a headless
-      # browser. Those run on the WSL box alongside the Vinted agent (which
-      # already drives a browser). CI only does the plain-fetch shops.
-      - name: Scrape fetch-based events → Supabase
+      - name: Install Chromium (for the browser-rendered shops)
+        run: npx playwright install --with-deps chromium
+
+      - name: Scrape events → Supabase
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npm run scrape-events -- --no-browser
+        run: npm run scrape-events

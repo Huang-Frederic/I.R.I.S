@@ -84,6 +84,14 @@ export const EVENT_SOURCES: EventSourceInfo[] = [
     color: '#2dd4bf', // teal
   },
   {
+    id: 'ultrajeux',
+    name: 'UltraJeux',
+    city: 'Paris',
+    eventsUrl: 'https://www.ultrajeux.com/type-468-4-pokemon.html',
+    scraped: true,
+    color: '#f87171', // red
+  },
+  {
     id: 'coin-des-barons',
     name: 'Le Coin des Barons',
     city: 'Paris',

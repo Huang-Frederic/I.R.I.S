@@ -7,8 +7,9 @@
  *   Adding a shop = (1) create extractors/<shop>.ts, (2) add its id → extractor
  *   below (and set scraped:true for it in lib/data/event-sources.ts).
  *
- * `needsBrowser: true` marks a JS-rendered site — the GitHub Action skips it
- * (--no-browser); it runs on the WSL box with the Vinted agent.
+ * `needsBrowser: true` marks a JS-rendered site — the GitHub Action installs
+ * Chromium and runs these too (every 30 min, see
+ * .github/workflows/store-events.yml).
  *
  * You never touch core.ts, types.ts, or the other extractors.
  */
@@ -19,6 +20,7 @@ import { gentlemen } from './extractors/gentlemen';
 import { playin } from './extractors/playin';
 import { parkage } from './extractors/parkage';
 import { troll2jeux } from './extractors/troll2jeux';
+import { ultrajeux } from './extractors/ultrajeux';
 import { coinDesBarons } from './extractors/coin-des-barons';
 import { atmos } from './extractors/atmos';
 
@@ -30,6 +32,7 @@ const EXTRACTORS: Record<string, { fn: Extractor; needsBrowser?: boolean }> = {
   'playin-rivoli': { fn: playin, needsBrowser: true },
   parkage: { fn: parkage, needsBrowser: true },
   troll2jeux: { fn: troll2jeux, needsBrowser: true },
+  ultrajeux: { fn: ultrajeux, needsBrowser: true }, // client-rendered event list
   'coin-des-barons': { fn: coinDesBarons }, // manual (Instagram poster)
   'atmos-arena': { fn: atmos }, // pretix static HTML — no browser needed
 };

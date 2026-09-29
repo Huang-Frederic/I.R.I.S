@@ -52,7 +52,6 @@ export type Extractor = (meta: SourceMeta) => Promise<StoreEvent[]>;
 export interface Source extends SourceMeta {
   extract: Extractor;
   /** True when the extractor drives a headless browser (JS-rendered site).
-   *  The GitHub Action skips these (--no-browser); they run on the WSL box
-   *  alongside the Vinted agent. */
+   *  The GitHub Action installs Chromium and runs these too. */
   needsBrowser?: boolean;
 }

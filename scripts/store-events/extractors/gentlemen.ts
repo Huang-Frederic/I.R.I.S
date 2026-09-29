@@ -4,52 +4,38 @@ import { parseFrenchDate } from '../lib/parse-french-date';
 import { classifyEventType } from '../lib/classify';
 
 /**
- * Les Gentlemen du Jeu — PrestaShop. Its rule: request the category with
- * `resultsPerPage=99999` — the default URL serves a faceted-search AJAX page
- * (products escaped inside a JSON blob), whereas this forces the full
- * server-rendered page that carries a clean JSON-LD ItemList (name + url per
- * event). The event date lives in the French event name; the PrestaShop
- * product id in the URL (".../12278-...") is the stable external id.
+ * Les Gentlemen du Jeu — PrestaShop. The `resultsPerPage=99999` trick this
+ * extractor used to force (to reach a server-rendered JSON-LD ItemList) now
+ * gets Cloudflare-blocked (HTTP 403), and the theme has since dropped that
+ * JSON-LD block entirely anyway — the plain category page (HTTP 200) now
+ * carries the events as ordinary product-title links instead:
+ * `<h2 class="h3 product-title"><a href="…/12549-…-dimanche-30-aout-a-14h.html">
+ * Pokémon : Célébration des Worlds - Tournoi Amical - Dimanche 30 Août à 14h</a></h2>`.
+ * The event date lives in the French link text; the PrestaShop product id in
+ * the URL (".../12278-...") is the stable external id.
  */
-interface ItemListLd {
-  '@type'?: string;
-  itemListElement?: Array<{ name?: string; url?: string }>;
-}
-
-const LD_BLOCK = /<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi;
+const PRODUCT_TITLE = /<h2 class="h3 product-title">\s*<a href="([^"]+)">([^<]+)<\/a>/g;
 
 export const gentlemen: Extractor = async (meta) => {
-  const full = new URL(meta.url);
-  full.searchParams.set('resultsPerPage', '99999');
-  const html = await fetchText(full.toString());
+  const html = await fetchText(meta.url);
   const events: StoreEvent[] = [];
 
-  for (const match of html.matchAll(LD_BLOCK)) {
-    let data: ItemListLd;
-    try {
-      data = JSON.parse(match[1].trim()) as ItemListLd;
-    } catch {
-      continue;
-    }
-    if (data['@type'] !== 'ItemList' || !Array.isArray(data.itemListElement)) continue;
-
-    for (const item of data.itemListElement) {
-      const name = item.name?.trim();
-      const url = item.url?.trim();
-      if (!name || !url) continue;
-      const idMatch = url.match(/\/(\d+)-/);
-      events.push({
-        source: meta.id,
-        shopName: meta.name,
-        city: meta.city,
-        title: name,
-        eventType: classifyEventType(name),
-        startsAt: parseFrenchDate(name),
-        url,
-        price: null,
-        externalId: `${meta.id}:${idMatch ? idMatch[1] : name}`,
-      });
-    }
+  for (const match of html.matchAll(PRODUCT_TITLE)) {
+    const url = match[1].trim();
+    const name = match[2].trim();
+    if (!name || !url) continue;
+    const idMatch = url.match(/\/(\d+)-/);
+    events.push({
+      source: meta.id,
+      shopName: meta.name,
+      city: meta.city,
+      title: name,
+      eventType: classifyEventType(name),
+      startsAt: parseFrenchDate(name),
+      url,
+      price: null,
+      externalId: `${meta.id}:${idMatch ? idMatch[1] : name}`,
+    });
   }
 
   return events;
