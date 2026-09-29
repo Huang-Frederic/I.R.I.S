@@ -1,5 +1,5 @@
 import type { CardCondition, CardLanguage } from '@/lib/types';
-import { LANGUAGE_FEMALE, LANGUAGE_FLAGS, CONDITION_LABEL } from './vinted-template';
+import { LANGUAGE_FEMALE, LANGUAGE_FLAGS, CONDITION_LABEL, NO_VINTED_GO_WARNING } from './vinted-template';
 
 export interface LotForTemplate {
   name: string;
@@ -41,7 +41,9 @@ export function composeLotTitle(
   return `${name.slice(0, 80 - suffix.length)}${suffix}`;
 }
 
-const DESCRIPTION_TEMPLATE = `✨ {{title}}
+const DESCRIPTION_TEMPLATE = `{{warning}}
+
+✨ {{title}}
 📘 {{lang_line}}
 ✅ État : {{condition_label}}, carte en excellent état (voir photos).
 {{extra_block}}
@@ -51,7 +53,9 @@ const DESCRIPTION_TEMPLATE = `✨ {{title}}
 📸 Besoin de photos supplémentaires ? N'hésitez pas à me demander !
 
 🃏 Plein d'autres cartes sont disponibles sur mon profil !
-📦 Possibilité de créer des lots personnalisés avec réduction sur les frais de port 🤑`;
+📦 Possibilité de créer des lots personnalisés avec réduction sur les frais de port 🤑
+
+{{warning}}`;
 
 export function buildLotAnnonce(lot: LotForTemplate): LotAnnonce {
   const langKey: CardLanguage = lot.language ?? 'JP';
@@ -71,6 +75,7 @@ export function buildLotAnnonce(lot: LotForTemplate): LotAnnonce {
   const extraBlock = trimmedExtra === '' ? '' : `\n📝 ${trimmedExtra}\n`;
 
   const description = DESCRIPTION_TEMPLATE
+    .replaceAll('{{warning}}', NO_VINTED_GO_WARNING)
     .replace('{{title}}', title)
     .replace('{{lang_line}}', langLine)
     .replace('{{condition_label}}', condLabel)

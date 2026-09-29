@@ -101,6 +101,13 @@ describe('buildDescription', () => {
     expect(d).toContain('📦 Possibilité de créer des lots personnalisés avec réduction sur les frais de port 🤑');
   });
 
+  it("opens and closes with the no-Vinted-Go warning", () => {
+    const d = buildDescription(makeCard());
+    const lines = d.split('\n');
+    expect(lines[0]).toBe("❌ PAS D'ENVOI VINTED GO ❌");
+    expect(lines[lines.length - 1]).toBe("❌ PAS D'ENVOI VINTED GO ❌");
+  });
+
   it('inserts the notes block when notes is non-empty', () => {
     const d = buildDescription(makeCard({ notes: 'Léger pli au coin' }));
     expect(d).toMatch(/\[Notes : Léger pli au coin\]/);

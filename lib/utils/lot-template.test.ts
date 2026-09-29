@@ -46,6 +46,13 @@ describe('buildLotAnnonce', () => {
     expect(out.description).toContain('✅ État : Très bon état (Near Mint)');
   });
 
+  it('opens and closes with the no-Vinted-Go warning', () => {
+    const out = buildLotAnnonce(baseLot);
+    const lines = out.description.split('\n');
+    expect(lines[0]).toBe("❌ PAS D'ENVOI VINTED GO ❌");
+    expect(lines[lines.length - 1]).toBe("❌ PAS D'ENVOI VINTED GO ❌");
+  });
+
   it('omits the extra_block when extra_description is null', () => {
     const out = buildLotAnnonce(baseLot);
     // No 📝 line should appear when extra_description is null.

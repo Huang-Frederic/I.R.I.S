@@ -123,6 +123,10 @@ VARIANT_LABEL = {
     "promo": "Promo",
 }
 
+# Repeated top and bottom of the description so it survives a listing that
+# gets truncated or only partially read.
+NO_VINTED_GO_WARNING = "❌ PAS D'ENVOI VINTED GO ❌"
+
 FOOTER_LINES = [
     "🛡️ Carte envoyée sous sleeve + toploader !",
     "🚀 Expédition rapide sous 1 à 2 jours ouvrés 📦",
@@ -251,6 +255,8 @@ def build_description(card: dict) -> str:
     condition_label = CONDITION_LABEL.get(condition, condition)
 
     lines = [
+        NO_VINTED_GO_WARNING,
+        "",
         first_line,
         f"📘 Version {lang_name} {flag}",
         f"✅ État : {condition_label}.",
@@ -262,6 +268,8 @@ def build_description(card: dict) -> str:
 
     lines.append("")
     lines.extend(FOOTER_LINES)
+    lines.append("")
+    lines.append(NO_VINTED_GO_WARNING)
     return "\n".join(lines)
 
 
@@ -352,6 +360,8 @@ def build_lot_description(lot: dict) -> str:
     extra_block = f"\n📝 {extra}\n" if extra else ""
 
     return (
+        f"{NO_VINTED_GO_WARNING}\n"
+        f"\n"
         f"✨ {title}\n"
         f"📘 {lang_line}\n"
         f"✅ État : {cond_label}, carte en excellent état (voir photos).\n"
@@ -362,7 +372,9 @@ def build_lot_description(lot: dict) -> str:
         f"📸 Besoin de photos supplémentaires ? N'hésitez pas à me demander !\n"
         f"\n"
         f"🃏 Plein d'autres cartes sont disponibles sur mon profil !\n"
-        f"📦 Possibilité de créer des lots personnalisés avec réduction sur les frais de port 🤑"
+        f"📦 Possibilité de créer des lots personnalisés avec réduction sur les frais de port 🤑\n"
+        f"\n"
+        f"{NO_VINTED_GO_WARNING}"
     )
 
 

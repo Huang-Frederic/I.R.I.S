@@ -135,6 +135,10 @@ export interface VintedConfig {
   vinted_seller_note?: string;
 }
 
+/** Repeated top and bottom of the description so it survives a listing that
+ *  gets truncated or only partially read. */
+export const NO_VINTED_GO_WARNING = "❌ PAS D'ENVOI VINTED GO ❌";
+
 const DEFAULT_FOOTER_LINES = [
   '🛡️ Carte envoyée sous sleeve + toploader !',
   '🚀 Expédition rapide sous 1 à 2 jours ouvrés 📦',
@@ -169,6 +173,8 @@ export function buildDescription(card: Card): string {
   const conditionLabel = CONDITION_LABEL[card.condition];
 
   const lines: string[] = [
+    NO_VINTED_GO_WARNING,
+    '',
     firstLine,
     `📘 Version ${langName} ${flag}`,
     `✅ État : ${conditionLabel}.`,
@@ -181,6 +187,8 @@ export function buildDescription(card: Card): string {
 
   lines.push('');
   for (const f of DEFAULT_FOOTER_LINES) lines.push(f);
+  lines.push('');
+  lines.push(NO_VINTED_GO_WARNING);
 
   return lines.join('\n');
 }
