@@ -3,6 +3,16 @@
 import { useAgentStatus } from '@/lib/hooks/useAgentStatus';
 import { chipClassesForColor, colorForUserName } from '@/lib/utils/user-colors';
 
+/** "Aujourd'hui 11:00" when `date` falls on `now`'s calendar day, else the
+ *  usual "mar. 11:00" weekday-abbreviated form. */
+export function formatNextPost(date: Date, now: Date = new Date()): string {
+  const time = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const isToday =
+    date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+  if (isToday) return `Aujourd'hui ${time}`;
+  return `${date.toLocaleDateString('fr-FR', { weekday: 'short' })} ${time}`;
+}
+
 interface Props {
   myName: string;
   myUserId: string;
@@ -44,9 +54,7 @@ export default function StatusBar({
       <span className="bg-surface-2 border-border rounded-lg border px-3 py-1.5">
         Prochain post estimé :{' '}
         <strong>
-          {nextPostAt
-            ? nextPostAt.toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
-            : '—'}
+          {nextPostAt ? formatNextPost(nextPostAt) : '—'}
         </strong>
       </span>
       {partnerUserId && partnerName && (
