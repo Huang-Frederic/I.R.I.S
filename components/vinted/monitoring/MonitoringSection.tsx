@@ -5,11 +5,12 @@ import { ScrollText, Settings } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useUserContext } from '@/lib/hooks/useUserContext';
 import { nextScheduledWindowStart } from '@/lib/vinted/next-window';
-import { fetchCardAnnonceTarget, fetchLotAnnonceTarget } from '@/lib/vinted/fetch-annonce-target';
-import type { Card, CardListing, Lot } from '@/lib/types';
+import { fetchCardAnnonceTarget, fetchLotAnnonceTarget, fetchOtherItemAnnonceTarget } from '@/lib/vinted/fetch-annonce-target';
+import type { Card, CardListing, Lot, OtherItemWithListings } from '@/lib/types';
 import type { VintedConfig } from '@/lib/utils/vinted-template';
 import AnnonceModal from '@/components/vinted/AnnonceModal';
 import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
+import OtherItemAnnonceModal from '@/components/vinted/OtherItemAnnonceModal';
 import { useMonitoringData } from './hooks/useMonitoringData';
 import { useActiveJob } from './hooks/useActiveJob';
 import StatusBar from './StatusBar';
@@ -19,7 +20,10 @@ import GroupedRepostGrid, { type RepostPoolItem } from './GroupedRepostGrid';
 import SettingsModal from './SettingsModal';
 import LogsModal from './LogsModal';
 
-type AnnonceTarget = { kind: 'card'; card: Card; listings: CardListing[] } | { kind: 'lot'; lot: Lot };
+type AnnonceTarget =
+  | { kind: 'card'; card: Card; listings: CardListing[] }
+  | { kind: 'lot'; lot: Lot }
+  | { kind: 'other_item'; item: OtherItemWithListings };
 
 const DISCARD_CONFIRM_MESSAGE = 'Modifications non enregistrées — les abandonner ?';
 
@@ -72,6 +76,9 @@ export default function MonitoringSection() {
   const storagePublicUrl = (path: string) =>
     `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/lot-photos/${path}`;
 
+  const otherItemStoragePublicUrl = (path: string) =>
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/other-item-photos/${path}`;
+
   function switchUser(nextUserId: string) {
     if (isDirty && !window.confirm(DISCARD_CONFIRM_MESSAGE)) return;
     setStagedPipeline(null);
@@ -91,7 +98,7 @@ export default function MonitoringSection() {
     setPendingRepostIds((prev) => new Set(prev).add(movedId));
   }
 
-  async function viewListing(item: { cardId: string | null; lotId: string | null }) {
+  async function viewListing(item: { cardId: string | null; lotId: string | null; otherItemId?: string | null }) {
     const supabase = createClient();
     if (item.cardId) {
       const result = await fetchCardAnnonceTarget(supabase, item.cardId);
@@ -101,6 +108,11 @@ export default function MonitoringSection() {
     if (item.lotId) {
       const result = await fetchLotAnnonceTarget(supabase, item.lotId);
       if (result) setAnnonceTarget({ kind: 'lot', ...result });
+      return;
+    }
+    if (item.otherItemId) {
+      const result = await fetchOtherItemAnnonceTarget(supabase, item.otherItemId);
+      if (result) setAnnonceTarget({ kind: 'other_item', ...result });
     }
   }
 
@@ -314,6 +326,29 @@ export default function MonitoringSection() {
             data.refetch();
           }}
           onLotDeleted={() => {
+            setAnnonceTarget(null);
+            data.refetch();
+          }}
+          onMovedToStock={() => {
+            setAnnonceTarget(null);
+            data.refetch();
+          }}
+        />
+      )}
+      {annonceTarget?.kind === 'other_item' && (
+        <OtherItemAnnonceModal
+          item={annonceTarget.item}
+          storagePublicUrl={otherItemStoragePublicUrl}
+          onClose={() => setAnnonceTarget(null)}
+          onPriceSaved={(itemId, newPrice) => {
+            setAnnonceTarget((prev) =>
+              prev && prev.kind === 'other_item' && prev.item.id === itemId
+                ? { ...prev, item: { ...prev.item, price: newPrice } }
+                : prev,
+            );
+            data.refetch();
+          }}
+          onItemDeleted={() => {
             setAnnonceTarget(null);
             data.refetch();
           }}

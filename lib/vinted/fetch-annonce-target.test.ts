@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { fetchCardAnnonceTarget, fetchLotAnnonceTarget } from './fetch-annonce-target';
+import { fetchCardAnnonceTarget, fetchLotAnnonceTarget, fetchOtherItemAnnonceTarget } from './fetch-annonce-target';
 
 function makeSupabaseMock(opts: {
   card?: Record<string, unknown>;
@@ -8,6 +8,9 @@ function makeSupabaseMock(opts: {
   listings?: Record<string, unknown>[];
   lot?: Record<string, unknown>;
   lotError?: boolean;
+  otherItem?: Record<string, unknown>;
+  otherItemError?: boolean;
+  otherItemListings?: Record<string, unknown>[];
 }): SupabaseClient {
   const from = vi.fn((table: string) => {
     if (table === 'cards') {
@@ -36,6 +39,21 @@ function makeSupabaseMock(opts: {
           }),
         }),
       };
+    }
+    if (table === 'other_items') {
+      return {
+        select: () => ({
+          eq: () => ({
+            single: () =>
+              Promise.resolve(
+                opts.otherItemError ? { data: null, error: new Error('boom') } : { data: opts.otherItem ?? null, error: null },
+              ),
+          }),
+        }),
+      };
+    }
+    if (table === 'other_item_listings') {
+      return { select: () => ({ eq: () => Promise.resolve({ data: opts.otherItemListings ?? [], error: null }) }) };
     }
     throw new Error(`unexpected table: ${table}`);
   });
@@ -69,5 +87,25 @@ describe('fetchLotAnnonceTarget', () => {
   it('returns null when the lot row is missing or errors', async () => {
     const supabase = makeSupabaseMock({ lotError: true });
     expect(await fetchLotAnnonceTarget(supabase, 'missing')).toBeNull();
+  });
+});
+
+describe('fetchOtherItemAnnonceTarget', () => {
+  it('returns the full other_item row with its listings', async () => {
+    const supabase = makeSupabaseMock({
+      otherItem: { id: 'item-1', name: 'Doudoune Uniqlo' },
+      otherItemListings: [{ other_item_id: 'item-1', user_id: 'user-a' }],
+    });
+    const result = await fetchOtherItemAnnonceTarget(supabase, 'item-1');
+    expect(result?.item).toEqual({
+      id: 'item-1',
+      name: 'Doudoune Uniqlo',
+      listings: [{ other_item_id: 'item-1', user_id: 'user-a' }],
+    });
+  });
+
+  it('returns null when the other_item row is missing or errors', async () => {
+    const supabase = makeSupabaseMock({ otherItemError: true });
+    expect(await fetchOtherItemAnnonceTarget(supabase, 'missing')).toBeNull();
   });
 });

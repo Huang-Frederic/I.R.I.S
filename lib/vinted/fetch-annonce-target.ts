@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Card, CardListing, Lot } from '@/lib/types';
+import type { Card, CardListing, Lot, OtherItem, OtherItemListing, OtherItemWithListings } from '@/lib/types';
 
 /**
  * On-demand fetch for the "view listing" button on /vinted/bot: the bot
@@ -30,4 +30,25 @@ export async function fetchLotAnnonceTarget(
   const { data, error } = await supabase.from('lots').select('*').eq('id', lotId).single();
   if (error || !data) return null;
   return { lot: data as Lot };
+}
+
+/** OtherItemAnnonceModal takes a hydrated OtherItemWithListings, same shape as the main /vinted page. */
+export async function fetchOtherItemAnnonceTarget(
+  supabase: SupabaseClient,
+  otherItemId: string,
+): Promise<{ item: OtherItemWithListings } | null> {
+  const [itemRes, listingsRes] = await Promise.all([
+    supabase.from('other_items').select('*').eq('id', otherItemId).single(),
+    supabase
+      .from('other_item_listings')
+      .select('other_item_id, user_id, listed_at, vinted_listing_id, vinted_posted_at')
+      .eq('other_item_id', otherItemId),
+  ]);
+  if (itemRes.error || !itemRes.data) return null;
+  return {
+    item: {
+      ...(itemRes.data as OtherItem),
+      listings: (listingsRes.data ?? []) as OtherItemListing[],
+    },
+  };
 }
