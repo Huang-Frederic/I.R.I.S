@@ -387,20 +387,45 @@ def test_build_other_item_title_truncates_at_80_chars():
     assert title == "x" * MAX_TITLE_LENGTH
 
 
-def test_build_other_item_description_wraps_with_the_no_vinted_go_banner():
-    item = {"description": "Je vends mon aspirateur, utilisé une fois."}
+def test_build_other_item_description_full_template():
+    item = {
+        "name": "Robot Aspirateur Midea S8+",
+        "brand_name": "Midea",
+        "size": "L",
+        "vinted_condition_id": 1,
+        "description": "Utilisé une fois pour tester.",
+    }
     desc = build_other_item_description(item)
-    lines = desc.split("\n")
-    assert lines[0] == NO_VINTED_GO_WARNING
-    assert lines[-1] == NO_VINTED_GO_WARNING
-    assert "Je vends mon aspirateur, utilisé une fois." in desc
+    assert desc == (
+        "✨ Robot Aspirateur Midea S8+\n"
+        "📘 Marque : Midea\n"
+        "📏 Taille : L\n"
+        "✅ État : Neuf avec étiquette.\n"
+        "\n"
+        "Utilisé une fois pour tester.\n"
+        "\n"
+        "🚀 Expédition rapide sous 1 à 2 jours ouvrés 📦\n"
+        "🤝 Remise en main propre possible sur Paris / 92 / 95\n"
+        "📸 Besoin de photos supplémentaires ? N'hésitez pas à me demander !"
+    )
 
 
-def test_build_other_item_description_handles_empty_description():
-    item = {"description": ""}
+def test_build_other_item_description_omits_brand_and_size_when_absent():
+    item = {"name": "X", "vinted_condition_id": 3, "description": ""}
     desc = build_other_item_description(item)
-    assert desc.startswith(NO_VINTED_GO_WARNING)
-    assert desc.endswith(NO_VINTED_GO_WARNING)
+    assert "Marque" not in desc
+    assert "Taille" not in desc
+    assert desc.startswith("✨ X\n✅ État : Très bon état.")
+
+
+def test_build_other_item_description_no_longer_includes_the_vinted_go_banner():
+    item = {"name": "X", "vinted_condition_id": 3, "description": "test"}
+    assert NO_VINTED_GO_WARNING not in build_other_item_description(item)
+
+
+def test_build_other_item_description_defaults_condition_label_when_missing():
+    item = {"name": "X", "description": ""}
+    assert "✅ État : Très bon état." in build_other_item_description(item)
 
 
 from main import process_other_item_job

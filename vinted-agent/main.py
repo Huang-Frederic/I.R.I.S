@@ -382,9 +382,41 @@ def build_other_item_title(item: dict) -> str:
     return (item.get("name") or "")[:MAX_TITLE_LENGTH]
 
 
+# Vinted's own general-item condition wording — distinct from CONDITION_LABEL
+# (the trading-card NM/EX/GD/PL/PO grading labels above), which would read
+# strangely on a hoodie or a robot vacuum. Same underlying 1-5 ids either way.
+OTHER_ITEM_CONDITION_LABEL = {
+    1: "Neuf avec étiquette",
+    2: "Neuf sans étiquette",
+    3: "Très bon état",
+    4: "Bon état",
+    5: "Satisfaisant",
+}
+
+
 def build_other_item_description(item: dict) -> str:
-    lines = [NO_VINTED_GO_WARNING, "", (item.get("description") or "").strip()]
-    lines += ["", NO_VINTED_GO_WARNING]
+    lines = [f"✨ {item.get('name') or ''}"]
+
+    brand = (item.get("brand_name") or "").strip()
+    if brand:
+        lines.append(f"📘 Marque : {brand}")
+
+    size = (item.get("size") or "").strip()
+    if size:
+        lines.append(f"📏 Taille : {size}")
+
+    condition_label = OTHER_ITEM_CONDITION_LABEL.get(item.get("vinted_condition_id"), "Très bon état")
+    lines.append(f"✅ État : {condition_label}.")
+
+    description = (item.get("description") or "").strip()
+    if description:
+        lines.append("")
+        lines.append(description)
+
+    lines.append("")
+    lines.append("🚀 Expédition rapide sous 1 à 2 jours ouvrés 📦")
+    lines.append("🤝 Remise en main propre possible sur Paris / 92 / 95")
+    lines.append("📸 Besoin de photos supplémentaires ? N'hésitez pas à me demander !")
     return "\n".join(lines)
 
 
