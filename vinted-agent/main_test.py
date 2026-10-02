@@ -488,6 +488,39 @@ def test_process_other_item_job_posts_and_upserts_listing():
     assert status_arg["status"] == "done"
 
 
+def test_process_other_item_job_uploads_every_photo_not_just_the_first():
+    # Regression: process_other_item_job used to upload only image_urls[0]
+    # and pass photo_ids=[photo_id] (a single-element list) to
+    # create_listing, so a listing with 3 uploaded photos would post to
+    # Vinted with just 1 — unlike process_lot_job, which already loops over
+    # every URL. Asserting call_count (not just "was called") and the full
+    # photo_ids list is what catches that class of bug.
+    item = {
+        "id": "item-1", "name": "Robot Aspirateur", "description": "desc",
+        "price": 90,
+        "photo_urls": ["item-1/0.jpg", "item-1/1.jpg", "item-1/2.jpg"],
+        "vinted_catalog_id": 2994, "vinted_condition_id": 1,
+        "brand_name": "Midea", "status": "for_sale",
+    }
+    supabase, upsert_fn, jobs_update_fn = _mock_supabase_for_post_other_item(item)
+    vinted = MagicMock()
+    vinted.upload_photo = MagicMock(side_effect=[111, 222, 333])
+    vinted.create_listing = MagicMock(return_value="999")
+    job = {"id": "job-1", "other_item_id": "item-1", "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7", "job_type": "post"}
+
+    asyncio.run(process_other_item_job(supabase, vinted, job))
+
+    assert vinted.upload_photo.call_count == 3
+    uploaded_urls = [call.args[0] for call in vinted.upload_photo.call_args_list]
+    assert uploaded_urls == [
+        "http://localhost:54321/storage/v1/object/public/other-item-photos/item-1/0.jpg",
+        "http://localhost:54321/storage/v1/object/public/other-item-photos/item-1/1.jpg",
+        "http://localhost:54321/storage/v1/object/public/other-item-photos/item-1/2.jpg",
+    ]
+    kwargs = vinted.create_listing.call_args.kwargs
+    assert kwargs["photo_ids"] == [111, 222, 333]
+
+
 def test_process_other_item_job_fails_gracefully_on_vinted_api_error():
     item = {
         "id": "item-1", "name": "X", "description": "", "price": 10,

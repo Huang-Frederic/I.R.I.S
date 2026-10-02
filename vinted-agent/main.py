@@ -886,22 +886,32 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
     description = build_other_item_description(item)
     price = pick_other_item_price(item)
 
-    await _log(supabase, user_id, "info", "📋  %s %s — %.2f€", tag, title, price)
+    # Unlike process_job/process_lot_job's equivalent line, this deliberately
+    # does NOT include the item's real title/price: vinted_agent_logs is a
+    # shared, cross-partner-readable sink (see
+    # 20260918141259_vinted_monitoring_read_policies.sql) with no structured
+    # column RLS could filter other_item rows out of, so the message content
+    # itself must not carry data that's meant to be Fred-only.
+    await _log(supabase, user_id, "info", "📋  %s préparation de la publication…", tag)
 
     try:
         await asyncio.sleep(random.uniform(8, 20))
-        photo_id = await asyncio.get_running_loop().run_in_executor(
-            None, vinted.upload_photo, image_urls[0]
-        )
+        loop = asyncio.get_running_loop()
+        photo_ids = []
+        for url in image_urls:
+            pid = await loop.run_in_executor(None, vinted.upload_photo, url)
+            photo_ids.append(pid)
+            if url != image_urls[-1]:
+                await asyncio.sleep(random.uniform(4, 10))
         await asyncio.sleep(random.uniform(10, 20))
-        listing_id = await asyncio.get_running_loop().run_in_executor(
+        listing_id = await loop.run_in_executor(
             None, lambda: vinted.create_listing(
                 title=title,
                 description=description,
                 price=price,
                 condition=condition,
                 image_urls=image_urls,
-                photo_ids=[photo_id],
+                photo_ids=photo_ids,
                 catalog_id=item["vinted_catalog_id"],
                 brand_id=SANS_MARQUE_BRAND_ID,
                 brand=item.get("brand_name") or "",
