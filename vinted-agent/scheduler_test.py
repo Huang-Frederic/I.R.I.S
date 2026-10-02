@@ -22,12 +22,12 @@ def test_returns_none_when_todays_quota_is_already_used():
 
 def test_posts_the_front_of_the_queue_when_in_window_with_quota_left():
     result = decide_next_action(MONDAY_NOON, SCHEDULE_WEEKDAY, 3, 8, QUEUE_ONE_CARD, ONE_REPOST)
-    assert result == {"action": "post", "card_id": "card-1", "lot_id": None}
+    assert result == {"action": "post", "card_id": "card-1", "lot_id": None, "other_item_id": None}
 
 
 def test_falls_back_to_a_repost_when_the_new_post_queue_is_empty():
     result = decide_next_action(MONDAY_NOON, SCHEDULE_WEEKDAY, 3, 8, [], ONE_REPOST)
-    assert result == {"action": "repost", "card_id": "old-card", "lot_id": None}
+    assert result == {"action": "repost", "card_id": "old-card", "lot_id": None, "other_item_id": None}
 
 
 def test_returns_none_when_queue_and_reposts_are_both_empty():
@@ -46,10 +46,10 @@ def test_saturday_and_sunday_share_the_weekend_block():
     saturday_noon = datetime(2026, 9, 26, 12, 0)
     sunday_noon = datetime(2026, 9, 27, 12, 0)
     assert decide_next_action(saturday_noon, weekend_schedule, 0, 8, QUEUE_ONE_CARD, NO_REPOSTS) == {
-        "action": "post", "card_id": "card-1", "lot_id": None,
+        "action": "post", "card_id": "card-1", "lot_id": None, "other_item_id": None,
     }
     assert decide_next_action(sunday_noon, weekend_schedule, 0, 8, QUEUE_ONE_CARD, NO_REPOSTS) == {
-        "action": "post", "card_id": "card-1", "lot_id": None,
+        "action": "post", "card_id": "card-1", "lot_id": None, "other_item_id": None,
     }
 
 
@@ -86,7 +86,7 @@ def test_without_jitter_param_fires_immediately_like_before():
     # Default behavior (jitter=None) is untouched — every pre-existing test
     # above relies on this staying deterministic.
     result = decide_next_action(MONDAY_NOON, WIDE_WINDOW, 0, 8, QUEUE_ONE_CARD, NO_REPOSTS)
-    assert result == {"action": "post", "card_id": "card-1", "lot_id": None}
+    assert result == {"action": "post", "card_id": "card-1", "lot_id": None, "other_item_id": None}
 
 
 def test_with_jitter_defers_when_plenty_of_window_time_remains():
@@ -106,7 +106,7 @@ def test_with_jitter_fires_when_the_draw_is_under_the_fire_probability():
         just_after_open, WIDE_WINDOW, 0, 8, QUEUE_ONE_CARD, NO_REPOSTS,
         poll_interval_seconds=300, jitter=0.01,
     )
-    assert result == {"action": "post", "card_id": "card-1", "lot_id": None}
+    assert result == {"action": "post", "card_id": "card-1", "lot_id": None, "other_item_id": None}
 
 
 def test_with_jitter_always_fires_on_the_last_possible_tick_before_window_closes():
@@ -117,7 +117,7 @@ def test_with_jitter_always_fires_on_the_last_possible_tick_before_window_closes
         almost_closed, WIDE_WINDOW, 0, 8, QUEUE_ONE_CARD, NO_REPOSTS,
         poll_interval_seconds=300, jitter=0.999,
     )
-    assert result == {"action": "post", "card_id": "card-1", "lot_id": None}
+    assert result == {"action": "post", "card_id": "card-1", "lot_id": None, "other_item_id": None}
 
 
 def test_jitter_gate_only_applies_once_a_decision_would_otherwise_be_made():
@@ -129,3 +129,15 @@ def test_jitter_gate_only_applies_once_a_decision_would_otherwise_be_made():
         poll_interval_seconds=300, jitter=0.0,
     )
     assert result is None
+
+
+def test_decide_next_action_posts_an_other_item_from_the_queue():
+    queue_with_other_item = [{"card_id": None, "lot_id": None, "other_item_id": "oi-1", "position": 1}]
+    result = decide_next_action(MONDAY_NOON, SCHEDULE_WEEKDAY, 0, 8, queue_with_other_item, NO_REPOSTS)
+    assert result == {"action": "post", "card_id": None, "lot_id": None, "other_item_id": "oi-1"}
+
+
+def test_decide_next_action_reposts_an_other_item():
+    other_item_repost = [{"card_id": None, "lot_id": None, "other_item_id": "oi-1", "vinted_posted_at": "2026-01-01T00:00:00"}]
+    result = decide_next_action(MONDAY_NOON, SCHEDULE_WEEKDAY, 3, 8, [], other_item_repost)
+    assert result == {"action": "repost", "card_id": None, "lot_id": None, "other_item_id": "oi-1"}

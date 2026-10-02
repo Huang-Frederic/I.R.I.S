@@ -72,10 +72,20 @@ def decide_next_action(
         return None
     if queue_rows:
         front = queue_rows[0]
-        action = {"action": "post", "card_id": front["card_id"], "lot_id": front["lot_id"]}
+        action = {
+            "action": "post",
+            "card_id": front.get("card_id"),
+            "lot_id": front.get("lot_id"),
+            "other_item_id": front.get("other_item_id"),
+        }
     elif repost_candidates:
         oldest = repost_candidates[0]
-        action = {"action": "repost", "card_id": oldest["card_id"], "lot_id": oldest["lot_id"]}
+        action = {
+            "action": "repost",
+            "card_id": oldest.get("card_id"),
+            "lot_id": oldest.get("lot_id"),
+            "other_item_id": oldest.get("other_item_id"),
+        }
     else:
         return None
 

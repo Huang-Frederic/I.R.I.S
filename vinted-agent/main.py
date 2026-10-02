@@ -1226,7 +1226,7 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                 jobs_today_res = await supabase.table("vinted_post_jobs").select("id") \
                     .eq("user_id", user_id).eq("triggered_by", "schedule").in_("job_type", ["post", "repost"]) \
                     .gte("created_at", today_start).execute()
-                queue_res = await supabase.table("vinted_queue").select("card_id, lot_id, position") \
+                queue_res = await supabase.table("vinted_queue").select("card_id, lot_id, other_item_id, position") \
                     .eq("user_id", user_id).order("position").limit(1).execute()
 
                 repost_after_days = (config_data or {}).get("repost_after_days", 14)
@@ -1248,14 +1248,23 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                     .lt("vinted_posted_at", repost_cutoff) \
                     .not_.is_("vinted_listing_id", "null") \
                     .execute()
+                other_item_repost_res = await supabase.table("other_item_listings") \
+                    .select("other_item_id, vinted_posted_at, repost_position, other_items!inner(status)") \
+                    .eq("user_id", user_id).eq("other_items.status", "for_sale") \
+                    .lt("vinted_posted_at", repost_cutoff) \
+                    .not_.is_("vinted_listing_id", "null") \
+                    .execute()
 
                 candidates = (
-                    [{"card_id": r["card_id"], "lot_id": None, "vinted_posted_at": r["vinted_posted_at"],
+                    [{"card_id": r["card_id"], "lot_id": None, "other_item_id": None, "vinted_posted_at": r["vinted_posted_at"],
                       "repost_position": r.get("repost_position")}
                      for r in (card_repost_res.data or [])]
-                    + [{"card_id": None, "lot_id": r["lot_id"], "vinted_posted_at": r["vinted_posted_at"],
+                    + [{"card_id": None, "lot_id": r["lot_id"], "other_item_id": None, "vinted_posted_at": r["vinted_posted_at"],
                         "repost_position": r.get("repost_position")}
                        for r in (lot_repost_res.data or [])]
+                    + [{"card_id": None, "lot_id": None, "other_item_id": r["other_item_id"], "vinted_posted_at": r["vinted_posted_at"],
+                        "repost_position": r.get("repost_position")}
+                       for r in (other_item_repost_res.data or [])]
                 )
                 repost_candidates = sort_repost_candidates(candidates)
 
@@ -1269,6 +1278,7 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                         "user_id": user_id,
                         "card_id": decision["card_id"],
                         "lot_id": decision["lot_id"],
+                        "other_item_id": decision["other_item_id"],
                         "job_type": decision["action"],
                         "status": "pending",
                         "triggered_by": "schedule",
@@ -1279,6 +1289,9 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                     elif decision["lot_id"]:
                         await supabase.table("vinted_queue").delete() \
                             .eq("user_id", user_id).eq("lot_id", decision["lot_id"]).execute()
+                    elif decision["other_item_id"]:
+                        await supabase.table("vinted_queue").delete() \
+                            .eq("user_id", user_id).eq("other_item_id", decision["other_item_id"]).execute()
             except Exception as e:
                 await _log(supabase, user_id, "warning", "⚠  Scheduling loop — %s (%s)", e, _utag(user_id))
         await asyncio.sleep(SCHEDULING_POLL_SECONDS)
