@@ -5,6 +5,7 @@ import { useMonitoringData } from './hooks/useMonitoringData';
 import { fetchCardAnnonceTarget, fetchLotAnnonceTarget } from '@/lib/vinted/fetch-annonce-target';
 import type { Card, Lot } from '@/lib/types';
 import type { PipelineItem } from './GroupedQueueGrid';
+import type { RepostPoolItem } from './GroupedRepostGrid';
 
 vi.mock('@/lib/hooks/useUserContext', () => ({
   useUserContext: () => ({ myUserId: 'me', myName: 'Moi', partnerUserId: 'partner', partnerName: 'Partenaire' }),
@@ -71,7 +72,7 @@ beforeEach(() => {
   // math this suite's fixtures assume.
   vi.stubGlobal('innerWidth', 500);
   vi.mocked(useMonitoringData).mockReturnValue({
-    pipeline: [{ queueId: 'q1', cardId: 'c1', lotId: null, position: 1, name: 'Pharamp GX', price: 9.5, imageUrl: 'a.png', groupKey: 'Pokémon FR' }],
+    pipeline: [{ queueId: 'q1', cardId: 'c1', lotId: null, otherItemId: null, position: 1, name: 'Pharamp GX', price: 9.5, imageUrl: 'a.png', groupKey: 'Pokémon FR' }],
     schedule: [],
     config: { daily_quota: 8, repost_after_days: 14, group_priority: [] },
     logs: [],
@@ -110,7 +111,7 @@ describe('<MonitoringSection> view listing', () => {
 
   it('opens the (stubbed) LotAnnonceModal with the fetched lot after clicking "Voir l\'annonce" on a lot queue item', async () => {
     vi.mocked(useMonitoringData).mockReturnValue({
-      pipeline: [{ queueId: 'q2', cardId: null, lotId: 'l1', position: 1, name: 'Lot Dresseurs FR', price: 15, imageUrl: 'lot.png', groupKey: 'Lots FR' }],
+      pipeline: [{ queueId: 'q2', cardId: null, lotId: 'l1', otherItemId: null, position: 1, name: 'Lot Dresseurs FR', price: 15, imageUrl: 'lot.png', groupKey: 'Lots FR' }],
       schedule: [],
       config: { daily_quota: 8, repost_after_days: 14, group_priority: [] },
       logs: [],
@@ -130,8 +131,8 @@ describe('<MonitoringSection> view listing', () => {
 
 describe('<MonitoringSection> staged reorder + save', () => {
   const TWO_ITEM_PIPELINE: PipelineItem[] = [
-    { queueId: 'q1', cardId: 'c1', lotId: null, position: 1, name: 'Pharamp GX', price: 9.5, imageUrl: 'a.png', groupKey: 'Pokémon FR' },
-    { queueId: 'q2', cardId: 'c2', lotId: null, position: 2, name: 'Fulguris GX', price: 5, imageUrl: 'b.png', groupKey: 'Pokémon FR' },
+    { queueId: 'q1', cardId: 'c1', lotId: null, otherItemId: null, position: 1, name: 'Pharamp GX', price: 9.5, imageUrl: 'a.png', groupKey: 'Pokémon FR' },
+    { queueId: 'q2', cardId: 'c2', lotId: null, otherItemId: null, position: 2, name: 'Fulguris GX', price: 5, imageUrl: 'b.png', groupKey: 'Pokémon FR' },
   ];
 
   function mockPipeline(pipeline: PipelineItem[], refetch = vi.fn()) {
@@ -250,6 +251,60 @@ describe('<MonitoringSection> staged reorder + save', () => {
       const fulgurisCardAfterPost = screen.getByText('Fulguris GX').closest('[data-testid="poster-card-overlay"]')!.parentElement as HTMLElement;
       expect(fulgurisCardAfterPost.className).not.toContain('border-staleness-fresh');
     });
+    vi.unstubAllGlobals();
+  });
+
+  it('sends other_item_id (not card_id/lot_id) in the postNow request body for an other_item queue entry', async () => {
+    const OTHER_ITEM_PIPELINE: PipelineItem[] = [
+      { queueId: 'q3', cardId: null, lotId: null, otherItemId: 'oi-1', position: 1, name: 'Robot Aspirateur', price: 90, imageUrl: 'r.png', groupKey: 'other-items' },
+    ];
+    mockPipeline(OTHER_ITEM_PIPELINE);
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<MonitoringSection />);
+
+    const overlay = screen.getByText('Robot Aspirateur').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    fireEvent.click(overlay.parentElement as HTMLElement);
+    fireEvent.click(within(overlay).getByLabelText('Poster maintenant'));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/vinted/post-job',
+      expect.objectContaining({ body: JSON.stringify({ other_item_id: 'oi-1' }) }),
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it('sends other_item_id (not card_id/lot_id) in the repostNow request body for an other_item repost candidate', async () => {
+    const OTHER_ITEM_REPOST: RepostPoolItem[] = [
+      {
+        cardId: null, lotId: null, otherItemId: 'oi-1', name: 'Robot Aspirateur', price: 90, imageUrl: 'r.png',
+        vintedPostedAt: '2026-01-01T00:00:00Z', groupKey: 'other-items', repostPosition: null,
+      },
+    ];
+    vi.mocked(useMonitoringData).mockReturnValue({
+      pipeline: [],
+      schedule: [],
+      config: { daily_quota: 8, repost_after_days: 14, group_priority: [] },
+      logs: [],
+      todayJobCount: 0,
+      repostCandidates: OTHER_ITEM_REPOST,
+      loading: false,
+      refetch: vi.fn(),
+    });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<MonitoringSection />);
+
+    const overlay = screen.getByText('Robot Aspirateur').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    fireEvent.click(overlay.parentElement as HTMLElement);
+    fireEvent.click(within(overlay).getByLabelText('Reposter maintenant'));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/vinted/post-job',
+      expect.objectContaining({ body: JSON.stringify({ other_item_id: 'oi-1', job_type: 'repost' }) }),
+    );
     vi.unstubAllGlobals();
   });
 });

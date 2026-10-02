@@ -2,33 +2,39 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
 import { auditLog } from '@/lib/utils/audit-log';
+import { FRED_USER_ID } from '@/lib/vinted/other-item-queue-sync';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
-  let body: { card_id?: string; lot_id?: string; job_type?: 'post' | 'repost' };
+  let body: { card_id?: string; lot_id?: string; other_item_id?: string; job_type?: 'post' | 'repost' };
   try {
     body = await request.json();
   } catch {
     return validationResponse('Invalid JSON');
   }
 
-  const { card_id, lot_id } = body;
+  const { card_id, lot_id, other_item_id } = body;
   const jobType = body.job_type === 'repost' ? 'repost' : 'post';
   const isLot = !!lot_id;
   const isCard = !!card_id;
+  const isOtherItem = !!other_item_id;
+  const targetCount = [isCard, isLot, isOtherItem].filter(Boolean).length;
 
-  if (!isCard && !isLot) {
-    return validationResponse('card_id or lot_id is required');
+  if (targetCount === 0) {
+    return validationResponse('card_id, lot_id or other_item_id is required');
   }
-  if (isCard && isLot) {
-    return validationResponse('Provide either card_id or lot_id, not both');
+  if (targetCount > 1) {
+    return validationResponse('Provide exactly one of card_id, lot_id or other_item_id');
   }
   if (isCard && typeof card_id !== 'string') {
     return validationResponse('card_id must be a string');
   }
   if (isLot && typeof lot_id !== 'string') {
     return validationResponse('lot_id must be a string');
+  }
+  if (isOtherItem && typeof other_item_id !== 'string') {
+    return validationResponse('other_item_id must be a string');
   }
 
   const supabase = await createClient();
@@ -39,6 +45,16 @@ export async function POST(request: Request) {
     .split(',').map((s) => s.trim()).filter(Boolean);
   if (!allowedIds.includes(auth.user.id)) {
     return apiError('forbidden', { status: 403, message: 'Vinted posting not enabled for this account' });
+  }
+
+  // other_items is Fred-only by design (lib/vinted/other-item-queue-sync.ts)
+  // — the generic VINTED_USER_IDS allowlist above also includes Gilly (she's
+  // a valid Vinted-enabled account), so it alone can't gate this branch. She
+  // never sees the "other item" option in the UI, but without this check she
+  // could still call this route directly with an other_item_id and have it
+  // succeed server-side.
+  if (isOtherItem && auth.user.id !== FRED_USER_ID) {
+    return apiError('forbidden', { status: 403, message: 'This feature is not available on this account' });
   }
 
   if (isCard) {
@@ -116,6 +132,82 @@ export async function POST(request: Request) {
     });
     if (jobType === 'post') {
       void supabase.from('vinted_queue').delete().eq('user_id', auth.user.id).eq('card_id', card_id!)
+        .then(({ error }) => {
+          if (error) console.error('[vinted/post-job] vinted_queue cleanup failed:', error.message);
+        });
+    }
+    return NextResponse.json({ job_id: job.id }, { status: 201 });
+  }
+
+  if (isOtherItem) {
+    const { data: otherItem, error: otherItemError } = await supabase
+      .from('other_items')
+      .select('id, status, price, name, vinted_catalog_id')
+      .eq('id', other_item_id!)
+      .single();
+
+    if (otherItemError || !otherItem) return apiError('other_item_not_found', { status: 404 });
+    if (otherItem.status !== 'for_sale') {
+      return apiError('invalid_status', { status: 400, message: 'Cet objet doit être en vente' });
+    }
+    if (otherItem.price === null) {
+      return apiError('no_price', { status: 400, message: 'Aucun prix défini pour cet objet' });
+    }
+
+    const { data: myOtherItemListing } = await supabase
+      .from('other_item_listings')
+      .select('vinted_listing_id')
+      .eq('other_item_id', other_item_id!)
+      .eq('user_id', auth.user.id)
+      .maybeSingle();
+
+    if (jobType === 'post') {
+      if (myOtherItemListing?.vinted_listing_id) {
+        return apiError('already_posted', { status: 409, message: 'Vous avez déjà une annonce Vinted pour cet objet' });
+      }
+    } else if (!myOtherItemListing?.vinted_listing_id) {
+      return apiError('not_posted_yet', { status: 400, message: 'Aucune annonce Vinted existante à reposter pour cet objet' });
+    }
+
+    const { data: activeOtherItemJob } = await supabase
+      .from('vinted_post_jobs')
+      .select('id')
+      .eq('other_item_id', other_item_id!)
+      .eq('user_id', auth.user.id)
+      .in('status', ['pending', 'processing'])
+      .limit(1)
+      .maybeSingle();
+
+    if (activeOtherItemJob) {
+      return apiError('job_already_queued', { status: 409, message: 'Un job de publication est déjà en cours pour cet objet' });
+    }
+
+    const { data: job, error: jobError } = await supabase
+      .from('vinted_post_jobs')
+      .insert({ other_item_id, user_id: auth.user.id, job_type: jobType, triggered_by: 'manual' })
+      .select()
+      .single();
+
+    if (jobError) {
+      console.error('[vinted/post-job] insert failed:', jobError.message, jobError.code);
+      return apiError('job_create_failed', { status: 500, message: jobError.message });
+    }
+    void auditLog({
+      actor_type: 'user',
+      actor_user_id: auth.user.id,
+      action: 'job.created',
+      entity_type: 'other_item',
+      entity_id: other_item_id,
+      details: {
+        job_id: job.id,
+        job_type: jobType,
+        other_item_name: otherItem.name,
+        price: otherItem.price,
+        vinted_catalog_id: otherItem.vinted_catalog_id,
+      },
+    });
+    if (jobType === 'post') {
+      void supabase.from('vinted_queue').delete().eq('user_id', auth.user.id).eq('other_item_id', other_item_id!)
         .then(({ error }) => {
           if (error) console.error('[vinted/post-job] vinted_queue cleanup failed:', error.message);
         });

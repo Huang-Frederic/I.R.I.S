@@ -37,14 +37,14 @@ afterEach(() => {
 // `matchMedia` is stubbed above to force `useSnakeColumns` to its narrow,
 // 3-column value) + 1 in "Magic".
 const ITEMS: PipelineItem[] = [
-  { queueId: 'q1', cardId: 'c1', lotId: null, position: 1, name: 'Pharamp GX', price: 9.5, imageUrl: 'a.png', groupKey: 'Pokémon FR' },
-  { queueId: 'q2', cardId: 'c2', lotId: null, position: 2, name: 'Fulguris GX', price: 5, imageUrl: 'b.png', groupKey: 'Pokémon FR' },
-  { queueId: 'q3', cardId: 'c3', lotId: null, position: 3, name: 'Lougaroc V', price: 3, imageUrl: 'c.png', groupKey: 'Pokémon FR' },
-  { queueId: 'q4', cardId: 'c4', lotId: null, position: 4, name: 'Draeuil V', price: 2, imageUrl: 'd.png', groupKey: 'Pokémon FR' },
-  { queueId: 'q5', cardId: 'c5', lotId: null, position: 5, name: 'Mimiqui V', price: 2, imageUrl: 'e.png', groupKey: 'Pokémon FR' },
-  { queueId: 'q6', cardId: 'c6', lotId: null, position: 6, name: 'Démolosse V', price: 4, imageUrl: 'f.png', groupKey: 'Pokémon FR' },
-  { queueId: 'q7', cardId: 'c7', lotId: null, position: 7, name: 'Cizayox V', price: 4.5, imageUrl: 'g.png', groupKey: 'Pokémon FR' },
-  { queueId: 'q8', cardId: 'c8', lotId: null, position: 8, name: 'Zeraora VSTAR', price: 7.2, imageUrl: 'h.png', groupKey: 'Magic' },
+  { queueId: 'q1', cardId: 'c1', lotId: null, otherItemId: null, position: 1, name: 'Pharamp GX', price: 9.5, imageUrl: 'a.png', groupKey: 'Pokémon FR' },
+  { queueId: 'q2', cardId: 'c2', lotId: null, otherItemId: null, position: 2, name: 'Fulguris GX', price: 5, imageUrl: 'b.png', groupKey: 'Pokémon FR' },
+  { queueId: 'q3', cardId: 'c3', lotId: null, otherItemId: null, position: 3, name: 'Lougaroc V', price: 3, imageUrl: 'c.png', groupKey: 'Pokémon FR' },
+  { queueId: 'q4', cardId: 'c4', lotId: null, otherItemId: null, position: 4, name: 'Draeuil V', price: 2, imageUrl: 'd.png', groupKey: 'Pokémon FR' },
+  { queueId: 'q5', cardId: 'c5', lotId: null, otherItemId: null, position: 5, name: 'Mimiqui V', price: 2, imageUrl: 'e.png', groupKey: 'Pokémon FR' },
+  { queueId: 'q6', cardId: 'c6', lotId: null, otherItemId: null, position: 6, name: 'Démolosse V', price: 4, imageUrl: 'f.png', groupKey: 'Pokémon FR' },
+  { queueId: 'q7', cardId: 'c7', lotId: null, otherItemId: null, position: 7, name: 'Cizayox V', price: 4.5, imageUrl: 'g.png', groupKey: 'Pokémon FR' },
+  { queueId: 'q8', cardId: 'c8', lotId: null, otherItemId: null, position: 8, name: 'Zeraora VSTAR', price: 7.2, imageUrl: 'h.png', groupKey: 'Magic' },
 ];
 
 function renderGrid(overrides: Partial<ComponentProps<typeof GroupedQueueGrid>> = {}) {
@@ -194,6 +194,18 @@ describe('<GroupedQueueGrid> snake layout', () => {
     const card = overlay.parentElement as HTMLElement;
     fireEvent.click(card);
     expect(within(overlay).getByLabelText('Poster maintenant')).not.toBeDisabled();
+  });
+
+  it('renders an other_item queue entry using its own name, price and photo — no card-specific sprite fallback', () => {
+    const otherItem: PipelineItem = {
+      queueId: 'q1', cardId: null, lotId: null, otherItemId: 'oi-1',
+      position: 1, name: 'Robot Aspirateur Midea S8+', price: 90,
+      imageUrl: 'https://example.com/photo.jpg', groupKey: 'other-items',
+    };
+    const { container } = renderGrid({ items: [otherItem] });
+    expect(screen.getByText('Robot Aspirateur Midea S8+')).toBeInTheDocument();
+    expect(screen.getByText('90.00 €')).toBeInTheDocument();
+    expect(container.querySelector('img')).toHaveAttribute('src', 'https://example.com/photo.jpg');
   });
 
   it('computeSnakeReorder converts a post-drag visual order back into the correct logical save order', () => {

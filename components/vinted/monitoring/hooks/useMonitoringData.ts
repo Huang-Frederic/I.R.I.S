@@ -22,6 +22,14 @@ export function lotImageUrl(photoUrls: string[] | null | undefined): string {
   return path ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/lot-photos/${path}` : '';
 }
 
+/** Same shape as `lotImageUrl`, pointed at the `other-item-photos` bucket
+ *  instead — `other_items.photo_urls` stores paths the same way
+ *  `lots.photo_urls` does (relative to its own bucket, first entry wins). */
+export function otherItemImageUrl(photoUrls: string[] | null | undefined): string {
+  const path = photoUrls?.[0];
+  return path ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/other-item-photos/${path}` : '';
+}
+
 export interface MonitoringData {
   pipeline: PipelineItem[];
   schedule: Pick<VintedBotScheduleRow, 'block' | 'starts_at' | 'ends_at'>[];
@@ -51,8 +59,8 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [queueRes, scheduleRes, configRes, logsRes, jobsRes, cardListingsRes, lotListingsRes] = await Promise.all([
-      supabase.from('vinted_queue').select('id, card_id, lot_id, position').eq('user_id', viewedUserId).order('position'),
+    const [queueRes, scheduleRes, configRes, logsRes, jobsRes, cardListingsRes, lotListingsRes, otherItemListingsRes] = await Promise.all([
+      supabase.from('vinted_queue').select('id, card_id, lot_id, other_item_id, position').eq('user_id', viewedUserId).order('position'),
       supabase.from('vinted_bot_schedule').select('block, starts_at, ends_at').eq('user_id', viewedUserId),
       supabase.from('vinted_bot_config').select('daily_quota, repost_after_days, group_priority').eq('user_id', viewedUserId).maybeSingle(),
       supabase
@@ -78,22 +86,32 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
         .select('lot_id, vinted_listing_id, vinted_posted_at, repost_position, lots(name, price, photo_urls, brand_id, language, status)')
         .eq('user_id', viewedUserId)
         .not('vinted_listing_id', 'is', null),
+      supabase
+        .from('other_item_listings')
+        .select('other_item_id, vinted_listing_id, vinted_posted_at, repost_position, other_items(name, price, photo_urls, status)')
+        .eq('user_id', viewedUserId)
+        .not('vinted_listing_id', 'is', null),
     ]);
 
     const cardIds = (queueRes.data ?? []).filter((r) => r.card_id).map((r) => r.card_id as string);
     const lotIds = (queueRes.data ?? []).filter((r) => r.lot_id).map((r) => r.lot_id as string);
+    const otherItemIds = (queueRes.data ?? []).filter((r) => r.other_item_id).map((r) => r.other_item_id as string);
 
-    const [cardsRes, lotsRes] = await Promise.all([
+    const [cardsRes, lotsRes, otherItemsRes] = await Promise.all([
       cardIds.length
         ? supabase.from('cards').select('id, card_name, suggested_price, image_url, tcg_image_url, pokemon_number, language').in('id', cardIds)
         : Promise.resolve({ data: [] as { id: string; card_name: string; suggested_price: number | null; image_url: string | null; tcg_image_url: string | null; pokemon_number: number | null; language: string }[] }),
       lotIds.length
         ? supabase.from('lots').select('id, name, price, photo_urls, brand_id, language').in('id', lotIds)
         : Promise.resolve({ data: [] as { id: string; name: string; price: number | null; photo_urls: string[]; brand_id: number | null; language: string | null }[] }),
+      otherItemIds.length
+        ? supabase.from('other_items').select('id, name, price, photo_urls').in('id', otherItemIds)
+        : Promise.resolve({ data: [] as { id: string; name: string; price: number | null; photo_urls: string[] }[] }),
     ]);
 
     const cardsById = new Map((cardsRes.data ?? []).map((c) => [c.id, c]));
     const lotsById = new Map((lotsRes.data ?? []).map((l) => [l.id, l]));
+    const otherItemsById = new Map((otherItemsRes.data ?? []).map((o) => [o.id, o]));
 
     const pipeline: PipelineItem[] = (queueRes.data ?? []).map((row) => {
       if (row.card_id) {
@@ -102,6 +120,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
           queueId: row.id,
           cardId: row.card_id,
           lotId: null,
+          otherItemId: null,
           position: row.position,
           name: card?.card_name ?? '?',
           price: card?.suggested_price ?? null,
@@ -109,11 +128,26 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
           groupKey: groupKeyFor({ cardId: row.card_id, language: card?.language ?? null, brandId: null }),
         };
       }
+      if (row.other_item_id) {
+        const item = otherItemsById.get(row.other_item_id);
+        return {
+          queueId: row.id,
+          cardId: null,
+          lotId: null,
+          otherItemId: row.other_item_id,
+          position: row.position,
+          name: item?.name ?? '?',
+          price: item?.price ?? null,
+          imageUrl: otherItemImageUrl(item?.photo_urls),
+          groupKey: 'other-items', // a flat, single group — other_items don't share the card/lot archetype-grouping concept
+        };
+      }
       const lot = lotsById.get(row.lot_id as string);
       return {
         queueId: row.id,
         cardId: null,
         lotId: row.lot_id,
+        otherItemId: null,
         position: row.position,
         name: lot?.name ?? '?',
         price: lot?.price ?? null,
@@ -139,6 +173,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
         return {
           cardId: row.card_id,
           lotId: null,
+          otherItemId: null,
           name: card.card_name,
           price: card.suggested_price,
           imageUrl: card.image_url ?? card.tcg_image_url ?? fallbackSprite(card.pokemon_number),
@@ -162,6 +197,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
         return {
           cardId: null,
           lotId: row.lot_id,
+          otherItemId: null,
           name: lot.name,
           price: lot.price,
           imageUrl: lotImageUrl(lot.photo_urls),
@@ -172,7 +208,31 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
       })
       .filter((x): x is RepostPoolItem => x !== null);
 
-    const repostCandidates: RepostPoolItem[] = [...cardRepostCandidates, ...lotRepostCandidates].sort((a, b) => {
+    const otherItemRepostCandidates: RepostPoolItem[] = (otherItemListingsRes.data ?? [])
+      .map((row): RepostPoolItem | null => {
+        const item = Array.isArray(row.other_items) ? row.other_items[0] : row.other_items;
+        if (!item) return null;
+        const eligible = isRepostEligible(
+          { vintedListingId: row.vinted_listing_id, vintedPostedAt: row.vinted_posted_at, status: item.status },
+          config.repost_after_days,
+          now,
+        );
+        if (!eligible) return null;
+        return {
+          cardId: null,
+          lotId: null,
+          otherItemId: row.other_item_id,
+          name: item.name,
+          price: item.price,
+          imageUrl: otherItemImageUrl(item.photo_urls),
+          vintedPostedAt: row.vinted_posted_at as string,
+          groupKey: 'other-items',
+          repostPosition: row.repost_position ?? null,
+        };
+      })
+      .filter((x): x is RepostPoolItem => x !== null);
+
+    const repostCandidates: RepostPoolItem[] = [...cardRepostCandidates, ...lotRepostCandidates, ...otherItemRepostCandidates].sort((a, b) => {
       const aNull = a.repostPosition === null;
       const bNull = b.repostPosition === null;
       if (aNull !== bNull) return aNull ? 1 : -1;

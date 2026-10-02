@@ -114,7 +114,11 @@ export default function MonitoringSection() {
   async function postNow(item: PipelineItem) {
     setPostingQueueId(item.queueId);
     try {
-      const body = item.cardId ? { card_id: item.cardId } : { lot_id: item.lotId };
+      const body = item.cardId
+        ? { card_id: item.cardId }
+        : item.lotId
+          ? { lot_id: item.lotId }
+          : { other_item_id: item.otherItemId };
       const response = await fetch('/api/vinted/post-job', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -140,21 +144,23 @@ export default function MonitoringSection() {
     const supabase = createClient();
     await Promise.all(
       items.map((item, index) => {
-        const table = item.cardId ? 'card_listings' : 'lot_listings';
-        const idColumn = item.cardId ? 'card_id' : 'lot_id';
-        const idValue = (item.cardId ?? item.lotId) as string;
+        const table = item.cardId ? 'card_listings' : item.lotId ? 'lot_listings' : 'other_item_listings';
+        const idColumn = item.cardId ? 'card_id' : item.lotId ? 'lot_id' : 'other_item_id';
+        const idValue = (item.cardId ?? item.lotId ?? item.otherItemId) as string;
         return supabase.from(table).update({ repost_position: index + 1 }).eq(idColumn, idValue).eq('user_id', viewedUserId);
       }),
     );
   }
 
   async function repostNow(item: RepostPoolItem) {
-    const id = (item.cardId ?? item.lotId) as string;
+    const id = (item.cardId ?? item.lotId ?? item.otherItemId) as string;
     setRepostingId(id);
     try {
       const body = item.cardId
         ? { card_id: item.cardId, job_type: 'repost' as const }
-        : { lot_id: item.lotId, job_type: 'repost' as const };
+        : item.lotId
+          ? { lot_id: item.lotId, job_type: 'repost' as const }
+          : { other_item_id: item.otherItemId, job_type: 'repost' as const };
       const response = await fetch('/api/vinted/post-job', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

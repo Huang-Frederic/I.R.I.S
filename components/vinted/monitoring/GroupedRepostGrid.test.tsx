@@ -37,13 +37,13 @@ afterEach(() => {
 // 6 items in "Pokémon FR" (two full 3-column rows in tests' default column
 // count) + 1 lot in "Riftbound".
 const ITEMS: RepostPoolItem[] = [
-  { cardId: 'c1', lotId: null, name: 'Mimiqui V', price: 2, imageUrl: 'a.png', vintedPostedAt: '2026-01-01T00:00:00Z', groupKey: 'Pokémon FR', repostPosition: 1 },
-  { cardId: 'c2', lotId: null, name: 'Démolosse V', price: 4, imageUrl: 'b.png', vintedPostedAt: '2026-01-02T00:00:00Z', groupKey: 'Pokémon FR', repostPosition: 2 },
-  { cardId: 'c3', lotId: null, name: 'Cizayox V', price: 4.5, imageUrl: 'c.png', vintedPostedAt: '2026-01-03T00:00:00Z', groupKey: 'Pokémon FR', repostPosition: 3 },
-  { cardId: 'c4', lotId: null, name: 'Draeuil V', price: 2, imageUrl: 'd.png', vintedPostedAt: '2026-01-04T00:00:00Z', groupKey: 'Pokémon FR', repostPosition: 4 },
-  { cardId: 'c5', lotId: null, name: 'Lougaroc V', price: 3, imageUrl: 'e.png', vintedPostedAt: '2026-01-05T00:00:00Z', groupKey: 'Pokémon FR', repostPosition: 5 },
-  { cardId: 'c6', lotId: null, name: 'Pharamp GX', price: 9.5, imageUrl: 'f.png', vintedPostedAt: '2026-01-06T00:00:00Z', groupKey: 'Pokémon FR', repostPosition: 6 },
-  { cardId: null, lotId: 'l1', name: 'Lot Riftbound', price: 12, imageUrl: 'g.png', vintedPostedAt: '2026-01-07T00:00:00Z', groupKey: 'Riftbound', repostPosition: null },
+  { cardId: 'c1', lotId: null, otherItemId: null, name: 'Mimiqui V', price: 2, imageUrl: 'a.png', vintedPostedAt: '2026-01-01T00:00:00Z', groupKey: 'Pokémon FR', repostPosition: 1 },
+  { cardId: 'c2', lotId: null, otherItemId: null, name: 'Démolosse V', price: 4, imageUrl: 'b.png', vintedPostedAt: '2026-01-02T00:00:00Z', groupKey: 'Pokémon FR', repostPosition: 2 },
+  { cardId: 'c3', lotId: null, otherItemId: null, name: 'Cizayox V', price: 4.5, imageUrl: 'c.png', vintedPostedAt: '2026-01-03T00:00:00Z', groupKey: 'Pokémon FR', repostPosition: 3 },
+  { cardId: 'c4', lotId: null, otherItemId: null, name: 'Draeuil V', price: 2, imageUrl: 'd.png', vintedPostedAt: '2026-01-04T00:00:00Z', groupKey: 'Pokémon FR', repostPosition: 4 },
+  { cardId: 'c5', lotId: null, otherItemId: null, name: 'Lougaroc V', price: 3, imageUrl: 'e.png', vintedPostedAt: '2026-01-05T00:00:00Z', groupKey: 'Pokémon FR', repostPosition: 5 },
+  { cardId: 'c6', lotId: null, otherItemId: null, name: 'Pharamp GX', price: 9.5, imageUrl: 'f.png', vintedPostedAt: '2026-01-06T00:00:00Z', groupKey: 'Pokémon FR', repostPosition: 6 },
+  { cardId: null, lotId: 'l1', otherItemId: null, name: 'Lot Riftbound', price: 12, imageUrl: 'g.png', vintedPostedAt: '2026-01-07T00:00:00Z', groupKey: 'Riftbound', repostPosition: null },
 ];
 
 function renderGrid(overrides: Partial<ComponentProps<typeof GroupedRepostGrid>> = {}) {
@@ -189,6 +189,31 @@ describe('<GroupedRepostGrid> snake layout', () => {
     const card = overlay.parentElement as HTMLElement;
     fireEvent.click(card);
     expect(within(overlay).getByLabelText('Reposter maintenant')).not.toBeDisabled();
+  });
+
+  it('renders an other_item repost candidate using its own name, price and photo', () => {
+    const otherItem: RepostPoolItem = {
+      cardId: null, lotId: null, otherItemId: 'oi-1', name: 'Robot Aspirateur Midea S8+', price: 90,
+      imageUrl: 'https://example.com/photo.jpg', vintedPostedAt: '2026-01-01T00:00:00Z',
+      groupKey: 'other-items', repostPosition: null,
+    };
+    const { container } = renderGrid({ items: [otherItem] });
+    expect(screen.getByText('Robot Aspirateur Midea S8+')).toBeInTheDocument();
+    expect(screen.getByText('90.00 €')).toBeInTheDocument();
+    expect(container.querySelector('img')).toHaveAttribute('src', 'https://example.com/photo.jpg');
+  });
+
+  it('still calls onReorder with the moved other_item\'s id (falling back to otherItemId when cardId/lotId are both null) when using "move to front"', () => {
+    const items: RepostPoolItem[] = [
+      { cardId: null, lotId: null, otherItemId: 'oi-1', name: 'Robot Aspirateur', price: 90, imageUrl: 'a.png', vintedPostedAt: '2026-01-01T00:00:00Z', groupKey: 'other-items', repostPosition: 1 },
+      { cardId: null, lotId: null, otherItemId: 'oi-2', name: 'Lampe de bureau', price: 15, imageUrl: 'b.png', vintedPostedAt: '2026-01-02T00:00:00Z', groupKey: 'other-items', repostPosition: 2 },
+    ];
+    const onReorder = vi.fn();
+    renderGrid({ items, onReorder });
+    const overlay = screen.getByText('Lampe de bureau').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    fireEvent.click(overlay.parentElement as HTMLElement);
+    fireEvent.click(within(overlay).getByLabelText('Mettre en premier dans le groupe'));
+    expect(onReorder).toHaveBeenCalledWith(expect.any(Array), 'oi-2');
   });
 
   it('computeSnakeReorder converts a post-drag visual order back into the correct logical save order', () => {

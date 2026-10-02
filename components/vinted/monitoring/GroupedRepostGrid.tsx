@@ -25,6 +25,7 @@ import { useSnakeColumns } from './hooks/useSnakeColumns';
 export interface RepostPoolItem {
   cardId: string | null;
   lotId: string | null;
+  otherItemId: string | null;
   name: string;
   price: number | null;
   imageUrl: string;
@@ -34,7 +35,7 @@ export interface RepostPoolItem {
 }
 
 function itemId(item: RepostPoolItem): string {
-  return (item.cardId ?? item.lotId) as string;
+  return (item.cardId ?? item.lotId ?? item.otherItemId) as string;
 }
 
 interface Group {

@@ -26,6 +26,7 @@ export interface PipelineItem {
   queueId: string;
   cardId: string | null;
   lotId: string | null;
+  otherItemId: string | null;
   position: number;
   name: string;
   price: number | null;

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from './route';
+import { FRED_USER_ID } from '@/lib/vinted/other-item-queue-sync';
 
 const mockCard = {
   id: 'card-1',
@@ -175,6 +176,12 @@ describe('POST /api/vinted/post-job', () => {
   it('returns 400 when both card_id and lot_id are provided', async () => {
     supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
     const res = await POST(makeRequest({ card_id: 'card-1', lot_id: 'lot-1' }));
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when both card_id and other_item_id are provided', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    const res = await POST(makeRequest({ card_id: 'card-1', other_item_id: 'item-1' }));
     expect(res.status).toBe(400);
   });
 
@@ -406,6 +413,223 @@ describe('POST /api/vinted/post-job', () => {
     const res = await POST(makeRequest({ lot_id: 'lot-1', job_type: 'repost' }));
     expect(res.status).toBe(201);
     expect(insertMock).toHaveBeenCalledWith({ lot_id: 'lot-1', user_id: 'user-1', job_type: 'repost', triggered_by: 'manual' });
+    expect(touchedTables).not.toContain('vinted_queue');
+  });
+
+  const mockOtherItem = {
+    id: 'item-1',
+    status: 'for_sale',
+    price: 25.0,
+    name: 'Robot Aspirateur Midea S8+',
+    vinted_catalog_id: 123,
+  };
+
+  // other_items is Fred-only by design (lib/vinted/other-item-queue-sync.ts) —
+  // unlike cards/lots, a generic VINTED_USER_IDS membership is NOT enough on
+  // its own for this branch: Gilly is a valid Vinted-enabled account (she'd
+  // be in VINTED_USER_IDS) but must never be able to post an other_item, even
+  // though she never sees the option in the UI. This guards the server side.
+  it('returns 403 for a non-Fred user posting an other_item, even if they are in VINTED_USER_IDS', async () => {
+    process.env.VINTED_USER_IDS = `user-1,user-2,${FRED_USER_ID}`;
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-2' } } });
+    const res = await POST(makeRequest({ other_item_id: 'item-1' }));
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 404 when other_item not found', async () => {
+    process.env.VINTED_USER_IDS = FRED_USER_ID;
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: FRED_USER_ID } } });
+    supabaseMock.from.mockImplementation((table: string) => {
+      if (table === 'other_items') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: null, error: { message: 'not found' } }),
+        };
+      }
+      return {};
+    });
+    const res = await POST(makeRequest({ other_item_id: 'item-1' }));
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 409 when Fred already has a Vinted listing for this other_item', async () => {
+    process.env.VINTED_USER_IDS = FRED_USER_ID;
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: FRED_USER_ID } } });
+    supabaseMock.from.mockImplementation((table: string) => {
+      if (table === 'other_items') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: mockOtherItem, error: null }),
+        };
+      }
+      if (table === 'other_item_listings') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: { vinted_listing_id: 'existing-id' }, error: null }),
+        };
+      }
+      return {};
+    });
+    const res = await POST(makeRequest({ other_item_id: 'item-1' }));
+    expect(res.status).toBe(409);
+  });
+
+  it('creates an other_item job and returns 201', async () => {
+    process.env.VINTED_USER_IDS = FRED_USER_ID;
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: FRED_USER_ID } } });
+    const jobRow = { id: 'job-5', other_item_id: 'item-1', status: 'pending' };
+    supabaseMock.from.mockImplementation((table: string) => {
+      if (table === 'other_items') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: mockOtherItem, error: null }),
+        };
+      }
+      if (table === 'other_item_listings') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        };
+      }
+      if (table === 'vinted_post_jobs') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          insert: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: jobRow, error: null }),
+        };
+      }
+      if (table === 'vinted_queue') {
+        return {
+          delete: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          then: (resolve: (v: { error: null }) => void) => resolve({ error: null }),
+        };
+      }
+      return {};
+    });
+    const res = await POST(makeRequest({ other_item_id: 'item-1' }));
+    expect(res.status).toBe(201);
+    const json = await res.json();
+    expect(json.job_id).toBe('job-5');
+  });
+
+  it('removes the matching vinted_queue row after creating an other_item job', async () => {
+    process.env.VINTED_USER_IDS = FRED_USER_ID;
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: FRED_USER_ID } } });
+    const jobRow = { id: 'job-5', other_item_id: 'item-1', status: 'pending' };
+    const queueDeleteEq = vi.fn().mockReturnThis();
+    supabaseMock.from.mockImplementation((table: string) => {
+      if (table === 'other_items') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: mockOtherItem, error: null }),
+        };
+      }
+      if (table === 'other_item_listings') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        };
+      }
+      if (table === 'vinted_post_jobs') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          insert: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: jobRow, error: null }),
+        };
+      }
+      if (table === 'vinted_queue') {
+        return {
+          delete: vi.fn().mockReturnThis(),
+          eq: queueDeleteEq,
+          then: (resolve: (v: { error: null }) => void) => resolve({ error: null }),
+        };
+      }
+      return {};
+    });
+    const res = await POST(makeRequest({ other_item_id: 'item-1' }));
+    expect(res.status).toBe(201);
+    expect(queueDeleteEq).toHaveBeenCalledWith('user_id', FRED_USER_ID);
+    expect(queueDeleteEq).toHaveBeenCalledWith('other_item_id', 'item-1');
+  });
+
+  it('returns 400 when an other_item repost is requested but there is no existing listing', async () => {
+    process.env.VINTED_USER_IDS = FRED_USER_ID;
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: FRED_USER_ID } } });
+    supabaseMock.from.mockImplementation((table: string) => {
+      if (table === 'other_items') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: mockOtherItem, error: null }),
+        };
+      }
+      if (table === 'other_item_listings') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        };
+      }
+      return {};
+    });
+    const res = await POST(makeRequest({ other_item_id: 'item-1', job_type: 'repost' }));
+    expect(res.status).toBe(400);
+  });
+
+  it('creates a repost job for an other_item that already has a listing, without touching vinted_queue', async () => {
+    process.env.VINTED_USER_IDS = FRED_USER_ID;
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: FRED_USER_ID } } });
+    const jobRow = { id: 'job-6', other_item_id: 'item-1', status: 'pending' };
+    const insertMock = vi.fn().mockReturnThis();
+    const touchedTables: string[] = [];
+    supabaseMock.from.mockImplementation((table: string) => {
+      touchedTables.push(table);
+      if (table === 'other_items') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: mockOtherItem, error: null }),
+        };
+      }
+      if (table === 'other_item_listings') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: { vinted_listing_id: 'existing-id' }, error: null }),
+        };
+      }
+      if (table === 'vinted_post_jobs') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          insert: insertMock,
+          single: vi.fn().mockResolvedValue({ data: jobRow, error: null }),
+        };
+      }
+      return {};
+    });
+    const res = await POST(makeRequest({ other_item_id: 'item-1', job_type: 'repost' }));
+    expect(res.status).toBe(201);
+    expect(insertMock).toHaveBeenCalledWith({ other_item_id: 'item-1', user_id: FRED_USER_ID, job_type: 'repost', triggered_by: 'manual' });
     expect(touchedTables).not.toContain('vinted_queue');
   });
 });
