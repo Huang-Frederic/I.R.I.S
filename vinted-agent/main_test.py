@@ -370,3 +370,34 @@ def test_log_does_not_crash_when_no_supabase_client_is_given():
     # Some call sites might only have a user_id but not the client handy —
     # _log must degrade to console-only rather than raising.
     asyncio.run(_log(None, "user-1", "info", "still just a console message"))
+
+
+from main import build_other_item_title, build_other_item_description, NO_VINTED_GO_WARNING, MAX_TITLE_LENGTH
+
+
+def test_build_other_item_title_uses_the_name_verbatim():
+    item = {"name": "Robot Aspirateur Midea S8+"}
+    assert build_other_item_title(item) == "Robot Aspirateur Midea S8+"
+
+
+def test_build_other_item_title_truncates_at_80_chars():
+    item = {"name": "x" * 100}
+    title = build_other_item_title(item)
+    assert len(title) == MAX_TITLE_LENGTH
+    assert title == "x" * MAX_TITLE_LENGTH
+
+
+def test_build_other_item_description_wraps_with_the_no_vinted_go_banner():
+    item = {"description": "Je vends mon aspirateur, utilisé une fois."}
+    desc = build_other_item_description(item)
+    lines = desc.split("\n")
+    assert lines[0] == NO_VINTED_GO_WARNING
+    assert lines[-1] == NO_VINTED_GO_WARNING
+    assert "Je vends mon aspirateur, utilisé une fois." in desc
+
+
+def test_build_other_item_description_handles_empty_description():
+    item = {"description": ""}
+    desc = build_other_item_description(item)
+    assert desc.startswith(NO_VINTED_GO_WARNING)
+    assert desc.endswith(NO_VINTED_GO_WARNING)

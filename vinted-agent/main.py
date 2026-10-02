@@ -378,6 +378,16 @@ def build_lot_description(lot: dict) -> str:
     )
 
 
+def build_other_item_title(item: dict) -> str:
+    return (item.get("name") or "")[:MAX_TITLE_LENGTH]
+
+
+def build_other_item_description(item: dict) -> str:
+    lines = [NO_VINTED_GO_WARNING, "", (item.get("description") or "").strip()]
+    lines += ["", NO_VINTED_GO_WARNING]
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------------------
 # Supabase helpers
 # ---------------------------------------------------------------------------
