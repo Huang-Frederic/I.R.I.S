@@ -1,4 +1,5 @@
 cookies_*.json
+export-other-items/
 vinted_users.json
 .env
 __pycache__/
