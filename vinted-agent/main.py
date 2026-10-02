@@ -12,7 +12,7 @@ from supabase import acreate_client, AsyncClient
 from realtime.types import RealtimeSubscribeStates
 
 from vinted_api import VintedClient, ListingGoneError
-from vinted_api import CONDITION_MAP, CARD_LOTS_CATALOG_ID, POKEMON_BRAND_ID
+from vinted_api import CONDITION_MAP, CARD_LOTS_CATALOG_ID, POKEMON_BRAND_ID, SANS_MARQUE_BRAND_ID
 from audit_log import audit_log
 from scheduler import decide_next_action, sort_repost_candidates
 
@@ -766,6 +766,155 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
                     })
 
 
+async def get_other_item(supabase: AsyncClient, other_item_id: str) -> dict | None:
+    res = await supabase.table("other_items").select(
+        "id,name,description,price,photo_urls,vinted_catalog_id,vinted_catalog_path,"
+        "brand_name,vinted_condition_id,size,status"
+    ).eq("id", other_item_id).single().execute()
+    return res.data
+
+
+def pick_other_item_price(item: dict) -> float:
+    if item.get("price") is not None:
+        return float(item["price"])
+    return 1.0
+
+
+# Reverse of CONDITION_MAP (vinted_api.py) — other_items stores Vinted's own
+# numeric condition id directly, but create_listing()/process_job's existing
+# plumbing takes the letter-grade key, so translate back at the boundary
+# rather than widen create_listing's signature.
+_CONDITION_ID_TO_KEY = {v: k for k, v in CONDITION_MAP.items()}
+
+
+async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, job: dict) -> None:
+    job_id        = job["id"]
+    other_item_id = job["other_item_id"]
+    user_id       = job.get("user_id")
+    job_type      = job.get("job_type", "post")
+    short         = job_id[:8]
+    tag           = _utag(user_id)
+    await _log(supabase, user_id, "info", "▶  %s [objet] %s — job %s", tag, job_type, short)
+
+    if job_type == "delete":
+        old_listing_id = job.get("vinted_listing_id")
+        if not old_listing_id:
+            existing = await supabase.table("other_item_listings").select("vinted_listing_id") \
+                .eq("other_item_id", other_item_id).eq("user_id", user_id).limit(1).execute()
+            old_listing_id = (existing.data[0] if existing.data else {}).get("vinted_listing_id")
+        if not old_listing_id:
+            await _fail_job(supabase, job_id, other_item_id, "No active listing to delete", user_id, entity_type="other_item")
+            return
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, vinted.delete_listing, old_listing_id)
+            await audit_log(supabase, user_id, "listing.deleted",
+                            entity_type="other_item", entity_id=other_item_id,
+                            details={"vinted_listing_id": old_listing_id, "reason": "cross_user_sync"})
+        except ListingGoneError:
+            pass
+        except Exception as e:
+            await _fail_job(supabase, job_id, other_item_id, f"Delete échoué: {e}", user_id, entity_type="other_item")
+            return
+        await supabase.table("other_item_listings").update({
+            "vinted_listing_id": None, "vinted_posted_at": None,
+        }).eq("other_item_id", other_item_id).eq("user_id", user_id).execute()
+        await supabase.table("vinted_post_jobs").update({
+            "status": "done", "processed_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", job_id).execute()
+        return
+
+    if job_type == "repost" and user_id:
+        meta = await supabase.table("other_item_listings").select("vinted_listing_id") \
+            .eq("other_item_id", other_item_id).eq("user_id", user_id).limit(1).execute()
+        old_listing_id = (meta.data[0] if meta.data else {}).get("vinted_listing_id")
+        if old_listing_id:
+            try:
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, vinted.delete_listing, old_listing_id)
+            except ListingGoneError:
+                pass
+            except Exception as e:
+                await _fail_job(supabase, job_id, other_item_id, f"Delete échoué: {e}", user_id, entity_type="other_item")
+                return
+            await supabase.table("other_item_listings").update({
+                "vinted_listing_id": None, "vinted_posted_at": None,
+            }).eq("other_item_id", other_item_id).eq("user_id", user_id).execute()
+        delay = random.uniform(30, 90)
+        await asyncio.sleep(delay)
+
+    item = await get_other_item(supabase, other_item_id)
+    if not item:
+        await _fail_job(supabase, job_id, other_item_id, "Other item not found", user_id, entity_type="other_item")
+        return
+    if item.get("status") != "for_sale":
+        await supabase.table("vinted_post_jobs").update(
+            {"status": "error", "error": f"Item status is '{item.get('status')}', not for_sale",
+             "processed_at": datetime.now(timezone.utc).isoformat()}
+        ).eq("id", job_id).execute()
+        return
+
+    photo_urls = item.get("photo_urls") or []
+    if not photo_urls:
+        await _fail_job(supabase, job_id, other_item_id, "No photos available", user_id, entity_type="other_item")
+        return
+    # photo_urls are Storage paths ("item_id/0.jpg"), not public URLs — build
+    # the public URL the same way lot photos already do (see any lot photo
+    # rendering call site for the exact bucket-URL shape: SUPABASE_URL +
+    # "/storage/v1/object/public/other-item-photos/" + path).
+    base = os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "")
+    image_urls = [f"{base}/storage/v1/object/public/other-item-photos/{p}" for p in photo_urls]
+
+    condition = _CONDITION_ID_TO_KEY.get(item.get("vinted_condition_id"), "GD")
+    title = build_other_item_title(item)
+    description = build_other_item_description(item)
+    price = pick_other_item_price(item)
+
+    await _log(supabase, user_id, "info", "📋  %s %s — %.2f€", tag, title, price)
+
+    try:
+        await asyncio.sleep(random.uniform(8, 20))
+        photo_id = await asyncio.get_running_loop().run_in_executor(
+            None, vinted.upload_photo, image_urls[0]
+        )
+        await asyncio.sleep(random.uniform(10, 20))
+        listing_id = await asyncio.get_running_loop().run_in_executor(
+            None, lambda: vinted.create_listing(
+                title=title,
+                description=description,
+                price=price,
+                condition=condition,
+                image_urls=image_urls,
+                photo_ids=[photo_id],
+                catalog_id=item["vinted_catalog_id"],
+                brand_id=SANS_MARQUE_BRAND_ID,
+                brand=item.get("brand_name") or "",
+            )
+        )
+    except Exception as e:
+        await _log(supabase, user_id, "error", "❌  %s erreur API Vinted : %s", tag, e)
+        await _fail_job(supabase, job_id, other_item_id, str(e), user_id, entity_type="other_item")
+        return
+
+    now = datetime.now(timezone.utc).isoformat()
+    await supabase.table("other_item_listings").upsert({
+        "other_item_id": other_item_id,
+        "user_id": user_id,
+        "listed_at": now,
+        "vinted_listing_id": listing_id,
+        "vinted_posted_at": now,
+        "repost_position": None,
+    }).execute()
+
+    await supabase.table("vinted_post_jobs").update({
+        "status": "done", "processed_at": now,
+    }).eq("id", job_id).execute()
+    await _log(supabase, user_id, "info", "✅  %s publié → vinted.fr/items/%s", tag, listing_id)
+    await audit_log(supabase, user_id, "listing.posted",
+                    entity_type="other_item", entity_id=other_item_id,
+                    details={"vinted_listing_id": listing_id, "title": title, "price": price})
+
+
 async def _fail_job(supabase: AsyncClient, job_id: str, item_id: str, error: str, user_id: str = None, entity_type: str = None) -> None:
     now = datetime.now(timezone.utc).isoformat()
     safe_error = "".join(c for c in str(error) if c.isprintable())[:500]
@@ -930,10 +1079,11 @@ async def _dispatch_job(supabase: AsyncClient, record: dict) -> None:
                 await _log(supabase, user_id, "error",
                            "❌  %s session expirée — relance import_cookies.py puis colle le contenu du fichier "
                            "cookies_*.json dans le dashboard : %s", tag, e)
-                item_id = record.get("card_id") or record.get("lot_id")
+                item_id = record.get("card_id") or record.get("lot_id") or record.get("other_item_id")
+                entity_type = "other_item" if record.get("other_item_id") else ("lot" if record.get("lot_id") else "card")
                 await _fail_job(supabase, record["id"], item_id,
                                 "Session expirée — relance import_cookies.py puis colle le fichier dans le dashboard",
-                                entity_type="lot" if record.get("lot_id") else "card")
+                                entity_type=entity_type)
                 # Cooldown on the failure path too. Without it a queue of N jobs
                 # fires N auth attempts back-to-back the moment a session dies —
                 # observed in the wild: 5 jobs in 5s, the last two answered with
@@ -943,7 +1093,9 @@ async def _dispatch_job(supabase: AsyncClient, record: dict) -> None:
                 log.info("⏳  %s ~%.0fs avant prochain job…", tag, delay)
                 await asyncio.sleep(delay)
                 return
-            if record.get("lot_id"):
+            if record.get("other_item_id"):
+                await process_other_item_job(supabase, vinted, record)
+            elif record.get("lot_id"):
                 await process_lot_job(supabase, vinted, record)
             else:
                 await process_job(supabase, vinted, record)

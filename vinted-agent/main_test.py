@@ -401,3 +401,87 @@ def test_build_other_item_description_handles_empty_description():
     desc = build_other_item_description(item)
     assert desc.startswith(NO_VINTED_GO_WARNING)
     assert desc.endswith(NO_VINTED_GO_WARNING)
+
+
+from main import process_other_item_job
+
+
+def _mock_supabase_for_post_other_item(other_item: dict):
+    """Mocks the chain process_other_item_job's 'post' path drives:
+    other_items.select(...).eq("id", ...).single().execute() -> the item row
+    other_item_listings.upsert({...}).execute()
+    vinted_post_jobs.update({...}).eq("id", ...).execute()
+    Unmocked tables (vinted_agent_logs, audit_logs) are fine to leave
+    unhandled — _log/audit_log both swallow any exception internally.
+    """
+    supabase = MagicMock()
+
+    item_single_execute = AsyncMock(return_value=MagicMock(data=other_item))
+    item_single = MagicMock(execute=item_single_execute)
+    item_eq = MagicMock(single=MagicMock(return_value=item_single))
+    item_select = MagicMock(eq=MagicMock(return_value=item_eq))
+    other_items_table = MagicMock(select=MagicMock(return_value=item_select))
+
+    upsert_execute = AsyncMock(return_value=MagicMock(data=[{"other_item_id": other_item["id"]}]))
+    upsert_fn = MagicMock(return_value=MagicMock(execute=upsert_execute))
+    other_item_listings_table = MagicMock(upsert=upsert_fn)
+
+    jobs_update_execute = AsyncMock(return_value=MagicMock(data=[{"id": "job-1"}]))
+    jobs_update_eq = MagicMock(execute=jobs_update_execute)
+    jobs_update_fn = MagicMock(return_value=MagicMock(eq=MagicMock(return_value=jobs_update_eq)))
+    jobs_table = MagicMock(update=jobs_update_fn)
+
+    def table(name):
+        if name == "other_items":
+            return other_items_table
+        if name == "other_item_listings":
+            return other_item_listings_table
+        if name == "vinted_post_jobs":
+            return jobs_table
+        raise AssertionError(f"unexpected table: {name}")
+
+    supabase.table = MagicMock(side_effect=table)
+    return supabase, upsert_fn, jobs_update_fn
+
+
+def test_process_other_item_job_posts_and_upserts_listing():
+    item = {
+        "id": "item-1", "name": "Robot Aspirateur", "description": "desc",
+        "price": 90, "photo_urls": ["item-1/0.jpg"], "vinted_catalog_id": 2994,
+        "vinted_condition_id": 1, "brand_name": "Midea", "status": "for_sale",
+    }
+    supabase, upsert_fn, jobs_update_fn = _mock_supabase_for_post_other_item(item)
+    vinted = MagicMock()
+    vinted.upload_photo = MagicMock(return_value=111)
+    vinted.create_listing = MagicMock(return_value="999")
+    job = {"id": "job-1", "other_item_id": "item-1", "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7", "job_type": "post"}
+
+    asyncio.run(process_other_item_job(supabase, vinted, job))
+
+    vinted.create_listing.assert_called_once()
+    kwargs = vinted.create_listing.call_args.kwargs
+    assert kwargs["catalog_id"] == 2994
+    assert kwargs["condition"] == "NM"  # vinted_condition_id 1 maps back to the CONDITION_MAP key
+    upsert_payload = upsert_fn.call_args.args[0]
+    assert upsert_payload["vinted_listing_id"] == "999"
+    assert upsert_payload["other_item_id"] == "item-1"
+    status_arg = jobs_update_fn.call_args.args[0]
+    assert status_arg["status"] == "done"
+
+
+def test_process_other_item_job_fails_gracefully_on_vinted_api_error():
+    item = {
+        "id": "item-1", "name": "X", "description": "", "price": 10,
+        "photo_urls": ["item-1/0.jpg"], "vinted_catalog_id": 1, "vinted_condition_id": 1, "status": "for_sale",
+    }
+    supabase, upsert_fn, jobs_update_fn = _mock_supabase_for_post_other_item(item)
+    vinted = MagicMock()
+    vinted.upload_photo = MagicMock(return_value=111)
+    vinted.create_listing = MagicMock(side_effect=RuntimeError("Vinted 500"))
+    job = {"id": "job-1", "other_item_id": "item-1", "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7", "job_type": "post"}
+
+    asyncio.run(process_other_item_job(supabase, vinted, job))
+
+    update_call = jobs_update_fn.call_args.args[0]
+    assert update_call["status"] == "error"
+    assert "Vinted 500" in update_call["error"]
