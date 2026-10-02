@@ -38,36 +38,69 @@ export default function OtherItemForm() {
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Mirrors `photos` so `submit()` can read the latest array *after* awaiting
+  // pending resizes below — awaiting inside `submit()` doesn't refresh the
+  // `photos` binding captured by that closure, since React state updates
+  // don't retroactively change a value already destructured in a running
+  // function call.
+  const photosRef = useRef<File[]>([]);
+  // In-flight resize work started by addPhotos(), so submit() can wait for
+  // it to finish instead of uploading pre-resize (potentially 5-12 MB) raw
+  // files — see resizeImage()'s docstring on why that matters.
+  const pendingResizesRef = useRef<Set<Promise<void>>>(new Set());
 
   const nameTooLong = name.length > TITLE_MAX;
   const previewUrls = useMemo(() => photos.map((p) => URL.createObjectURL(p)), [photos]);
 
-  async function addPhotos(files: FileList | File[]) {
+  // Updates photosRef synchronously (plain assignment, not dependent on
+  // React's own scheduling) and derives the next array from it rather than
+  // from setPhotos' own `prev` — React doesn't guarantee a functional
+  // setState updater runs synchronously with the setPhotos(...) call site,
+  // so computing off of React's `prev` and writing photosRef.current from
+  // *inside* that callback can leave the ref stale exactly when something
+  // async (like the resize wait in submit()) needs its latest value right
+  // after the triggering promise settles.
+  function updatePhotos(updater: (prev: File[]) => File[]) {
+    const next = updater(photosRef.current);
+    photosRef.current = next;
+    setPhotos(next);
+  }
+
+  function addPhotos(files: FileList | File[]) {
     const arr = Array.from(files).filter((f) => f.type.startsWith('image/'));
     if (arr.length === 0) return;
     // Add the raw files synchronously first so the picker/submit button
     // reflects the new count immediately, then resize in the background and
     // swap each entry in place (matched by object identity, so concurrent
     // add/remove calls don't clobber each other).
-    setPhotos((prev) => [...prev, ...arr]);
-    const resized = await Promise.all(
-      arr.map(async (f) => {
-        try {
-          const blob = await resizeImage(f);
-          return new File([blob], f.name, { type: 'image/jpeg' });
-        } catch {
-          return f;
-        }
-      }),
-    );
-    setPhotos((prev) => {
-      const next = [...prev];
-      arr.forEach((original, i) => {
-        const pos = next.indexOf(original);
-        if (pos !== -1) next[pos] = resized[i];
+    updatePhotos((prev) => [...prev, ...arr]);
+
+    const resizeDone: Promise<void> = (async () => {
+      const resized = await Promise.all(
+        arr.map(async (f) => {
+          try {
+            const blob = await resizeImage(f);
+            return new File([blob], f.name, { type: 'image/jpeg' });
+          } catch {
+            return f;
+          }
+        }),
+      );
+      updatePhotos((prev) => {
+        const next = [...prev];
+        arr.forEach((original, i) => {
+          const pos = next.indexOf(original);
+          if (pos !== -1) next[pos] = resized[i];
+        });
+        return next;
       });
-      return next;
-    });
+    })();
+
+    pendingResizesRef.current.add(resizeDone);
+    // Always deregister once settled (resizeDone itself never rejects, each
+    // per-file resize already falls back to the raw file on error above) so
+    // the set doesn't keep growing across multiple photo-add interactions.
+    void resizeDone.finally(() => pendingResizesRef.current.delete(resizeDone));
   }
 
   async function submit(e: React.FormEvent) {
@@ -83,6 +116,14 @@ export default function OtherItemForm() {
 
     setSubmitting(true);
     try {
+      // Wait for any resize started by addPhotos() to finish before reading
+      // photosRef — otherwise a fast submit (add photo, then immediately
+      // submit, before resizeImage resolves) would upload the raw,
+      // pre-resize file instead, defeating the point of resizing at all.
+      if (pendingResizesRef.current.size > 0) {
+        await Promise.all(pendingResizesRef.current);
+      }
+
       const fd = new FormData();
       fd.set('name', name.trim());
       if (description.trim()) fd.set('description', description.trim());
@@ -93,7 +134,7 @@ export default function OtherItemForm() {
       if (brand.trim()) fd.set('brand_name', brand.trim());
       if (size.trim()) fd.set('size', size.trim());
       fd.set('status', dest);
-      for (const p of photos) fd.append('photos', p);
+      for (const p of photosRef.current) fd.append('photos', p);
 
       const res = await fetch('/api/other-items', { method: 'POST', body: fd });
       const json = await res.json();
@@ -106,7 +147,7 @@ export default function OtherItemForm() {
       setBrand('');
       setCondition(3);
       setSize('');
-      setPhotos([]);
+      updatePhotos(() => []);
       setSubmitting(false);
       setSubmitted(true);
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -129,7 +170,7 @@ export default function OtherItemForm() {
           accept="image/*"
           multiple
           onChange={(e) => {
-            if (e.target.files) void addPhotos(e.target.files);
+            if (e.target.files) addPhotos(e.target.files);
           }}
           className="mt-1 block w-full text-sm"
         />
