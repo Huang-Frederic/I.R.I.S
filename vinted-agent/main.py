@@ -843,6 +843,17 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
         delay = random.uniform(30, 90)
         await asyncio.sleep(delay)
 
+    # Guard: skip if another job already posted this item for the same user
+    if user_id and job_type == "post":
+        existing = await supabase.table("other_item_listings").select("vinted_listing_id") \
+            .eq("other_item_id", other_item_id).eq("user_id", user_id).limit(1).execute()
+        if existing.data and existing.data[0].get("vinted_listing_id"):
+            await _log(supabase, user_id, "info", "⏭  %s objet déjà publié (#%s) — job ignoré", tag, existing.data[0]["vinted_listing_id"])
+            await supabase.table("vinted_post_jobs").update(
+                {"status": "done", "processed_at": datetime.now(timezone.utc).isoformat()}
+            ).eq("id", job_id).execute()
+            return
+
     item = await get_other_item(supabase, other_item_id)
     if not item:
         await _fail_job(supabase, job_id, other_item_id, "Other item not found", user_id, entity_type="other_item")
@@ -859,11 +870,16 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
         await _fail_job(supabase, job_id, other_item_id, "No photos available", user_id, entity_type="other_item")
         return
     # photo_urls are Storage paths ("item_id/0.jpg"), not public URLs — build
-    # the public URL the same way lot photos already do (see any lot photo
-    # rendering call site for the exact bucket-URL shape: SUPABASE_URL +
-    # "/storage/v1/object/public/other-item-photos/" + path).
-    base = os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "")
-    image_urls = [f"{base}/storage/v1/object/public/other-item-photos/{p}" for p in photo_urls]
+    # the public URL the same way lot photos already do just above in
+    # process_lot_job (SUPABASE_URL + "/storage/v1/object/public/" + bucket +
+    # "/" + path). NEXT_PUBLIC_SUPABASE_URL is a Next.js-frontend-only env
+    # var that is never set in vinted-agent's own process environment — using
+    # it here silently produced a schemeless "" + "/storage/..." URL that
+    # made every post job fail at vinted.upload_photo()'s requests.get() call.
+    image_urls = [
+        f"{SUPABASE_URL}/storage/v1/object/public/other-item-photos/{p}"
+        for p in photo_urls
+    ]
 
     condition = _CONDITION_ID_TO_KEY.get(item.get("vinted_condition_id"), "GD")
     title = build_other_item_title(item)

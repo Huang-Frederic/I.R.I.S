@@ -406,8 +406,11 @@ def test_build_other_item_description_handles_empty_description():
 from main import process_other_item_job
 
 
-def _mock_supabase_for_post_other_item(other_item: dict):
+def _mock_supabase_for_post_other_item(other_item: dict, existing_listing_id=None):
     """Mocks the chain process_other_item_job's 'post' path drives:
+    other_item_listings.select(...).eq(...).eq(...).limit(1).execute() -> the
+      double-post guard's lookup. Empty by default ("not already posted");
+      pass existing_listing_id to simulate an already-posted item instead.
     other_items.select(...).eq("id", ...).single().execute() -> the item row
     other_item_listings.upsert({...}).execute()
     vinted_post_jobs.update({...}).eq("id", ...).execute()
@@ -422,9 +425,16 @@ def _mock_supabase_for_post_other_item(other_item: dict):
     item_select = MagicMock(eq=MagicMock(return_value=item_eq))
     other_items_table = MagicMock(select=MagicMock(return_value=item_select))
 
+    guard_data = [{"vinted_listing_id": existing_listing_id}] if existing_listing_id else []
+    guard_execute = AsyncMock(return_value=MagicMock(data=guard_data))
+    guard_limit = MagicMock(execute=guard_execute)
+    guard_eq2 = MagicMock(limit=MagicMock(return_value=guard_limit))
+    guard_eq1 = MagicMock(eq=MagicMock(return_value=guard_eq2))
+    guard_select_fn = MagicMock(return_value=MagicMock(eq=MagicMock(return_value=guard_eq1)))
+
     upsert_execute = AsyncMock(return_value=MagicMock(data=[{"other_item_id": other_item["id"]}]))
     upsert_fn = MagicMock(return_value=MagicMock(execute=upsert_execute))
-    other_item_listings_table = MagicMock(upsert=upsert_fn)
+    other_item_listings_table = MagicMock(select=guard_select_fn, upsert=upsert_fn)
 
     jobs_update_execute = AsyncMock(return_value=MagicMock(data=[{"id": "job-1"}]))
     jobs_update_eq = MagicMock(execute=jobs_update_execute)
@@ -458,6 +468,15 @@ def test_process_other_item_job_posts_and_upserts_listing():
 
     asyncio.run(process_other_item_job(supabase, vinted, job))
 
+    # Regression: process_other_item_job previously built this URL from
+    # NEXT_PUBLIC_SUPABASE_URL (a Next.js-frontend-only env var never set in
+    # vinted-agent's own process), which resolved to a schemeless
+    # "" + "/storage/..." path — vinted.upload_photo()'s requests.get() would
+    # reject that with MissingSchema in real use. Asserting the actual
+    # argument (not just mocking it away) is what catches that class of bug.
+    vinted.upload_photo.assert_called_once_with(
+        "http://localhost:54321/storage/v1/object/public/other-item-photos/item-1/0.jpg"
+    )
     vinted.create_listing.assert_called_once()
     kwargs = vinted.create_listing.call_args.kwargs
     assert kwargs["catalog_id"] == 2994
@@ -485,3 +504,29 @@ def test_process_other_item_job_fails_gracefully_on_vinted_api_error():
     update_call = jobs_update_fn.call_args.args[0]
     assert update_call["status"] == "error"
     assert "Vinted 500" in update_call["error"]
+
+
+def test_process_other_item_job_skips_posting_when_already_posted():
+    # Parity guard with process_job (~main.py:494) and process_lot_job
+    # (main.py:667-676): a second 'post' job for an item/user pair that
+    # already has a vinted_listing_id must not call create_listing again —
+    # it should just mark the job done.
+    item = {
+        "id": "item-1", "name": "Robot Aspirateur", "description": "desc",
+        "price": 90, "photo_urls": ["item-1/0.jpg"], "vinted_catalog_id": 2994,
+        "vinted_condition_id": 1, "brand_name": "Midea", "status": "for_sale",
+    }
+    supabase, upsert_fn, jobs_update_fn = _mock_supabase_for_post_other_item(
+        item, existing_listing_id="888"
+    )
+    vinted = MagicMock()
+    vinted.upload_photo = MagicMock(return_value=111)
+    vinted.create_listing = MagicMock(return_value="999")
+    job = {"id": "job-1", "other_item_id": "item-1", "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7", "job_type": "post"}
+
+    asyncio.run(process_other_item_job(supabase, vinted, job))
+
+    vinted.create_listing.assert_not_called()
+    upsert_fn.assert_not_called()
+    status_arg = jobs_update_fn.call_args.args[0]
+    assert status_arg["status"] == "done"
