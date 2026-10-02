@@ -4,10 +4,11 @@ import {
   BRAND_IDS,
   matchesSearch,
   matchesLotSearch,
+  matchesOtherItemSearch,
   matchesLotFilters,
   matchesAttrFilters,
 } from './vinted-list-filters';
-import { makeCardWithListings, makeLotWithListings } from './test-fixtures';
+import { makeCardWithListings, makeLotWithListings, makeOtherItemWithListings } from './test-fixtures';
 import { INITIAL_FILTERS } from '@/components/vinted/VintedFilters';
 
 describe('matchesSearch', () => {
@@ -28,6 +29,29 @@ describe('matchesLotSearch', () => {
     const lot = makeLotWithListings({ name: 'Lot Dresseurs SV' });
     expect(matchesLotSearch(lot, 'dresseurs')).toBe(true);
     expect(matchesLotSearch(lot, 'dracaufeu')).toBe(false);
+  });
+});
+
+describe('matchesOtherItemSearch', () => {
+  it('matches accent- and case-insensitively against name, description and brand', () => {
+    const item = makeOtherItemWithListings({
+      name: 'Doudoune Uniqlo Longue Matelassé',
+      description: 'Portée un hiver',
+      brand_name: 'Uniqlo',
+    });
+    expect(matchesOtherItemSearch(item, 'doudoune')).toBe(true);
+    expect(matchesOtherItemSearch(item, 'UNIQLO')).toBe(true);
+    expect(matchesOtherItemSearch(item, 'hiver')).toBe(true);
+    expect(matchesOtherItemSearch(item, 'nike')).toBe(false);
+  });
+
+  it('returns true for an empty query', () => {
+    expect(matchesOtherItemSearch(makeOtherItemWithListings(), '')).toBe(true);
+  });
+
+  it('tolerates a null brand', () => {
+    const item = makeOtherItemWithListings({ brand_name: null });
+    expect(matchesOtherItemSearch(item, 'uniqlo')).toBe(false);
   });
 });
 

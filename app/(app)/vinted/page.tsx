@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { fetchAllRows } from '@/lib/api/fetch-all';
 import VintedList from '@/components/vinted/VintedList';
 import PageTitle from '@/components/layout/PageTitle';
-import type { Card, Lot, CardListing, LotListing } from '@/lib/types';
+import type { Card, Lot, CardListing, LotListing, OtherItem, OtherItemListing } from '@/lib/types';
+import { FRED_USER_ID } from '@/lib/vinted/other-item-queue-sync';
 
 export async function generateMetadata() {
   const t = await getTranslations('vinted');
@@ -14,9 +15,12 @@ export default async function VintedPage() {
   const t = await getTranslations('vinted');
   const supabase = await createClient();
 
+  const currentUserId = (await supabase.auth.getUser()).data.user?.id ?? '';
+  const showOtherItems = currentUserId === FRED_USER_ID;
+
   // Unbounded queries go through fetchAllRows — Supabase truncates any
   // response at 1000 rows, which would silently drop listings/cards here.
-  const [forSaleResult, soldResult, tradedResult, collectionResult, pokedexResult, configResult, forSaleLotsResult, soldLotsResult, cardListingsResult, lotListingsResult] = await Promise.all([
+  const [forSaleResult, soldResult, tradedResult, collectionResult, pokedexResult, configResult, forSaleLotsResult, soldLotsResult, cardListingsResult, lotListingsResult, otherItemsResult, otherItemListingsResult] = await Promise.all([
     fetchAllRows((from, to) =>
       supabase
         .from('cards')
@@ -92,6 +96,30 @@ export default async function VintedPage() {
         .order('user_id', { ascending: true })
         .range(from, to),
     ),
+    // Skipped for every account but Fred's — RLS would return empty anyway,
+    // but not asking at all keeps the existence of other_items invisible to
+    // Gilly rather than merely empty (see other-item-queue-sync.ts).
+    showOtherItems
+      ? fetchAllRows((from, to) =>
+          supabase
+            .from('other_items')
+            .select('*')
+            .eq('status', 'for_sale')
+            .order('date_added', { ascending: true })
+            .order('id', { ascending: true })
+            .range(from, to),
+        )
+      : Promise.resolve({ data: [] as OtherItem[], error: null }),
+    showOtherItems
+      ? fetchAllRows((from, to) =>
+          supabase
+            .from('other_item_listings')
+            .select('other_item_id, user_id, listed_at, vinted_listing_id, vinted_posted_at')
+            .order('other_item_id', { ascending: true })
+            .order('user_id', { ascending: true })
+            .range(from, to),
+        )
+      : Promise.resolve({ data: [] as OtherItemListing[], error: null }),
   ]);
 
   // The traded query is deliberately NOT in the fatal chain: before migration
@@ -102,7 +130,7 @@ export default async function VintedPage() {
     console.warn('[vinted] traded query failed (migration pending?):', tradedResult.error.message);
   }
   const fetchError =
-    forSaleResult.error ?? soldResult.error ?? collectionResult.error ?? pokedexResult.error ?? configResult.error ?? forSaleLotsResult.error ?? soldLotsResult.error ?? cardListingsResult.error ?? lotListingsResult.error;
+    forSaleResult.error ?? soldResult.error ?? collectionResult.error ?? pokedexResult.error ?? configResult.error ?? forSaleLotsResult.error ?? soldLotsResult.error ?? cardListingsResult.error ?? lotListingsResult.error ?? otherItemsResult.error ?? otherItemListingsResult.error;
   if (fetchError) {
     return (
       <section>
@@ -124,6 +152,8 @@ export default async function VintedPage() {
   ] as Lot[];
   const cardListings = (cardListingsResult.data ?? []) as CardListing[];
   const lotListings = (lotListingsResult.data ?? []) as LotListing[];
+  const otherItems = (otherItemsResult.data ?? []) as OtherItem[];
+  const otherItemListings = (otherItemListingsResult.data ?? []) as OtherItemListing[];
   const registered = new Set<number>(
     (pokedexResult.data ?? []).map((r: { pokemon_number: number }) => r.pokemon_number),
   );
@@ -139,8 +169,11 @@ export default async function VintedPage() {
     ...l,
     listings: lotListings.filter((ll) => ll.lot_id === l.id),
   }));
+  const otherItemsWithListings = otherItems.map((i) => ({
+    ...i,
+    listings: otherItemListings.filter((il) => il.other_item_id === i.id),
+  }));
 
-  const currentUserId = (await supabase.auth.getUser()).data.user?.id ?? '';
   const allowedVintedIds = (process.env.VINTED_USER_IDS ?? '')
     .split(',').map((s) => s.trim()).filter(Boolean);
   const vintedEnabled = allowedVintedIds.includes(currentUserId);
@@ -152,7 +185,16 @@ export default async function VintedPage() {
         subtitle={t('pageSubtitle', { count: cards.length })}
       />
       <div className="mt-6">
-        <VintedList cards={cardsWithListings} lots={lotsWithListings} collectionCards={collectionCards} registered={registered} config={config} vintedEnabled={vintedEnabled} />
+        <VintedList
+          cards={cardsWithListings}
+          lots={lotsWithListings}
+          collectionCards={collectionCards}
+          registered={registered}
+          config={config}
+          vintedEnabled={vintedEnabled}
+          otherItems={otherItemsWithListings}
+          showOtherItems={showOtherItems}
+        />
       </div>
     </section>
   );

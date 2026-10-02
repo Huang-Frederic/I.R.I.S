@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import type { Card, Lot, CardWithListings, LotWithListings, BaseListing } from '@/lib/types';
+import type { Card, Lot, CardWithListings, LotWithListings, OtherItemWithListings, BaseListing } from '@/lib/types';
 import { groupCards, groupKey } from '@/lib/utils/group-cards';
 import { interleaveCardsAndLots, type MixedRow, type CardGroupWithListings } from '@/lib/utils/vinted-interleave';
 import { getPartnerListing } from '@/lib/utils/listings';
@@ -30,6 +30,8 @@ import { createClient } from '@/lib/supabase/client';
 import LotRow from '@/components/lots/LotRow';
 import LotSoldRow from '@/components/lots/LotSoldRow';
 import LotAnnonceModal from '@/components/lots/LotAnnonceModal';
+import OtherItemRow from './OtherItemRow';
+import OtherItemAnnonceModal from './OtherItemAnnonceModal';
 import BulkSelectionBottomBar from './BulkSelectionBottomBar';
 import BulkSoldModal, { type BulkSoldItem } from './BulkSoldModal';
 import BulkSoldRecapModal from './BulkSoldRecapModal';
@@ -49,6 +51,7 @@ import { useRealtimeListingsRefresh } from './hooks/useRealtimeListingsRefresh';
 import {
   matchesSearch,
   matchesLotSearch,
+  matchesOtherItemSearch,
   matchesLotFilters,
   matchesAttrFilters,
 } from '@/lib/utils/vinted-list-filters';
@@ -65,9 +68,15 @@ export interface VintedListProps {
   /** When true, the current user is the designated Vinted user and the
    *  "Post to Vinted" button is shown in each row. */
   vintedEnabled: boolean;
+  /** Non-card products (Fred-only — empty for every other account, see
+   *  supabase/migrations/20261002120000_other_items.sql). */
+  otherItems: OtherItemWithListings[];
+  /** True only for Fred's own account — gates the "Items" filter/rows so
+   *  Gilly never sees the feature exists, not just its contents. */
+  showOtherItems: boolean;
 }
 
-export default function VintedList({ cards: initial, lots: initialLots, collectionCards: initialCollection, registered, config, vintedEnabled }: VintedListProps) {
+export default function VintedList({ cards: initial, lots: initialLots, collectionCards: initialCollection, registered, config, vintedEnabled, otherItems: initialOtherItems, showOtherItems }: VintedListProps) {
   const router = useRouter();
   const t = useTranslations('vinted');
   const tSold = useTranslations('vintedSold');
@@ -77,10 +86,11 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
   const { myUserId, partnerUserId, partnerName } = useUserContext();
 
   // Data state — see useDataSync for the prop→state re-sync rationale.
-  const { cards, setCards, lots, setLots, collectionCards, setCollectionCards } = useDataSync(
+  const { cards, setCards, lots, setLots, collectionCards, setCollectionCards, otherItems, setOtherItems } = useDataSync(
     initial,
     initialLots,
     initialCollection,
+    initialOtherItems,
   );
 
   const [filters, setFilters] = useState<VintedFilterState>(INITIAL_FILTERS);
@@ -124,12 +134,19 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
   const storagePublicUrl = (path: string) =>
     `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/lot-photos/${path}`;
 
+  const otherItemStoragePublicUrl = (path: string) =>
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/other-item-photos/${path}`;
+
   const updateCardPrice = (cardId: string, newPrice: number | null) => {
     setCards((prev) => prev.map((c): CardWithListings => (c.id === cardId ? { ...c, suggested_price: newPrice } : c)));
   };
 
   const updateLotPrice = (lotId: string, newPrice: number | null) => {
     setLots((prev) => prev.map((l): LotWithListings => (l.id === lotId ? { ...l, price: newPrice } : l)));
+  };
+
+  const updateOtherItemPrice = (itemId: string, newPrice: number | null) => {
+    setOtherItems((prev) => prev.map((i): OtherItemWithListings => (i.id === itemId ? { ...i, price: newPrice } : i)));
   };
 
   const updateLotQuantity = (lotId: string, quantity: number) => {
@@ -164,6 +181,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
   const [bulkPromoteCandidates, setBulkPromoteCandidates] = useState<PromoteCandidate[]>([]);
   const [annonceTarget, setAnnonceTarget] = useState<Card | null>(null);
   const [lotAnnonceTarget, setLotAnnonceTarget] = useState<Lot | null>(null);
+  const [otherItemAnnonceTarget, setOtherItemAnnonceTarget] = useState<OtherItemWithListings | null>(null);
   const [zoomCard, setZoomCard] = useState<Card | null>(null);
   const [moveToPokedexCard, setMoveToPokedexCard] = useState<Card | null>(null);
   const [comparePair, setComparePair] = useState<{ current: PokedexCompareModalCard; pokedex: PokedexCompareModalCard } | null>(null);
@@ -604,7 +622,10 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
     // Cards are always Pokémon — hide them when a non-Pokémon brand is selected.
     const showCards = filters.kindFilter === 'cards'
       || (filters.kindFilter === 'all' && (filters.lotBrand === 'all' || filters.lotBrand === 'pokemon'));
-    const showLots = filters.kindFilter !== 'cards';
+    const showLots = filters.kindFilter !== 'cards' && filters.kindFilter !== 'items';
+    // other_items aren't any TCG brand — same rule cards use for a non-Pokémon brand pick.
+    const showItems = showOtherItems
+      && (filters.kindFilter === 'items' || (filters.kindFilter === 'all' && filters.lotBrand === 'all'));
 
     // "Pile à actionner" = items the user can still act on:
     //   - status='for_sale' (normal)
@@ -667,8 +688,21 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
             passesMultiUserChip(l as { status: string; listings: BaseListing[] }, filters.multiUserChip, myUserId, partnerUserId),
         );
 
+    // other_items: no multi-user/attribute concepts (Fred-only, no language/rarity),
+    // same for_sale-or-still-listed gate as lots otherwise.
+    const itemInActionPile = (i: OtherItemWithListings) => i.status === 'for_sale' || getMyListing(i.listings, myUserId) !== null;
+    const forSaleItems = !showItems || shouldHideForSalePile(filters)
+      ? []
+      : otherItems.filter(
+          (i) =>
+            itemInActionPile(i) &&
+            matchesOtherItemSearch(i, filters.search) &&
+            passesStateChips(getMyListing(i.listings, myUserId), filters, now) &&
+            passesMultiUserChip(i as { status: string; listings: BaseListing[] }, filters.multiUserChip, myUserId, partnerUserId),
+        );
+
     const groupedCards = groupCards(finalForSale) as CardGroupWithListings[];
-    const forSaleRows: MixedRow[] = interleaveCardsAndLots(groupedCards, forSaleLots, now, myUserId, filters.sortDirection);
+    const forSaleRows: MixedRow[] = interleaveCardsAndLots(groupedCards, forSaleLots, now, myUserId, filters.sortDirection, forSaleItems);
 
     const soldLotsList = !showLots || !filters.showSold
       ? []
@@ -681,9 +715,9 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
       soldRows: soldSubset,
       tradedRows: tradedSubset,
       soldLotsList,
-      totalVisible: finalForSale.length + soldSubset.length + tradedSubset.length + forSaleLots.length + soldLotsList.length,
+      totalVisible: finalForSale.length + soldSubset.length + tradedSubset.length + forSaleLots.length + soldLotsList.length + forSaleItems.length,
     };
-  }, [cards, lots, filters, now, myUserId, partnerUserId]);
+  }, [cards, lots, otherItems, showOtherItems, filters, now, myUserId, partnerUserId]);
 
   const isEmpty =
     forSaleRows.length === 0 && soldRows.length === 0 && tradedRows.length === 0 && soldLotsList.length === 0;
@@ -698,6 +732,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
         selectionMode={selectionMode}
         onToggleSelectionMode={toggleSelectionMode}
         hasPartner={partnerUserId !== null}
+        showOtherItems={showOtherItems}
       />
 
       {isEmpty ? (
@@ -741,7 +776,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
                 stockBusy={stockBusyKeys.has(row.group.key)}
                 vintedEnabled={vintedEnabled}
               />
-            ) : (
+            ) : row.kind === 'lot' ? (
               <LotRow
                 key={`lot-${row.lot.id}`}
                 lot={row.lot}
@@ -761,6 +796,15 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
                 selected={selectedIds.has(row.lot.id)}
                 onToggleSelect={() => toggleSelect(row.lot.id)}
                 vintedEnabled={vintedEnabled}
+              />
+            ) : (
+              <OtherItemRow
+                key={`other-item-${row.item.id}`}
+                item={row.item}
+                storagePublicUrl={otherItemStoragePublicUrl}
+                myUserId={myUserId}
+                onPriceSaved={updateOtherItemPrice}
+                onAnnonceClick={(item) => setOtherItemAnnonceTarget(item)}
               />
             ),
           )}
@@ -974,6 +1018,25 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
           onMovedToStock={() => {
             // The lot left the Vinted pile for /stock — drop it locally.
             setLots((prev) => prev.filter((l) => l.id !== lotAnnonceTarget.id));
+            router.refresh();
+          }}
+        />
+      )}
+      {otherItemAnnonceTarget && (
+        <OtherItemAnnonceModal
+          item={otherItemAnnonceTarget}
+          storagePublicUrl={otherItemStoragePublicUrl}
+          onClose={() => setOtherItemAnnonceTarget(null)}
+          onPriceSaved={(itemId, newPrice) => {
+            updateOtherItemPrice(itemId, newPrice);
+            setOtherItemAnnonceTarget((prev) => (prev && prev.id === itemId ? { ...prev, price: newPrice } : prev));
+          }}
+          onItemDeleted={() => {
+            setOtherItems((prev) => prev.filter((i) => i.id !== otherItemAnnonceTarget.id));
+            router.refresh();
+          }}
+          onMovedToStock={() => {
+            setOtherItems((prev) => prev.filter((i) => i.id !== otherItemAnnonceTarget.id));
             router.refresh();
           }}
         />

@@ -589,6 +589,10 @@ export interface LotListing extends BaseListing {
   lot_id: string;
 }
 
+export interface OtherItemListing extends BaseListing {
+  other_item_id: string;
+}
+
 export interface UserProfile {
   user_id: string;
   display_name: string;
@@ -602,6 +606,32 @@ export interface CardWithListings extends Card {
 /** Lot hydrated avec ses lot_listings. */
 export interface LotWithListings extends Lot {
   listings: LotListing[];
+}
+
+/** Non-card Vinted product (clothes, electronics, accessories…). Fred-only — see
+ *  supabase/migrations/20261002120000_other_items.sql. */
+export interface OtherItem {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string;
+  price: number | null;
+  photo_urls: string[];
+  vinted_catalog_id: number;
+  vinted_catalog_path: string;
+  brand_name: string | null;
+  vinted_condition_id: number;
+  size: string | null;
+  status: 'for_sale' | 'collection' | 'sold';
+  date_sold: string | null;
+  sold_price: number | null;
+  vinted_listed_at: string | null;
+  date_added: string;
+}
+
+/** OtherItem hydrated avec ses other_item_listings. */
+export interface OtherItemWithListings extends OtherItem {
+  listings: OtherItemListing[];
 }
 
 /** One played game within a tournament round. Up to `best_of` entries per

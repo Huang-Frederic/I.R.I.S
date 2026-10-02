@@ -13,7 +13,17 @@
  *   const group = makeGroup(card);
  */
 
-import type { Card, CardListing, CardWithListings, Lot, LotListing, LotWithListings } from '@/lib/types';
+import type {
+  Card,
+  CardListing,
+  CardWithListings,
+  Lot,
+  LotListing,
+  LotWithListings,
+  OtherItem,
+  OtherItemListing,
+  OtherItemWithListings,
+} from '@/lib/types';
 import type { CardGroup } from './group-cards';
 
 /** Test-only narrowing of CardGroup whose head/cards are CardWithListings.
@@ -136,6 +146,49 @@ export function makeLotWithListings(
 export function makeLotListing(overrides: Partial<LotListing> = {}): LotListing {
   return {
     lot_id: 'test-lot-id',
+    user_id: 'test-user-id',
+    listed_at: '2026-01-01T00:00:00Z',
+    vinted_listing_id: null,
+    vinted_posted_at: null,
+    ...overrides,
+  };
+}
+
+const OTHER_ITEM_DEFAULTS: OtherItem = {
+  id: 'test-other-item-id',
+  user_id: 'test-user-id',
+  name: 'Test item',
+  description: '',
+  price: null,
+  photo_urls: [],
+  vinted_catalog_id: 1242,
+  vinted_catalog_path: 'Hommes > Chaussures > Baskets',
+  brand_name: null,
+  vinted_condition_id: 3,
+  size: null,
+  status: 'for_sale',
+  date_sold: null,
+  sold_price: null,
+  vinted_listed_at: null,
+  date_added: '2026-01-01T00:00:00Z',
+};
+
+/** Build an OtherItem with sensible defaults. Pass overrides for fields under test. */
+export function makeOtherItem(overrides: Partial<OtherItem> = {}): OtherItem {
+  return { ...OTHER_ITEM_DEFAULTS, ...overrides };
+}
+
+/** Same as makeOtherItem but adds an empty `listings` array (vinted-list tests). */
+export function makeOtherItemWithListings(
+  overrides: Partial<OtherItemWithListings> = {},
+): OtherItemWithListings {
+  return { ...OTHER_ITEM_DEFAULTS, listings: [], ...overrides };
+}
+
+/** Build an OtherItemListing — used to test per-user "item listed on Vinted" logic. */
+export function makeOtherItemListing(overrides: Partial<OtherItemListing> = {}): OtherItemListing {
+  return {
+    other_item_id: 'test-other-item-id',
     user_id: 'test-user-id',
     listed_at: '2026-01-01T00:00:00Z',
     vinted_listing_id: null,

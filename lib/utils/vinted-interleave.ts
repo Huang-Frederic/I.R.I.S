@@ -1,4 +1,4 @@
-import type { CardWithListings, LotWithListings, BaseListing } from '@/lib/types';
+import type { CardWithListings, LotWithListings, OtherItemWithListings, BaseListing } from '@/lib/types';
 import type { CardGroup } from './group-cards';
 import { isListingStale } from './listing-stale';
 import { getMyListing } from './listings';
@@ -9,10 +9,11 @@ export type CardGroupWithListings = Omit<CardGroup, 'head' | 'cards'> & {
   cards: CardWithListings[];
 };
 
-/** Discriminated union — each row in the interleaved output is either a card group or a lot. */
+/** Discriminated union — each row in the interleaved output is a card group, a lot, or an other_item. */
 export type MixedRow =
   | { kind: 'card'; group: CardGroupWithListings }
-  | { kind: 'lot'; lot: LotWithListings };
+  | { kind: 'lot'; lot: LotWithListings }
+  | { kind: 'other_item'; item: OtherItemWithListings };
 
 type Bucket = 0 | 1 | 2;
 
@@ -38,8 +39,12 @@ function bucketOf(listings: BaseListing[], now: number, myUserId: string): Bucke
  *   1 → listing.listed_at ASC (most overdue first)
  *   2 → listing.listed_at DESC (most recent listing first)
  *
- * Cards and lots interleave naturally: they share the bucket logic, so the
- * "All" tab on /vinted reads chronologically instead of cards-then-lots.
+ * Cards, lots and other_items interleave naturally: they share the bucket
+ * logic, so the "All" tab on /vinted reads chronologically instead of
+ * grouped by kind.
+ *
+ * `items` trails the signature (defaulting to `[]`) so existing cards/lots
+ * call sites don't need updating.
  *
  * Pure function — does not mutate inputs.
  */
@@ -49,28 +54,32 @@ export function interleaveCardsAndLots(
   now: number,
   myUserId: string,
   direction: 'asc' | 'desc' = 'asc',
+  items: OtherItemWithListings[] = [],
 ): MixedRow[] {
   const rows: MixedRow[] = [
     ...groups.map((group): MixedRow => ({ kind: 'card', group })),
     ...lots.map((lot): MixedRow => ({ kind: 'lot', lot })),
+    ...items.map((item): MixedRow => ({ kind: 'other_item', item })),
   ];
 
-  const dateAddedOf = (row: MixedRow): string =>
-    row.kind === 'card' ? row.group.head.date_added : row.lot.date_added;
+  const listingsOf = (row: MixedRow): BaseListing[] => {
+    if (row.kind === 'card') return row.group.head.listings;
+    if (row.kind === 'lot') return row.lot.listings;
+    return row.item.listings;
+  };
+
+  const dateAddedOf = (row: MixedRow): string => {
+    if (row.kind === 'card') return row.group.head.date_added;
+    if (row.kind === 'lot') return row.lot.date_added;
+    return row.item.date_added;
+  };
 
   const listedAtOf = (row: MixedRow): string => {
-    const mine = row.kind === 'card'
-      ? getMyListing(row.group.head.listings, myUserId)
-      : getMyListing(row.lot.listings, myUserId);
+    const mine = getMyListing(listingsOf(row), myUserId);
     return mine?.vinted_posted_at ?? '';
   };
 
-  const bucketRow = (row: MixedRow): Bucket => {
-    if (row.kind === 'card') {
-      return bucketOf(row.group.head.listings, now, myUserId);
-    }
-    return bucketOf(row.lot.listings, now, myUserId);
-  };
+  const bucketRow = (row: MixedRow): Bucket => bucketOf(listingsOf(row), now, myUserId);
 
   return rows.sort((a, b) => {
     const ba = bucketRow(a);

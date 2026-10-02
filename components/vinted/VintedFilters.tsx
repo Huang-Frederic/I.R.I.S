@@ -13,8 +13,9 @@ export interface VintedFilterState {
   language: CardLanguage | 'all';
   rarity: CardRarity | 'all';
   variant: 'all' | 'standard' | 'pokeball' | 'masterball' | 'reverse_holo' | 'stamp' | 'promo';
-  /** Type of listings to show. 'single'/'lot' show only that catalog_id subset of lots. */
-  kindFilter: 'all' | 'cards' | 'single' | 'lot';
+  /** Type of listings to show. 'single'/'lot' show only that catalog_id subset of lots.
+   *  'items' shows only other_items (Fred-only — see showOtherItems). */
+  kindFilter: 'all' | 'cards' | 'single' | 'lot' | 'items';
   /** For lot rows: filter by brand (hidden when kindFilter='cards'). */
   lotBrand: 'all' | 'pokemon' | 'onepiece' | 'magic' | 'lorcana' | 'riftbound' | 'autres';
   // Cumulative chips
@@ -62,6 +63,8 @@ interface Props {
   selectionMode: boolean;
   onToggleSelectionMode: () => void;
   hasPartner: boolean;
+  /** Fred-only — shows the "Items" type button (other_items aren't visible to Gilly at all). */
+  showOtherItems?: boolean;
 }
 
 type ChipKey = 'showOnline' | 'showOffline' | 'showSold' | 'showTraded' | 'showStale';
@@ -79,7 +82,7 @@ const CHIPS: Chip[] = [
   { key: 'showStale', labelKey: 'chipStale', icon: RefreshCw },
 ];
 
-export default function VintedFilters({ value, onChange, visibleCards, totalCards, selectionMode, onToggleSelectionMode, hasPartner }: Props) {
+export default function VintedFilters({ value, onChange, visibleCards, totalCards, selectionMode, onToggleSelectionMode, hasPartner, showOtherItems }: Props) {
   const [expanded, setExpanded] = useState(false);
   const t = useTranslations('vinted');
   // Per design: my own chip is the default tint ('Moi'); only the partner
@@ -152,21 +155,27 @@ export default function VintedFilters({ value, onChange, visibleCards, totalCard
       <div className={`${expanded ? 'flex' : 'hidden'} flex-col gap-3 md:flex`}>
         <div className="flex flex-wrap items-center gap-1">
           <span className="text-text-faint mr-1 text-xs">{t('typeLabel')}</span>
-          {(['all', 'cards', 'single', 'lot'] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => onChange({ ...value, kindFilter: k })}
-              className={`rounded px-2 py-1 text-xs ${
-                value.kindFilter === k
-                  ? 'bg-red text-bg'
-                  : 'bg-surface-2 text-text-muted hover:text-text'
-              }`}
-            >
-              {k === 'all' ? t('typeAll') : k === 'cards' ? t('typeCards') : k === 'single' ? t('typeSingle') : t('typeLots')}
-            </button>
-          ))}
-          {value.kindFilter !== 'cards' && (
+          {(['all', 'cards', 'single', 'lot', 'items'] as const)
+            .filter((k) => k !== 'items' || showOtherItems)
+            .map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => onChange({ ...value, kindFilter: k })}
+                className={`rounded px-2 py-1 text-xs ${
+                  value.kindFilter === k
+                    ? 'bg-red text-bg'
+                    : 'bg-surface-2 text-text-muted hover:text-text'
+                }`}
+              >
+                {k === 'all' ? t('typeAll')
+                  : k === 'cards' ? t('typeCards')
+                  : k === 'single' ? t('typeSingle')
+                  : k === 'lot' ? t('typeLots')
+                  : t('typeItems')}
+              </button>
+            ))}
+          {value.kindFilter !== 'cards' && value.kindFilter !== 'items' && (
             <select
               value={value.lotBrand}
               onChange={(e) => onChange({ ...value, lotBrand: e.target.value as VintedFilterState['lotBrand'] })}

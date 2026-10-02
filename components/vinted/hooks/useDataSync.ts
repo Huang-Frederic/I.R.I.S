@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Card, CardWithListings, LotWithListings } from '@/lib/types';
+import type { Card, CardWithListings, LotWithListings, OtherItemWithListings } from '@/lib/types';
 
 /**
- * Hold the three server-rendered card/lot collections in local state, and
+ * Hold the server-rendered card/lot/other_item collections in local state, and
  * re-sync whenever the parent re-passes them (typically after a
  * `router.refresh()` following a listing toggle / sold action).
  *
@@ -19,10 +19,12 @@ export function useDataSync(
   initialCards: CardWithListings[],
   initialLots: LotWithListings[],
   initialCollection: Card[],
+  initialOtherItems: OtherItemWithListings[] = [],
 ) {
   const [cards, setCards] = useState<CardWithListings[]>(initialCards);
   const [lots, setLots] = useState<LotWithListings[]>(initialLots);
   const [collectionCards, setCollectionCards] = useState<Card[]>(initialCollection);
+  const [otherItems, setOtherItems] = useState<OtherItemWithListings[]>(initialOtherItems);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setCards(initialCards); }, [initialCards]);
@@ -30,6 +32,8 @@ export function useDataSync(
   useEffect(() => { setLots(initialLots); }, [initialLots]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setCollectionCards(initialCollection); }, [initialCollection]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setOtherItems(initialOtherItems); }, [initialOtherItems]);
 
   return {
     cards,
@@ -38,5 +42,7 @@ export function useDataSync(
     setLots,
     collectionCards,
     setCollectionCards,
+    otherItems,
+    setOtherItems,
   };
 }

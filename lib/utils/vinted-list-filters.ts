@@ -1,4 +1,4 @@
-import type { CardWithListings, LotWithListings } from '@/lib/types';
+import type { CardWithListings, LotWithListings, OtherItemWithListings } from '@/lib/types';
 import type { VintedFilterState } from '@/components/vinted/VintedFilters';
 
 export const CATALOG_SINGLE = 4875;
@@ -22,6 +22,13 @@ export function matchesLotSearch(lot: LotWithListings, query: string): boolean {
   if (!query) return true;
   const q = normalize(query);
   const fields = [lot.name, lot.extra_description ?? '', lot.language ?? ''];
+  return fields.some((f) => f && normalize(f).includes(q));
+}
+
+export function matchesOtherItemSearch(item: OtherItemWithListings, query: string): boolean {
+  if (!query) return true;
+  const q = normalize(query);
+  const fields = [item.name, item.description, item.brand_name ?? ''];
   return fields.some((f) => f && normalize(f).includes(q));
 }
 

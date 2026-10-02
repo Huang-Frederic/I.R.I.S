@@ -5,6 +5,8 @@ import {
   makeGroup,
   makeLotWithListings,
   makeLotListing,
+  makeOtherItemWithListings,
+  makeOtherItemListing,
 } from './test-fixtures';
 import type { CardListing, CardWithListings, LotWithListings } from '@/lib/types';
 
@@ -63,7 +65,7 @@ describe('interleaveCardsAndLots', () => {
       NOW,
       MY_ID,
     );
-    const firstTwoIds = out.slice(0, 2).map((r) => (r.kind === 'card' ? r.group.head.id : r.lot.id));
+    const firstTwoIds = out.slice(0, 2).map((r) => (r.kind === 'card' ? r.group.head.id : r.kind === 'lot' ? r.lot.id : r.item.id));
     expect(new Set(firstTwoIds)).toEqual(new Set(['card-off', 'lot-off']));
   });
 
@@ -72,7 +74,7 @@ describe('interleaveCardsAndLots', () => {
     const lotMid = makeLot({ id: 'l-mid', date_added: '2026-02-01T00:00:00Z', listings: [] });
     const cardNew = makeCardGroup({ id: 'c-new', date_added: '2026-03-01T00:00:00Z', listings: [] });
     const out = interleaveCardsAndLots([cardNew, cardOld], [lotMid], NOW, MY_ID);
-    expect(out.map((r) => (r.kind === 'card' ? r.group.head.id : r.lot.id))).toEqual([
+    expect(out.map((r) => (r.kind === 'card' ? r.group.head.id : r.kind === 'lot' ? r.lot.id : r.item.id))).toEqual([
       'c-old',
       'l-mid',
       'c-new',
@@ -93,7 +95,7 @@ describe('interleaveCardsAndLots', () => {
       listings: [cardListing('c-90', isoDaysAgo(90))],
     });
     const out = interleaveCardsAndLots([cardStale30, cardStale90], [lotStale60], NOW, MY_ID);
-    expect(out.map((r) => (r.kind === 'card' ? r.group.head.id : r.lot.id))).toEqual([
+    expect(out.map((r) => (r.kind === 'card' ? r.group.head.id : r.kind === 'lot' ? r.lot.id : r.item.id))).toEqual([
       'c-90',
       'l-60',
       'c-30',
@@ -114,7 +116,7 @@ describe('interleaveCardsAndLots', () => {
       listings: [cardListing('c-15', isoDaysAgo(15))],
     });
     const out = interleaveCardsAndLots([cardFresh2, cardFresh15], [lotFresh7], NOW, MY_ID);
-    expect(out.map((r) => (r.kind === 'card' ? r.group.head.id : r.lot.id))).toEqual([
+    expect(out.map((r) => (r.kind === 'card' ? r.group.head.id : r.kind === 'lot' ? r.lot.id : r.item.id))).toEqual([
       'c-2',
       'l-7',
       'c-15',
@@ -148,7 +150,7 @@ describe('interleaveCardsAndLots', () => {
       NOW,
       MY_ID,
     );
-    expect(out.map((r) => (r.kind === 'card' ? r.group.head.id : r.lot.id))).toEqual([
+    expect(out.map((r) => (r.kind === 'card' ? r.group.head.id : r.kind === 'lot' ? r.lot.id : r.item.id))).toEqual([
       'co-old',
       'lo-new',
       'ls',
@@ -166,5 +168,31 @@ describe('interleaveCardsAndLots', () => {
     interleaveCardsAndLots(groups, lots, NOW, MY_ID);
     expect(groups).toEqual(groupsCopy);
     expect(lots).toEqual(lotsCopy);
+  });
+
+  it('interleaves other_items alongside cards and lots using the same bucket/date logic', () => {
+    const offlineCard = makeCardGroup({ id: 'card-off', date_added: '2026-01-01T00:00:00Z', listings: [] });
+    const offlineItem = makeOtherItemWithListings({ id: 'item-off', date_added: '2026-02-01T00:00:00Z', listings: [] });
+    const freshLot = makeLot({
+      id: 'lot-on',
+      listings: [makeLotListing({ user_id: MY_ID, listed_at: isoDaysAgo(2), vinted_listing_id: 'v-lot-on', vinted_posted_at: isoDaysAgo(2) })],
+    });
+    const freshItem = makeOtherItemWithListings({
+      id: 'item-on',
+      listings: [makeOtherItemListing({ user_id: MY_ID, listed_at: isoDaysAgo(5), vinted_listing_id: 'v-item-on', vinted_posted_at: isoDaysAgo(5) })],
+    });
+    const out = interleaveCardsAndLots([offlineCard], [freshLot], NOW, MY_ID, 'asc', [offlineItem, freshItem]);
+    expect(out).toHaveLength(4);
+    expect(out.some((r) => r.kind === 'other_item' && r.item.id === 'item-off')).toBe(true);
+    expect(out.some((r) => r.kind === 'other_item' && r.item.id === 'item-on')).toBe(true);
+    // Bucket 0 (offline) sorts before bucket 2 (fresh) — card-off and item-off first.
+    const firstTwoIds = out.slice(0, 2).map((r) => (r.kind === 'card' ? r.group.head.id : r.kind === 'lot' ? r.lot.id : r.item.id));
+    expect(new Set(firstTwoIds)).toEqual(new Set(['card-off', 'item-off']));
+  });
+
+  it('omitting items defaults to an empty list', () => {
+    const groups = [makeCardGroup({ id: 'a' })];
+    const out = interleaveCardsAndLots(groups, [], NOW, MY_ID);
+    expect(out.every((row) => row.kind !== 'other_item')).toBe(true);
   });
 });
