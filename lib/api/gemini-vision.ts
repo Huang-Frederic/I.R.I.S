@@ -72,7 +72,7 @@ WHERE TO LOOK:
 - illustrator: small "Illus." credit line at the very bottom.
 
 SET PREFIX RULES:
-- Latin-script cards (EN/FR/DE/IT/ES/PT) → ALWAYS 3-letter UPPERCASE codes (BRS, OBF, MEW, BKP, LOR, EVO, BKR, JTG, SCR, PRE, …). NEVER use a JP-style code on a Latin card — that's a hallucination.
+- Latin-script cards (EN/FR/DE/IT/ES/PT) → ALWAYS a 3-character UPPERCASE code, almost always letters (BRS, OBF, MEW, BKP, LOR, EVO, BKR, JTG, SCR, PRE, …). A few anniversary sets start with digits — the 30th Celebration prints "30C" — copy those exactly as printed. NEVER use a JP-style code on a Latin card — that's a hallucination.
 - Japanese cards → mixed-case codes with letter suffixes (sv11W, s12a, sm8b, BW4, XY9, smp, xyp).
 - Chinese (ZH) → "cs"-prefixed codes (cs4bc, cs1c).
 - Korean → similar to JP or EN depending on the era.

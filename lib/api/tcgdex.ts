@@ -236,13 +236,21 @@ export async function lookupById(
   localId: string,
   lang: TCGdexLang = 'en',
 ): Promise<TCGdexCard | null> {
-  const url = `${BASE}/${lang}/cards/${encodeURIComponent(setCode)}-${encodeURIComponent(localId)}`;
-  const response = await fetchWithTimeout(url);
-  if (response.status === 404) return null;
-  if (!response.ok) {
-    throw new Error(`TCGdex ${response.status}: ${await response.text()}`);
-  }
-  return (await response.json()) as TCGdexCard;
+  const fetchCard = async (id: string): Promise<TCGdexCard | null> => {
+    const url = `${BASE}/${lang}/cards/${encodeURIComponent(setCode)}-${encodeURIComponent(id)}`;
+    const response = await fetchWithTimeout(url);
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      throw new Error(`TCGdex ${response.status}: ${await response.text()}`);
+    }
+    return (await response.json()) as TCGdexCard;
+  };
+  const card = await fetchCard(localId);
+  if (card) return card;
+  // Modern sets pad numeric localIds to 3 digits ("SV2a-001", "30th-001"),
+  // older ones don't ("base1-4"), and the OCR strips leading zeros ("1") — so
+  // a short number that 404s is retried padded.
+  return /^\d{1,2}$/.test(localId) ? fetchCard(localId.padStart(3, '0')) : null;
 }
 
 /**
@@ -273,6 +281,109 @@ const PROMO_PATTERNS: Array<{ regex: RegExp; promoSet: string }> = [
   { regex: /^BW\d+$/i, promoSet: 'bwp' },
   { regex: /^HGSS\d+$/i, promoSet: 'hgssp' },
 ];
+
+/**
+ * Printed set codes TCGdex does not resolve as a set id. A Latin-script card
+ * prints a short code ("30C") while TCGdex files it under its own id ("30th"),
+ * so a lookup by the printed code 404s. Strategy 0 (Cardmarket) normally
+ * covers that gap; this table is the fallback for a set Cardmarket doesn't
+ * know yet. One code can span several TCGdex sets — the 30th Celebration and
+ * its Classic Collection both print "30C".
+ */
+const PRINTED_CODE_SETS: Record<string, string[]> = {
+  '30C': ['30th', '30th-c'],
+};
+
+export function isPrintedSetCode(code: string): boolean {
+  return Object.hasOwn(PRINTED_CODE_SETS, code.toUpperCase());
+}
+
+interface TCGdexCardBrief {
+  id: string;
+  localId: string;
+  name: string;
+}
+
+/** Card lists of the PRINTED_CODE_SETS sets, per language — one fetch each. */
+const setBriefsCache = new Map<string, TCGdexCardBrief[]>();
+
+/** Test-only: clear the card-list cache so tests start with a clean slate. */
+export function _resetSetBriefsCacheForTests(): void {
+  setBriefsCache.clear();
+}
+
+async function setBriefs(setId: string, lang: TCGdexLang): Promise<TCGdexCardBrief[]> {
+  const key = `${lang}/${setId}`;
+  const cached = setBriefsCache.get(key);
+  if (cached) return cached;
+  try {
+    const res = await fetchWithTimeout(`${BASE}/${lang}/sets/${encodeURIComponent(setId)}`);
+    if (!res.ok) return [];
+    const cards = ((await res.json()) as { cards?: TCGdexCardBrief[] }).cards ?? [];
+    setBriefsCache.set(key, cards); // only successes are cached
+    return cards;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Looks up a card by a printed set code that differs from its TCGdex set id
+ * (see PRINTED_CODE_SETS). Probes every set the code covers by number and
+ * ranks the hits: the one whose national dex or name matches what the OCR
+ * read comes first. When no number hit is the right Pokémon, the sets' card
+ * lists are searched by name instead — a reprint can carry its ORIGINAL
+ * number (a Classic Collection Charizard prints its Base Set "4"), so the
+ * number alone would land on the wrong card.
+ *
+ * Returns every candidate, best first; [] for an unknown code or no match.
+ */
+export async function lookupByPrintedCode(
+  printedCode: string,
+  localId: string,
+  lang: TCGdexLang = 'en',
+  pokemonNumber?: number | null,
+  name?: string | null,
+): Promise<TCGdexCard[]> {
+  const sets = PRINTED_CODE_SETS[printedCode.toUpperCase()];
+  if (!sets) return [];
+
+  const norm = (s: string) =>
+    s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const target = name ? norm(name) : '';
+  const nameMatches = (n: string | undefined) => {
+    if (!target || !n) return false;
+    const m = norm(n);
+    if (m === target) return true;
+    // Substring either way ("Pikachu" ⊂ "Pikachu & Zekrom GX"), but never on a
+    // 1-2 letter name — the "N" Supporter would match every name with an "n".
+    return m.length >= 3 && target.length >= 3 && (m.includes(target) || target.includes(m));
+  };
+  const isThePokemon = (c: TCGdexCard) =>
+    (typeof pokemonNumber === 'number' && Array.isArray(c.dexId) && c.dexId.includes(pokemonNumber)) ||
+    nameMatches(c.name);
+  // The confirmed Pokémon first, the rest in table order (sort is stable).
+  const rank = (cards: TCGdexCard[]) =>
+    [...cards].sort((a, b) => Number(isThePokemon(b)) - Number(isThePokemon(a)));
+
+  const probes = localId
+    ? await Promise.all(sets.map((s) => lookupById(s, localId, lang).catch(() => null)))
+    : [];
+  const hits = probes.filter((c): c is TCGdexCard => c !== null);
+  if (hits.some(isThePokemon) || !target) return rank(hits);
+
+  // The number points at another Pokémon — search the card lists by name.
+  const byName: TCGdexCard[] = [];
+  for (const s of sets) {
+    const briefs = (await setBriefs(s, lang)).filter((b) => nameMatches(b.name)).slice(0, 4);
+    for (const b of briefs) {
+      const card = await lookupById(s, b.localId, lang).catch(() => null);
+      if (card) byName.push(card);
+    }
+  }
+  const seen = new Set(byName.map((c) => c.id));
+  return rank([...byName, ...hits.filter((h) => !seen.has(h.id))]);
+}
 
 /**
  * Looks up a card on TCGdex when Gemini's `set_code` is actually a subseries

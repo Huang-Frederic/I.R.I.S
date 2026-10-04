@@ -81,6 +81,16 @@ describe('parseDecklist', () => {
     expect(parseDecklist('   \n  \n')).toEqual([]);
   });
 
+  it('parses a set code that leads with digits (30C — 30th Celebration)', () => {
+    const [line] = parseDecklist('Pokémon : 1\n1 Pikachu 30C 25');
+    expect(line).toMatchObject({ name: 'Pikachu', setCode: '30C', setNumber: '25' });
+  });
+
+  it('never reads a lone letter as the set code', () => {
+    // The "V" belongs to the card name; with no real code the line is skipped.
+    expect(parseDecklist('Pokémon : 1\n1 Pikachu V 25')).toEqual([]);
+  });
+
   it('ignores lines that appear before any category header', () => {
     expect(parseDecklist('3 Weedle CRI 1\nPokémon : 1\n1 Rabsca TEF 24')).toHaveLength(1);
   });

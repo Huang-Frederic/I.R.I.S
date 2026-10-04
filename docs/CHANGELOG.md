@@ -6,6 +6,19 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-10-05 — v1.3.1: cartes « 30 ans » (30th Celebration) reconnues au scan
+
+Le set des 30 ans — « 30ᵉ Anniversaire » / *30th Celebration* (code imprimé `30C`, sorti le 16/09/2026, 161 cartes), sa *Classic Collection* (30 rééditions, même code `30C`) et le JP « 30th CELEBRATION » (`M6a`) — n'était reconnu par **aucune** stratégie du scan : absent de `cardmarket_expansions` (la liste Cardmarket locale s'arrête à Pitch Black, donc Stratégies 0/1 aveugles), et le repli TCGdex ne savait pas résoudre `30C`.
+
+- **Repli TCGdex (Stratégie 2) réparé pour tous les sets récents** — `lookupById` retente un numéro court complété à 3 chiffres sur un 404 : l'OCR retire les zéros (« 001 » → « 1 ») alors que TCGdex attend `SV2a-001`/`30th-001` sur les sets récents (mais `base1-4` sur les anciens, d'où l'essai brut d'abord). Ce repli était de fait inopérant sur tout set récent, JP compris — `M6a` passe désormais.
+- **Codes imprimés ≠ id TCGdex** — table `PRINTED_CODE_SETS` (`30C` → `30th` + `30th-c`) et `lookupByPrintedCode` dans `lib/api/tcgdex.ts` : sonde les deux sets par numéro, classe d'abord celui dont le Pokémon (dex/nom lu par l'OCR) correspond ; si aucun ne correspond, cherche par nom dans les listes de cartes — une réédition *Classic Collection* peut porter son numéro d'origine (un Dracaufeu imprime le « 4 » du set de base). Tous les résultats deviennent des candidats du sélecteur. Validé en live (FR/EN/JP, carte lettre « B », rare secrète 158, réédition au numéro d'origine, pas de régression sur `base1`).
+- **Prompt OCR** (`gemini-vision.ts`) — la règle « Latin = toujours 3 lettres » aurait fait rejeter `30C` comme hallucination ; elle admet désormais les codes à chiffres.
+- **Decklist PTCG** — le set principal est légal en Standard (marque **J**) ; `parseDecklist` accepte un code à chiffres (`30C`) sans jamais prendre une lettre seule (le « V » de « Pikachu V ») pour un code.
+- **Reste à faire** : l'import Cardmarket (prix, `id_product`, `set_prefix` → Stratégies 0/1) se fait avec `npm run update-expansions`, bloqué par le token BrightData expiré. Tant qu'il n'est pas fait, les cartes 30 ans sont identifiées (nom, image, rareté) via TCGdex, sans prix Cardmarket.
+- 148 fichiers de tests / 1302 tests verts, typecheck et lint propres.
+
+---
+
 ## 2026-09-22 — v1.3.0: bot Vinted autonome — file d'attente groupée, pool de reposts, réglages en modale
 
 Un agent Python séparé (`vinted-agent/`, hors de l'app Next.js, propre venv + suite pytest) poste et reposte les annonces sur Vinted seul, sur un planning configurable, sans clic humain. Cette phase couvre la surface de contrôle I.R.I.S pour cet agent (`/vinted/bot`, nav « Bot Vinted ») à travers plusieurs itérations dans la même session — voir [ARCHITECTURE.md](ARCHITECTURE.md#-data-flow-autonomous-vinted-bot) et [FEATURES.md](FEATURES.md#bot-autonome-vintedbot) pour le détail à jour.

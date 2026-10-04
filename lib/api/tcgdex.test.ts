@@ -1,6 +1,10 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import {
+  _resetSetBriefsCacheForTests,
   extractPokemonName,
+  isPrintedSetCode,
+  lookupById,
+  lookupByPrintedCode,
   lookupSubseries,
   mapRarity,
   probeSubseriesByDex,
@@ -293,5 +297,110 @@ describe('probeSubseriesByDex — last-chance probe when set_code is wrong', () 
     mockResponses({}); // shouldn't be called
     const card = await probeSubseriesByDex('200', 6, 'en');
     expect(card).toBeNull();
+  });
+});
+
+/**
+ * A fetch stand-in keyed by the exact path after the language segment
+ * ("cards/30th-001", "sets/30th-c"). Exact matching matters here: a substring
+ * test would let a "cards/30th-1" route answer for "cards/30th-12".
+ */
+function mockTCGdex(routes: Record<string, unknown>): string[] {
+  const calls: string[] = [];
+  global.fetch = vi.fn((url: string) => {
+    const path = url.replace(/^https:\/\/api\.tcgdex\.net\/v2\/[a-z-]+\//, '');
+    calls.push(path);
+    const body = routes[path];
+    if (body === undefined) return Promise.resolve({ status: 404, ok: false } as Response);
+    return Promise.resolve({ status: 200, ok: true, json: async () => body } as Response);
+  }) as unknown as typeof fetch;
+  return calls;
+}
+
+describe('lookupById — numeric localId padding', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('returns an unpadded hit directly (old sets: base1-4)', async () => {
+    const calls = mockTCGdex({ 'cards/base1-4': { name: 'Charizard' } });
+    expect((await lookupById('base1', '4'))?.name).toBe('Charizard');
+    expect(calls).toEqual(['cards/base1-4']);
+  });
+
+  it('retries a short number padded to 3 digits (modern sets: 30th-001)', async () => {
+    const calls = mockTCGdex({ 'cards/30th-001': { name: 'Exeggcute' } });
+    expect((await lookupById('30th', '1'))?.name).toBe('Exeggcute');
+    expect(calls).toEqual(['cards/30th-1', 'cards/30th-001']);
+  });
+
+  it('does not retry a non-numeric localId', async () => {
+    const calls = mockTCGdex({});
+    expect(await lookupById('swsh11', 'TG03')).toBeNull();
+    expect(calls).toEqual(['cards/swsh11-TG03']);
+  });
+});
+
+describe('lookupByPrintedCode — 30C (30th Celebration + Classic Collection)', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+    _resetSetBriefsCacheForTests();
+  });
+
+  it('recognises 30C in any case, and only the codes it maps', () => {
+    expect(isPrintedSetCode('30C')).toBe(true);
+    expect(isPrintedSetCode('30c')).toBe(true);
+    expect(isPrintedSetCode('PBL')).toBe(false);
+  });
+
+  it('returns nothing for a code it does not map, without calling TCGdex', async () => {
+    const calls = mockTCGdex({});
+    expect(await lookupByPrintedCode('PBL', '12', 'en')).toEqual([]);
+    expect(calls).toEqual([]);
+  });
+
+  it('finds a main-set card numbered past the Classic Collection', async () => {
+    mockTCGdex({ 'cards/30th-045': { id: '30th-045', name: 'Pikachu', dexId: [25] } });
+    const cards = await lookupByPrintedCode('30C', '45', 'en', 25, 'Pikachu');
+    expect(cards.map((c) => c.id)).toEqual(['30th-045']);
+  });
+
+  it('ranks the set whose Pokémon matches first when the number exists in both', async () => {
+    mockTCGdex({
+      'cards/30th-001': { id: '30th-001', name: 'Exeggcute', dexId: [102] },
+      'cards/30th-c-001': { id: '30th-c-001', name: 'Charizard', dexId: [6] },
+    });
+    const cards = await lookupByPrintedCode('30C', '1', 'en', 6, 'Charizard');
+    expect(cards.map((c) => c.id)).toEqual(['30th-c-001', '30th-001']);
+  });
+
+  it('finds a reprint carrying its original number by name', async () => {
+    // A Classic Collection Charizard prints its Base Set "4": both number
+    // probes land on other Pokémon, so the card lists are searched by name.
+    mockTCGdex({
+      'cards/30th-004': { id: '30th-004', name: 'Volbeat', dexId: [313] },
+      'cards/30th-c-004': { id: '30th-c-004', name: 'Genesect EX', dexId: [649] },
+      'sets/30th': { cards: [{ id: '30th-004', localId: '004', name: 'Volbeat' }] },
+      'sets/30th-c': {
+        cards: [
+          { id: '30th-c-001', localId: '001', name: 'Charizard' },
+          { id: '30th-c-021', localId: '021', name: 'N' },
+        ],
+      },
+      'cards/30th-c-001': { id: '30th-c-001', name: 'Charizard', dexId: [6] },
+    });
+    const cards = await lookupByPrintedCode('30C', '4', 'en', 6, 'Charizard');
+    expect(cards[0].id).toBe('30th-c-001');
+  });
+
+  it('does not let a one-letter card name ("N") match every name containing an n', async () => {
+    mockTCGdex({
+      'sets/30th': { cards: [] },
+      'sets/30th-c': { cards: [{ id: '30th-c-021', localId: '021', name: 'N' }] },
+      'cards/30th-c-021': { id: '30th-c-021', name: 'N' },
+    });
+    expect(await lookupByPrintedCode('30C', '', 'en', null, 'Noctunoir')).toEqual([]);
   });
 });

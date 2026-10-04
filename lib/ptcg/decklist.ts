@@ -42,7 +42,9 @@ const FOOTER_RE = /^Total de cartes\s*:/;
 // Lost Origin Trainer Gallery print, "CRZ-GG" for Galarian Gallery) — without
 // it, a line for one of these prints doesn't match at all and is silently
 // dropped instead of at least reaching the "unresolved card" fallback.
-const LINE_RE = /^(\d+)\s+(.+?)\s+([A-Z]{2,5}(?:-[A-Z]{1,4})?)\s+(\d+)$/;
+// A code may also lead with digits ("30C", the 30th Celebration). A bare
+// single letter stays excluded, so the "V" in "Pikachu V" is never a code.
+const LINE_RE = /^(\d+)\s+(.+?)\s+((?:\d{1,2}[A-Z]{1,4}|[A-Z]{2,5})(?:-[A-Z]{1,4})?)\s+(\d+)$/;
 
 export function parseDecklist(text: string): ParsedDecklistLine[] {
   const merged = new Map<string, ParsedDecklistLine>();

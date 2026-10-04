@@ -21,9 +21,12 @@ import {
   type CardmarketCard,
 } from '@/lib/api/cardmarket-enrich';
 import {
+  isPrintedSetCode,
   lookupById as tcgdexLookupById,
+  lookupByPrintedCode as tcgdexLookupByPrintedCode,
   toEnrichedCard as tcgdexToEnrichedCard,
   toTCGdexLang,
+  type TCGdexCard,
 } from '@/lib/api/tcgdex';
 import POKEMON_NAMES from '@/lib/data/pokemon-names.json';
 import type { createClient as _createClient } from '@/lib/supabase/server';
@@ -34,7 +37,7 @@ export const runtime = 'nodejs';
 type SupabaseServerClient = Awaited<ReturnType<typeof _createClient>>;
 
 interface EnrichBody {
-  /** 3-4 letter set abbreviation printed on the card (BRS, LOR, BKR, EVO…). */
+  /** 3-4 character set abbreviation printed on the card (BRS, LOR, BKR, 30C…). */
   setPrefix?: string | null;
   /** Numeric set position. Null when Gemini detected a TG/GG/SV subseries
    *  prefix on the printed number — triggers the picker strategy. */
@@ -283,49 +286,74 @@ function extractSuffix(cardName: string): string {
  * TCGdex only for set/image metadata.
  */
 async function strategyTCGdex(ctx: StrategyContext): Promise<EnrichResult | null> {
-  if (!ctx.setPrefix || !ctx.setNumber) {
+  // A printed code TCGdex doesn't index (30C) can resolve by name alone, so
+  // it doesn't need a number; any other code does.
+  const printed = !!ctx.setPrefix && isPrintedSetCode(ctx.setPrefix);
+  if (!ctx.setPrefix || (!ctx.setNumber && !printed)) {
     console.log(`[enrich] Strategy 2 skipped — needs setPrefix + setNumber`);
     return null;
   }
   const tcgdexLang = toTCGdexLang(ctx.language);
   console.log(`[enrich] Strategy 2 (TCGdex live): ${ctx.setPrefix}-${ctx.setNumber} [${tcgdexLang}]`);
   try {
-    const card = await tcgdexLookupById(ctx.setPrefix, ctx.setNumber, tcgdexLang);
-    if (!card) {
+    let cards: TCGdexCard[];
+    if (printed) {
+      // The code can span several sets (the 30th Celebration and its Classic
+      // Collection both print "30C") — ranked by the Pokémon Gemini read,
+      // every hit kept as a candidate for the picker.
+      cards = await tcgdexLookupByPrintedCode(
+        ctx.setPrefix,
+        ctx.setNumber ?? '',
+        tcgdexLang,
+        ctx.body.pokemonNumber ?? null,
+        ctx.body.pokemonName ?? ctx.body.cardName ?? null,
+      );
+    } else {
+      const card = await tcgdexLookupById(ctx.setPrefix, ctx.setNumber!, tcgdexLang);
+      cards = card ? [card] : [];
+    }
+    if (cards.length === 0) {
       console.log(`[enrich] Strategy 2 → no TCGdex match, falling through`);
       return null;
     }
-    // Build the EnrichedCard from TCGdex metadata, then OVERRIDE the Pokémon
-    // identity with what Gemini saw + our static map. Gemini's pokemon_number
-    // is OCR-d from the printed national-dex; TCGdex's dexId is editorial
-    // metadata that's frequently wrong on themed/promo sets.
-    const tcgdex = tcgdexToEnrichedCard(card);
-    const final: EnrichedCard = {
-      ...tcgdex,
-      pokemon_number: ctx.body.pokemonNumber ?? tcgdex.pokemon_number,
-      pokemon_name: ctx.body.pokemonName ?? tcgdex.pokemon_name,
-      // Prefer the raw TCGdex name as the base for bilingual formatting.
-      // ctx.body.cardName may already be bilingual ("FR (JP)") from a previous
-      // enrichment pass and would produce double-wrapped names on re-search.
-      card_name: tcgdex.card_name || ctx.body.cardName || '',
-    };
-    // Apply FR bilingual format on Pokémon cards when source language isn't FR.
-    // Use static map keyed by Gemini's number — never TCGdex's dexId.
-    if (final.pokemon_number && ctx.language !== 'FR') {
-      const entry = (POKEMON_NAMES as Record<string, { fr: string; en: string; ja: string }>)[
-        String(final.pokemon_number)
-      ];
-      if (entry?.fr) {
-        final.pokemon_name = `${entry.fr} (${final.pokemon_name})`;
-        final.card_name = `${entry.fr} (${final.card_name})`;
-      }
-    }
-    console.log(`[enrich] Strategy 2 ✓ ${final.card_name}`);
-    return { bestMatch: final, candidates: [final] };
+    const candidates = cards.map((card) => tcgdexCardToEnriched(card, ctx));
+    console.log(`[enrich] Strategy 2 ✓ ${candidates.map((c) => c.card_name).join(', ')}`);
+    return { bestMatch: candidates[0], candidates };
   } catch (e) {
     console.warn('[enrich] Strategy 2 errored, falling through:', e);
     return null;
   }
+}
+
+/**
+ * Builds the EnrichedCard from TCGdex metadata, then OVERRIDES the Pokémon
+ * identity with what Gemini saw + our static map. Gemini's pokemon_number is
+ * OCR-d from the printed national dex; TCGdex's dexId is editorial metadata
+ * that's frequently wrong on themed/promo sets.
+ */
+function tcgdexCardToEnriched(card: TCGdexCard, ctx: StrategyContext): EnrichedCard {
+  const tcgdex = tcgdexToEnrichedCard(card);
+  const final: EnrichedCard = {
+    ...tcgdex,
+    pokemon_number: ctx.body.pokemonNumber ?? tcgdex.pokemon_number,
+    pokemon_name: ctx.body.pokemonName ?? tcgdex.pokemon_name,
+    // Prefer the raw TCGdex name as the base for bilingual formatting.
+    // ctx.body.cardName may already be bilingual ("FR (JP)") from a previous
+    // enrichment pass and would produce double-wrapped names on re-search.
+    card_name: tcgdex.card_name || ctx.body.cardName || '',
+  };
+  // Apply FR bilingual format on Pokémon cards when source language isn't FR.
+  // Use static map keyed by Gemini's number — never TCGdex's dexId.
+  if (final.pokemon_number && ctx.language !== 'FR') {
+    const entry = (POKEMON_NAMES as Record<string, { fr: string; en: string; ja: string }>)[
+      String(final.pokemon_number)
+    ];
+    if (entry?.fr) {
+      final.pokemon_name = `${entry.fr} (${final.pokemon_name})`;
+      final.card_name = `${entry.fr} (${final.card_name})`;
+    }
+  }
+  return final;
 }
 
 /**
