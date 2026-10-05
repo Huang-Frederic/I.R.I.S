@@ -136,3 +136,44 @@ def test_every_problem_is_listed_at_once():
     assert listing_attribute_problems(item, parse_catalog_attributes(PUFFER_JACKETS)) == [
         "Taille manquante", "Couleur manquante", "État non accepté pour cette catégorie",
     ]
+
+
+from catalog_attributes import resolve_size_id
+
+# Catalog 1227 (men's parkas) as Vinted served it at 15:10 on 2026-10-05 —
+# that morning it was a single "Tailles hommes" group where L was 209.
+PARKAS_NEW_SIZES = parse_catalog_attributes([_configured("size", [
+    _group(1, "S/M/L", [_option(2436, "M"), _option(2437, "L")]),
+    _group(2, "Pouces", [_option(2501, '40"')]),
+    _group(3, "EU", [_option(2601, "EU 52")]),
+])])
+
+
+def test_resolve_keeps_a_size_id_that_is_still_offered():
+    assert resolve_size_id({"vinted_size_id": 2437, "size": "L"}, PARKAS_NEW_SIZES) == 2437
+
+
+def test_resolve_finds_a_stale_size_again_by_its_label():
+    assert resolve_size_id({"vinted_size_id": 209, "size": "L"}, PARKAS_NEW_SIZES) == 2437
+
+
+def test_resolve_matches_labels_regardless_of_case_and_spacing():
+    assert resolve_size_id({"vinted_size_id": 209, "size": "  l "}, PARKAS_NEW_SIZES) == 2437
+    assert resolve_size_id({"vinted_size_id": None, "size": "eu  52"}, PARKAS_NEW_SIZES) == 2601
+
+
+def test_resolve_matches_a_bare_number_to_a_single_prefixed_option():
+    # "52" stored, Vinted now titles it "EU 52".
+    assert resolve_size_id({"vinted_size_id": 999, "size": "52"}, PARKAS_NEW_SIZES) == 2601
+
+
+def test_resolve_gives_up_on_an_ambiguous_label():
+    ambiguous = parse_catalog_attributes([_configured("size", [
+        _group(1, "EU", [_option(1, "EU 38")]), _group(2, "FR", [_option(2, "FR 38")]),
+    ])])
+    assert resolve_size_id({"vinted_size_id": 999, "size": "38"}, ambiguous) is None
+
+
+def test_resolve_gives_up_without_a_label_or_without_sizes():
+    assert resolve_size_id({"vinted_size_id": 209, "size": None}, PARKAS_NEW_SIZES) is None
+    assert resolve_size_id({"vinted_size_id": 209, "size": "L"}, parse_catalog_attributes(PERFUME)) is None

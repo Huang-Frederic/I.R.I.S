@@ -384,6 +384,7 @@ export default function OtherItemAnnonceModal({ item, storagePublicUrl, onClose,
                 onRetry={() => void retryAttributes()}
                 conditionId={vintedDraft.conditionId}
                 sizeId={vintedDraft.sizeId}
+                sizeLabel={vintedDraft.sizeLabel}
                 colorIds={vintedDraft.colorIds}
                 onChange={applyVintedFields}
                 missing={missing}

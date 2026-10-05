@@ -93,3 +93,34 @@ export function missingAttributes(
   if (conditions.length > 0 && !conditions.includes(values.conditionId)) missing.push('condition');
   return missing;
 }
+
+function normalizeSizeLabel(label: string): string {
+  return label.toLowerCase().split(/\s+/).filter(Boolean).join(' ');
+}
+
+/** The size option an item should use. Vinted renumbers a category's sizes
+ *  from time to time (men's parkas went from L = 209 to L = 2437 on
+ *  2026-10-05), so a stored id can go stale: kept while still offered,
+ *  otherwise the stored label is found again — exact title, or for a bare
+ *  number a single prefixed title ("52" → "EU 52"). Mirrors
+ *  vinted-agent/catalog_attributes.py resolve_size_id. */
+export function resolveSizeOption(
+  attributes: CatalogAttributes | null,
+  sizeId: number | null,
+  sizeLabel: string | null | undefined,
+): SizeOption | null {
+  const options = attributes?.size_options?.flatMap((g) => g.options) ?? [];
+  if (options.length === 0) return null;
+  const current = sizeId === null ? undefined : options.find((o) => o.id === sizeId);
+  if (current) return current;
+
+  const label = normalizeSizeLabel(sizeLabel ?? '');
+  if (!label) return null;
+  const exact = options.filter((o) => normalizeSizeLabel(o.title) === label);
+  if (exact.length === 1) return exact[0];
+  if (exact.length === 0 && /^\d+$/.test(label.replace(/[.,]/g, ''))) {
+    const suffixed = options.filter((o) => normalizeSizeLabel(o.title).split(' ').pop() === label);
+    if (suffixed.length === 1) return suffixed[0];
+  }
+  return null;
+}

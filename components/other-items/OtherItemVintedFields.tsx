@@ -8,6 +8,7 @@ import {
   VINTED_COLORS,
   conditionIdsFor,
   findSizeOption,
+  resolveSizeOption,
   type MissingAttribute,
 } from '@/lib/vinted/other-item-attributes';
 import type { CatalogAttributesState } from './hooks/useCatalogAttributes';
@@ -25,6 +26,8 @@ export interface VintedFieldsProps {
   onRetry: () => void;
   conditionId: number;
   sizeId: number | null;
+  /** The stored size label — lets a size Vinted renumbered be found again. */
+  sizeLabel?: string | null;
   colorIds: number[];
   onChange: (patch: VintedFieldsPatch) => void;
   /** Fields to flag as still missing (shown after a submit attempt). */
@@ -57,6 +60,7 @@ export default function OtherItemVintedFields({
   onRetry,
   conditionId,
   sizeId,
+  sizeLabel = null,
   colorIds,
   onChange,
   missing = [],
@@ -76,8 +80,12 @@ export default function OtherItemVintedFields({
   }, [ready, conditionId, onChange]);
 
   useEffect(() => {
-    if (ready && sizeId !== null && !findSizeOption(ready, sizeId)) onChange({ sizeId: null, sizeLabel: null });
-  }, [ready, sizeId, onChange]);
+    if (!ready || sizeId === null || findSizeOption(ready, sizeId)) return;
+    // Not offered anymore: Vinted renumbered it (found again by label) or it
+    // belongs to another category (dropped).
+    const match = resolveSizeOption(ready, sizeId, sizeLabel);
+    onChange(match ? { sizeId: match.id, sizeLabel: match.title } : { sizeId: null, sizeLabel: null });
+  }, [ready, sizeId, sizeLabel, onChange]);
 
   useEffect(() => {
     if (ready && !ready.has_color && colorIds.length > 0) onChange({ colorIds: [] });

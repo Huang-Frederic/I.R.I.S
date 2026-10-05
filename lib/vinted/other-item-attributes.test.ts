@@ -6,6 +6,7 @@ import {
   findSizeOption,
   missingAttributes,
   parseColorIds,
+  resolveSizeOption,
   type CatalogAttributes,
 } from './other-item-attributes';
 
@@ -102,5 +103,44 @@ describe('missingAttributes', () => {
 
   it('asks for neither size nor color where the category has neither', () => {
     expect(missingAttributes(PERFUME, { sizeId: null, colorIds: [], conditionId: 6 })).toEqual([]);
+  });
+});
+
+describe('resolveSizeOption', () => {
+  // Catalog 1227 as Vinted served it on 2026-10-05 afternoon — sizes renumbered
+  // (L was 209 that morning).
+  const PARKAS: CatalogAttributes = {
+    ...PUFFER,
+    catalog_id: 1227,
+    size_options: [
+      { title: 'S/M/L', options: [{ id: 2436, title: 'M' }, { id: 2437, title: 'L' }] },
+      { title: 'EU', options: [{ id: 2601, title: 'EU 52' }] },
+    ],
+  };
+
+  it('keeps an id that is still offered', () => {
+    expect(resolveSizeOption(PARKAS, 2437, 'L')).toEqual({ id: 2437, title: 'L' });
+  });
+
+  it('finds a renumbered size again by its label, ignoring case and spacing', () => {
+    expect(resolveSizeOption(PARKAS, 209, 'L')).toEqual({ id: 2437, title: 'L' });
+    expect(resolveSizeOption(PARKAS, null, ' eu  52 ')).toEqual({ id: 2601, title: 'EU 52' });
+  });
+
+  it('matches a bare number to a single prefixed option', () => {
+    expect(resolveSizeOption(PARKAS, 999, '52')).toEqual({ id: 2601, title: 'EU 52' });
+  });
+
+  it('gives up on an ambiguous or missing label', () => {
+    const ambiguous: CatalogAttributes = {
+      ...PUFFER,
+      size_options: [
+        { title: 'EU', options: [{ id: 1, title: 'EU 38' }] },
+        { title: 'FR', options: [{ id: 2, title: 'FR 38' }] },
+      ],
+    };
+    expect(resolveSizeOption(ambiguous, 999, '38')).toBeNull();
+    expect(resolveSizeOption(PARKAS, 209, null)).toBeNull();
+    expect(resolveSizeOption(PERFUME, 209, 'L')).toBeNull();
   });
 });

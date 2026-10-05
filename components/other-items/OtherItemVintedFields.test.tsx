@@ -83,6 +83,15 @@ describe('<OtherItemVintedFields>', () => {
     expect(props.onChange).toHaveBeenCalledWith({ conditionId: 6 });
   });
 
+  it('finds a size Vinted renumbered again by its label, instead of dropping it', () => {
+    const renumbered: CatalogAttributes = {
+      ...PUFFER,
+      size_options: [{ title: 'S/M/L', options: [{ id: 2436, title: 'M' }, { id: 2437, title: 'L' }] }],
+    };
+    const props = renderFields({ attributes: { status: 'ready', attributes: renumbered }, sizeId: 209, sizeLabel: 'L' });
+    expect(props.onChange).toHaveBeenCalledWith({ sizeId: 2437, sizeLabel: 'L' });
+  });
+
   it('drops a size that belongs to another category', () => {
     const props = renderFields({ sizeId: 209 });
     expect(props.onChange).toHaveBeenCalledWith({ sizeId: null, sizeLabel: null });

@@ -249,6 +249,7 @@ export default function OtherItemForm() {
         onRetry={() => void retryAttributes()}
         conditionId={condition}
         sizeId={sizeId}
+        sizeLabel={sizeLabel}
         colorIds={colorIds}
         onChange={applyVintedFields}
         missing={showMissing ? missing : []}

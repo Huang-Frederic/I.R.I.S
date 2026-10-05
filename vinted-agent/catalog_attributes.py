@@ -82,3 +82,35 @@ def listing_attribute_problems(item: dict, parsed: dict) -> list[str]:
         problems.append("État non accepté pour cette catégorie")
 
     return problems
+
+
+def _normalize_size_label(label: str) -> str:
+    return " ".join(label.lower().split())
+
+
+def resolve_size_id(item: dict, parsed: dict) -> int | None:
+    """The size option id to post with. Vinted renumbers a category's sizes
+    from time to time — on 2026-10-05 men's parkas moved from a single
+    "Tailles hommes" group (L = 209) to S/M/L / Pouces / EU groups (L = 2437)
+    within hours — so a stored id can go stale. Keeps the stored id while it's
+    still offered; otherwise finds the stored label (`size`) again, as an exact
+    title or, for a bare number, a single prefixed title ("52" → "EU 52").
+    None when nothing matches unambiguously."""
+    options = [o for group in parsed.get("size_options") or [] for o in group["options"]]
+    if not options:
+        return None
+    stored = item.get("vinted_size_id")
+    if stored is not None and any(o["id"] == stored for o in options):
+        return stored
+
+    label = _normalize_size_label(item.get("size") or "")
+    if not label:
+        return None
+    exact = [o["id"] for o in options if _normalize_size_label(o["title"]) == label]
+    if len(exact) == 1:
+        return exact[0]
+    if not exact and label.replace(",", "").replace(".", "").isdigit():
+        suffixed = [o["id"] for o in options if _normalize_size_label(o["title"]).split(" ")[-1] == label]
+        if len(suffixed) == 1:
+            return suffixed[0]
+    return None

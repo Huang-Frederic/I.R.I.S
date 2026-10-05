@@ -14,7 +14,7 @@ from realtime.types import RealtimeSubscribeStates
 from vinted_api import VintedClient, ListingGoneError, VintedValidationError
 from vinted_api import CONDITION_MAP, CARD_LOTS_CATALOG_ID, POKEMON_BRAND_ID, SANS_MARQUE_BRAND_ID
 from audit_log import audit_log
-from catalog_attributes import listing_attribute_problems, parse_catalog_attributes
+from catalog_attributes import listing_attribute_problems, parse_catalog_attributes, resolve_size_id
 from scheduler import decide_next_action, should_requeue, sort_repost_candidates
 
 load_dotenv()
@@ -934,6 +934,16 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
         return
     attributes = parse_catalog_attributes(raw_attributes)
     await _store_catalog_attributes(supabase, item["vinted_catalog_id"], attributes)
+    # Vinted renumbers a category's sizes from time to time: a stored id that
+    # is no longer offered is found again by its label, and saved.
+    size_id = resolve_size_id(item, attributes)
+    if size_id is not None and size_id != item.get("vinted_size_id"):
+        item = {**item, "vinted_size_id": size_id}
+        try:
+            await supabase.table("other_items").update({"vinted_size_id": size_id}).eq("id", other_item_id).execute()
+        except Exception as e:
+            log.warning("⚠  nouvel id de taille non enregistré (%s) : %s", other_item_id[:8], e)
+        await _log(supabase, user_id, "info", "📏  %s taille renumérotée par Vinted, retrouvée par son libellé", tag)
     problems = listing_attribute_problems(item, attributes)
     if problems:
         await _fail_job(supabase, job_id, other_item_id, "À compléter dans la fiche : " + " · ".join(problems),

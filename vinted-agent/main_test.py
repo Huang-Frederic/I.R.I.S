@@ -448,7 +448,9 @@ def _mock_supabase_for_post_other_item(other_item: dict, existing_listing_id=Non
     item_single = MagicMock(execute=item_single_execute)
     item_eq = MagicMock(single=MagicMock(return_value=item_single))
     item_select = MagicMock(eq=MagicMock(return_value=item_eq))
-    other_items_table = MagicMock(select=MagicMock(return_value=item_select))
+    item_update_execute = AsyncMock(return_value=MagicMock(data=[other_item]))
+    item_update_fn = MagicMock(return_value=MagicMock(eq=MagicMock(return_value=MagicMock(execute=item_update_execute))))
+    other_items_table = MagicMock(select=MagicMock(return_value=item_select), update=item_update_fn)
 
     guard_data = [{"vinted_listing_id": existing_listing_id}] if existing_listing_id else []
     guard_execute = AsyncMock(return_value=MagicMock(data=guard_data))
@@ -483,6 +485,7 @@ def _mock_supabase_for_post_other_item(other_item: dict, existing_listing_id=Non
 
     supabase.table = MagicMock(side_effect=table)
     supabase.catalog_upsert_fn = catalog_upsert_fn
+    supabase.item_update_fn = item_update_fn
     return supabase, upsert_fn, jobs_update_fn
 
 
@@ -739,7 +742,7 @@ def test_process_other_item_job_refreshes_the_category_cache():
 
 def test_process_other_item_job_stops_before_any_upload_when_the_size_is_missing():
     supabase, upsert_fn, jobs_update_fn = _mock_supabase_for_post_other_item(
-        _puffer_item(vinted_size_id=None, vinted_color_ids=[])
+        _puffer_item(vinted_size_id=None, size=None, vinted_color_ids=[])
     )
     vinted = _vinted(PUFFER_ATTRIBUTES)
 
@@ -1015,3 +1018,43 @@ def test_fetch_requested_attributes_marks_the_row_as_failed_without_a_session_fo
 
     [(_, op, _, _, row)] = db.writes("vinted_catalog_attributes")
     assert op == "update" and row["status"] == "error"
+
+
+# Catalog 1227 as Vinted served it at 15:10 on 2026-10-05: sizes renumbered
+# (L was 209 that morning, in a single "Tailles hommes" group).
+PARKAS_RENUMBERED = [
+    {"id": 8001, "code": "size", "configuration": {"required": True, "options": [
+        _attr_group("S/M/L", [_attr_option(2436, "M"), _attr_option(2437, "L")]),
+        _attr_group("EU", [_attr_option(2601, "EU 52")]),
+    ]}},
+    {"id": 431, "code": "condition", "configuration": {"required": True, "options": [
+        _attr_group("État", [_attr_option(2, "Très bon état")]),
+    ]}},
+    {"code": "color", "value_ids": None, "value": None, "configuration": None},
+]
+
+
+def test_process_other_item_job_finds_a_renumbered_size_again_by_its_label():
+    item = _puffer_item(vinted_catalog_id=1227, vinted_size_id=209, size="L")
+    supabase, _, jobs_update_fn = _mock_supabase_for_post_other_item(item)
+    vinted = _vinted(PARKAS_RENUMBERED)
+
+    with _fast_and_isolated():
+        asyncio.run(process_other_item_job(supabase, vinted, _post_job()))
+
+    assert vinted.create_listing.call_args.kwargs["size_id"] == 2437
+    supabase.item_update_fn.assert_called_once_with({"vinted_size_id": 2437})
+    assert jobs_update_fn.call_args.args[0]["status"] == "done"
+
+
+def test_process_other_item_job_still_flags_a_stale_size_it_cannot_match():
+    item = _puffer_item(vinted_catalog_id=1227, vinted_size_id=209, size="Taille unique")
+    supabase, _, jobs_update_fn = _mock_supabase_for_post_other_item(item)
+    vinted = _vinted(PARKAS_RENUMBERED)
+
+    with _fast_and_isolated() as requeue:
+        asyncio.run(process_other_item_job(supabase, vinted, _post_job()))
+
+    vinted.create_listing.assert_not_called()
+    assert jobs_update_fn.call_args.args[0]["error"] == "À compléter dans la fiche : Taille invalide pour cette catégorie"
+    assert requeue.await_args.args[3] is True
