@@ -123,6 +123,12 @@ Clothing/shoe categories require a size and a color ("Le champ Taille doit
 - Payload (matches Vinted's own upload form): `color_ids` top-level,
   `item_attributes += {"code": "size", "ids": [<size id>]}`, condition id
   sent raw (`create_listing(condition=None, condition_id=…)`).
+- **Size ids aren't stable**: Vinted renumbers a category's sizes (on
+  2026-10-05 men's parkas and men's sneakers got new groups and new ids within
+  hours — L 209 → 2437, 45 790 → 2120). The bot (`resolve_size_id`) and the
+  fiche (`resolveSizeOption`) keep a stored id while it's offered, otherwise
+  find the stored `size` label again (exact, or a bare number → "EU 45") and
+  save the new id; only an unmatched label is flagged.
 - The bot validates size/color/condition against the live attributes
   **before** uploading photos (`catalog_attributes.listing_attribute_problems`),
   and keeps Vinted's own validation messages (`VintedValidationError`) instead
