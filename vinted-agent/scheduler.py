@@ -95,3 +95,19 @@ def decide_next_action(
         if jitter > fire_probability:
             return None
     return action
+
+
+def should_requeue(target_column: str, item: dict | None, already_listed: bool) -> bool:
+    """Whether a failed post/repost job's item belongs back in its user's
+    new-post queue — the same rule lib/vinted/queue-sync.ts and
+    lib/vinted/other-item-queue-sync.ts use to keep an item queued: still for
+    sale, not already online on that user's account, and for a card, a price
+    the user confirmed (`price_confirmed_at`, see lib/vinted/queue-eligibility.ts).
+    `target_column` is the job's target: "card_id", "lot_id" or "other_item_id"."""
+    if item is None or already_listed:
+        return False
+    if item.get("status") != "for_sale":
+        return False
+    if target_column == "card_id" and item.get("price_confirmed_at") is None:
+        return False
+    return True

@@ -2,7 +2,10 @@ import json
 import logging
 import pytest
 from unittest.mock import MagicMock, patch, mock_open
-from vinted_api import VintedClient, CONDITION_MAP, _parse_csrf, _log_request_failure
+from vinted_api import (
+    VintedClient, VintedValidationError, CONDITION_MAP, _parse_csrf, _log_request_failure,
+    format_validation_errors,
+)
 
 def test_condition_map_covers_all_iris_conditions():
     for cond in ['NM', 'EX', 'GD', 'PL', 'PO']:
@@ -16,7 +19,7 @@ def test_build_listing_payload():
     client = VintedClient.__new__(VintedClient)
     payload = client._build_listing_payload(
         temp_uuid="test-uuid",
-        photo_id=12345,
+        photo_ids=[12345],
         title="Carte Pokémon Pikachu [JP]",
         description="Très belle carte.",
         price=5.0,
@@ -56,3 +59,80 @@ def test_log_request_failure_does_not_crash_when_no_response_is_captured(caplog)
         _log_request_failure(logging.getLogger("test"), "refresh_csrf", e)
 
     assert "no response captured" in caplog.text
+
+
+def _payload(**overrides):
+    client = VintedClient.__new__(VintedClient)
+    kwargs = dict(temp_uuid="u", photo_ids=[1], title="t", description="d", price=1.0, condition="NM")
+    kwargs.update(overrides)
+    return client._build_listing_payload(**kwargs)["item"]
+
+def test_build_listing_payload_sends_no_size_and_no_color_by_default():
+    item = _payload()
+    assert item["color_ids"] == []
+    assert [a["code"] for a in item["item_attributes"]] == ["condition"]
+
+def test_build_listing_payload_sends_size_as_a_dynamic_attribute_and_colors_top_level():
+    # Matches Vinted's own upload form: color_ids is a top-level array, size
+    # goes through item_attributes (x-enable-dynamic-attribute-size is set).
+    item = _payload(size_id=1740, color_ids=[1, 3])
+    assert item["color_ids"] == [1, 3]
+    assert {"code": "size", "ids": [1740]} in item["item_attributes"]
+
+def test_build_listing_payload_raw_condition_id_overrides_the_card_grade_map():
+    # other_items store Vinted's own condition id (6 = neuf avec étiquette),
+    # which has no card-grade letter equivalent.
+    item = _payload(condition=None, condition_id=6)
+    assert item["item_attributes"][0] == {"code": "condition", "ids": [6]}
+
+def test_format_validation_errors_joins_vinteds_messages():
+    body = {"code": 99, "message": "Erreurs trouvées", "message_code": "validation_error", "errors": [
+        {"field": "size", "value": "Le champ Taille doit être renseigné"},
+        {"field": "color", "value": "Le champ Couleur doit être renseigné"},
+    ], "payload": {}}
+    assert format_validation_errors(body) == (
+        "Vinted a refusé l'annonce : Le champ Taille doit être renseigné · Le champ Couleur doit être renseigné"
+    )
+
+def test_format_validation_errors_falls_back_to_the_field_name():
+    assert format_validation_errors({"errors": [{"field": "size"}]}) == "Vinted a refusé l'annonce : size"
+
+def test_format_validation_errors_returns_none_for_other_bodies():
+    assert format_validation_errors({"code": 100, "message": "Server error"}) is None
+    assert format_validation_errors({"errors": []}) is None
+    assert format_validation_errors(["not", "a", "dict"]) is None
+    assert format_validation_errors(None) is None
+
+def _client_with_response(status_code, body):
+    client = VintedClient.__new__(VintedClient)
+    client._csrf = "csrf"
+    client._cookies = {}
+    response = MagicMock(status_code=status_code, ok=200 <= status_code < 300, text=json.dumps(body))
+    response.json.return_value = body
+    if status_code >= 400:
+        response.raise_for_status.side_effect = Exception(f"HTTP Error {status_code}: ")
+    client._session = MagicMock()
+    client._session.post.return_value = response
+    client._sync_datadome = MagicMock()
+    return client
+
+def test_create_listing_raises_a_validation_error_carrying_vinteds_messages():
+    client = _client_with_response(400, {"code": 99, "message_code": "validation_error", "errors": [
+        {"field": "size", "value": "Le champ Taille doit être renseigné"},
+    ]})
+    with pytest.raises(VintedValidationError, match="Le champ Taille doit être renseigné"):
+        client.create_listing(title="t", description="d", price=1.0, condition="NM", image_urls=[], photo_ids=[1])
+
+def test_create_listing_keeps_raising_the_http_error_for_non_validation_failures():
+    client = _client_with_response(500, {"code": 100, "message": "oops"})
+    with pytest.raises(Exception, match="HTTP Error 500") as excinfo:
+        client.create_listing(title="t", description="d", price=1.0, condition="NM", image_urls=[], photo_ids=[1])
+    assert not isinstance(excinfo.value, VintedValidationError)
+
+def test_get_catalog_attributes_asks_for_the_category_and_returns_its_attributes():
+    attributes = [{"code": "brand"}, {"code": "color"}]
+    client = _client_with_response(200, {"code": 0, "attributes": attributes})
+    assert client.get_catalog_attributes(2614) == attributes
+    url = client._session.post.call_args.args[0]
+    assert url.endswith("/api/v2/item_upload/attributes")
+    assert client._session.post.call_args.kwargs["json"] == {"attributes": [{"code": "category", "value": [2614]}]}

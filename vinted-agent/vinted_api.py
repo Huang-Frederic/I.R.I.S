@@ -51,6 +51,35 @@ class ListingGoneError(RuntimeError):
     pass
 
 
+class VintedValidationError(RuntimeError):
+    """Vinted rejected the listing's own data (HTTP 400/422 with a list of
+    field errors, e.g. a missing size). Resending the same payload can't
+    succeed until the item itself is fixed — unlike a timeout or an expired
+    session, which is worth retrying as-is."""
+    pass
+
+
+def format_validation_errors(body: object) -> Optional[str]:
+    """Readable message from a Vinted validation-error body —
+    {"message_code": "validation_error", "errors": [{"field": "size",
+    "value": "Le champ Taille doit être renseigné"}, ...]} — or None when the
+    body isn't one. Without this the job only kept curl's "HTTP Error 400: ",
+    which says nothing about what to fix."""
+    if not isinstance(body, dict):
+        return None
+    errors = body.get("errors")
+    if not isinstance(errors, list):
+        return None
+    parts = [
+        str(e.get("value") or e.get("field"))
+        for e in errors
+        if isinstance(e, dict) and (e.get("value") or e.get("field"))
+    ]
+    if not parts:
+        return None
+    return "Vinted a refusé l'annonce : " + " · ".join(parts)
+
+
 CONDITION_MAP = {
     "NM": 1,
     "EX": 2,
@@ -324,11 +353,23 @@ class VintedClient:
         title: str,
         description: str,
         price: float,
-        condition: str,
+        condition: Optional[str],
         catalog_id: int = POKEMON_CATALOG_ID,
         brand_id: int = POKEMON_BRAND_ID,
         brand: str = "Pokémon",
+        size_id: Optional[int] = None,
+        color_ids: Optional[list] = None,
+        condition_id: Optional[int] = None,
     ) -> dict:
+        # `condition` is the cards/lots letter grade; other_items pass
+        # Vinted's own id straight through `condition_id` instead (6 = neuf
+        # avec étiquette has no letter-grade equivalent). Size rides along as
+        # a dynamic attribute, like Vinted's own upload form sends it.
+        item_attributes = [
+            {"code": "condition", "ids": [condition_id if condition_id is not None else CONDITION_MAP[condition]]}
+        ]
+        if size_id is not None:
+            item_attributes.append({"code": "size", "ids": [size_id]})
         return {
             "item": {
                 "id": None,
@@ -345,13 +386,11 @@ class VintedClient:
                 "price": price,
                 "package_size_id": PACKAGE_SIZE_ID,
                 "shipment_prices": {"domestic": None, "international": None},
-                "color_ids": [],
+                "color_ids": list(color_ids or []),
                 "assigned_photos": [{"id": pid, "orientation": 0} for pid in photo_ids],
                 "measurement_length": None,
                 "measurement_width": None,
-                "item_attributes": [
-                    {"code": "condition", "ids": [CONDITION_MAP[condition]]}
-                ],
+                "item_attributes": item_attributes,
                 "manufacturer": None,
                 "manufacturer_labelling": None,
             },
@@ -366,12 +405,15 @@ class VintedClient:
         title: str,
         description: str,
         price: float,
-        condition: str,
+        condition: Optional[str],
         image_urls: list,
         photo_ids: Optional[list] = None,
         catalog_id: int = POKEMON_CATALOG_ID,
         brand_id: int = POKEMON_BRAND_ID,
         brand: str = "Pokémon",
+        size_id: Optional[int] = None,
+        color_ids: Optional[list] = None,
+        condition_id: Optional[int] = None,
     ) -> str:
         if not self._csrf:
             self.refresh_csrf()
@@ -394,6 +436,9 @@ class VintedClient:
             catalog_id=catalog_id,
             brand_id=brand_id,
             brand=brand,
+            size_id=size_id,
+            color_ids=color_ids,
+            condition_id=condition_id,
         )
 
         h = {**self._headers(), "content-type": "application/json", "x-upload-form": "true"}
@@ -439,8 +484,32 @@ class VintedClient:
                         )
                 except (ValueError, KeyError):
                     pass
+            if r.status_code in (400, 422):
+                try:
+                    message = format_validation_errors(r.json())
+                except ValueError:
+                    message = None
+                if message:
+                    raise VintedValidationError(message)
         r.raise_for_status()
         return str(r.json()["item"]["id"])
+
+    def get_catalog_attributes(self, catalog_id: int) -> list:
+        """The listing attributes Vinted asks for in one category (size
+        options, accepted conditions, whether a color is asked) — what its own
+        upload form fetches when a category is picked. Parse the result with
+        catalog_attributes.parse_catalog_attributes."""
+        if not self._csrf:
+            self.refresh_csrf()
+        r = self._session.post(
+            f"{VINTED_BASE}/api/v2/item_upload/attributes",
+            json={"attributes": [{"code": "category", "value": [catalog_id]}]},
+            headers={**self._headers(), "content-type": "application/json"},
+            timeout=20,
+        )
+        self._sync_datadome(r)
+        r.raise_for_status()
+        return r.json().get("attributes") or []
 
     def _solve_datadome_capsolver(self, captcha_url: str) -> bool:
         """Send the DataDome CAPTCHA challenge to CapSolver and apply the resolved cookie.

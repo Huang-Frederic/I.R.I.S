@@ -141,3 +141,36 @@ def test_decide_next_action_reposts_an_other_item():
     other_item_repost = [{"card_id": None, "lot_id": None, "other_item_id": "oi-1", "vinted_posted_at": "2026-01-01T00:00:00"}]
     result = decide_next_action(MONDAY_NOON, SCHEDULE_WEEKDAY, 3, 8, [], other_item_repost)
     assert result == {"action": "repost", "card_id": None, "lot_id": None, "other_item_id": "oi-1"}
+
+
+from scheduler import should_requeue
+
+
+def test_should_requeue_a_for_sale_other_item_that_is_not_listed():
+    assert should_requeue("other_item_id", {"status": "for_sale"}, already_listed=False) is True
+
+
+def test_should_requeue_a_for_sale_lot_that_is_not_listed():
+    assert should_requeue("lot_id", {"status": "for_sale"}, already_listed=False) is True
+
+
+def test_should_requeue_a_card_only_once_its_price_was_confirmed():
+    # Same gate as lib/vinted/queue-eligibility.ts: a background cron can set
+    # suggested_price, only price_confirmed_at means the user reviewed it.
+    assert should_requeue("card_id", {"status": "for_sale", "price_confirmed_at": None}, already_listed=False) is False
+    assert should_requeue("card_id", {"status": "for_sale", "price_confirmed_at": "2026-10-01T10:00:00Z"}, already_listed=False) is True
+
+
+def test_should_not_requeue_an_item_that_is_no_longer_for_sale():
+    assert should_requeue("other_item_id", {"status": "sold"}, already_listed=False) is False
+    assert should_requeue("other_item_id", {"status": "collection"}, already_listed=False) is False
+
+
+def test_should_not_requeue_an_item_already_listed_for_that_user():
+    # A repost that failed before deleting the old listing: the item is
+    # still online, it stays a repost candidate rather than a new post.
+    assert should_requeue("other_item_id", {"status": "for_sale"}, already_listed=True) is False
+
+
+def test_should_not_requeue_a_deleted_item():
+    assert should_requeue("other_item_id", None, already_listed=False) is False
