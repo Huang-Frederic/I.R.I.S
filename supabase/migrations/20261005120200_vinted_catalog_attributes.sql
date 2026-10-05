@@ -14,7 +14,7 @@
 -- Fred-only, like other_items itself (20261002120000_other_items.sql) — the
 -- requirement is that Gilly can't tell the feature exists.
 
-create table vinted_catalog_attributes (
+create table if not exists vinted_catalog_attributes (
   catalog_id        integer primary key,
   status            text not null default 'pending' check (status in ('pending', 'ready', 'error')),
   requested_by      uuid default auth.uid() references auth.users on delete set null,
@@ -32,9 +32,12 @@ create table vinted_catalog_attributes (
 
 alter table vinted_catalog_attributes enable row level security;
 
+drop policy if exists "fred only vinted_catalog_attributes select" on vinted_catalog_attributes;
 create policy "fred only vinted_catalog_attributes select" on vinted_catalog_attributes
   for select to authenticated using (auth.uid() = '35385d3c-5966-4a10-8568-8d92d1be47e7');
+drop policy if exists "fred only vinted_catalog_attributes insert" on vinted_catalog_attributes;
 create policy "fred only vinted_catalog_attributes insert" on vinted_catalog_attributes
   for insert to authenticated with check (auth.uid() = '35385d3c-5966-4a10-8568-8d92d1be47e7');
+drop policy if exists "fred only vinted_catalog_attributes update" on vinted_catalog_attributes;
 create policy "fred only vinted_catalog_attributes update" on vinted_catalog_attributes
   for update to authenticated using (auth.uid() = '35385d3c-5966-4a10-8568-8d92d1be47e7');

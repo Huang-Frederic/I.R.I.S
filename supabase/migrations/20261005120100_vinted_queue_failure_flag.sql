@@ -13,5 +13,5 @@
 -- it manually clears the flag. Without the skip, one broken item at the head
 -- of the queue would burn the whole daily quota retrying itself.
 
-alter table vinted_queue add column last_error text;
-alter table vinted_queue add column failed_at timestamptz;
+alter table vinted_queue add column if not exists last_error text;
+alter table vinted_queue add column if not exists failed_at timestamptz;

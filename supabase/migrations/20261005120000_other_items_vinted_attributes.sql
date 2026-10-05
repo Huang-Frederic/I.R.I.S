@@ -18,12 +18,22 @@
 --    one of the category's size option ids; `size` stays as its
 --    human-readable label for the description. Vinted accepts up to 2 colors.
 
--- The check's auto-generated name isn't guaranteed, so find it by definition
--- (same pattern as 20261002120200_vinted_queue_jobs_other_items.sql).
+-- Guarded on vinted_size_id: if this ever runs a second time (applied through
+-- the SQL editor and then again by `supabase db push`), it must not remap the
+-- condition ids again — 2 would become 1, and so on. The check's
+-- auto-generated name isn't guaranteed, so it's found by definition (same
+-- pattern as 20261002120200_vinted_queue_jobs_other_items.sql).
 do $$
 declare
   c record;
 begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'other_items' and column_name = 'vinted_size_id'
+  ) then
+    return;
+  end if;
+
   for c in
     select conname from pg_constraint
     where conrelid = 'other_items'::regclass
@@ -32,21 +42,21 @@ begin
   loop
     execute format('alter table other_items drop constraint %I', c.conname);
   end loop;
+
+  update other_items set vinted_condition_id = case vinted_condition_id
+    when 1 then 6
+    when 2 then 1
+    when 3 then 2
+    when 4 then 3
+    when 5 then 4
+    else vinted_condition_id
+  end;
+
+  alter table other_items
+    add constraint other_items_vinted_condition_id_check check (vinted_condition_id > 0);
+
+  alter table other_items add column vinted_size_id integer;
+  alter table other_items
+    add column vinted_color_ids smallint[] not null default '{}'
+    constraint other_items_vinted_color_ids_max_two check (cardinality(vinted_color_ids) <= 2);
 end $$;
-
-update other_items set vinted_condition_id = case vinted_condition_id
-  when 1 then 6
-  when 2 then 1
-  when 3 then 2
-  when 4 then 3
-  when 5 then 4
-  else vinted_condition_id
-end;
-
-alter table other_items
-  add constraint other_items_vinted_condition_id_check check (vinted_condition_id > 0);
-
-alter table other_items add column vinted_size_id integer;
-alter table other_items
-  add column vinted_color_ids smallint[] not null default '{}'
-  constraint other_items_vinted_color_ids_max_two check (cardinality(vinted_color_ids) <= 2);
