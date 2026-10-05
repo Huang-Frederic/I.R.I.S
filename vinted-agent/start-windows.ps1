@@ -1,5 +1,5 @@
-# Windows launcher — mirror of start.sh (WSL). Proxy + ngrok, refresh the store
-# events, then run the Vinted agent. Run .\setup-windows.ps1 once first.
+# Windows launcher — mirror of start.sh (WSL). Proxy + ngrok, then run the
+# Vinted agent. Run .\setup-windows.ps1 once first.
 #
 #   powershell -ExecutionPolicy Bypass -File .\start-windows.ps1
 $ErrorActionPreference = "Stop"
@@ -40,13 +40,8 @@ try {
     Write-Host "OK  Proxy pret : $NgrokUrl"
     $env:VINTED_PROXY = $NgrokUrl
 
-    # 5. Rafraîchit les événements boutiques (incl. navigateur) — non bloquant
-    Write-Host "Scraping des evenements boutiques..."
-    Push-Location ..
-    try { npm run scrape-events } catch { Write-Host "scrape-events a echoue (non bloquant), on continue" }
-    Pop-Location
-
-    # 6. Lance l'agent
+    # 5. Lance l'agent — le scraping des événements boutiques tourne tout seul
+    # côté GitHub Actions (toutes les 30 min), plus besoin de le déclencher ici.
     & $PyBin main.py
 }
 finally {

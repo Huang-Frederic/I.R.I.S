@@ -24,7 +24,6 @@ Write-Host "  OK  .env.local + vinted-agent\.env + vinted_users.json + cookies"
 python -m venv .venv
 .\.venv\Scripts\pip.exe install -q --upgrade pip
 .\.venv\Scripts\pip.exe install -q -r requirements.txt pproxy
-.\.venv\Scripts\python.exe -m playwright install chromium | Out-Null
 Write-Host "  OK  venv Python + dépendances agent (+ pproxy)"
 
 # 3. Node + Chromium pour le scraper d'événements

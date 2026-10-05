@@ -30,23 +30,29 @@ après (il contient tes secrets — il est gitignoré, jamais committé).
 
 Sur WSL, le launcher historique reste `./start.sh`.
 
-## Prerequisites
-- Python 3.12 in WSL
-- `pip install -r requirements.txt` done
+**Une seule instance à la fois** : au démarrage, l'agent remet en `pending`
+tous les jobs `processing` des comptes qu'il gère — si une autre machine est
+en train de poster, son job serait repris et posté deux fois. Coupe le bot
+ailleurs avant de le lancer.
 
 ## Configuration
 
-1. Fill `cookies.json` with values from the mitmproxy capture session.
-2. Fill `.env`:
-   - `SUPABASE_URL` — from Supabase dashboard → Settings → API
-   - `SUPABASE_KEY` — service role key (not anon key)
-   - `IRIS_USER_ID` — your user UUID from Supabase Auth → Users
+`.env` (voir `.env.example`) :
+- `SUPABASE_URL` — Supabase dashboard → Settings → API
+- `SUPABASE_KEY` — service role key (pas la clé anon)
+- `CAPSOLVER_KEY` / `VINTED_PROXY` — optionnels, résolution auto d'un CAPTCHA
+  DataDome ; les launchers exportent eux-mêmes `VINTED_PROXY` (tunnel ngrok)
+
+`vinted_users.json` : UUID Supabase → fichier de cookies + nom affiché (format
+dans [DEPLOY.md](./DEPLOY.md)).
 
 ## Run manually
 
+Sans proxy ni ngrok (pas de résolution auto de CAPTCHA) :
+
 ```bash
 cd vinted-agent
-python main.py
+.venv/bin/python main.py
 ```
 
 ## Auto-start on Windows boot via Task Scheduler
@@ -61,8 +67,14 @@ python main.py
 
 The agent runs silently in the background. Logs go to `vinted-agent/agent.log`.
 
-## Refreshing cookies
+## Cookies
 
-- `datadome` lasts ~1 year — replace if you see 403 errors
-- `cf_clearance` lasts 24h — if blocked, browse vinted.com in Chrome, recapture via mitmproxy
-- `access_token_web` is auto-refreshed by Vinted (7-day session)
+La table Supabase `vinted_sessions` est la source de vérité : avant chaque job
+l'agent réécrit le `cookies_*.json` local depuis cette table, et y repousse le
+token rafraîchi après le job. Rien à copier entre machines.
+
+Si une session expire (403, déconnexion) : exporte les cookies de vinted.fr
+depuis Chrome (Cookie-Editor), convertis l'export avec
+`python import_cookies.py <export.json> --user fhuang5` (ou `hilyna`), puis
+colle le contenu du `cookies_*.json` obtenu dans les réglages du suivi sur
+`/vinted/bot` — le formulaire refuse l'export brut de Cookie-Editor (tableau).

@@ -27,7 +27,6 @@ if ! command -v python3 >/dev/null 2>&1; then echo "❌ python3 requis (brew ins
 python3 -m venv .venv
 ./.venv/bin/pip install -q --upgrade pip
 ./.venv/bin/pip install -q -r requirements.txt pproxy
-./.venv/bin/python -m playwright install chromium >/dev/null 2>&1 || true
 echo "  ✓ venv Python + dépendances agent (+ pproxy)"
 
 # ── 3. Node + Chromium pour le scraper d'événements ──────────────────────────

@@ -1,6 +1,6 @@
 #!/bin/bash
-# macOS launcher — mirror of start.sh (WSL). Proxy + ngrok, refresh the store
-# events, then run the Vinted agent. Run ./setup-mac.sh once first.
+# macOS launcher — mirror of start.sh (WSL). Proxy + ngrok, then run the
+# Vinted agent. Run ./setup-mac.sh once first.
 set -e
 cd "$(dirname "$0")"
 
@@ -47,9 +47,8 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# ── 5. Rafraîchit les événements boutiques (incl. navigateur) ────────────────
-echo "🗓  Scraping des événements boutiques..."
-( cd .. && npm run scrape-events ) || echo "⚠  scrape-events a échoué (non bloquant), on continue"
-
-# ── 6. Lance l'agent ─────────────────────────────────────────────────────────
+# ── 5. Lance l'agent ─────────────────────────────────────────────────────────
+# Le scraping des événements boutiques tourne maintenant tout seul côté
+# GitHub Actions (toutes les 30 min, navigateur compris) — plus besoin de le
+# déclencher ici au démarrage.
 "$PYBIN" main.py
