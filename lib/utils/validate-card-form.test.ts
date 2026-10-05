@@ -68,6 +68,25 @@ describe('validateCardForm', () => {
     }
   });
 
+  it('stores no Pokémon name when the scan sent the literal text "null" (Trainer cards)', () => {
+    // Regression: 45 cards had pokemon_name = 'null', shown as "null" on /stamps.
+    const result = validateCardForm(
+      form({ card_name: 'Niveau Ball (等级球)', pokemon_name: 'null', language: 'CN', rarity: 'UC', status: 'collection' }),
+    );
+    expect(result.valid).toBe(true);
+    if (result.valid) expect(result.parsed.pokemon_name).toBeNull();
+  });
+
+  it('treats "undefined" and any casing of "null" the same way', () => {
+    for (const value of ['undefined', 'NULL', ' Null ']) {
+      const result = validateCardForm(
+        form({ card_name: 'X', pokemon_name: value, language: 'FR', rarity: 'C', status: 'collection' }),
+      );
+      expect(result.valid).toBe(true);
+      if (result.valid) expect(result.parsed.pokemon_name).toBeNull();
+    }
+  });
+
   it('rejects status=pokedex when pokemon_number is null', () => {
     const result = validateCardForm(
       form({

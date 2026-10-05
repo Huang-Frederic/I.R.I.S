@@ -34,7 +34,10 @@ export function validateCardForm(formData: FormData): ValidateCardFormResult {
   const card_name = str(formData, 'card_name');
   if (!card_name) return { valid: false, error: 'card_name est requis', status: 400 };
 
-  const pokemon_name = str(formData, 'pokemon_name');
+  // The scan's OCR can hand back the literal text "null" for a Trainer card's
+  // Pokémon — stored as-is it showed up as "null" on /stamps.
+  const pokemon_name_raw = str(formData, 'pokemon_name');
+  const pokemon_name = pokemon_name_raw && /^(null|undefined)$/i.test(pokemon_name_raw) ? null : pokemon_name_raw;
   const pokemon_number_raw = str(formData, 'pokemon_number');
 
   let pokemon_number: number | null = null;
