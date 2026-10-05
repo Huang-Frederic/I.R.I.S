@@ -104,4 +104,65 @@ describe('POST /api/other-items', () => {
     expect(res.status).toBe(200);
     expect(mocks.sync).toHaveBeenCalledWith(expect.anything(), 'item-1');
   });
+
+  function successfulInsert() {
+    mocks.insert.mockResolvedValue({ data: { id: 'item-1' }, error: null });
+    mocks.storageUpload.mockResolvedValue({ error: null });
+    mocks.update.mockResolvedValue({ data: { id: 'item-1', photo_urls: ['item-1/0.jpg'] }, error: null });
+  }
+
+  const BASE_FIELDS = { name: 'Doudoune', vinted_catalog_id: '2614', vinted_catalog_path: 'Femmes > Doudounes' };
+
+  it("accepts Vinted's own condition ids, including 6 (neuf avec étiquette)", async () => {
+    successfulInsert();
+    const req = new Request('http://x', { method: 'POST', body: formDataWithPhoto({ ...BASE_FIELDS, vinted_condition_id: '6' }) });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(mocks.insert).toHaveBeenCalledWith('other_items', expect.objectContaining({ vinted_condition_id: 6 }));
+  });
+
+  it('rejects a non-positive condition id', async () => {
+    const req = new Request('http://x', { method: 'POST', body: formDataWithPhoto({ ...BASE_FIELDS, vinted_condition_id: '0' }) });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
+  it('stores the size option id, its label and up to two colors', async () => {
+    successfulInsert();
+    const fd = formDataWithPhoto({ ...BASE_FIELDS, vinted_condition_id: '2', vinted_size_id: '1740', size: 'L' });
+    fd.append('vinted_color_ids', '1');
+    fd.append('vinted_color_ids', '3');
+    const res = await POST(new Request('http://x', { method: 'POST', body: fd }));
+    expect(res.status).toBe(200);
+    expect(mocks.insert).toHaveBeenCalledWith(
+      'other_items',
+      expect.objectContaining({ vinted_size_id: 1740, size: 'L', vinted_color_ids: [1, 3] }),
+    );
+  });
+
+  it('stores no size and no color when none is given', async () => {
+    successfulInsert();
+    const res = await POST(new Request('http://x', { method: 'POST', body: formDataWithPhoto({ ...BASE_FIELDS, vinted_condition_id: '2' }) }));
+    expect(res.status).toBe(200);
+    expect(mocks.insert).toHaveBeenCalledWith(
+      'other_items',
+      expect.objectContaining({ vinted_size_id: null, size: null, vinted_color_ids: [] }),
+    );
+  });
+
+  it('rejects an invalid size id', async () => {
+    const fd = formDataWithPhoto({ ...BASE_FIELDS, vinted_condition_id: '2', vinted_size_id: 'L' });
+    const res = await POST(new Request('http://x', { method: 'POST', body: fd }));
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects unknown colors and more than two colors', async () => {
+    const unknown = formDataWithPhoto({ ...BASE_FIELDS, vinted_condition_id: '2' });
+    unknown.append('vinted_color_ids', '99');
+    expect((await POST(new Request('http://x', { method: 'POST', body: unknown }))).status).toBe(400);
+
+    const three = formDataWithPhoto({ ...BASE_FIELDS, vinted_condition_id: '2' });
+    for (const id of ['1', '3', '12']) three.append('vinted_color_ids', id);
+    expect((await POST(new Request('http://x', { method: 'POST', body: three }))).status).toBe(400);
+  });
 });

@@ -53,3 +53,21 @@ export async function syncOtherItemQueueMembership(
     await supabase.from('vinted_queue').delete().eq('user_id', FRED_USER_ID).eq('other_item_id', otherItemId);
   }
 }
+
+/**
+ * Clears the failure flag on Fred's queue row for this item (see
+ * supabase/migrations/20261005120100_vinted_queue_failure_flag.sql). The bot
+ * flags and skips an item whose listing Vinted rejected; editing the item is
+ * how that gets fixed, so any edit hands it back to the scheduler.
+ */
+export async function clearOtherItemQueueFailure(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any>,
+  otherItemId: string,
+): Promise<void> {
+  await supabase
+    .from('vinted_queue')
+    .update({ last_error: null, failed_at: null })
+    .eq('user_id', FRED_USER_ID)
+    .eq('other_item_id', otherItemId);
+}

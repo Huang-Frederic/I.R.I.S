@@ -22,13 +22,17 @@ export const MAX_OTHER_ITEM_TITLE_LENGTH = 80;
 
 // Vinted's own general-item condition wording — distinct from CONDITION_LABEL
 // (the trading-card NM/EX/GD/PL/PO grading labels), which would read
-// strangely on a hoodie or a robot vacuum. Same underlying 1-5 ids either way.
+// strangely on a hoodie or a robot vacuum. Keyed by Vinted's real condition
+// ids, which other_items.vinted_condition_id stores as-is — they don't follow
+// the label order (6 is "neuf avec étiquette"), and some categories add their
+// own (7 on appliances). See 20261005120000_other_items_vinted_attributes.sql.
 export const OTHER_ITEM_CONDITION_LABEL: Record<number, string> = {
-  1: 'Neuf avec étiquette',
-  2: 'Neuf sans étiquette',
-  3: 'Très bon état',
-  4: 'Bon état',
-  5: 'Satisfaisant',
+  6: 'Neuf avec étiquette',
+  1: 'Neuf sans étiquette',
+  2: 'Très bon état',
+  3: 'Bon état',
+  4: 'Satisfaisant',
+  7: 'Certaines pièces ne fonctionnent pas',
 };
 
 export function buildOtherItemTitle(item: OtherItemForTemplate): string {

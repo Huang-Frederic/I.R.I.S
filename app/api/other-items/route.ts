@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
 import { auditLog } from '@/lib/utils/audit-log';
 import { FRED_USER_ID, syncOtherItemQueueMembership } from '@/lib/vinted/other-item-queue-sync';
+import { parseColorIds } from '@/lib/vinted/other-item-attributes';
 
 export const runtime = 'nodejs';
 
@@ -42,14 +43,27 @@ export async function POST(request: Request): Promise<NextResponse> {
   const vinted_catalog_path = (formData.get('vinted_catalog_path') as string | null)?.trim() ?? '';
   if (vinted_catalog_path === '') return validationResponse('Field "vinted_catalog_path" is required');
 
+  // Vinted's own condition id — which ones a category accepts varies (6, 1,
+  // 2, 3, 4 for most, only 6 for perfume, + 7 for appliances), and the bot
+  // checks it against the live category before posting.
   const conditionRaw = formData.get('vinted_condition_id') as string | null;
-  const vinted_condition_id = conditionRaw ? parseInt(conditionRaw, 10) : NaN;
-  if (!Number.isInteger(vinted_condition_id) || vinted_condition_id < 1 || vinted_condition_id > 5) {
-    return validationResponse('Field "vinted_condition_id" must be between 1 and 5');
+  const vinted_condition_id = conditionRaw && /^\d+$/.test(conditionRaw) ? Number(conditionRaw) : NaN;
+  if (!Number.isInteger(vinted_condition_id) || vinted_condition_id < 1) {
+    return validationResponse('Field "vinted_condition_id" must be a positive integer');
   }
 
   const brand_name = (formData.get('brand_name') as string | null)?.trim() || null;
+  // `size` is the chosen size option's label (description text), `vinted_size_id` its Vinted id.
   const size = (formData.get('size') as string | null)?.trim() || null;
+  const sizeIdRaw = (formData.get('vinted_size_id') as string | null)?.trim() || null;
+  const vinted_size_id = sizeIdRaw === null ? null : /^\d+$/.test(sizeIdRaw) ? Number(sizeIdRaw) : NaN;
+  if (vinted_size_id !== null && (!Number.isInteger(vinted_size_id) || vinted_size_id < 1)) {
+    return validationResponse('Field "vinted_size_id" must be a positive integer');
+  }
+  const vinted_color_ids = parseColorIds(formData.getAll('vinted_color_ids'));
+  if (vinted_color_ids === null) {
+    return validationResponse('Field "vinted_color_ids" must hold at most 2 known Vinted color ids');
+  }
 
   const statusRaw = (formData.get('status') as string | null) ?? 'for_sale';
   if (statusRaw !== 'for_sale' && statusRaw !== 'collection') {
@@ -71,6 +85,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       vinted_condition_id,
       brand_name,
       size,
+      vinted_size_id,
+      vinted_color_ids,
       status: statusRaw,
     })
     .select('id')

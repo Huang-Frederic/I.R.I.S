@@ -12,7 +12,7 @@ const BASE: OtherItemForTemplate = {
   description: 'Portée un hiver, très bon état.',
   brand_name: 'Uniqlo',
   size: 'L',
-  vinted_condition_id: 3,
+  vinted_condition_id: 2,
 };
 
 describe('buildOtherItemTitle', () => {
@@ -43,6 +43,16 @@ describe('buildOtherItemDescription', () => {
     const desc = buildOtherItemDescription({ ...BASE, brand_name: null, size: null });
     expect(desc).not.toContain('📘 Marque');
     expect(desc).not.toContain('📏 Taille');
+  });
+
+  it("labels Vinted's own condition ids — the same wording as the bot's build_other_item_description", () => {
+    const label = (id: number) => buildOtherItemDescription({ ...BASE, vinted_condition_id: id }).split('\n')[3];
+    expect(label(6)).toBe('✅ État : Neuf avec étiquette.');
+    expect(label(1)).toBe('✅ État : Neuf sans étiquette.');
+    expect(label(2)).toBe('✅ État : Très bon état.');
+    expect(label(3)).toBe('✅ État : Bon état.');
+    expect(label(4)).toBe('✅ État : Satisfaisant.');
+    expect(label(7)).toBe('✅ État : Certaines pièces ne fonctionnent pas.');
   });
 
   it('falls back to "Très bon état" for an unknown condition id', () => {

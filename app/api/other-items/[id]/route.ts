@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { apiError, unauthorizedResponse, validationResponse, notFoundResponse } from '@/lib/utils/api-response';
 import { auditLog } from '@/lib/utils/audit-log';
-import { FRED_USER_ID, syncOtherItemQueueMembership } from '@/lib/vinted/other-item-queue-sync';
+import { clearOtherItemQueueFailure, FRED_USER_ID, syncOtherItemQueueMembership } from '@/lib/vinted/other-item-queue-sync';
+import { parseColorIds } from '@/lib/vinted/other-item-attributes';
 
 export const runtime = 'nodejs';
 
@@ -11,6 +12,15 @@ interface PatchBody {
   description?: string;
   price?: number | null;
   status?: 'for_sale' | 'collection' | 'sold';
+  vinted_condition_id?: number;
+  /** A size option id of the item's category; `size` carries its label. */
+  vinted_size_id?: number | null;
+  size?: string | null;
+  vinted_color_ids?: number[];
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0;
 }
 
 const ALLOWED_OTHER_ITEM_STATUSES: ReadonlySet<string> = new Set(['for_sale', 'collection', 'sold']);
@@ -54,6 +64,29 @@ export async function PATCH(
     update.status = body.status;
   }
 
+  if (body.vinted_condition_id !== undefined) {
+    if (!isPositiveInteger(body.vinted_condition_id)) {
+      return apiError('invalid_number', { status: 400, message: 'vinted_condition_id must be a positive integer' });
+    }
+    update.vinted_condition_id = body.vinted_condition_id;
+  }
+
+  if (body.vinted_size_id !== undefined) {
+    if (body.vinted_size_id !== null && !isPositiveInteger(body.vinted_size_id)) {
+      return apiError('invalid_number', { status: 400, message: 'vinted_size_id must be a positive integer or null' });
+    }
+    update.vinted_size_id = body.vinted_size_id;
+  }
+  if (body.size !== undefined) update.size = body.size === null ? null : String(body.size).trim() || null;
+
+  if (body.vinted_color_ids !== undefined) {
+    const colorIds = parseColorIds(body.vinted_color_ids);
+    if (colorIds === null) {
+      return apiError('invalid_colors', { status: 400, message: 'vinted_color_ids must hold at most 2 known Vinted color ids' });
+    }
+    update.vinted_color_ids = colorIds;
+  }
+
   if (Object.keys(update).length === 0) {
     return apiError('no_fields', { status: 400, message: 'no fields to update' });
   }
@@ -69,6 +102,7 @@ export async function PATCH(
     return apiError('update_failed', { status: 500, message: error.message });
   }
 
+  await clearOtherItemQueueFailure(supabase, id);
   await syncOtherItemQueueMembership(supabase, id);
 
   void auditLog({

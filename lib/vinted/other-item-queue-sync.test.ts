@@ -1,6 +1,6 @@
 // lib/vinted/other-item-queue-sync.test.ts
 import { describe, expect, it, vi } from 'vitest';
-import { syncOtherItemQueueMembership, FRED_USER_ID } from './other-item-queue-sync';
+import { clearOtherItemQueueFailure, syncOtherItemQueueMembership, FRED_USER_ID } from './other-item-queue-sync';
 
 function mockSupabase(overrides: Record<string, unknown> = {}) {
   const calls: { table: string; op: string; payload?: unknown }[] = [];
@@ -59,5 +59,28 @@ describe('syncOtherItemQueueMembership', () => {
     const { supabase, calls } = mockSupabase({ other_items: { status: 'collection' }, existingQueueRow: { id: 'q1' } });
     await syncOtherItemQueueMembership(supabase, 'item-1');
     expect(calls.find((c) => c.table === 'vinted_queue' && c.op === 'delete')).toBeTruthy();
+  });
+});
+
+describe('clearOtherItemQueueFailure', () => {
+  it("clears the failure flag on Fred's queue row for that item", async () => {
+    const eqCalls: [string, unknown][] = [];
+    const update = vi.fn(() => {
+      const chain = {
+        eq: (column: string, value: unknown) => {
+          eqCalls.push([column, value]);
+          return eqCalls.length === 2 ? Promise.resolve({ error: null }) : chain;
+        },
+      };
+      return chain;
+    });
+    const supabase = { from: vi.fn(() => ({ update })) };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await clearOtherItemQueueFailure(supabase as any, 'item-1');
+
+    expect(supabase.from).toHaveBeenCalledWith('vinted_queue');
+    expect(update).toHaveBeenCalledWith({ last_error: null, failed_at: null });
+    expect(eqCalls).toEqual([['user_id', FRED_USER_ID], ['other_item_id', 'item-1']]);
   });
 });

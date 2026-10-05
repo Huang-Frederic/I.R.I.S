@@ -620,8 +620,15 @@ export interface OtherItem {
   vinted_catalog_id: number;
   vinted_catalog_path: string;
   brand_name: string | null;
+  /** Vinted's own condition id (6 neuf avec étiquette, 1 neuf sans étiquette,
+   *  2 très bon état, 3 bon état, 4 satisfaisant; per-category extras). */
   vinted_condition_id: number;
+  /** The chosen size option's label, used in the description ("L", "EU 38"). */
   size: string | null;
+  /** That size option's Vinted id — what the bot actually sends. */
+  vinted_size_id: number | null;
+  /** Up to 2 of Vinted's color ids (lib/data/vinted-colors.json). */
+  vinted_color_ids: number[];
   status: 'for_sale' | 'collection' | 'sold';
   date_sold: string | null;
   sold_price: number | null;
