@@ -89,22 +89,58 @@ check is parameterized:
   Cards/lots keep the banner; don't "fix" other_items to match them.
   `process_other_item_job` posts it; `_block_for`/scheduler treat it like
   lots for quota/window purposes.
-- `OTHER_ITEM_CONDITION_LABEL` (1-5 → "Neuf avec étiquette" … "Satisfaisant")
-  is Vinted's own general-item wording — distinct from the trading-card
-  NM/EX/GD/PL/PO labels used elsewhere, same underlying ids.
+- `OTHER_ITEM_CONDITION_LABEL` is keyed by **Vinted's real condition ids**,
+  which `other_items.vinted_condition_id` stores as-is: 6 neuf avec étiquette,
+  1 neuf sans étiquette, 2 très bon état, 3 bon état, 4 satisfaisant, plus
+  per-category extras (7 "certaines pièces ne fonctionnent pas" on
+  appliances; perfume only accepts 6). The column used to hold a 1-5 scale
+  that assumed Vinted's ids follow the label order — every item would have
+  posted one grade lower than its description; remapped by
+  `20261005120000_other_items_vinted_attributes.sql` (2026-10-05).
 - `lib/utils/other-item-template.ts` (TypeScript) mirrors the Python
   builders **line-for-line** on purpose, so the in-app fiche preview shows
   exactly what the bot will actually post. If you change one, change both
   and check they still agree — there's no shared source of truth, just
   discipline.
-- Known real gap, not yet fixed: **Vinted's `size` attribute is never sent**
-  in `vinted_api.py`'s `_build_listing_payload` — only
-  `item_attributes: [{code: "condition", ids: [...]}]`. Fred asked about
-  this ("la taille avait un ID non ?") and the answer is yes, confirmed by
-  an `x-enable-dynamic-attribute-size: true` header seen in Vinted's own
-  traffic — there's a real per-category size-id system we're not using.
-  Offered to investigate, **not started, no go-ahead given yet**. Don't
-  start it without asking Fred first.
+
+### Size, color and per-category attributes (2026-10-05)
+
+Clothing/shoe categories require a size and a color ("Le champ Taille doit
+être renseigné"); neither was stored nor sent. Now:
+
+- `other_items.vinted_size_id` (a size option id of the item's category —
+  `size` keeps its label for the description) and `vinted_color_ids`
+  (≤ 2 of Vinted's 29 global colors, `lib/data/vinted-colors.json`).
+- Sizes, accepted conditions and whether a color is asked **depend on the
+  category**, and Vinted only serves them one category at a time through an
+  authenticated session: `POST /api/v2/item_upload/attributes` with
+  `{"attributes":[{"code":"category","value":[<catalog_id>]}]}`. The app
+  can't call it, so `vinted_catalog_attributes` (Fred-only RLS) caches them:
+  the form/fiche insert a `pending` row (`useCatalogAttributes`), the bot
+  fills it (`_attribute_requests_loop`, polls every 5 s) and refreshes it on
+  every post in that category. Bot not running → the form says so and still
+  lets the item be created; the size can be picked later in the fiche.
+- Payload (matches Vinted's own upload form): `color_ids` top-level,
+  `item_attributes += {"code": "size", "ids": [<size id>]}`, condition id
+  sent raw (`create_listing(condition=None, condition_id=…)`).
+- The bot validates size/color/condition against the live attributes
+  **before** uploading photos (`catalog_attributes.listing_attribute_problems`),
+  and keeps Vinted's own validation messages (`VintedValidationError`) instead
+  of curl's empty "HTTP Error 400: ".
+
+### Failed jobs go back to the queue (2026-10-05, all three entity types)
+
+The scheduler and `POST /api/vinted/post-job` delete the queue row when they
+create a post job; a failed job used to leave the item for sale but out of the
+queue forever. `_fail_job(..., job=job, permanent=…)` now re-queues it at the
+front (`_requeue_after_failure`, eligibility mirrors `queue-sync.ts` via
+`scheduler.should_requeue`). A **permanent** failure (Vinted validation error,
+missing attribute/photo) flags the row (`vinted_queue.failed_at`/`last_error`):
+`_fetch_queue_front` skips it, `/vinted/bot` shows it in amber with the reason
+and no quota slot, and editing the item (`PATCH /api/other-items/[id]` →
+`clearOtherItemQueueFailure`) or "Poster maintenant" hands it back. Transient
+failures (timeout, expired session) come back unflagged and retry at the next
+slot.
 
 ### Frontend — main `/vinted` page (today's work, commits `f3c7647` + `377095b`)
 
@@ -158,8 +194,8 @@ fiche." Explicitly left out of today's work:
   the Items filter), even though the DB schema already has `status='sold'`,
   `date_sold`, `sold_price` columns ready for it.
 - No bulk selection / bulk actions for Items.
-- No `size`/`vinted_condition_id`/category editing in the fiche — only
-  title, description, price.
+- No category editing in the fiche (condition, size and colors are editable
+  since 2026-10-05, in the "Attributs Vinted" block).
 
 If Fred asks for any of the above, it's a new, reasonably small follow-up,
 not a sign today's work was incomplete.
@@ -236,8 +272,5 @@ eslint one — if you add a translation key, add it to `en.json` first or
 
 ## Open threads (not started, for context only)
 
-1. **Vinted size attribute** — see "Known real gap" above. Fred hasn't
-   given a go-ahead; don't start without asking.
-2. Nothing else is currently pending on this feature — the filter/search/
-   fiche request and the bot-page bug report are both closed as of
-   `377095b`.
+1. Nothing pending. The size attribute (former thread #1) shipped on
+   2026-10-05 — see "Size, color and per-category attributes" above.
