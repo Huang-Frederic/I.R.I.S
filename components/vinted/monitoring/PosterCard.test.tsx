@@ -129,6 +129,15 @@ describe('<PosterCard>', () => {
     const button = screen.getByLabelText("Voir l'annonce");
     expect(button.className).toContain('hover:bg-red');
   });
+
+  it('shows why the bot skips this card without needing a hover, with an amber border', () => {
+    renderCard({ error: 'À compléter dans la fiche : Taille manquante' });
+    const message = screen.getByText(/Taille manquante/);
+    expect(message.closest('[data-testid="poster-card-overlay"]')).toBeNull();
+    const card = screen.getByTestId('poster-card-overlay').parentElement as HTMLElement;
+    expect(card.className).toContain('border-amber-500');
+    expect(card.className).not.toContain('border-red');
+  });
 });
 
 describe('<CardConnector>', () => {

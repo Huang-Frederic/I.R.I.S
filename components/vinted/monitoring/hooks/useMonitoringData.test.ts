@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lotImageUrl, otherItemImageUrl } from './useMonitoringData';
+import { lotImageUrl, otherItemImageUrl, queueFailureMessage } from './useMonitoringData';
 
 describe('lotImageUrl', () => {
   it('builds a full Storage public URL from the first path in photo_urls', () => {
@@ -41,5 +41,22 @@ describe('otherItemImageUrl', () => {
     expect(otherItemImageUrl([])).toBe('');
     expect(otherItemImageUrl(null)).toBe('');
     expect(otherItemImageUrl(undefined)).toBe('');
+  });
+});
+
+describe('queueFailureMessage', () => {
+  it("returns the bot's reason for a flagged queue row", () => {
+    expect(
+      queueFailureMessage({ last_error: 'À compléter dans la fiche : Taille manquante', failed_at: '2026-10-05T08:26:03Z' }),
+    ).toBe('À compléter dans la fiche : Taille manquante');
+  });
+
+  it('still marks a flagged row whose reason is missing', () => {
+    expect(queueFailureMessage({ last_error: null, failed_at: '2026-10-05T08:26:03Z' })).toBe('Échec de la publication');
+  });
+
+  it('returns null for a row the bot will post normally', () => {
+    expect(queueFailureMessage({ last_error: null, failed_at: null })).toBeNull();
+    expect(queueFailureMessage({})).toBeNull();
   });
 });

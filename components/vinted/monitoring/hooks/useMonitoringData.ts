@@ -30,6 +30,14 @@ export function otherItemImageUrl(photoUrls: string[] | null | undefined): strin
   return path ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/other-item-photos/${path}` : '';
 }
 
+/** Why the bot skips a queue row, or null when it'll post it normally — a row
+ *  is flagged (`failed_at`) after a post Vinted refused for the item's own
+ *  data, until the item is fixed (vinted-agent/main.py _requeue_after_failure). */
+export function queueFailureMessage(row: { last_error?: string | null; failed_at?: string | null }): string | null {
+  if (!row.failed_at) return null;
+  return row.last_error || 'Échec de la publication';
+}
+
 export interface MonitoringData {
   pipeline: PipelineItem[];
   schedule: Pick<VintedBotScheduleRow, 'block' | 'starts_at' | 'ends_at'>[];
@@ -60,7 +68,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
     todayStart.setHours(0, 0, 0, 0);
 
     const [queueRes, scheduleRes, configRes, logsRes, jobsRes, cardListingsRes, lotListingsRes, otherItemListingsRes] = await Promise.all([
-      supabase.from('vinted_queue').select('id, card_id, lot_id, other_item_id, position').eq('user_id', viewedUserId).order('position'),
+      supabase.from('vinted_queue').select('id, card_id, lot_id, other_item_id, position, last_error, failed_at').eq('user_id', viewedUserId).order('position'),
       supabase.from('vinted_bot_schedule').select('block, starts_at, ends_at').eq('user_id', viewedUserId),
       supabase.from('vinted_bot_config').select('daily_quota, repost_after_days, group_priority').eq('user_id', viewedUserId).maybeSingle(),
       supabase
@@ -126,6 +134,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
           price: card?.suggested_price ?? null,
           imageUrl: card?.image_url ?? card?.tcg_image_url ?? fallbackSprite(card?.pokemon_number ?? null),
           groupKey: groupKeyFor({ cardId: row.card_id, language: card?.language ?? null, brandId: null }),
+          lastError: queueFailureMessage(row),
         };
       }
       if (row.other_item_id) {
@@ -140,6 +149,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
           price: item?.price ?? null,
           imageUrl: otherItemImageUrl(item?.photo_urls),
           groupKey: 'other-items', // a flat, single group — other_items don't share the card/lot archetype-grouping concept
+          lastError: queueFailureMessage(row),
         };
       }
       const lot = lotsById.get(row.lot_id as string);
@@ -153,6 +163,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
         price: lot?.price ?? null,
         imageUrl: lotImageUrl(lot?.photo_urls),
         groupKey: groupKeyFor({ cardId: null, language: lot?.language ?? null, brandId: lot?.brand_id ?? null }),
+        lastError: queueFailureMessage(row),
       };
     });
 

@@ -191,6 +191,18 @@ describe('<GroupedRepostGrid> snake layout', () => {
     expect(within(overlay).getByLabelText('Reposter maintenant')).not.toBeDisabled();
   });
 
+  it('dims and locks an other_item while the bot is reposting it — the same as a card', () => {
+    const otherItem: RepostPoolItem = {
+      cardId: null, lotId: null, otherItemId: 'oi-1', name: 'Doudoune Uniqlo', price: 75,
+      imageUrl: 'https://example.com/doudoune.jpg', vintedPostedAt: '2026-01-01T00:00:00Z',
+      groupKey: 'other-items', repostPosition: null,
+    };
+    renderGrid({ items: [otherItem], activeJobTarget: { cardId: null, lotId: null, otherItemId: 'oi-1' } });
+    const overlay = screen.getByText('Doudoune Uniqlo').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    expect((overlay.parentElement as HTMLElement).className).toContain('opacity-60');
+    expect(within(overlay).getByLabelText('Reposter maintenant')).toBeDisabled();
+  });
+
   it('renders an other_item repost candidate using its own name, price and photo', () => {
     const otherItem: RepostPoolItem = {
       cardId: null, lotId: null, otherItemId: 'oi-1', name: 'Robot Aspirateur Midea S8+', price: 90,

@@ -45,7 +45,7 @@ function mockJobsTable(opts: {
         }),
       };
     }
-    if (table === 'cards' || table === 'lots') {
+    if (table === 'cards' || table === 'lots' || table === 'other_items') {
       return {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
@@ -89,6 +89,7 @@ describe('useActiveJob', () => {
     expect(result.current.activeJob).toEqual({
       cardId: 'c1',
       lotId: null,
+      otherItemId: null,
       jobType: 'post',
       itemName: 'Pharamp GX',
       itemImage: 'a.png',
@@ -108,6 +109,24 @@ describe('useActiveJob', () => {
     expect(result.current.activeJob?.itemName).toBe('Lot Riftbound');
     expect(result.current.activeJob?.itemImage).toBe(
       `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/lot-photos/l1/0.jpg`,
+    );
+  });
+
+  it('resolves the active job to an other_item name/image when other_item_id is set', async () => {
+    // Regression: the hook only knew cards and lots, so an item being posted
+    // showed up as "?" with no picture in the banner.
+    mockChannel();
+    mockJobsTable({
+      processingJob: { card_id: null, lot_id: null, other_item_id: 'i1', job_type: 'post', created_at: '2026-10-05T08:24:03Z' },
+      pendingCount: 0,
+      cardOrLot: { name: 'Doudoune Uniqlo Longue Matelassé - Noir Taille L', photo_urls: ['i1/0.jpg'] },
+    });
+    const { result } = renderHook(() => useActiveJob('user-1'));
+    await waitFor(() => expect(result.current.activeJob).not.toBeNull());
+    expect(result.current.activeJob?.otherItemId).toBe('i1');
+    expect(result.current.activeJob?.itemName).toBe('Doudoune Uniqlo Longue Matelassé - Noir Taille L');
+    expect(result.current.activeJob?.itemImage).toBe(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/other-item-photos/i1/0.jpg`,
     );
   });
 

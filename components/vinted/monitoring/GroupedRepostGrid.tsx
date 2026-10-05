@@ -100,7 +100,7 @@ interface Props {
    *  one item gets dimmed, made non-draggable, and has its posting actions
    *  disabled, so the user can't reorder or re-trigger something the bot
    *  already claimed. Everything else in the grid stays fully interactive. */
-  activeJobTarget: { cardId: string | null; lotId: string | null } | null;
+  activeJobTarget: { cardId: string | null; lotId: string | null; otherItemId?: string | null } | null;
 }
 
 export default function GroupedRepostGrid({
@@ -196,7 +196,8 @@ export default function GroupedRepostGrid({
                               const isBeingProcessed =
                                 activeJobTarget !== null &&
                                 ((item.cardId !== null && item.cardId === activeJobTarget.cardId) ||
-                                  (item.lotId !== null && item.lotId === activeJobTarget.lotId));
+                                  (item.lotId !== null && item.lotId === activeJobTarget.lotId) ||
+                                  (item.otherItemId !== null && item.otherItemId === activeJobTarget.otherItemId));
                               const actions: PosterCardAction[] = [
                                 ...(editable
                                   ? [

@@ -208,6 +208,42 @@ describe('<GroupedQueueGrid> snake layout', () => {
     expect(container.querySelector('img')).toHaveAttribute('src', 'https://example.com/photo.jpg');
   });
 
+  const OTHER_ITEM: PipelineItem = {
+    queueId: 'qi', cardId: null, lotId: null, otherItemId: 'oi-1',
+    position: 1, name: 'Doudoune Uniqlo', price: 75,
+    imageUrl: 'https://example.com/doudoune.jpg', groupKey: 'other-items',
+  };
+
+  it('dims and locks an other_item while the bot is posting it — the same as a card', () => {
+    renderGrid({ items: [OTHER_ITEM], activeJobTarget: { cardId: null, lotId: null, otherItemId: 'oi-1' } });
+    const overlay = screen.getByText('Doudoune Uniqlo').closest('[data-testid="poster-card-overlay"]') as HTMLElement;
+    const card = overlay.parentElement as HTMLElement;
+    expect(card.className).toContain('opacity-60');
+    expect(within(overlay).getByLabelText('Poster maintenant')).toBeDisabled();
+  });
+
+  it('shows why the bot skips a flagged item, marked "!" instead of a queue position', () => {
+    renderGrid({ items: [{ ...OTHER_ITEM, lastError: 'À compléter dans la fiche : Couleur manquante' }] });
+    expect(screen.getByText(/Couleur manquante/)).toBeInTheDocument();
+    expect(screen.getByText('!')).toBeInTheDocument();
+    expect(screen.queryByText('#1')).not.toBeInTheDocument();
+  });
+
+  it("doesn't count a flagged item against the daily quota", () => {
+    const items: PipelineItem[] = [
+      { ...OTHER_ITEM, queueId: 'qa', otherItemId: 'a', position: 1, name: 'Flagged', lastError: 'Taille manquante' },
+      { ...OTHER_ITEM, queueId: 'qb', otherItemId: 'b', position: 2, name: 'Next up' },
+      { ...OTHER_ITEM, queueId: 'qc', otherItemId: 'c', position: 3, name: 'Beyond quota' },
+    ];
+    renderGrid({ items, dailyQuota: 1 });
+    const cardOf = (name: string) =>
+      (screen.getByText(name).closest('[data-testid="poster-card-overlay"]') as HTMLElement).parentElement as HTMLElement;
+    expect(within(cardOf('Next up')).getByText('#1')).toBeInTheDocument();
+    expect(cardOf('Next up').className).not.toContain('opacity-60');
+    expect(within(cardOf('Beyond quota')).getByText('#2')).toBeInTheDocument();
+    expect(cardOf('Beyond quota').className).toContain('opacity-60');
+  });
+
   it('computeSnakeReorder converts a post-drag visual order back into the correct logical save order', () => {
     // Group 0 reserves a slot for the start placeholder: row0 = [Pharamp,
     // Fulguris] (2 cards), row1 = [Mimiqui, Draeuil, Lougaroc] (reversed for

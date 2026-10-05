@@ -264,7 +264,7 @@ export default function MonitoringSection() {
         postingQueueId={postingQueueId}
         onViewListing={viewListing}
         pendingIds={pendingPipelineIds}
-        activeJobTarget={activeJob ? { cardId: activeJob.cardId, lotId: activeJob.lotId } : null}
+        activeJobTarget={activeJob ? { cardId: activeJob.cardId, lotId: activeJob.lotId, otherItemId: activeJob.otherItemId } : null}
       />
       <GroupedRepostGrid
         items={visibleRepostCandidates}
@@ -276,7 +276,7 @@ export default function MonitoringSection() {
         repostingId={repostingId}
         onViewListing={viewListing}
         pendingIds={pendingRepostIds}
-        activeJobTarget={activeJob ? { cardId: activeJob.cardId, lotId: activeJob.lotId } : null}
+        activeJobTarget={activeJob ? { cardId: activeJob.cardId, lotId: activeJob.lotId, otherItemId: activeJob.otherItemId } : null}
       />
       <LogsModal open={logsOpen} onClose={() => setLogsOpen(false)} logs={data.logs} />
       <SettingsModal

@@ -6,6 +6,7 @@ import type { ActiveJob } from './hooks/useActiveJob';
 const JOB: ActiveJob = {
   cardId: 'c1',
   lotId: null,
+  otherItemId: null,
   jobType: 'post',
   itemName: 'Pharamp GX',
   itemImage: 'https://example.com/a.png',

@@ -28,16 +28,22 @@ export interface PosterCardProps {
    *  drag source — the parent sets this for any item that moved since the
    *  last save, so the marker survives past the drag gesture itself. */
   isPendingChange?: boolean;
+  /** Why the bot skips this item until it's fixed — shown permanently, not
+   *  only in the hover overlay (vinted_queue.last_error). */
+  error?: string | null;
 }
 
 export function posterCardBorderClasses({
   isDragging,
   isPendingChange,
+  hasError = false,
 }: {
   isDragging: boolean;
   isPendingChange: boolean;
+  hasError?: boolean;
 }): string {
   if (isDragging || isPendingChange) return 'border border-staleness-fresh';
+  if (hasError) return 'border-2 border-amber-500';
   return 'border border-red';
 }
 
@@ -51,6 +57,7 @@ export default function PosterCard({
   badge,
   actions,
   isPendingChange = false,
+  error = null,
 }: PosterCardProps) {
   const [revealed, setRevealed] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -78,7 +85,7 @@ export default function PosterCard({
       onClick={() => setRevealed((r) => !r)}
       onPointerEnter={(e) => e.pointerType === 'mouse' && setHovered(true)}
       onPointerLeave={(e) => e.pointerType === 'mouse' && setHovered(false)}
-      className={`bg-surface-2 relative aspect-[63/80] w-34 shrink-0 overflow-hidden rounded-lg sm:w-38 lg:w-43 ${posterCardBorderClasses({ isDragging, isPendingChange })} ${
+      className={`bg-surface-2 relative aspect-[63/80] w-34 shrink-0 overflow-hidden rounded-lg sm:w-38 lg:w-43 ${posterCardBorderClasses({ isDragging, isPendingChange, hasError: !!error })} ${
         isDragging ? 'opacity-40' : dimmed ? 'opacity-60' : ''
       }`}
     >
@@ -89,6 +96,11 @@ export default function PosterCard({
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+      {error && (
+        <p className="absolute inset-x-0 bottom-0 line-clamp-3 bg-amber-500/90 px-1.5 py-1 text-[10px] font-medium leading-tight text-black">
+          ⚠ {error}
+        </p>
+      )}
       <div
         data-testid="poster-card-overlay"
         className={`absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-black/60 p-2 text-center backdrop-blur-[1px] transition-opacity ${

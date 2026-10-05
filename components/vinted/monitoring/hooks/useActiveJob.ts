@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 export interface ActiveJob {
   cardId: string | null;
   lotId: string | null;
+  otherItemId: string | null;
   jobType: 'post' | 'repost' | 'delete';
   itemName: string;
   itemImage: string;
@@ -28,6 +29,12 @@ function lotImageUrl(photoUrls: string[] | null | undefined): string {
   return path ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/lot-photos/${path}` : '';
 }
 
+/** other_items photos live in their own bucket (other-item-photos), same path format as lots. */
+function otherItemImageUrl(photoUrls: string[] | null | undefined): string {
+  const path = photoUrls?.[0];
+  return path ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/other-item-photos/${path}` : '';
+}
+
 const EMPTY_STATE: ActiveJobState = { activeJob: null, pendingCount: 0 };
 
 export function useActiveJob(userId: string): ActiveJobState {
@@ -40,7 +47,7 @@ export function useActiveJob(userId: string): ActiveJobState {
     const [processingRes, pendingRes] = await Promise.all([
       supabase
         .from('vinted_post_jobs')
-        .select('card_id, lot_id, job_type, created_at')
+        .select('card_id, lot_id, other_item_id, job_type, created_at')
         .eq('user_id', userId)
         .eq('status', 'processing')
         .order('created_at', { ascending: false })
@@ -54,7 +61,13 @@ export function useActiveJob(userId: string): ActiveJobState {
     ]);
 
     const job = processingRes.data as
-      | { card_id: string | null; lot_id: string | null; job_type: 'post' | 'repost' | 'delete'; created_at: string }
+      | {
+          card_id: string | null;
+          lot_id: string | null;
+          other_item_id?: string | null;
+          job_type: 'post' | 'repost' | 'delete';
+          created_at: string;
+        }
       | null;
     const pendingCount = (pendingRes as { count: number | null }).count ?? 0;
 
@@ -81,12 +94,21 @@ export function useActiveJob(userId: string): ActiveJobState {
         .maybeSingle();
       itemName = lot?.name ?? '?';
       itemImage = lotImageUrl(lot?.photo_urls);
+    } else if (job.other_item_id) {
+      const { data: item } = await supabase
+        .from('other_items')
+        .select('name, photo_urls')
+        .eq('id', job.other_item_id)
+        .maybeSingle();
+      itemName = item?.name ?? '?';
+      itemImage = otherItemImageUrl(item?.photo_urls);
     }
 
     setState({
       activeJob: {
         cardId: job.card_id,
         lotId: job.lot_id,
+        otherItemId: job.other_item_id ?? null,
         jobType: job.job_type,
         itemName,
         itemImage,

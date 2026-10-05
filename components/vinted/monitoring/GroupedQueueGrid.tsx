@@ -32,6 +32,10 @@ export interface PipelineItem {
   price: number | null;
   imageUrl: string;
   groupKey: string;
+  /** Set when a failed post left this item flagged: the bot skips it until
+   *  it's fixed (vinted_queue.last_error, see vinted-agent/main.py
+   *  _requeue_after_failure). */
+  lastError?: string | null;
 }
 
 interface Group {
@@ -96,7 +100,7 @@ interface Props {
    *  one item gets dimmed, made non-draggable, and has its posting actions
    *  disabled, so the user can't reorder or re-trigger something the bot
    *  already claimed. Everything else in the grid stays fully interactive. */
-  activeJobTarget: { cardId: string | null; lotId: string | null } | null;
+  activeJobTarget: { cardId: string | null; lotId: string | null; otherItemId?: string | null } | null;
 }
 
 export default function GroupedQueueGrid({
@@ -128,6 +132,9 @@ export default function GroupedQueueGrid({
 
   const sortedItems = sortByGroupPriority(items, groupPriority);
   const groups = groupContiguousItems(sortedItems);
+  // The bot skips flagged items, so they don't take one of the day's slots:
+  // numbering and quota dimming only count the items it will actually post.
+  const postableIds = sortedItems.filter((x) => !x.lastError).map((x) => x.queueId);
   const todayCount = Math.min(dailyQuota, sortedItems.length);
   // Flat, left-to-right/top-to-bottom reading order of the ON-SCREEN snake —
   // this is what dnd-kit needs for its sorting preview and drag-end index
@@ -195,12 +202,13 @@ export default function GroupedQueueGrid({
                           <div className="flex items-center gap-2">
                             {groupPos === 0 && rowIndex === 0 && <PosterCardStartSlot />}
                             {displayRow.map((item, i) => {
-                              const globalIndex = sortedItems.findIndex((x) => x.queueId === item.queueId);
+                              const postableIndex = postableIds.indexOf(item.queueId);
                               const groupIndex = group.items.findIndex((x) => x.queueId === item.queueId);
                               const isBeingProcessed =
                                 activeJobTarget !== null &&
                                 ((item.cardId !== null && item.cardId === activeJobTarget.cardId) ||
-                                  (item.lotId !== null && item.lotId === activeJobTarget.lotId));
+                                  (item.lotId !== null && item.lotId === activeJobTarget.lotId) ||
+                                  (item.otherItemId !== null && item.otherItemId === activeJobTarget.otherItemId));
                               const actions: PosterCardAction[] = [
                                 ...(editable
                                   ? [
@@ -230,10 +238,11 @@ export default function GroupedQueueGrid({
                                     name={item.name}
                                     price={item.price}
                                     draggable={editable && !isBeingProcessed}
-                                    dimmed={globalIndex >= dailyQuota || isBeingProcessed}
-                                    badge={`#${globalIndex + 1}`}
+                                    dimmed={(postableIndex !== -1 && postableIndex >= dailyQuota) || isBeingProcessed}
+                                    badge={postableIndex === -1 ? '!' : `#${postableIndex + 1}`}
                                     actions={actions}
                                     isPendingChange={pendingIds.has(item.queueId)}
+                                    error={item.lastError}
                                   />
                                 </div>
                               );
