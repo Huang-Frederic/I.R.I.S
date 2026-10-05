@@ -15,9 +15,33 @@ vi.mock('@/lib/data/vinted-categories.json', () => ({
 // overrides this per-call with a manually-controlled promise to prove the
 // submit-time wait actually happens.
 vi.mock('@/lib/utils/resize-image', () => ({ resizeImage: vi.fn() }));
+// The category's Vinted attributes come from a cache the bot fills — each
+// test sets what the hook currently reports (idle by default: nothing known,
+// nothing blocked).
+const attributesHook = vi.hoisted(() => ({
+  state: { status: 'idle' } as Record<string, unknown>,
+  retry: vi.fn(),
+}));
+vi.mock('./hooks/useCatalogAttributes', () => ({
+  useCatalogAttributes: () => ({ state: attributesHook.state, retry: attributesHook.retry }),
+}));
+
+const READY_PUFFER = {
+  status: 'ready',
+  attributes: {
+    catalog_id: 2994,
+    status: 'ready',
+    size_options: [{ title: 'S/M/L', options: [{ id: 1739, title: 'M' }, { id: 1740, title: 'L' }] }],
+    size_required: true,
+    condition_options: [{ id: 6, title: 'Neuf avec étiquette' }, { id: 2, title: 'Très bon état' }],
+    has_color: true,
+    error: null,
+  },
+};
 
 const fetchMock = vi.fn();
 beforeEach(() => {
+  attributesHook.state = { status: 'idle' };
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
   vi.mocked(resizeImage)
@@ -95,5 +119,52 @@ describe('<OtherItemForm>', () => {
     const body = fetchMock.mock.calls[0][1].body as FormData;
     const uploaded = body.get('photos') as File;
     await expect(uploaded.text()).resolves.toBe('resized-bytes');
+  });
+
+  function addPhoto() {
+    const file = new File(['x'], 'photo.jpg', { type: 'image/jpeg' });
+    fireEvent.change(screen.getByLabelText('photoInputLabel'), { target: { files: [file] } });
+  }
+
+  it("sends Vinted's condition id, the picked size (id + label) and colors", async () => {
+    attributesHook.state = READY_PUFFER;
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ item: { id: '1' } }) });
+    render(<OtherItemForm />);
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('sizeLabel'), { target: { value: '1740' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Noir' }));
+    addPhoto();
+    fireEvent.click(screen.getByText('submit'));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = fetchMock.mock.calls[0][1].body as FormData;
+    expect(body.get('vinted_condition_id')).toBe('2'); // "Très bon état" in Vinted's ids
+    expect(body.get('vinted_size_id')).toBe('1740');
+    expect(body.get('size')).toBe('L');
+    expect(body.getAll('vinted_color_ids')).toEqual(['1']);
+  });
+
+  it('blocks submission until the size and color the category asks for are chosen', () => {
+    attributesHook.state = READY_PUFFER;
+    render(<OtherItemForm />);
+    fillRequiredFields();
+    addPhoto();
+    fireEvent.click(screen.getByText('submit'));
+    expect(screen.getByText('errorSize')).toBeInTheDocument();
+    expect(screen.getByText('errorColor')).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("still creates the item while the bot hasn't loaded the category — the size can be set later", async () => {
+    attributesHook.state = { status: 'waiting_bot' };
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ item: { id: '1' } }) });
+    render(<OtherItemForm />);
+    fillRequiredFields();
+    addPhoto();
+    fireEvent.click(screen.getByText('submit'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = fetchMock.mock.calls[0][1].body as FormData;
+    expect(body.get('vinted_size_id')).toBeNull();
+    expect(body.getAll('vinted_color_ids')).toEqual([]);
   });
 });

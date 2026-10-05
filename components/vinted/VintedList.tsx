@@ -1039,6 +1039,10 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
             setOtherItems((prev) => prev.filter((i) => i.id !== otherItemAnnonceTarget.id));
             router.refresh();
           }}
+          onItemSaved={(updated) => {
+            setOtherItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+            setOtherItemAnnonceTarget((prev) => (prev && prev.id === updated.id ? updated : prev));
+          }}
         />
       )}
       {zoomCard && (

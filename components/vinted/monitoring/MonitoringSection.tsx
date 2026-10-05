@@ -356,6 +356,13 @@ export default function MonitoringSection() {
             setAnnonceTarget(null);
             data.refetch();
           }}
+          onItemSaved={(updated) => {
+            setAnnonceTarget((prev) =>
+              prev && prev.kind === 'other_item' && prev.item.id === updated.id ? { ...prev, item: updated } : prev,
+            );
+            // Saving clears the item's queue failure flag server-side.
+            data.refetch();
+          }}
         />
       )}
     </div>

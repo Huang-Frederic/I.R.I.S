@@ -1,27 +1,14 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { resizeImage } from '@/lib/utils/resize-image';
+import { DEFAULT_CONDITION_ID, missingAttributes } from '@/lib/vinted/other-item-attributes';
 import CategoryPicker, { type VintedCategory } from './CategoryPicker';
+import OtherItemVintedFields, { type VintedFieldsPatch } from './OtherItemVintedFields';
+import { useCatalogAttributes } from './hooks/useCatalogAttributes';
 
 const TITLE_MAX = 80;
-
-const CONDITIONS: {
-  value: number;
-  labelKey:
-    | 'conditionNewWithTag'
-    | 'conditionNewWithoutTag'
-    | 'conditionVeryGood'
-    | 'conditionGood'
-    | 'conditionSatisfactory';
-}[] = [
-  { value: 1, labelKey: 'conditionNewWithTag' },
-  { value: 2, labelKey: 'conditionNewWithoutTag' },
-  { value: 3, labelKey: 'conditionVeryGood' },
-  { value: 4, labelKey: 'conditionGood' },
-  { value: 5, labelKey: 'conditionSatisfactory' },
-];
 
 export default function OtherItemForm() {
   const t = useTranslations('otherItems');
@@ -30,8 +17,12 @@ export default function OtherItemForm() {
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState<VintedCategory | null>(null);
   const [brand, setBrand] = useState('');
-  const [condition, setCondition] = useState(3);
-  const [size, setSize] = useState('');
+  const [condition, setCondition] = useState(DEFAULT_CONDITION_ID);
+  const [sizeId, setSizeId] = useState<number | null>(null);
+  const [sizeLabel, setSizeLabel] = useState<string | null>(null);
+  const [colorIds, setColorIds] = useState<number[]>([]);
+  const [showMissing, setShowMissing] = useState(false);
+  const { state: attributes, retry: retryAttributes } = useCatalogAttributes(category?.id ?? null);
   const [dest, setDest] = useState<'for_sale' | 'collection'>('for_sale');
   const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -50,6 +41,21 @@ export default function OtherItemForm() {
   const pendingResizesRef = useRef<Set<Promise<void>>>(new Set());
 
   const nameTooLong = name.length > TITLE_MAX;
+  // Only enforced once the category's attributes are known — while the bot
+  // hasn't loaded them the item can still be created, and the size picked
+  // later from the fiche (the bot re-checks everything before posting).
+  const missing = missingAttributes(attributes.status === 'ready' ? attributes.attributes : null, {
+    sizeId,
+    colorIds,
+    conditionId: condition,
+  });
+
+  const applyVintedFields = useCallback((patch: VintedFieldsPatch) => {
+    if (patch.conditionId !== undefined) setCondition(patch.conditionId);
+    if (patch.sizeId !== undefined) setSizeId(patch.sizeId);
+    if (patch.sizeLabel !== undefined) setSizeLabel(patch.sizeLabel);
+    if (patch.colorIds !== undefined) setColorIds(patch.colorIds);
+  }, []);
   const previewUrls = useMemo(() => photos.map((p) => URL.createObjectURL(p)), [photos]);
 
   // Updates photosRef synchronously (plain assignment, not dependent on
@@ -113,6 +119,7 @@ export default function OtherItemForm() {
     if (nameTooLong) return;
     if (!category) return setError(t('errorCategory'));
     if (photos.length === 0) return setError(t('errorPhoto'));
+    if (missing.length > 0) return setShowMissing(true);
 
     setSubmitting(true);
     try {
@@ -132,7 +139,9 @@ export default function OtherItemForm() {
       fd.set('vinted_catalog_path', category.path);
       fd.set('vinted_condition_id', String(condition));
       if (brand.trim()) fd.set('brand_name', brand.trim());
-      if (size.trim()) fd.set('size', size.trim());
+      if (sizeId !== null) fd.set('vinted_size_id', String(sizeId));
+      if (sizeLabel) fd.set('size', sizeLabel);
+      for (const id of colorIds) fd.append('vinted_color_ids', String(id));
       fd.set('status', dest);
       for (const p of photosRef.current) fd.append('photos', p);
 
@@ -145,8 +154,11 @@ export default function OtherItemForm() {
       setPrice('');
       setCategory(null);
       setBrand('');
-      setCondition(3);
-      setSize('');
+      setCondition(DEFAULT_CONDITION_ID);
+      setSizeId(null);
+      setSizeLabel(null);
+      setColorIds([]);
+      setShowMissing(false);
       updatePhotos(() => []);
       setSubmitting(false);
       setSubmitted(true);
@@ -232,32 +244,15 @@ export default function OtherItemForm() {
         </label>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <label className="block">
-          <span className="text-text-muted text-xs">{t('conditionLabel')}</span>
-          <select
-            value={condition}
-            onChange={(e) => setCondition(Number(e.target.value))}
-            className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none"
-          >
-            {CONDITIONS.map((c) => (
-              <option key={c.value} value={c.value}>
-                {t(c.labelKey)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block">
-          <span className="text-text-muted text-xs">{t('sizeLabel')}</span>
-          <input
-            type="text"
-            value={size}
-            onChange={(e) => setSize(e.target.value)}
-            placeholder={t('sizePlaceholder')}
-            className="bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none"
-          />
-        </label>
-      </div>
+      <OtherItemVintedFields
+        attributes={attributes}
+        onRetry={() => void retryAttributes()}
+        conditionId={condition}
+        sizeId={sizeId}
+        colorIds={colorIds}
+        onChange={applyVintedFields}
+        missing={showMissing ? missing : []}
+      />
 
       <div>
         <span className="text-text-muted mb-1 block text-xs">{t('destLabel')}</span>

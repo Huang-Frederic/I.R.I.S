@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, Copy, Check, Download, X } from 'lucide-react';
 import type { OtherItemWithListings } from '@/lib/types';
 import { buildOtherItemAnnonce } from '@/lib/utils/other-item-template';
 import { processImageForVinted, downloadBlob } from '@/lib/utils/image-postprocess';
+import { missingAttributes } from '@/lib/vinted/other-item-attributes';
 import ConfirmDialog from '@/components/vinted/ConfirmDialog';
+import OtherItemVintedFields, { type VintedFieldsPatch } from '@/components/other-items/OtherItemVintedFields';
+import { useCatalogAttributes } from '@/components/other-items/hooks/useCatalogAttributes';
 
 interface Props {
   item: OtherItemWithListings;
@@ -16,9 +19,18 @@ interface Props {
   onItemDeleted: () => void;
   /** Called after the item moved to Stock (status='collection'). */
   onMovedToStock?: () => void;
+  /** Called after the Vinted attributes (condition, size, colors) were saved. */
+  onItemSaved?: (item: OtherItemWithListings) => void;
 }
 
-export default function OtherItemAnnonceModal({ item, storagePublicUrl, onClose, onPriceSaved, onItemDeleted, onMovedToStock }: Props) {
+interface VintedDraft {
+  conditionId: number;
+  sizeId: number | null;
+  sizeLabel: string | null;
+  colorIds: number[];
+}
+
+export default function OtherItemAnnonceModal({ item, storagePublicUrl, onClose, onPriceSaved, onItemDeleted, onMovedToStock, onItemSaved }: Props) {
   const t = useTranslations('otherItemAnnonce');
   const tCommon = useTranslations('common');
   const initial = buildOtherItemAnnonce({
@@ -43,6 +55,28 @@ export default function OtherItemAnnonceModal({ item, storagePublicUrl, onClose,
   const [priceDraft, setPriceDraft] = useState(item.price !== null ? String(item.price) : '');
   const [editingPrice, setEditingPrice] = useState(false);
   const [savingPrice, setSavingPrice] = useState(false);
+
+  // Editable Vinted attributes — what the bot needs to post in this category.
+  const { state: attributes, retry: retryAttributes } = useCatalogAttributes(item.vinted_catalog_id);
+  const [saved, setSaved] = useState<VintedDraft>({
+    conditionId: item.vinted_condition_id,
+    sizeId: item.vinted_size_id,
+    sizeLabel: item.size,
+    colorIds: item.vinted_color_ids ?? [],
+  });
+  const [vintedDraft, setVintedDraft] = useState<VintedDraft>(saved);
+  const [vintedSave, setVintedSave] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const vintedDirty = JSON.stringify(vintedDraft) !== JSON.stringify(saved);
+  const missing = missingAttributes(attributes.status === 'ready' ? attributes.attributes : null, vintedDraft);
+  const applyVintedFields = useCallback((patch: VintedFieldsPatch) => {
+    setVintedDraft((d) => ({
+      conditionId: patch.conditionId ?? d.conditionId,
+      sizeId: patch.sizeId !== undefined ? patch.sizeId : d.sizeId,
+      sizeLabel: patch.sizeLabel !== undefined ? patch.sizeLabel : d.sizeLabel,
+      colorIds: patch.colorIds ?? d.colorIds,
+    }));
+    setVintedSave('idle');
+  }, []);
 
   useEffect(() => {
     if (!copiedField) return;
@@ -95,6 +129,41 @@ export default function OtherItemAnnonceModal({ item, storagePublicUrl, onClose,
       console.error(err);
     } finally {
       setSavingPrice(false);
+    }
+  }
+
+  async function saveVintedFields() {
+    setVintedSave('saving');
+    try {
+      const res = await fetch(`/api/other-items/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          vinted_condition_id: vintedDraft.conditionId,
+          vinted_size_id: vintedDraft.sizeId,
+          size: vintedDraft.sizeLabel,
+          vinted_color_ids: vintedDraft.colorIds,
+        }),
+      });
+      if (!res.ok) throw new Error(`PATCH /api/other-items/${item.id} failed (${res.status})`);
+      const { item: updated } = (await res.json()) as { item: Partial<OtherItemWithListings> };
+      const next = { ...item, ...updated, listings: item.listings };
+      setSaved(vintedDraft);
+      setVintedSave('saved');
+      // The size and condition lines of the preview come from these fields.
+      setDescription(
+        buildOtherItemAnnonce({
+          name: next.name,
+          description: next.description,
+          brand_name: next.brand_name,
+          size: next.size,
+          vinted_condition_id: next.vinted_condition_id,
+        }).description,
+      );
+      onItemSaved?.(next);
+    } catch (err) {
+      console.error(err);
+      setVintedSave('error');
     }
   }
 
@@ -306,6 +375,31 @@ export default function OtherItemAnnonceModal({ item, storagePublicUrl, onClose,
                   {item.price !== null ? `${item.price.toFixed(2)} €` : '—'}
                 </button>
               )}
+            </div>
+
+            <div className="border-border space-y-2 rounded border p-3">
+              <p className="text-text-faint text-xs">{t('vintedFieldsTitle')}</p>
+              <OtherItemVintedFields
+                attributes={attributes}
+                onRetry={() => void retryAttributes()}
+                conditionId={vintedDraft.conditionId}
+                sizeId={vintedDraft.sizeId}
+                colorIds={vintedDraft.colorIds}
+                onChange={applyVintedFields}
+                missing={missing}
+              />
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={saveVintedFields}
+                  disabled={!vintedDirty || vintedSave === 'saving'}
+                  className="bg-red text-bg rounded px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-50"
+                >
+                  {vintedSave === 'saving' ? t('vintedFieldsSaving') : t('vintedFieldsSave')}
+                </button>
+                {vintedSave === 'saved' && <span className="text-xs text-green-600 dark:text-green-400">{t('vintedFieldsSaved')}</span>}
+                {vintedSave === 'error' && <span className="text-red text-xs">{t('vintedFieldsSaveError')}</span>}
+              </div>
             </div>
           </div>
 
