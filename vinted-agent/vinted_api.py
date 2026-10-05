@@ -213,7 +213,10 @@ class VintedClient:
                 headers=self._headers(),
                 timeout=10,
             )
-            log.info("Token refresh → %s: %s", r.status_code, r.text[:300])
+            # A successful body is the new access + refresh tokens: never log
+            # it (the terminal output gets copy-pasted around). An error body
+            # carries no token and says why the refresh failed.
+            log.info("Token refresh → %s%s", r.status_code, "" if r.ok else f": {r.text[:300]}")
             if r.ok:
                 try:
                     body = r.json()

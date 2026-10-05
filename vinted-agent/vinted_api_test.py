@@ -136,3 +136,20 @@ def test_get_catalog_attributes_asks_for_the_category_and_returns_its_attributes
     url = client._session.post.call_args.args[0]
     assert url.endswith("/api/v2/item_upload/attributes")
     assert client._session.post.call_args.kwargs["json"] == {"attributes": [{"code": "category", "value": [2614]}]}
+
+def test_token_refresh_never_logs_the_tokens(caplog):
+    client = VintedClient.__new__(VintedClient)
+    client._csrf = None
+    client._cookies = {"refresh_token_web": "old-refresh"}
+    client._save_cookies = MagicMock()
+    response = MagicMock(status_code=200, ok=True,
+                         text='{"access_token":"SECRET-ACCESS","refresh_token":"SECRET-REFRESH"}')
+    response.json.return_value = {"access_token": "SECRET-ACCESS", "refresh_token": "SECRET-REFRESH"}
+    client._session = MagicMock()
+    client._session.post.return_value = response
+
+    with caplog.at_level(logging.INFO):
+        assert client._try_token_refresh() is True
+
+    assert "SECRET" not in caplog.text
+    assert client._cookies["access_token_web"] == "SECRET-ACCESS"
