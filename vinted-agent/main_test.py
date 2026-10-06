@@ -1058,3 +1058,16 @@ def test_process_other_item_job_still_flags_a_stale_size_it_cannot_match():
     vinted.create_listing.assert_not_called()
     assert jobs_update_fn.call_args.args[0]["error"] == "À compléter dans la fiche : Taille invalide pour cette catégorie"
     assert requeue.await_args.args[3] is True
+
+
+from main import build_lot_title
+
+
+def test_build_lot_title_cleans_spreadsheet_tabs_and_all_caps_words():
+    # Regression: Vinted refused "Carte Magic Final Fantasy\tSephiroth, Fabled SOLDIER\t115\tM [FR]".
+    lot = {"name": "Final Fantasy\tSephiroth, Fabled SOLDIER\t115\tM", "language": "FR", "brand_label": "Magic", "is_lot": False}
+    assert build_lot_title(lot) == "Carte Magic Final Fantasy Sephiroth, Fabled Soldier 115 M [FR]"
+
+
+def test_build_other_item_title_cleans_all_caps_words():
+    assert build_other_item_title({"name": "Imperméable RAINS Unisex Long Jacket"}) == "Imperméable Rains Unisex Long Jacket"

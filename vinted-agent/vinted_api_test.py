@@ -153,3 +153,45 @@ def test_token_refresh_never_logs_the_tokens(caplog):
 
     assert "SECRET" not in caplog.text
     assert client._cookies["access_token_web"] == "SECRET-ACCESS"
+
+def _client_with_responses(*responses):
+    client = VintedClient.__new__(VintedClient)
+    client._csrf = "csrf"
+    client._cookies = {}
+    built = []
+    for status_code, body in responses:
+        r = MagicMock(status_code=status_code, ok=200 <= status_code < 300, text=json.dumps(body))
+        r.json.return_value = body
+        if status_code >= 400:
+            r.raise_for_status.side_effect = Exception(f"HTTP Error {status_code}: ")
+        built.append(r)
+    client._session = MagicMock()
+    client._session.post.side_effect = built
+    client._sync_datadome = MagicMock()
+    return client
+
+CAPS_REJECTION = {"code": 99, "message_code": "validation_error", "errors": [
+    {"field": "title", "value": "Le titre contient trop de lettres majuscules. Essaie d'utiliser des minuscules."}]}
+
+def test_create_listing_cleans_the_title_before_sending_it():
+    client = _client_with_responses((200, {"item": {"id": 42}}))
+    client.create_listing(title="Carte Magic Sephiroth, Fabled SOLDIER\t115\tM [FR]", description="d", price=1.0,
+                          condition="NM", image_urls=[], photo_ids=[1])
+    sent = client._session.post.call_args.kwargs["json"]["item"]["title"]
+    assert sent == "Carte Magic Sephiroth, Fabled Soldier 115 M [FR]"
+
+def test_create_listing_retries_once_with_softer_capitals_when_vinted_refuses_them():
+    client = _client_with_responses((400, CAPS_REJECTION), (200, {"item": {"id": 42}}))
+    listing_id = client.create_listing(title="Carte Pokémon Dracaufeu EX - (XYP 17) [FR]", description="d", price=1.0,
+                                       condition="NM", image_urls=[], photo_ids=[1])
+    assert listing_id == "42"
+    titles = [call.kwargs["json"]["item"]["title"] for call in client._session.post.call_args_list]
+    assert titles == ["Carte Pokémon Dracaufeu EX - (XYP 17) [FR]", "Carte Pokémon Dracaufeu Ex - (Xyp 17) [FR]"]
+    photos = [call.kwargs["json"]["item"]["assigned_photos"] for call in client._session.post.call_args_list]
+    assert photos[0] == photos[1]  # same uploaded photos, nothing re-uploaded
+
+def test_create_listing_gives_up_after_one_softened_retry():
+    client = _client_with_responses((400, CAPS_REJECTION), (400, CAPS_REJECTION))
+    with pytest.raises(VintedValidationError, match="majuscules"):
+        client.create_listing(title="Carte EX GX [FR]", description="d", price=1.0, condition="NM", image_urls=[], photo_ids=[1])
+    assert client._session.post.call_count == 2

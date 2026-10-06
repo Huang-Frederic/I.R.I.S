@@ -5,6 +5,8 @@
 // banner (unlike lib/utils/lot-template.ts) — Fred's explicit call for
 // other_items, which aren't offered through Vinted Go in the first place.
 
+import { vintedTitle } from './vinted-title';
+
 export interface OtherItemForTemplate {
   name: string;
   description: string | null;
@@ -36,7 +38,7 @@ export const OTHER_ITEM_CONDITION_LABEL: Record<number, string> = {
 };
 
 export function buildOtherItemTitle(item: OtherItemForTemplate): string {
-  return (item.name || '').slice(0, MAX_OTHER_ITEM_TITLE_LENGTH);
+  return vintedTitle(item.name || '').slice(0, MAX_OTHER_ITEM_TITLE_LENGTH).trim();
 }
 
 export function buildOtherItemDescription(item: OtherItemForTemplate): string {

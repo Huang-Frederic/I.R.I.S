@@ -80,6 +80,8 @@ def format_validation_errors(body: object) -> Optional[str]:
     return "Vinted a refusé l'annonce : " + " · ".join(parts)
 
 
+from titles import is_caps_rejection, soften_caps, vinted_title
+
 CONDITION_MAP = {
     "NM": 1,
     "EX": 2,
@@ -429,6 +431,7 @@ class VintedClient:
                     time.sleep(random.uniform(1.5, 3.0))
                 photo_ids.append(self.upload_photo(url))
 
+        title = vinted_title(title)
         payload = self._build_listing_payload(
             temp_uuid=temp_uuid,
             photo_ids=photo_ids,
@@ -489,9 +492,24 @@ class VintedClient:
                     pass
             if r.status_code in (400, 422):
                 try:
-                    message = format_validation_errors(r.json())
+                    body = r.json()
                 except ValueError:
-                    message = None
+                    body = None
+                softer = soften_caps(title)
+                if is_caps_rejection(body) and softer != title:
+                    # Vinted counted too many capitals even after vinted_title():
+                    # resend once with softer ones — same uploaded photos.
+                    log.info("Titre refusé (majuscules) — nouvel essai : %s", softer)
+                    softer_payload = {**payload, "item": {**payload["item"], "title": softer}}
+                    r = self._session.post(f"{VINTED_BASE}/api/v2/item_upload/items", json=softer_payload, headers=h, timeout=30)
+                    self._sync_datadome(r)
+                    if r.ok:
+                        return str(r.json()["item"]["id"])
+                    try:
+                        body = r.json()
+                    except ValueError:
+                        body = None
+                message = format_validation_errors(body)
                 if message:
                     raise VintedValidationError(message)
         r.raise_for_status()

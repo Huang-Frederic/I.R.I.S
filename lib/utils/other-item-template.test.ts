@@ -73,3 +73,9 @@ describe('buildOtherItemAnnonce', () => {
     expect(annonce.description).toContain('✨ Doudoune Uniqlo');
   });
 });
+
+describe('buildOtherItemTitle — Vinted title hygiene', () => {
+  it('lowers all-caps words like the bot does', () => {
+    expect(buildOtherItemTitle({ ...BASE, name: 'Imperméable RAINS Unisex Long Jacket' })).toBe('Imperméable Rains Unisex Long Jacket');
+  });
+});

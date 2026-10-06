@@ -15,6 +15,7 @@ from vinted_api import VintedClient, ListingGoneError, VintedValidationError
 from vinted_api import CONDITION_MAP, CARD_LOTS_CATALOG_ID, POKEMON_BRAND_ID, SANS_MARQUE_BRAND_ID
 from audit_log import audit_log
 from catalog_attributes import listing_attribute_problems, parse_catalog_attributes, resolve_size_id
+from titles import vinted_title
 from scheduler import decide_next_action, should_requeue, sort_repost_candidates
 
 load_dotenv()
@@ -327,7 +328,10 @@ def _resolve_is_lot(lot: dict) -> bool:
 
 
 def build_lot_title(lot: dict) -> str:
-    name = lot.get("name") or "Lot"
+    # Lot names are free text (often pasted from a spreadsheet, with tabs) and
+    # never went through the cards' caps normalisation — Vinted refused
+    # "… Fabled SOLDIER\t115\tM [FR]" for its capitals.
+    name = vinted_title(lot.get("name") or "Lot")
     lang = lot.get("language") or "JP"
     code = LANGUAGE_TITLE_CODE.get(lang, lang)
     brand_label = _lot_brand_label(lot)
@@ -388,7 +392,7 @@ def build_lot_description(lot: dict) -> str:
 
 
 def build_other_item_title(item: dict) -> str:
-    return (item.get("name") or "")[:MAX_TITLE_LENGTH]
+    return vinted_title(item.get("name") or "")[:MAX_TITLE_LENGTH].strip()
 
 
 # Vinted's own general-item condition wording — distinct from CONDITION_LABEL

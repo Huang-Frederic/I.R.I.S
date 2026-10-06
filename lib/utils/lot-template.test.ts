@@ -78,3 +78,12 @@ describe('buildLotAnnonce', () => {
     }
   });
 });
+
+describe('composeLotTitle — Vinted title hygiene', () => {
+  it('cleans spreadsheet tabs and all-caps words like the bot does', () => {
+    // Regression: Vinted refused "Carte Magic Final Fantasy\tSephiroth, Fabled SOLDIER\t115\tM [FR]".
+    expect(composeLotTitle('Final Fantasy\tSephiroth, Fabled SOLDIER\t115\tM', 'FR', 'Magic', false)).toBe(
+      'Carte Magic Final Fantasy Sephiroth, Fabled Soldier 115 M [FR]',
+    );
+  });
+});

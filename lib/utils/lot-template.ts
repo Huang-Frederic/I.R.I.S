@@ -1,5 +1,6 @@
 import type { CardCondition, CardLanguage } from '@/lib/types';
 import { LANGUAGE_FEMALE, LANGUAGE_FLAGS, CONDITION_LABEL, NO_VINTED_GO_WARNING } from './vinted-template';
+import { vintedTitle } from './vinted-title';
 
 export interface LotForTemplate {
   name: string;
@@ -28,6 +29,9 @@ export function composeLotTitle(
   brandLabel = 'Pokémon',
   isLot = true,
 ): string {
+  // Same cleanup as the bot's build_lot_title (vinted-agent/titles.py):
+  // spreadsheet tabs and all-caps words get a Vinted listing refused.
+  name = vintedTitle(name);
   const code = LANGUAGE_TITLE_CODE[language ?? 'JP'];
   const typePrefix = isLot ? 'Lot de Cartes' : 'Carte';
   const brandPart = brandLabel ? ` ${brandLabel}` : '';
