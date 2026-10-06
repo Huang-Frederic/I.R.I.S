@@ -492,25 +492,22 @@ export async function PATCH(
   // Keep the Vinted autonomous-posting queue in sync with this card's new
   // status/price, and — if this update just sold the card — flag any OTHER
   // user's still-active Vinted listing for the same physical card for
-  // deletion (it can no longer be sold out from under them). Both are
-  // fire-and-forget: placed last, after every DB write and derived-state
-  // computation above has already completed, so a failure here can never
-  // affect the response already computed for the caller. `.catch()` is
-  // required (not just `void`) because, unlike `auditLog`, these helpers
-  // don't swallow their own errors — an uncaught rejection here would
-  // otherwise surface as an unhandled promise rejection.
+  // deletion (it can no longer be sold out from under them). Placed last,
+  // after every DB write and derived-state computation above, and caught so
+  // a failure here never changes the response. Awaited on purpose: these
+  // calls used to be fire-and-forget (`void …`), and on Vercel the function
+  // is frozen as soon as the response is sent — the sync never completed, so
+  // no card ever entered the queue from here (fixed 2026-10-06).
   // Uses the service client to bypass RLS — both helpers read/write rows
   // belonging to a sibling user, which the acting user's own RLS-bound
   // client can't see or modify (vinted_queue and vinted_post_jobs policies
   // are keyed on `user_id = auth.uid()`).
-  const vintedSvc = createServiceClient();
-  void syncVintedQueueMembership(vintedSvc, id).catch((err) => {
-    console.error('syncVintedQueueMembership failed:', err);
-  });
-  if (body.status === 'sold') {
-    void enqueueCrossUserDeleteJobs(vintedSvc, id, user.id).catch((err) => {
-      console.error('enqueueCrossUserDeleteJobs failed:', err);
-    });
+  try {
+    const vintedSvc = createServiceClient();
+    await syncVintedQueueMembership(vintedSvc, id);
+    if (body.status === 'sold') await enqueueCrossUserDeleteJobs(vintedSvc, id, user.id);
+  } catch (err) {
+    console.error('Vinted queue sync / cross-user delete failed:', err);
   }
 
   return NextResponse.json({ card: updated, restock, promote });

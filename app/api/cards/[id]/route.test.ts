@@ -118,6 +118,64 @@ describe('PATCH /api/cards/[id]', () => {
     expect(update).toHaveBeenCalledTimes(1);
   });
 
+  it("puts the card in every Vinted account's queue before answering, once its price is confirmed", async () => {
+    // Regression: the queue sync was fired without being awaited, after the
+    // response was built — on Vercel the function is frozen as soon as the
+    // response goes out, so it never completed and no card entered the queue
+    // (e.g. Noadkoko Master Ball PRE-2, priced 2026-09-25, never posted).
+    // No microtask flush here on purpose: it must be done when PATCH resolves.
+    const previousIds = process.env.VINTED_USER_IDS;
+    process.env.VINTED_USER_IDS = 'fred,gilly';
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    const updated = { id: 'abc', suggested_price: 14, status: 'for_sale', pokemon_number: 103 };
+    const update = vi.fn(() => ({ eq: () => ({ select: () => ({ single: vi.fn().mockResolvedValue({ data: updated, error: null }) }) }) }));
+    supabaseMock.from.mockReturnValueOnce({ update });
+
+    const queueInsert = vi.fn(() => Promise.resolve({ error: null }));
+    serviceMock.from.mockImplementation((table: string) => {
+      if (table === 'cards') {
+        return { select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { status: 'for_sale', price_confirmed_at: '2026-09-25T06:46:03Z' }, error: null }) }) }) };
+      }
+      if (table === 'card_listings') {
+        return { select: () => ({ eq: () => ({ not: () => Promise.resolve({ data: [], error: null }) }) }) };
+      }
+      if (table === 'vinted_queue') {
+        return {
+          select: () => ({
+            eq: (column: string) =>
+              column === 'card_id'
+                ? Promise.resolve({ data: [], error: null })
+                : { order: () => ({ limit: () => Promise.resolve({ data: [{ position: 7 }], error: null }) }) },
+          }),
+          insert: queueInsert,
+        };
+      }
+      throw new Error(`unmocked service table: ${table}`);
+    });
+
+    try {
+      const res = await PATCH(makeRequest({ suggested_price: 14 }), ctx('abc'));
+      expect(res.status).toBe(200);
+      expect(queueInsert).toHaveBeenCalledWith({ user_id: 'fred', card_id: 'abc', position: 8 });
+      expect(queueInsert).toHaveBeenCalledWith({ user_id: 'gilly', card_id: 'abc', position: 8 });
+    } finally {
+      process.env.VINTED_USER_IDS = previousIds;
+    }
+  });
+
+  it('still answers when the queue sync fails', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    const updated = { id: 'abc', suggested_price: 14, status: 'for_sale', pokemon_number: 103 };
+    const update = vi.fn(() => ({ eq: () => ({ select: () => ({ single: vi.fn().mockResolvedValue({ data: updated, error: null }) }) }) }));
+    supabaseMock.from.mockReturnValueOnce({ update });
+    serviceMock.from.mockImplementation(() => {
+      throw new Error('service client down');
+    });
+
+    const res = await PATCH(makeRequest({ suggested_price: 14 }), ctx('abc'));
+    expect(res.status).toBe(200);
+  });
+
   it('sets price_confirmed_at when suggested_price is explicitly provided', async () => {
     supabaseMock.auth.getUser.mockResolvedValue({
       data: { user: { id: 'u' } },
