@@ -365,6 +365,7 @@ class VintedClient:
         size_id: Optional[int] = None,
         color_ids: Optional[list] = None,
         condition_id: Optional[int] = None,
+        package_size_id: int = PACKAGE_SIZE_ID,
     ) -> dict:
         # `condition` is the cards/lots letter grade; other_items pass
         # Vinted's own id straight through `condition_id` instead (6 = neuf
@@ -389,7 +390,7 @@ class VintedClient:
                 "is_unisex": False,
                 "ai_photo": False,
                 "price": price,
-                "package_size_id": PACKAGE_SIZE_ID,
+                "package_size_id": package_size_id,
                 "shipment_prices": {"domestic": None, "international": None},
                 "color_ids": list(color_ids or []),
                 "assigned_photos": [{"id": pid, "orientation": 0} for pid in photo_ids],
@@ -419,6 +420,7 @@ class VintedClient:
         size_id: Optional[int] = None,
         color_ids: Optional[list] = None,
         condition_id: Optional[int] = None,
+        package_size_id: int = PACKAGE_SIZE_ID,
     ) -> str:
         if not self._csrf:
             self.refresh_csrf()
@@ -445,6 +447,7 @@ class VintedClient:
             size_id=size_id,
             color_ids=color_ids,
             condition_id=condition_id,
+            package_size_id=package_size_id,
         )
 
         h = {**self._headers(), "content-type": "application/json", "x-upload-form": "true"}
@@ -531,6 +534,39 @@ class VintedClient:
         self._sync_datadome(r)
         r.raise_for_status()
         return r.json().get("attributes") or []
+
+    def _gateway_headers(self) -> dict:
+        # Vinted's "API gateway" (shipping estimation…) lives under /web/gateway
+        # and expects the web app's platform headers.
+        return {**self._headers(), "Platform": "web", "x-next-app": "marketplace-web"}
+
+    def get_package_sizes(self, catalog_id: int) -> list:
+        """The parcel formats Vinted offers in a category — what its upload
+        form lists. Petit/Moyen/Grand (1/2/3) for clothes and cards, 5-30 kg
+        bulky formats (11-14) for vacuums, etc."""
+        r = self._session.get(
+            f"{VINTED_BASE}/web/gateway/shipping-estimation/external/catalogs/{catalog_id}/package_sizes",
+            headers=self._gateway_headers(), timeout=20,
+        )
+        self._sync_datadome(r)
+        r.raise_for_status()
+        return r.json().get("package_sizes") or []
+
+    def suggest_package_size(self, *, catalog_id: int, title: str, description: str, price: float,
+                             color_ids: list, item_attributes: list) -> Optional[int]:
+        """The format Vinted's upload form would preselect for this listing,
+        or None when it has no suggestion."""
+        r = self._session.post(
+            f"{VINTED_BASE}/web/gateway/shipping-estimation/external/package_sizes/suggestion",
+            json={"catalog_id": catalog_id, "upload_session_id": str(uuid.uuid4()), "brand_id": None, "size_id": None,
+                  "title": title, "description": description, "price": price, "color_ids": color_ids,
+                  "item_attributes": item_attributes},
+            headers={**self._gateway_headers(), "content-type": "application/json"}, timeout=20,
+        )
+        self._sync_datadome(r)
+        if not r.ok:
+            return None
+        return r.json().get("package_size_id")
 
     def _solve_datadome_capsolver(self, captcha_url: str) -> bool:
         """Send the DataDome CAPTCHA challenge to CapSolver and apply the resolved cookie.

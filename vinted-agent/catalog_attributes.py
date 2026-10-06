@@ -114,3 +114,25 @@ def resolve_size_id(item: dict, parsed: dict) -> int | None:
         if len(suffixed) == 1:
             return suffixed[0]
     return None
+
+
+PETIT_PACKAGE_SIZE_ID = 1
+
+
+def choose_package_size(preferred: int | None, offered: list[dict], suggest) -> int | None:
+    """The parcel format to post with. Formats depend on the category: clothes
+    and cards offer Petit/Moyen/Grand (1/2/3), vacuums only 5-30 kg bulky
+    formats (11-14) — sending Petit there got "Sélectionne le format de ton
+    colis". Order: the item's own choice if offered, then Petit if offered
+    (what the bot always sent), then Vinted's own suggestion — what its upload
+    form preselects — if offered. `suggest` is only called when needed. Unknown
+    formats (lookup failed) fall back to Petit; None = nothing usable."""
+    offered_ids = {p.get("id") for p in offered}
+    if not offered_ids:
+        return PETIT_PACKAGE_SIZE_ID
+    if preferred in offered_ids:
+        return preferred
+    if PETIT_PACKAGE_SIZE_ID in offered_ids:
+        return PETIT_PACKAGE_SIZE_ID
+    suggested = suggest()
+    return suggested if suggested in offered_ids else None

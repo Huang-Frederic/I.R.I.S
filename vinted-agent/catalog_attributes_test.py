@@ -177,3 +177,33 @@ def test_resolve_gives_up_on_an_ambiguous_label():
 def test_resolve_gives_up_without_a_label_or_without_sizes():
     assert resolve_size_id({"vinted_size_id": 209, "size": None}, PARKAS_NEW_SIZES) is None
     assert resolve_size_id({"vinted_size_id": 209, "size": "L"}, parse_catalog_attributes(PERFUME)) is None
+
+
+from catalog_attributes import choose_package_size
+
+CLOTHES_SIZES = [{"id": 1, "code": "SMALL"}, {"id": 2, "code": "MEDIUM"}, {"id": 3, "code": "LARGE"}, {"id": 8, "code": "HEAVY_SMALL"}]
+VACUUM_SIZES = [{"id": 11, "code": "BULKY_SMALL"}, {"id": 12, "code": "BULKY_MEDIUM"}, {"id": 13, "code": "BULKY_LARGE"}]
+
+
+def test_package_size_uses_the_items_own_choice_when_the_category_offers_it():
+    assert choose_package_size(12, VACUUM_SIZES, suggest=lambda: 11) == 12
+
+
+def test_package_size_keeps_petit_where_the_category_offers_it():
+    calls = []
+    assert choose_package_size(None, CLOTHES_SIZES, suggest=lambda: calls.append(1) or 2) == 1
+    assert calls == []  # no suggestion asked when Petit is available
+
+
+def test_package_size_takes_vinteds_suggestion_when_petit_is_not_offered():
+    assert choose_package_size(None, VACUUM_SIZES, suggest=lambda: 11) == 11
+
+
+def test_package_size_ignores_a_choice_or_suggestion_the_category_does_not_offer():
+    assert choose_package_size(3, VACUUM_SIZES, suggest=lambda: 12) == 12
+    assert choose_package_size(None, VACUUM_SIZES, suggest=lambda: 99) is None
+    assert choose_package_size(None, VACUUM_SIZES, suggest=lambda: None) is None
+
+
+def test_package_size_falls_back_to_petit_when_the_formats_are_unknown():
+    assert choose_package_size(None, [], suggest=lambda: None) == 1

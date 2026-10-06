@@ -195,3 +195,26 @@ def test_create_listing_gives_up_after_one_softened_retry():
     with pytest.raises(VintedValidationError, match="majuscules"):
         client.create_listing(title="Carte EX GX [FR]", description="d", price=1.0, condition="NM", image_urls=[], photo_ids=[1])
     assert client._session.post.call_count == 2
+
+def test_get_package_sizes_reads_the_categorys_formats_through_the_gateway():
+    client = _client_with_response(200, {"package_sizes": [{"id": 11, "code": "BULKY_SMALL"}]})
+    client._session.get = MagicMock(return_value=client._session.post.return_value)
+    assert client.get_package_sizes(3543) == [{"id": 11, "code": "BULKY_SMALL"}]
+    url = client._session.get.call_args.args[0]
+    assert url.endswith("/web/gateway/shipping-estimation/external/catalogs/3543/package_sizes")
+
+def test_suggest_package_size_returns_vinteds_preselected_format():
+    client = _client_with_response(200, {"package_size_id": 11})
+    assert client.suggest_package_size(catalog_id=3543, title="Robot", description="d", price=150.0,
+                                       color_ids=[1], item_attributes=[{"code": "condition", "ids": [1]}]) == 11
+    url = client._session.post.call_args.args[0]
+    assert url.endswith("/web/gateway/shipping-estimation/external/package_sizes/suggestion")
+    assert client._session.post.call_args.kwargs["json"]["catalog_id"] == 3543
+
+def test_suggest_package_size_returns_none_when_vinted_has_no_suggestion():
+    client = _client_with_response(500, {})
+    assert client.suggest_package_size(catalog_id=1, title="t", description="d", price=1.0, color_ids=[], item_attributes=[]) is None
+
+def test_build_listing_payload_sends_the_chosen_package_size():
+    assert _payload(package_size_id=12)["package_size_id"] == 12
+    assert _payload()["package_size_id"] == 1

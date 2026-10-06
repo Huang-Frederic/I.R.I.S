@@ -1071,3 +1071,58 @@ def test_build_lot_title_cleans_spreadsheet_tabs_and_all_caps_words():
 
 def test_build_other_item_title_cleans_all_caps_words():
     assert build_other_item_title({"name": "Imperméable RAINS Unisex Long Jacket"}) == "Imperméable Rains Unisex Long Jacket"
+
+
+VACUUM_ATTRIBUTES = [
+    {"id": 431, "code": "condition", "configuration": {"required": True, "options": [
+        _attr_group("État", [_attr_option(1, "Neuf sans étiquette")])]}},
+    {"code": "color", "value_ids": None, "value": None, "configuration": None},
+]
+BULKY = [{"id": 11, "code": "BULKY_SMALL"}, {"id": 12, "code": "BULKY_MEDIUM"}, {"id": 13, "code": "BULKY_LARGE"}]
+
+
+def _vacuum(**overrides):
+    return _puffer_item(vinted_catalog_id=3543, vinted_size_id=None, size=None, vinted_condition_id=1, **overrides)
+
+
+def test_process_other_item_job_uses_vinteds_suggested_format_when_petit_is_not_offered():
+    supabase, _, _ = _mock_supabase_for_post_other_item(_vacuum())
+    vinted = _vinted(VACUUM_ATTRIBUTES)
+    vinted.get_package_sizes = MagicMock(return_value=BULKY)
+    vinted.suggest_package_size = MagicMock(return_value=11)
+    with _fast_and_isolated():
+        asyncio.run(process_other_item_job(supabase, vinted, _post_job()))
+    assert vinted.create_listing.call_args.kwargs["package_size_id"] == 11
+
+
+def test_process_other_item_job_prefers_the_format_chosen_for_the_item():
+    supabase, _, _ = _mock_supabase_for_post_other_item(_vacuum(vinted_package_size_id=12))
+    vinted = _vinted(VACUUM_ATTRIBUTES)
+    vinted.get_package_sizes = MagicMock(return_value=BULKY)
+    vinted.suggest_package_size = MagicMock(return_value=11)
+    with _fast_and_isolated():
+        asyncio.run(process_other_item_job(supabase, vinted, _post_job()))
+    assert vinted.create_listing.call_args.kwargs["package_size_id"] == 12
+    vinted.suggest_package_size.assert_not_called()
+
+
+def test_process_other_item_job_keeps_petit_for_clothes():
+    supabase, _, _ = _mock_supabase_for_post_other_item(_puffer_item())
+    vinted = _vinted(PUFFER_ATTRIBUTES)
+    vinted.get_package_sizes = MagicMock(return_value=[{"id": 1}, {"id": 2}, {"id": 3}])
+    with _fast_and_isolated():
+        asyncio.run(process_other_item_job(supabase, vinted, _post_job()))
+    assert vinted.create_listing.call_args.kwargs["package_size_id"] == 1
+    vinted.suggest_package_size.assert_not_called()
+
+
+def test_process_other_item_job_flags_an_item_without_a_usable_format_before_any_upload():
+    supabase, _, jobs_update_fn = _mock_supabase_for_post_other_item(_vacuum())
+    vinted = _vinted(VACUUM_ATTRIBUTES)
+    vinted.get_package_sizes = MagicMock(return_value=BULKY)
+    vinted.suggest_package_size = MagicMock(return_value=None)
+    with _fast_and_isolated() as requeue:
+        asyncio.run(process_other_item_job(supabase, vinted, _post_job()))
+    vinted.upload_photo.assert_not_called()
+    assert "colis" in jobs_update_fn.call_args.args[0]["error"]
+    assert requeue.await_args.args[3] is True
