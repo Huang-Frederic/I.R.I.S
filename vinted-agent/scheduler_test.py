@@ -151,7 +151,13 @@ def test_should_requeue_a_for_sale_other_item_that_is_not_listed():
 
 
 def test_should_requeue_a_for_sale_lot_that_is_not_listed():
-    assert should_requeue("lot_id", {"status": "for_sale"}, already_listed=False) is True
+    assert should_requeue("lot_id", {"status": "for_sale", "price": 8.2}, already_listed=False) is True
+
+
+def test_should_not_requeue_a_lot_without_a_price():
+    # Same rule as lib/vinted/lot-queue-sync.ts isLotEligibleForQueue.
+    assert should_requeue("lot_id", {"status": "for_sale", "price": None}, already_listed=False) is False
+    assert should_requeue("lot_id", {"status": "for_sale", "price": 0}, already_listed=False) is False
 
 
 def test_should_requeue_a_card_only_once_its_price_was_confirmed():

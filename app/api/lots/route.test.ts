@@ -11,6 +11,14 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: () => Promise.resolve(supabaseMock),
 }));
 
+const serviceClient = { tag: 'service' };
+vi.mock('@/lib/supabase/service', () => ({ createServiceClient: () => serviceClient }));
+
+const syncLotQueueMembership = vi.fn().mockResolvedValue(undefined);
+vi.mock('@/lib/vinted/lot-queue-sync', () => ({
+  syncLotQueueMembership: (...args: unknown[]) => syncLotQueueMembership(...args),
+}));
+
 afterEach(() => {
   vi.clearAllMocks();
 });
@@ -112,5 +120,7 @@ describe('POST /api/lots', () => {
     expect(json.lot.id).toBe('new-lot-id');
     expect(json.lot.photo_urls).toHaveLength(2);
     expect(uploadFn).toHaveBeenCalledTimes(2);
+    // A new lot for sale with a price goes straight into the Vinted queues.
+    expect(syncLotQueueMembership).toHaveBeenCalledWith(serviceClient, 'new-lot-id');
   });
 });

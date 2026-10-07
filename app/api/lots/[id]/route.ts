@@ -7,6 +7,9 @@ import {
   notFoundResponse,
 } from '@/lib/utils/api-response';
 import { auditLog } from '@/lib/utils/audit-log';
+import { createServiceClient } from '@/lib/supabase/service';
+import { syncLotQueueMembership } from '@/lib/vinted/lot-queue-sync';
+import { enqueueLotCrossUserDeleteJobs } from '@/lib/vinted/cross-user-sync';
 import type { CardCondition, CardLanguage } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -32,6 +35,24 @@ function sanitizeNumber(v: unknown): number | null | undefined {
     throw new Error('invalid_number');
   }
   return v;
+}
+
+/** Puts the lot in (or takes it out of) every Vinted account's queue, and on a
+ *  sell-out asks the bot to delete the other account's ad — the same follow-up
+ *  app/api/cards/[id]/route.ts does for cards. Awaited (on Vercel nothing runs
+ *  after the response) and caught so it never changes the response. Service
+ *  client: the partner's queue rows and listings are outside the caller's RLS. */
+async function syncLotVinted(
+  lotId: string,
+  { soldOutBy, consumedListingUserId }: { soldOutBy?: string; consumedListingUserId?: string } = {},
+): Promise<void> {
+  try {
+    const svc = createServiceClient();
+    await syncLotQueueMembership(svc, lotId, { consumedListingUserId });
+    if (soldOutBy) await enqueueLotCrossUserDeleteJobs(svc, lotId, soldOutBy);
+  } catch (err) {
+    console.error('Vinted lot queue sync / cross-user delete failed:', err);
+  }
 }
 
 export async function PATCH(
@@ -166,6 +187,7 @@ export async function PATCH(
         },
       });
 
+      await syncLotVinted(id, { consumedListingUserId: user.id });
       return NextResponse.json({ lot: remaining, soldLot, split: true });
     }
   }
@@ -213,6 +235,8 @@ export async function PATCH(
       },
     });
   }
+
+  await syncLotVinted(id, { soldOutBy: body.status === 'sold' ? user.id : undefined });
 
   return NextResponse.json({ lot: updated });
 }

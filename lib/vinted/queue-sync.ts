@@ -2,7 +2,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { isEligibleForQueue } from './queue-eligibility';
 
-function vintedEnabledUserIds(): string[] {
+export function vintedEnabledUserIds(): string[] {
   return (process.env.VINTED_USER_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 }
 

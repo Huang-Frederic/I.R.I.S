@@ -34,3 +34,37 @@ export async function enqueueCrossUserDeleteJobs(
     }
   }
 }
+
+/**
+ * Same as enqueueCrossUserDeleteJobs, for a lot that sold out on one
+ * account: the other account's live ad gets a 'delete' job, which the bot
+ * resolves through lot_listings (process_lot_job). Not for a quantity>1 lot
+ * that only lost one copy — the other ad still has stock behind it.
+ */
+export async function enqueueLotCrossUserDeleteJobs(
+  supabase: SupabaseClient,
+  lotId: string,
+  soldByUserId: string,
+): Promise<void> {
+  const { data: siblingListings, error: siblingListingsError } = await supabase
+    .from('lot_listings')
+    .select('user_id, vinted_listing_id')
+    .eq('lot_id', lotId)
+    .neq('user_id', soldByUserId)
+    .not('vinted_listing_id', 'is', null);
+  if (siblingListingsError) {
+    console.error('enqueueLotCrossUserDeleteJobs: failed to fetch sibling listings:', siblingListingsError);
+  }
+
+  for (const listing of siblingListings ?? []) {
+    const { error: insertError } = await supabase.from('vinted_post_jobs').insert({
+      lot_id: lotId,
+      user_id: listing.user_id,
+      job_type: 'delete',
+      status: 'pending',
+    });
+    if (insertError) {
+      console.error('enqueueLotCrossUserDeleteJobs: failed to insert delete job:', insertError);
+    }
+  }
+}

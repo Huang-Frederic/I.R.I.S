@@ -11,6 +11,18 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: () => Promise.resolve(supabaseMock),
 }));
 
+const serviceClient = { tag: 'service' };
+vi.mock('@/lib/supabase/service', () => ({ createServiceClient: () => serviceClient }));
+
+const syncLotQueueMembership = vi.fn().mockResolvedValue(undefined);
+vi.mock('@/lib/vinted/lot-queue-sync', () => ({
+  syncLotQueueMembership: (...args: unknown[]) => syncLotQueueMembership(...args),
+}));
+const enqueueLotCrossUserDeleteJobs = vi.fn().mockResolvedValue(undefined);
+vi.mock('@/lib/vinted/cross-user-sync', () => ({
+  enqueueLotCrossUserDeleteJobs: (...args: unknown[]) => enqueueLotCrossUserDeleteJobs(...args),
+}));
+
 afterEach(() => {
   vi.clearAllMocks();
 });
@@ -61,6 +73,22 @@ describe('PATCH /api/lots/[id]', () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.lot.price).toBe(30);
+    // A price change can make the lot eligible: the queue is re-synced
+    // (service client — the partner's queue rows aren't visible under RLS).
+    expect(syncLotQueueMembership).toHaveBeenCalledWith(serviceClient, 'abc', {});
+    expect(enqueueLotCrossUserDeleteJobs).not.toHaveBeenCalled();
+  });
+
+  it('still answers 200 when the queue sync fails', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+    const updateSingle = vi.fn().mockResolvedValue({ data: { id: 'abc', price: 30, status: 'for_sale' }, error: null });
+    const update = vi.fn(() => ({ eq: vi.fn(() => ({ select: vi.fn(() => ({ single: updateSingle })) })) }));
+    supabaseMock.from.mockReturnValue({ update });
+    syncLotQueueMembership.mockRejectedValueOnce(new Error('boom'));
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const res = await PATCH(patchRequest({ price: 30 }), ctx('abc'));
+    expect(res.status).toBe(200);
+    errSpy.mockRestore();
   });
 
   /** Mock the pre-fetch the sold path does to read the current quantity. */
@@ -87,6 +115,9 @@ describe('PATCH /api/lots/[id]', () => {
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'sold', date_sold: expect.any(String) }),
     );
+    // Sold out: leaves the queues, and the other account's live ad is deleted.
+    expect(syncLotQueueMembership).toHaveBeenCalledWith(serviceClient, 'abc', {});
+    expect(enqueueLotCrossUserDeleteJobs).toHaveBeenCalledWith(serviceClient, 'abc', 'u');
   });
 
   it('preserves explicit date_sold when status flips to sold (explicit > auto)', async () => {
@@ -142,6 +173,9 @@ describe('PATCH /api/lots/[id]', () => {
       expect.objectContaining({ status: 'sold', quantity: 1, sold_price: 12, sold_by_user_id: 'u' }),
     );
     expect(update).toHaveBeenCalledWith({ quantity: 2 });
+    // Copies remain: the seller's consumed ad is re-queued, the partner's ad stays up.
+    expect(syncLotQueueMembership).toHaveBeenCalledWith(serviceClient, 'abc', { consumedListingUserId: 'u' });
+    expect(enqueueLotCrossUserDeleteJobs).not.toHaveBeenCalled();
   });
 
   it('accepts the collection status (move to Stock)', async () => {

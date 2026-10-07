@@ -148,6 +148,21 @@ and no quota slot, and editing the item (`PATCH /api/other-items/[id]` →
 failures (timeout, expired session) come back unflagged and retry at the next
 slot.
 
+### Lots enter the queue on their own (2026-10-07)
+
+Until now nothing in the app put a lot in `vinted_queue`: lots only went
+online through "Poster maintenant" (or a one-off script). `lib/vinted/lot-queue-sync.ts`
+(`syncLotQueueMembership`) now does for lots what `queue-sync.ts` does for
+cards, called (awaited, service client) from `POST /api/lots` and
+`PATCH /api/lots/[id]`: a lot `for_sale` with a price > 0 enters every
+`VINTED_USER_IDS` account's queue unless that account already has it online,
+and leaves every queue otherwise. No `price_confirmed_at` gate — no cron ever
+prices a lot. Selling a lot out also enqueues a `delete` job for the other
+account's live ad (`enqueueLotCrossUserDeleteJobs`, handled by
+`process_lot_job`). Selling one copy of a quantity>1 lot keeps the partner's ad
+and re-queues the seller's account (`consumedListingUserId`). The bot's
+`should_requeue` applies the same price rule.
+
 ### Frontend — main `/vinted` page (today's work, commits `f3c7647` + `377095b`)
 
 Before today, `other_items` existed in the database/bot/creation-form but

@@ -1073,7 +1073,7 @@ async def _fail_job(
 # Job target column → (item table, its listings table, columns should_requeue reads).
 _REQUEUE_TARGETS = {
     "card_id": ("cards", "card_listings", "status, price_confirmed_at"),
-    "lot_id": ("lots", "lot_listings", "status"),
+    "lot_id": ("lots", "lot_listings", "status, price"),
     "other_item_id": ("other_items", "other_item_listings", "status"),
 }
 

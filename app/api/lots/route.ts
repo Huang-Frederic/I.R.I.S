@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
 import { auditLog } from '@/lib/utils/audit-log';
+import { createServiceClient } from '@/lib/supabase/service';
+import { syncLotQueueMembership } from '@/lib/vinted/lot-queue-sync';
 import type { CardLanguage, CardCondition } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -150,6 +152,15 @@ export async function POST(request: Request): Promise<NextResponse> {
     entity_id: lotId,
     details: { name, language, condition, price },
   });
+
+  // A lot created for sale with a price goes straight into every Vinted
+  // account's queue (see lib/vinted/lot-queue-sync.ts). Awaited — on Vercel
+  // nothing runs after the response — and caught so it never fails the create.
+  try {
+    await syncLotQueueMembership(createServiceClient(), lotId);
+  } catch (err) {
+    console.error('Vinted lot queue sync failed:', err);
+  }
 
   return NextResponse.json({
     lot: updated,
