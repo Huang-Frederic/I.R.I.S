@@ -163,6 +163,18 @@ account's live ad (`enqueueLotCrossUserDeleteJobs`, handled by
 and re-queues the seller's account (`consumedListingUserId`). The bot's
 `should_requeue` applies the same price rule.
 
+### The bot follows the group priority (2026-10-07)
+
+`vinted_bot_config.group_priority` (Settings → group priority on
+`/vinted/bot`) used to only sort the page; the bot posted by raw
+`vinted_queue.position`. `_fetch_queue_front` now reads every unflagged row
+with its card language / lot brand and `scheduler.pick_queue_front` takes the
+lowest position of the highest-priority group that still has rows
+(`queue_group_key` mirrors `lib/vinted/group-key.ts`, Items are
+`other-items`), else the lowest position overall — the first card the page
+shows. Fred's order, set on both accounts: `["other-items", "Pokémon FR"]`,
+then everything else.
+
 ### Frontend — main `/vinted` page (today's work, commits `f3c7647` + `377095b`)
 
 Before today, `other_items` existed in the database/bot/creation-form but

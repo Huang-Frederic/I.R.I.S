@@ -114,3 +114,31 @@ def should_requeue(target_column: str, item: dict | None, already_listed: bool) 
     if target_column == "lot_id" and not item.get("price"):
         return False
     return True
+
+
+POKEMON_BRAND_ID = 191646
+
+
+def queue_group_key(row: dict) -> str:
+    """The /vinted/bot page's group for one queue row — lib/vinted/group-key.ts
+    plus useMonitoringData's flat 'other-items' group. A lot's label comes from
+    lots.brand_label, which the app fills from the same BRAND_LABELS table."""
+    if row.get("other_item_id"):
+        return "other-items"
+    if row.get("card_id"):
+        return f"Pokémon {(row.get('cards') or {}).get('language') or '?'}"
+    lot = row.get("lots") or {}
+    if lot.get("brand_id") in (None, POKEMON_BRAND_ID):
+        return "Pokémon"
+    return lot.get("brand_label") or "Autres"
+
+
+def pick_queue_front(rows: list[dict], group_priority: list[str]) -> dict | None:
+    """The row to post next: the lowest position in the highest-priority group
+    (vinted_bot_config.group_priority) that still has rows, else the lowest
+    position overall — the first card the /vinted/bot page shows
+    (lib/vinted/group-sort.ts), which used to be display-only."""
+    if not rows:
+        return None
+    rank = {key: i for i, key in enumerate(group_priority)}
+    return min(rows, key=lambda r: (rank.get(queue_group_key(r), len(group_priority)), r.get("position") or 0))

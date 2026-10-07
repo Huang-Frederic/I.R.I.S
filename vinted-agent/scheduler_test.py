@@ -1,6 +1,6 @@
 # vinted-agent/scheduler_test.py
 from datetime import datetime
-from scheduler import decide_next_action, sort_repost_candidates
+from scheduler import decide_next_action, pick_queue_front, queue_group_key, sort_repost_candidates
 
 MONDAY_NOON = datetime(2026, 9, 21, 12, 0)  # a Monday
 SCHEDULE_WEEKDAY = [{"block": "weekday", "starts_at": "11:00:00", "ends_at": "13:00:00"}]
@@ -180,3 +180,46 @@ def test_should_not_requeue_an_item_already_listed_for_that_user():
 
 def test_should_not_requeue_a_deleted_item():
     assert should_requeue("other_item_id", None, already_listed=False) is False
+
+
+# ---------------------------------------------------------------------------
+# Group priority — the bot posts in the order the /vinted/bot page shows
+# ---------------------------------------------------------------------------
+def _row(position, *, card_lang=None, lot_brand=None, lot_label=None, item=False):
+    if item:
+        return {"position": position, "card_id": None, "lot_id": None, "other_item_id": f"i{position}"}
+    if card_lang:
+        return {"position": position, "card_id": f"c{position}", "lot_id": None, "other_item_id": None,
+                "cards": {"language": card_lang}}
+    return {"position": position, "card_id": None, "lot_id": f"l{position}", "other_item_id": None,
+            "lots": {"brand_id": lot_brand, "brand_label": lot_label}}
+
+
+def test_queue_group_key_matches_the_bot_page_groups():
+    # Same keys as lib/vinted/group-key.ts and useMonitoringData's 'other-items'.
+    assert queue_group_key(_row(1, item=True)) == "other-items"
+    assert queue_group_key(_row(1, card_lang="FR")) == "Pokémon FR"
+    assert queue_group_key(_row(1, lot_brand=None)) == "Pokémon"
+    assert queue_group_key(_row(1, lot_brand=191646, lot_label="Pokémon")) == "Pokémon"
+    assert queue_group_key(_row(1, lot_brand=287189, lot_label="Lorcana")) == "Lorcana"
+    assert queue_group_key(_row(1, lot_brand=287189, lot_label=None)) == "Autres"
+
+
+def test_pick_queue_front_takes_the_highest_priority_group_first():
+    rows = [_row(1, card_lang="JP"), _row(2, card_lang="FR"), _row(3, item=True), _row(4, item=True)]
+    assert pick_queue_front(rows, ["other-items", "Pokémon FR"])["other_item_id"] == "i3"
+
+
+def test_pick_queue_front_moves_to_the_next_listed_group_once_the_first_is_empty():
+    rows = [_row(1, card_lang="JP"), _row(5, card_lang="FR"), _row(2, card_lang="FR")]
+    assert pick_queue_front(rows, ["other-items", "Pokémon FR"])["card_id"] == "c2"
+
+
+def test_pick_queue_front_falls_back_to_queue_order_for_unlisted_groups():
+    rows = [_row(7, lot_brand=287189, lot_label="Lorcana"), _row(3, card_lang="JP")]
+    assert pick_queue_front(rows, ["other-items", "Pokémon FR"])["card_id"] == "c3"
+    assert pick_queue_front(rows, [])["card_id"] == "c3"
+
+
+def test_pick_queue_front_of_an_empty_queue_is_none():
+    assert pick_queue_front([], ["other-items"]) is None

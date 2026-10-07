@@ -950,12 +950,30 @@ def test_fail_job_without_a_job_does_not_requeue():
     requeue.assert_not_awaited()
 
 
+_QUEUE_COLUMNS = "card_id, lot_id, other_item_id, position, cards(language), lots(brand_id, brand_label)"
+
+
 def test_the_scheduler_only_looks_at_unflagged_queue_rows():
-    db = _FakeDb({("vinted_queue", "select", "card_id, lot_id, other_item_id, position"): [{"other_item_id": "i"}]})
-    rows = asyncio.run(_fetch_queue_front(db, FRED))
-    assert rows == [{"other_item_id": "i"}]
+    db = _FakeDb({("vinted_queue", "select", _QUEUE_COLUMNS): [
+        {"card_id": None, "lot_id": None, "other_item_id": "i", "position": 1}]})
+    rows = asyncio.run(_fetch_queue_front(db, FRED, []))
+    assert [r["other_item_id"] for r in rows] == ["i"]
     [(_, _, _, filters, _)] = db.calls
     assert filters == {"user_id": FRED, "failed_at is": "null"}
+
+
+def test_the_scheduler_posts_the_users_priority_group_first():
+    db = _FakeDb({("vinted_queue", "select", _QUEUE_COLUMNS): [
+        {"card_id": "jp", "lot_id": None, "other_item_id": None, "position": 1, "cards": {"language": "JP"}},
+        {"card_id": "fr", "lot_id": None, "other_item_id": None, "position": 2, "cards": {"language": "FR"}},
+    ]})
+    rows = asyncio.run(_fetch_queue_front(db, FRED, ["other-items", "Pokémon FR"]))
+    assert [r["card_id"] for r in rows] == ["fr"]
+
+
+def test_the_scheduler_has_nothing_to_post_from_an_empty_queue():
+    db = _FakeDb({("vinted_queue", "select", _QUEUE_COLUMNS): []})
+    assert asyncio.run(_fetch_queue_front(db, FRED, ["other-items"])) == []
 
 
 # ---------------------------------------------------------------------------

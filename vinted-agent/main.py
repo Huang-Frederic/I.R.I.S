@@ -16,7 +16,7 @@ from vinted_api import CONDITION_MAP, CARD_LOTS_CATALOG_ID, POKEMON_BRAND_ID, SA
 from audit_log import audit_log
 from catalog_attributes import choose_package_size, listing_attribute_problems, parse_catalog_attributes, resolve_size_id
 from titles import vinted_title
-from scheduler import decide_next_action, should_requeue, sort_repost_candidates
+from scheduler import decide_next_action, pick_queue_front, should_requeue, sort_repost_candidates
 
 load_dotenv()
 
@@ -1403,12 +1403,16 @@ async def _heartbeat_loop(supabase: AsyncClient) -> None:
 SCHEDULING_POLL_SECONDS = 300  # 5 minutes
 
 
-async def _fetch_queue_front(supabase: AsyncClient, user_id: str) -> list[dict]:
-    """The next item to post — skipping rows flagged by a permanent failure
-    (see _requeue_after_failure), which wait for the item to be fixed."""
-    res = await supabase.table("vinted_queue").select("card_id, lot_id, other_item_id, position") \
-        .eq("user_id", user_id).is_("failed_at", "null").order("position").limit(1).execute()
-    return res.data or []
+async def _fetch_queue_front(supabase: AsyncClient, user_id: str, group_priority: list[str]) -> list[dict]:
+    """The next item to post, following the user's group priority (Items, then
+    Pokémon FR, … — see scheduler.pick_queue_front) — skipping rows flagged by
+    a permanent failure (see _requeue_after_failure), which wait for the item
+    to be fixed."""
+    res = await supabase.table("vinted_queue") \
+        .select("card_id, lot_id, other_item_id, position, cards(language), lots(brand_id, brand_label)") \
+        .eq("user_id", user_id).is_("failed_at", "null").order("position").execute()
+    front = pick_queue_front(res.data or [], group_priority)
+    return [front] if front else []
 
 
 ATTRIBUTE_REQUESTS_POLL_SECONDS = 5
@@ -1478,7 +1482,7 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
 
                 schedule_res = await supabase.table("vinted_bot_schedule").select("block, starts_at, ends_at") \
                     .eq("user_id", user_id).execute()
-                config_res = await supabase.table("vinted_bot_config").select("daily_quota, repost_after_days") \
+                config_res = await supabase.table("vinted_bot_config").select("daily_quota, repost_after_days, group_priority") \
                     .eq("user_id", user_id).maybe_single().execute()
                 # postgrest-py 1.0.2's async client returns None (not a
                 # response with .data=None) from .maybe_single().execute()
@@ -1488,7 +1492,7 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                 jobs_today_res = await supabase.table("vinted_post_jobs").select("id") \
                     .eq("user_id", user_id).eq("triggered_by", "schedule").in_("job_type", ["post", "repost"]) \
                     .gte("created_at", today_start).execute()
-                queue_rows = await _fetch_queue_front(supabase, user_id)
+                queue_rows = await _fetch_queue_front(supabase, user_id, (config_data or {}).get("group_priority") or [])
 
                 repost_after_days = (config_data or {}).get("repost_after_days", 14)
                 repost_cutoff = (now - timedelta(days=repost_after_days)).isoformat()
