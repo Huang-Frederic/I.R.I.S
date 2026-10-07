@@ -121,7 +121,7 @@ export default function CardDetails({
           </div>
           {card.cardmarket_url && (
             <div className="mt-2 text-right">
-              <CardmarketLink url={card.cardmarket_url} />
+              <CardmarketLink url={card.cardmarket_url} language={card.language} />
             </div>
           )}
         </div>

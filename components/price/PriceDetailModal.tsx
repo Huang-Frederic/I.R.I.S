@@ -1,5 +1,6 @@
 'use client';
 
+import { cardmarketUrlForLanguage } from '@/lib/utils/cardmarket-url';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -148,7 +149,7 @@ export function PriceDetailModal({ card, open, onClose, onCardUpdated }: PriceDe
           <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
             {currentCard.cardmarket_url && (
               <a
-                href={currentCard.cardmarket_url}
+                href={cardmarketUrlForLanguage(currentCard.cardmarket_url, currentCard.language) ?? undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-text-muted hover:text-text inline-flex items-center gap-1 text-xs"

@@ -364,7 +364,7 @@ export default function AnnonceModal({ card, listings, partnerUserId, partnerNam
                 <div className="flex flex-col items-center justify-center gap-1">
                   <PriceFreshnessBadge cm_updated_at={card.cm_updated_at} />
                   <RefreshPriceButton cardId={card.id} onRefreshed={onCardRefreshed} />
-                  <CardmarketLink url={card.cardmarket_url} />
+                  <CardmarketLink url={card.cardmarket_url} language={card.language} />
                 </div>
               )}
             </div>
