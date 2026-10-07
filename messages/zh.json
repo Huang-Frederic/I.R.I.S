@@ -223,6 +223,7 @@
   "batchScanner": {
     "photosLabel": "照片 ({count}/{max})",
     "captureChain": "连拍",
+    "photoRemove": "移除照片",
     "dropOrClickAdd": "拖放或点击添加(最多 {max})",
     "analyzeButton": "分析 {count} 张照片",
     "stampMode": "Stamp Mode",

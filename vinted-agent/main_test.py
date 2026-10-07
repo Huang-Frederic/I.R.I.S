@@ -853,7 +853,7 @@ class _FakeDb:
 
 def _other_item_db(status="for_sale", listed=False, queued=False, front_position=3):
     return _FakeDb({
-        ("other_items", "select", "status"): {"status": status},
+        ("other_items", "select", "status, price"): {"status": status, "price": 75},
         ("other_item_listings", "select", "vinted_listing_id"): [{"vinted_listing_id": "v1" if listed else None}],
         ("vinted_queue", "select", "id"): [{"id": "q-1"}] if queued else [],
         ("vinted_queue", "select", "position"): [{"position": front_position}] if front_position is not None else [],
@@ -1144,3 +1144,33 @@ def test_process_other_item_job_flags_an_item_without_a_usable_format_before_any
     vinted.upload_photo.assert_not_called()
     assert "colis" in jobs_update_fn.call_args.args[0]["error"]
     assert requeue.await_args.args[3] is True
+
+
+# ---------------------------------------------------------------------------
+# No price, no post — the bot used to fall back to 1 € (2026-10-07)
+# ---------------------------------------------------------------------------
+from main import pick_lot_price, pick_other_item_price, pick_price
+
+
+def test_price_pickers_have_no_fallback_price():
+    assert pick_other_item_price({"price": None}) is None
+    assert pick_other_item_price({"price": 0}) is None
+    assert pick_other_item_price({"price": "25.00"}) == 25.0
+    assert pick_lot_price({"price": None}) is None
+    assert pick_lot_price({"price": 8.2}) == 8.2
+    # A card sells at the price Fred set — never at a market price he didn't pick.
+    assert pick_price({"suggested_price": None, "cm_price_low": 3.1, "cm_price_avg": 4.0}) is None
+    assert pick_price({"suggested_price": 4.4}) == 4.4
+
+
+def test_process_other_item_job_refuses_an_item_without_a_price():
+    supabase, _, jobs_update_fn = _mock_supabase_for_post_other_item(_puffer_item(price=None))
+    vinted = _vinted(PUFFER_ATTRIBUTES)
+
+    with _fast_and_isolated() as requeue:
+        asyncio.run(process_other_item_job(supabase, vinted, _post_job()))
+
+    vinted.upload_photo.assert_not_called()
+    vinted.create_listing.assert_not_called()
+    assert jobs_update_fn.call_args.args[0]["error"] == "À compléter dans la fiche : Prix manquant"
+    assert requeue.await_args.args[3] is True  # flagged until Fred sets a price

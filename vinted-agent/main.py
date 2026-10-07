@@ -450,11 +450,22 @@ async def get_card(supabase: AsyncClient, card_id: str) -> dict | None:
     return res.data
 
 
-def pick_price(card: dict) -> float:
-    for field in ["suggested_price", "cm_price_low", "cm_price_avg"]:
-        if card.get(field) is not None:
-            return float(card[field])
-    return 1.0
+MISSING_PRICE_ERROR = "À compléter dans la fiche : Prix manquant"
+
+
+def _positive_price(value) -> float | None:
+    """A price to post at, or None. There is deliberately no fallback: the bot
+    used to post an unpriced card, lot or item at 1 € (or a card at its
+    Cardmarket price), which nobody had chosen — a missing price now flags the
+    queue row instead (MISSING_PRICE_ERROR)."""
+    if value is None:
+        return None
+    price = float(value)
+    return price if price > 0 else None
+
+
+def pick_price(card: dict) -> float | None:
+    return _positive_price(card.get("suggested_price"))
 
 
 async def get_lot(supabase: AsyncClient, lot_id: str) -> dict | None:
@@ -465,10 +476,8 @@ async def get_lot(supabase: AsyncClient, lot_id: str) -> dict | None:
     return res.data
 
 
-def pick_lot_price(lot: dict) -> float:
-    if lot.get("price") is not None:
-        return float(lot["price"])
-    return 1.0
+def pick_lot_price(lot: dict) -> float | None:
+    return _positive_price(lot.get("price"))
 
 
 async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) -> None:
@@ -576,6 +585,9 @@ async def process_job(supabase: AsyncClient, vinted: VintedClient, job: dict) ->
     title = build_title(card)
     description = build_description(card)
     price = pick_price(card)
+    if price is None:
+        await _fail_job(supabase, job_id, card_id, MISSING_PRICE_ERROR, user_id, entity_type="card", job=job, permanent=True)
+        return
 
     await _log(supabase, user_id, "info", "📋  %s %s — %.2f€", tag, title, price)
 
@@ -746,6 +758,9 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
     title       = build_lot_title(lot)
     description = build_lot_description(lot)
     price       = pick_lot_price(lot)
+    if price is None:
+        await _fail_job(supabase, job_id, lot_id, MISSING_PRICE_ERROR, user_id, entity_type="lot", job=job, permanent=True)
+        return
     catalog_id  = CARD_LOTS_CATALOG_ID if _resolve_is_lot(lot) else 4875
     brand_id    = lot.get("brand_id") or POKEMON_BRAND_ID
     brand       = _lot_brand_label(lot) or lot.get("brand_name") or "Pokémon"
@@ -825,10 +840,8 @@ async def get_other_item(supabase: AsyncClient, other_item_id: str) -> dict | No
     return res.data
 
 
-def pick_other_item_price(item: dict) -> float:
-    if item.get("price") is not None:
-        return float(item["price"])
-    return 1.0
+def pick_other_item_price(item: dict) -> float | None:
+    return _positive_price(item.get("price"))
 
 
 async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, job: dict) -> None:
@@ -913,6 +926,11 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
     if not photo_urls:
         await _fail_job(supabase, job_id, other_item_id, "No photos available", user_id, entity_type="other_item", job=job, permanent=True)
         return
+    price = pick_other_item_price(item)
+    if price is None:
+        await _fail_job(supabase, job_id, other_item_id, MISSING_PRICE_ERROR, user_id,
+                        entity_type="other_item", job=job, permanent=True)
+        return
     # photo_urls are Storage paths ("item_id/0.jpg"), not public URLs — build
     # the public URL the same way lot photos already do just above in
     # process_lot_job (SUPABASE_URL + "/storage/v1/object/public/" + bucket +
@@ -956,7 +974,6 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
 
     title = build_other_item_title(item)
     description = build_other_item_description(item)
-    price = pick_other_item_price(item)
     color_ids = (item.get("vinted_color_ids") or []) if attributes["has_color"] else []
 
     # Parcel formats depend on the category (vacuums only take 5-30 kg bulky
@@ -1074,7 +1091,7 @@ async def _fail_job(
 _REQUEUE_TARGETS = {
     "card_id": ("cards", "card_listings", "status, price_confirmed_at"),
     "lot_id": ("lots", "lot_listings", "status, price"),
-    "other_item_id": ("other_items", "other_item_listings", "status"),
+    "other_item_id": ("other_items", "other_item_listings", "status, price"),
 }
 
 

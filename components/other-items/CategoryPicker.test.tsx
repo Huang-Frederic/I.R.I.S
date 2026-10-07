@@ -34,4 +34,48 @@ describe('<CategoryPicker>', () => {
     render(<CategoryPicker value={{ id: 2994, path: 'Électronique' }} onChange={() => {}} />);
     expect(screen.getByDisplayValue('Électronique')).toBeInTheDocument();
   });
+
+  it('closes the list once a result is picked, and keeps it closed when the field gets focus back', () => {
+    render(<CategoryPicker value={null} onChange={() => {}} />);
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'colliers' } });
+    fireEvent.click(screen.getByText('Femmes > Accessoires > Bijoux > Colliers'));
+    expect(screen.queryByRole('listbox')).toBeNull();
+    fireEvent.focus(input);
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('closes the list when the field loses focus (a click elsewhere)', () => {
+    render(<CategoryPicker value={null} onChange={() => {}} />);
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'bijoux' } });
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    fireEvent.blur(input);
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('closes the list on Escape', () => {
+    render(<CategoryPicker value={null} onChange={() => {}} />);
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'bijoux' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('picks with the arrow keys and Enter, without submitting the surrounding form', () => {
+    const onChange = vi.fn();
+    const onSubmit = vi.fn((e: { preventDefault: () => void }) => e.preventDefault());
+    render(
+      <form onSubmit={onSubmit}>
+        <CategoryPicker value={null} onChange={onChange} />
+      </form>,
+    );
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'bijoux' } });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith({ id: 553, path: 'Femmes > Accessoires > Bijoux > Bagues' });
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
 });

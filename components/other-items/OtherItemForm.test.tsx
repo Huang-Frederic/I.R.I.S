@@ -82,6 +82,15 @@ describe('<OtherItemForm>', () => {
     );
   });
 
+  it('takes photos dropped on the drop zone, shows them, and lets one be removed', async () => {
+    const { container } = render(<OtherItemForm />);
+    const file = new File([new Uint8Array([0xff, 0xd8])], 'a.jpg', { type: 'image/jpeg' });
+    fireEvent.drop(screen.getByText('dropOrClickAdd'), { dataTransfer: { files: [file] } });
+    await waitFor(() => expect(container.querySelectorAll('img')).toHaveLength(1));
+    fireEvent.click(screen.getByRole('button', { name: 'photoRemove' }));
+    expect(container.querySelectorAll('img')).toHaveLength(0);
+  });
+
   it('shows an error when no photo was added', () => {
     render(<OtherItemForm />);
     fillRequiredFields();

@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Upload, X, Loader2, Camera } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { resizeImage } from '@/lib/utils/resize-image';
 import CardScanForm from './CardScanForm';
-import CameraCaptureOverlay from './CameraCaptureOverlay';
+import PhotoDropzone from './PhotoDropzone';
 import type { OcrResult, EnrichResult } from '@/lib/types';
 
 const MAX_PHOTOS = 30;
@@ -200,7 +200,12 @@ export default function BatchForm() {
   // phase === 'pick'
   return (
     <div className="space-y-4">
-      <PhotoDropzone photos={photos} onAdd={addPhotos} onRemove={(i) => setPhotos((prev) => prev.filter((_, j) => j !== i))} />
+      <PhotoDropzone
+        photos={photos}
+        onAdd={addPhotos}
+        onRemove={(i) => setPhotos((prev) => prev.filter((_, j) => j !== i))}
+        max={MAX_PHOTOS}
+      />
       <label className="border-border bg-surface-2 flex cursor-pointer items-center gap-2.5 rounded border p-2.5 text-sm">
         <input
           type="checkbox"
@@ -219,65 +224,6 @@ export default function BatchForm() {
       >
         {t('analyzeButton', { count: photos.length })}
       </button>
-    </div>
-  );
-}
-
-function PhotoDropzone({
-  photos, onAdd, onRemove,
-}: { photos: File[]; onAdd: (files: FileList | File[]) => void; onRemove: (index: number) => void }) {
-  const t = useTranslations('batchScanner');
-  const [dragging, setDragging] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
-  const remaining = MAX_PHOTOS - photos.length;
-  return (
-    <div>
-      <span className="text-text-muted text-xs">{t('photosLabel', { count: photos.length, max: MAX_PHOTOS })}</span>
-      <button
-        type="button"
-        onClick={() => setShowCamera(true)}
-        disabled={remaining <= 0}
-        className="bg-red text-bg mt-1 flex w-full items-center justify-center gap-2 rounded px-4 py-2 text-sm font-medium disabled:opacity-50"
-      >
-        <Camera className="h-4 w-4" aria-hidden />
-        {t('captureChain')}
-      </button>
-      <label
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          if (e.dataTransfer.files.length) onAdd(e.dataTransfer.files);
-        }}
-        className={`bg-surface-2 mt-2 flex min-h-56 cursor-pointer flex-col items-center justify-center gap-2.5 rounded border border-dashed p-4 text-sm ${dragging ? 'border-red' : 'border-border'}`}
-      >
-        <input type="file" accept="image/*" multiple onChange={(e) => e.target.files && onAdd(e.target.files)} className="hidden" />
-        <span className="text-text-muted flex flex-col items-center gap-2 text-center">
-          <Upload className="h-8 w-8" />
-          {t('dropOrClickAdd', { max: MAX_PHOTOS })}
-        </span>
-      </label>
-      {photos.length > 0 && (
-        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
-          {photos.map((p, i) => (
-            <div key={i} className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={URL.createObjectURL(p)} alt="" className="aspect-[3/4] w-full rounded object-cover" />
-              <button type="button" onClick={() => onRemove(i)} className="bg-surface absolute right-1 top-1 rounded p-0.5">
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      {showCamera && (
-        <CameraCaptureOverlay
-          maxPhotos={remaining}
-          onDone={(files) => { onAdd(files); setShowCamera(false); }}
-          onCancel={() => setShowCamera(false)}
-        />
-      )}
     </div>
   );
 }

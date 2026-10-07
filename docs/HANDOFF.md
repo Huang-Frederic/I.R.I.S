@@ -307,3 +307,20 @@ eslint one — if you add a translation key, add it to `en.json` first or
 
 1. Nothing pending. The size attribute (former thread #1) shipped on
    2026-10-05 — see "Size, color and per-category attributes" above.
+### No price, no post (2026-10-07)
+
+The bot used to post an unpriced card/lot/item at **1 €** (`pick_*_price`
+fallbacks; a card also fell back to its Cardmarket price). Every picker now
+returns `None` and the job fails permanently with `MISSING_PRICE_ERROR`
+("À compléter dans la fiche : Prix manquant"), which flags the queue row. An
+item only enters the queue once it has a price (`syncOtherItemQueueMembership`;
+the bot's `should_requeue` agrees). The `other_items_status_update_queue_sync`
+trigger still queues on a status change made in the table editor without
+checking the price — the bot's flag covers that case. "Poster maintenant"
+already refused unpriced targets.
+
+The Items form now uses the scanner's drop zone (`components/submit/PhotoDropzone.tsx`,
+shared with the card scanner, 20 photos max = Vinted's limit), and
+`CategoryPicker` no longer sits inside a `<label>` (a picked option was
+detached before the label's activation ran, which refocused the input and
+reopened the list).

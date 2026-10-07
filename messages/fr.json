@@ -223,6 +223,7 @@
   "batchScanner": {
     "photosLabel": "Photos ({count}/{max})",
     "captureChain": "Capturer en chaîne",
+    "photoRemove": "Retirer la photo",
     "dropOrClickAdd": "Drop ou clic pour ajouter (max {max})",
     "analyzeButton": "Analyser {count} photo(s)",
     "stampMode": "Stamp Mode",

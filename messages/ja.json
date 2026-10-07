@@ -223,6 +223,7 @@
   "batchScanner": {
     "photosLabel": "写真 ({count}/{max})",
     "captureChain": "連続撮影",
+    "photoRemove": "写真を削除",
     "dropOrClickAdd": "ドロップまたはクリックで追加(最大 {max})",
     "analyzeButton": "{count} 枚の写真を解析",
     "stampMode": "Stamp Mode",

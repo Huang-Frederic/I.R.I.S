@@ -1,14 +1,17 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { resizeImage } from '@/lib/utils/resize-image';
 import { DEFAULT_CONDITION_ID, missingAttributes } from '@/lib/vinted/other-item-attributes';
+import PhotoDropzone from '../submit/PhotoDropzone';
 import CategoryPicker, { type VintedCategory } from './CategoryPicker';
 import OtherItemVintedFields, { type VintedFieldsPatch } from './OtherItemVintedFields';
 import { useCatalogAttributes } from './hooks/useCatalogAttributes';
 
 const TITLE_MAX = 80;
+/** Vinted takes at most 20 photos per listing. */
+const MAX_PHOTOS = 20;
 
 export default function OtherItemForm() {
   const t = useTranslations('otherItems');
@@ -56,7 +59,6 @@ export default function OtherItemForm() {
     if (patch.sizeLabel !== undefined) setSizeLabel(patch.sizeLabel);
     if (patch.colorIds !== undefined) setColorIds(patch.colorIds);
   }, []);
-  const previewUrls = useMemo(() => photos.map((p) => URL.createObjectURL(p)), [photos]);
 
   // Updates photosRef synchronously (plain assignment, not dependent on
   // React's own scheduling) and derives the next array from it rather than
@@ -73,7 +75,9 @@ export default function OtherItemForm() {
   }
 
   function addPhotos(files: FileList | File[]) {
-    const arr = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    const arr = Array.from(files)
+      .filter((f) => f.type.startsWith('image/'))
+      .slice(0, Math.max(0, MAX_PHOTOS - photosRef.current.length));
     if (arr.length === 0) return;
     // Add the raw files synchronously first so the picker/submit button
     // reflects the new count immediately, then resize in the background and
@@ -172,29 +176,14 @@ export default function OtherItemForm() {
 
   return (
     <form onSubmit={submit} className="grid gap-4 md:max-w-xl">
-      <label className="block">
-        <span id="photo-input-label" className="text-text-muted text-xs">
-          {t('photoInputLabel')}
-        </span>
-        <input
-          aria-labelledby="photo-input-label"
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={(e) => {
-            if (e.target.files) addPhotos(e.target.files);
-          }}
-          className="mt-1 block w-full text-sm"
-        />
-      </label>
-      {previewUrls.length > 0 && (
-        <div className="grid grid-cols-4 gap-2">
-          {previewUrls.map((url, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={i} src={url} alt="" className="h-20 w-full rounded object-cover" />
-          ))}
-        </div>
-      )}
+      <PhotoDropzone
+        photos={photos}
+        onAdd={addPhotos}
+        onRemove={(index) => updatePhotos((prev) => prev.filter((_, i) => i !== index))}
+        max={MAX_PHOTOS}
+        inputLabel={t('photoInputLabel')}
+        thumbClassName="aspect-square"
+      />
 
       <label className="block">
         <span className="text-text-muted text-xs">{t('nameLabel')}</span>
@@ -207,10 +196,13 @@ export default function OtherItemForm() {
         {nameTooLong && <p className="text-red mt-1 text-xs">{t('errorNameTooLong')}</p>}
       </label>
 
-      <label className="block">
-        <span className="text-text-muted text-xs">{t('categoryLabel')}</span>
-        <CategoryPicker value={category} onChange={setCategory} />
-      </label>
+      {/* Not a <label>: see CategoryPicker on why it must not sit inside one. */}
+      <div>
+        <span id="category-picker-label" className="text-text-muted text-xs">
+          {t('categoryLabel')}
+        </span>
+        <CategoryPicker value={category} onChange={setCategory} labelledBy="category-picker-label" />
+      </div>
 
       <label className="block">
         <span className="text-text-muted text-xs">{t('descriptionLabel')}</span>

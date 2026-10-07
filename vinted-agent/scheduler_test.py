@@ -147,7 +147,11 @@ from scheduler import should_requeue
 
 
 def test_should_requeue_a_for_sale_other_item_that_is_not_listed():
-    assert should_requeue("other_item_id", {"status": "for_sale"}, already_listed=False) is True
+    assert should_requeue("other_item_id", {"status": "for_sale", "price": 25}, already_listed=False) is True
+
+
+def test_should_not_requeue_an_other_item_without_a_price():
+    assert should_requeue("other_item_id", {"status": "for_sale", "price": None}, already_listed=False) is False
 
 
 def test_should_requeue_a_for_sale_lot_that_is_not_listed():

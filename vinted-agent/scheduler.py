@@ -103,7 +103,8 @@ def should_requeue(target_column: str, item: dict | None, already_listed: bool) 
     lib/vinted/other-item-queue-sync.ts use to keep an item queued: still for
     sale, not already online on that user's account, for a card a price the
     user confirmed (`price_confirmed_at`, see lib/vinted/queue-eligibility.ts),
-    and for a lot a price at all (lib/vinted/lot-queue-sync.ts).
+    and for a lot or an item a price at all (lib/vinted/lot-queue-sync.ts,
+    other-item-queue-sync.ts).
     `target_column` is the job's target: "card_id", "lot_id" or "other_item_id"."""
     if item is None or already_listed:
         return False
@@ -111,7 +112,7 @@ def should_requeue(target_column: str, item: dict | None, already_listed: bool) 
         return False
     if target_column == "card_id" and item.get("price_confirmed_at") is None:
         return False
-    if target_column == "lot_id" and not item.get("price"):
+    if target_column in ("lot_id", "other_item_id") and not item.get("price"):
         return False
     return True
 

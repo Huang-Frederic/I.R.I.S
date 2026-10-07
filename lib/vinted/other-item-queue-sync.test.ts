@@ -5,7 +5,7 @@ import { clearOtherItemQueueFailure, syncOtherItemQueueMembership, FRED_USER_ID 
 function mockSupabase(overrides: Record<string, unknown> = {}) {
   const calls: { table: string; op: string; payload?: unknown }[] = [];
   const base = {
-    other_items: { status: 'for_sale' },
+    other_items: { status: 'for_sale', price: 25 },
     activeListing: null,
     existingQueueRow: null,
     maxPosition: null,
@@ -43,7 +43,7 @@ function mockSupabase(overrides: Record<string, unknown> = {}) {
 
 describe('syncOtherItemQueueMembership', () => {
   it('queues a for_sale item with no existing listing and no existing queue row', async () => {
-    const { supabase, calls } = mockSupabase({ other_items: { status: 'for_sale' }, activeListing: null, existingQueueRow: null });
+    const { supabase, calls } = mockSupabase({ other_items: { status: 'for_sale', price: 25 }, activeListing: null, existingQueueRow: null });
     await syncOtherItemQueueMembership(supabase, 'item-1');
     const insert = calls.find((c) => c.table === 'vinted_queue' && c.op === 'insert');
     expect(insert?.payload).toMatchObject({ user_id: FRED_USER_ID, other_item_id: 'item-1' });
@@ -53,6 +53,18 @@ describe('syncOtherItemQueueMembership', () => {
     const { supabase, calls } = mockSupabase({ activeListing: { vinted_listing_id: '123' } });
     await syncOtherItemQueueMembership(supabase, 'item-1');
     expect(calls.find((c) => c.table === 'vinted_queue' && c.op === 'insert')).toBeUndefined();
+  });
+
+  it('does not queue a for_sale item that has no price yet — the bot would have nothing to post it at', async () => {
+    const { supabase, calls } = mockSupabase({ other_items: { status: 'for_sale', price: null } });
+    await syncOtherItemQueueMembership(supabase, 'item-1');
+    expect(calls.find((c) => c.table === 'vinted_queue' && c.op === 'insert')).toBeUndefined();
+  });
+
+  it('removes a queued item whose price was cleared', async () => {
+    const { supabase, calls } = mockSupabase({ other_items: { status: 'for_sale', price: null }, existingQueueRow: { id: 'q1' } });
+    await syncOtherItemQueueMembership(supabase, 'item-1');
+    expect(calls.find((c) => c.table === 'vinted_queue' && c.op === 'delete')).toBeTruthy();
   });
 
   it('removes a queued item that moved to status=collection', async () => {
