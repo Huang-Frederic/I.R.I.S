@@ -1,0 +1,441 @@
+[
+ {
+  "id": "0299da8d-4f21-4659-a75b-206802d653e1",
+  "tournament_id": "f46c520b-113e-4c43-8353-eed1b9bc7a47",
+  "round_number": 1,
+  "opponent_archetype_dex": [
+   887
+  ],
+  "games": [
+   {
+    "result": "loss",
+    "wentFirst": false
+   },
+   {
+    "result": "win",
+    "wentFirst": true
+   },
+   {
+    "result": "loss",
+    "wentFirst": false
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-10-03T11:25:34.527971+00:00"
+ },
+ {
+  "id": "0429815a-af42-4e60-a078-5c6e88e010e2",
+  "tournament_id": "7451c152-4dd7-4e89-944e-cd0b913f5efd",
+  "round_number": 3,
+  "opponent_archetype_dex": [
+   1021,
+   1017
+  ],
+  "games": [
+   {
+    "result": "loss",
+    "wentFirst": false
+   },
+   {
+    "result": "win",
+    "wentFirst": true
+   },
+   {
+    "result": "tie",
+    "wentFirst": false
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-27T21:05:55.86979+00:00"
+ },
+ {
+  "id": "07c7a4cf-efc8-405c-9d27-0126c697f64f",
+  "tournament_id": "ceb7cced-f36f-4990-99d0-82563dc003df",
+  "round_number": 2,
+  "opponent_archetype_dex": [
+   1021,
+   1017
+  ],
+  "games": [
+   {
+    "result": "win",
+    "wentFirst": true
+   },
+   {
+    "result": "win",
+    "wentFirst": false
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-27T21:08:45.4573+00:00"
+ },
+ {
+  "id": "1e37314e-ba28-4fe5-993c-8fef0f887f06",
+  "tournament_id": "aba373b9-451b-4295-8661-9b58be4dfa25",
+  "round_number": 5,
+  "opponent_archetype_dex": [
+   887
+  ],
+  "games": [
+   {
+    "result": "loss",
+    "wentFirst": false
+   },
+   {
+    "result": "loss",
+    "wentFirst": true
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-17T12:28:33.979348+00:00"
+ },
+ {
+  "id": "35fa51f9-5c1d-4c4c-bc0d-5f65d7ae64b3",
+  "tournament_id": "1cae5891-aa1e-4df2-acae-bd58143933d0",
+  "round_number": 1,
+  "opponent_archetype_dex": [
+   150,
+   918
+  ],
+  "games": [
+   {
+    "result": "win",
+    "wentFirst": false
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-29T14:35:52.75738+00:00"
+ },
+ {
+  "id": "721c43f8-26bf-4543-81c5-71def7e1505c",
+  "tournament_id": "aba373b9-451b-4295-8661-9b58be4dfa25",
+  "round_number": 4,
+  "opponent_archetype_dex": [
+   10658,
+   10149
+  ],
+  "games": [
+   {
+    "result": "win",
+    "wentFirst": false
+   },
+   {
+    "result": "win",
+    "wentFirst": true
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-17T12:28:15.472466+00:00"
+ },
+ {
+  "id": "93161bd5-0f21-4b06-a2c1-280c1ee22268",
+  "tournament_id": "7451c152-4dd7-4e89-944e-cd0b913f5efd",
+  "round_number": 1,
+  "opponent_archetype_dex": [
+   10448,
+   297
+  ],
+  "games": [
+   {
+    "result": "win",
+    "wentFirst": false
+   },
+   {
+    "result": "win",
+    "wentFirst": true
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-27T21:05:03.82596+00:00"
+ },
+ {
+  "id": "9962d2de-accf-499e-a994-2d36170d4eb5",
+  "tournament_id": "aba373b9-451b-4295-8661-9b58be4dfa25",
+  "round_number": 1,
+  "opponent_archetype_dex": [
+   199
+  ],
+  "games": [
+   {
+    "result": "win",
+    "wentFirst": false
+   },
+   {
+    "result": "loss",
+    "wentFirst": true
+   },
+   {
+    "result": "win",
+    "wentFirst": true
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-17T09:53:13.132449+00:00"
+ },
+ {
+  "id": "b15ea1f2-15fd-4703-b91e-1bb537de2ea8",
+  "tournament_id": "f46c520b-113e-4c43-8353-eed1b9bc7a47",
+  "round_number": 4,
+  "opponent_archetype_dex": [
+   887,
+   477
+  ],
+  "games": [
+   {
+    "result": "loss",
+    "wentFirst": true
+   },
+   {
+    "result": "win",
+    "wentFirst": false
+   },
+   {
+    "result": "loss",
+    "wentFirst": false
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-10-03T13:31:22.463564+00:00"
+ },
+ {
+  "id": "b18a3600-d324-45d4-81af-0c0b0595aa4d",
+  "tournament_id": "ceb7cced-f36f-4990-99d0-82563dc003df",
+  "round_number": 1,
+  "opponent_archetype_dex": [
+   10003,
+   154
+  ],
+  "games": [
+   {
+    "result": "loss",
+    "wentFirst": false
+   },
+   {
+    "result": "win",
+    "wentFirst": true
+   },
+   {
+    "result": "tie",
+    "wentFirst": false
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-27T21:08:27.718143+00:00"
+ },
+ {
+  "id": "b946fd84-bb6f-4cf6-ac76-22f0ecb88444",
+  "tournament_id": "f46c520b-113e-4c43-8353-eed1b9bc7a47",
+  "round_number": 2,
+  "opponent_archetype_dex": [
+   887
+  ],
+  "games": [
+   {
+    "result": "win",
+    "wentFirst": true
+   },
+   {
+    "result": "loss",
+    "wentFirst": false
+   },
+   {
+    "result": "tie",
+    "wentFirst": false
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-10-03T11:25:54.332534+00:00"
+ },
+ {
+  "id": "c00c25b2-b121-4079-819c-0b44539d37e6",
+  "tournament_id": "f46c520b-113e-4c43-8353-eed1b9bc7a47",
+  "round_number": 5,
+  "opponent_archetype_dex": [
+   658,
+   477
+  ],
+  "games": [
+   {
+    "result": "loss",
+    "wentFirst": true
+   },
+   {
+    "result": "win",
+    "wentFirst": false
+   },
+   {
+    "result": "tie",
+    "wentFirst": true
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-10-03T14:59:10.636478+00:00"
+ },
+ {
+  "id": "c6943dfa-7c04-440a-896f-5887e13e5c41",
+  "tournament_id": "ceb7cced-f36f-4990-99d0-82563dc003df",
+  "round_number": 4,
+  "opponent_archetype_dex": [
+   887
+  ],
+  "games": [
+   {
+    "result": "win",
+    "wentFirst": true
+   },
+   {
+    "result": "win",
+    "wentFirst": true
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-27T21:09:53.487968+00:00"
+ },
+ {
+  "id": "c9546c25-71b9-428d-942f-ccad02f4a4a7",
+  "tournament_id": "1cae5891-aa1e-4df2-acae-bd58143933d0",
+  "round_number": 2,
+  "opponent_archetype_dex": [
+   887
+  ],
+  "games": [
+   {
+    "result": "loss",
+    "wentFirst": false
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-29T14:36:19.60023+00:00"
+ },
+ {
+  "id": "d38ce86f-4f41-4a0e-842b-87791f0c5567",
+  "tournament_id": "7451c152-4dd7-4e89-944e-cd0b913f5efd",
+  "round_number": 2,
+  "opponent_archetype_dex": [
+   10448
+  ],
+  "games": [
+   {
+    "result": "win",
+    "wentFirst": true
+   },
+   {
+    "result": "win",
+    "wentFirst": false
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-27T21:05:14.518566+00:00"
+ },
+ {
+  "id": "d8fc0a4c-be59-4324-9e65-d6b9763e7c23",
+  "tournament_id": "aba373b9-451b-4295-8661-9b58be4dfa25",
+  "round_number": 3,
+  "opponent_archetype_dex": [
+   1021
+  ],
+  "games": [
+   {
+    "result": "win",
+    "wentFirst": true
+   },
+   {
+    "result": "loss",
+    "wentFirst": false
+   },
+   {
+    "result": "tie",
+    "wentFirst": true
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-17T09:53:54.913997+00:00"
+ },
+ {
+  "id": "dc8c7191-70f2-426b-83ef-9aef5b28c642",
+  "tournament_id": "ceb7cced-f36f-4990-99d0-82563dc003df",
+  "round_number": 3,
+  "opponent_archetype_dex": [
+   887
+  ],
+  "games": [
+   {
+    "result": "loss",
+    "wentFirst": true
+   },
+   {
+    "result": "win",
+    "wentFirst": false
+   },
+   {
+    "result": "win",
+    "wentFirst": false
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-27T21:09:34.316058+00:00"
+ },
+ {
+  "id": "eda47c56-e05d-4706-9c93-0dbc20b116ad",
+  "tournament_id": "aba373b9-451b-4295-8661-9b58be4dfa25",
+  "round_number": 2,
+  "opponent_archetype_dex": [
+   65,
+   982
+  ],
+  "games": [
+   {
+    "result": "loss",
+    "wentFirst": false
+   },
+   {
+    "result": "win",
+    "wentFirst": true
+   },
+   {
+    "result": "loss",
+    "wentFirst": false
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-17T09:53:36.104247+00:00"
+ },
+ {
+  "id": "fd874f28-1a0a-4bc0-a71d-1a16ce587b9f",
+  "tournament_id": "f46c520b-113e-4c43-8353-eed1b9bc7a47",
+  "round_number": 3,
+  "opponent_archetype_dex": [
+   1011,
+   811
+  ],
+  "games": [
+   {
+    "result": "loss",
+    "wentFirst": true
+   },
+   {
+    "result": "loss",
+    "wentFirst": false
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-10-03T12:30:40.89894+00:00"
+ },
+ {
+  "id": "fe10d296-f774-4653-a1e4-e74f3806839d",
+  "tournament_id": "1cae5891-aa1e-4df2-acae-bd58143933d0",
+  "round_number": 3,
+  "opponent_archetype_dex": [
+   1017,
+   115
+  ],
+  "games": [
+   {
+    "result": "win",
+    "wentFirst": false
+   }
+  ],
+  "outcome": null,
+  "created_at": "2026-09-29T14:37:15.503323+00:00"
+ }
+]

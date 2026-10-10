@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "description": "Re-records the showcase images in SHOWCASE/media/ against a local, seeded Supabase (see capture.mjs).",
+  "scripts": {
+    "capture": "node capture.mjs"
+  },
+  "devDependencies": {
+    "pg": "8.23.0",
+    "playwright": "1.59.1",
+    "supabase": "2.118.0"
+  }
+}

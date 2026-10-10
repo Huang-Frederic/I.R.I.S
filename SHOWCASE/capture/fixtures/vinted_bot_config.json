@@ -1,0 +1,29 @@
+[
+ {
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "daily_quota": 20,
+  "repost_after_days": 14,
+  "updated_at": "2026-10-07T18:17:19.172+00:00",
+  "group_priority": [
+   "Pokémon FR",
+   "other-items",
+   "Pokémon JP",
+   "Pokémon CN",
+   "Pokémon",
+   "Lorcana",
+   "One Piece",
+   "Riftbound",
+   "Pokémon KO"
+  ]
+ },
+ {
+  "user_id": "a018a4ef-e02e-4a67-9732-9fafe3167e10",
+  "daily_quota": 3,
+  "repost_after_days": 14,
+  "updated_at": "2026-09-23T15:46:34.017+00:00",
+  "group_priority": [
+   "other-items",
+   "Pokémon FR"
+  ]
+ }
+]

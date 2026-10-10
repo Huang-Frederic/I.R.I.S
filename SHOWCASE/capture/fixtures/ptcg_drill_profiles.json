@@ -1,0 +1,362 @@
+[
+ {
+  "id": "66e88c92-7230-4d70-b557-b3b2f1324c7a",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "name": "Beedrill Test",
+  "cards": [
+   {
+    "id": "CRI-1",
+    "name": "Aspicot",
+    "count": 4,
+    "category": "poke"
+   },
+   {
+    "id": "CRI-2",
+    "name": "Coconfort",
+    "count": 4,
+    "category": "poke"
+   },
+   {
+    "id": "CRI-3",
+    "name": "Dardargnan-ex",
+    "count": 4,
+    "category": "poke"
+   },
+   {
+    "id": "TEF-129",
+    "name": "Deusolourdo",
+    "count": 3,
+    "category": "poke"
+   },
+   {
+    "id": "PRE-79",
+    "name": "Insolourdo",
+    "count": 3,
+    "category": "poke"
+   },
+   {
+    "id": "ASC-142",
+    "name": "Favianos-ex",
+    "count": 1,
+    "category": "poke"
+   },
+   {
+    "id": "TEF-23",
+    "name": "Léboulérou",
+    "count": 1,
+    "category": "poke"
+   },
+   {
+    "id": "SCR-118",
+    "name": "Motisma Hélice",
+    "count": 1,
+    "category": "poke"
+   },
+   {
+    "id": "POR-62",
+    "name": "Miaouss-ex",
+    "count": 1,
+    "category": "poke"
+   },
+   {
+    "id": "TEF-24",
+    "name": "Bérasca",
+    "count": 1,
+    "category": "poke"
+   },
+   {
+    "id": "TWM-206",
+    "name": "Kassis",
+    "count": 1,
+    "category": "trainer"
+   },
+   {
+    "id": "MEG-117",
+    "name": "Forêt de Vitalité",
+    "count": 4,
+    "category": "trainer"
+   },
+   {
+    "id": "TWM-143",
+    "name": "Kit Attrape-Insecte",
+    "count": 4,
+    "category": "trainer"
+   },
+   {
+    "id": "PAF-228",
+    "name": "Juge",
+    "count": 1,
+    "category": "trainer"
+   },
+   {
+    "id": "PRE-104",
+    "name": "Décodage de Décryptomane",
+    "count": 1,
+    "category": "trainer"
+   },
+   {
+    "id": "MEG-169",
+    "name": "Détermination de Lilie",
+    "count": 4,
+    "category": "trainer"
+   },
+   {
+    "id": "POR-81",
+    "name": "Poké Registre",
+    "count": 4,
+    "category": "trainer"
+   },
+   {
+    "id": "SFA-64",
+    "name": "Machinations de Xanthin",
+    "count": 1,
+    "category": "trainer"
+   },
+   {
+    "id": "PRE-116",
+    "name": "Max Canne",
+    "count": 1,
+    "category": "trainer"
+   },
+   {
+    "id": "MEG-167",
+    "name": "Poffin Copain-Copain",
+    "count": 4,
+    "category": "trainer"
+   },
+   {
+    "id": "PFL-129",
+    "name": "Aurore",
+    "count": 1,
+    "category": "trainer"
+   },
+   {
+    "id": "DRI-168",
+    "name": "Cendre Sacrée",
+    "count": 1,
+    "category": "trainer"
+   },
+   {
+    "id": "ASC-256",
+    "name": "Ordres du Boss",
+    "count": 2,
+    "category": "trainer"
+   },
+   {
+    "id": "PFL-118",
+    "name": "Aurore",
+    "count": 1,
+    "category": "trainer"
+   },
+   {
+    "id": "ASC-264",
+    "name": "Hyper Ball",
+    "count": 2,
+    "category": "trainer"
+   },
+   {
+    "id": "MEE-1",
+    "name": "Énergie Plante",
+    "count": 5,
+    "category": "energy"
+   }
+  ],
+  "target_ids": [
+   "CRI-3",
+   "CRI-2",
+   "CRI-1",
+   "MEG-117",
+   "POR-62",
+   "SCR-118",
+   "PRE-116",
+   "MEE-1"
+  ],
+  "created_at": "2026-09-15T08:32:51.934945+00:00",
+  "updated_at": "2026-09-15T14:07:38.877+00:00",
+  "pokemon_number": 15
+ },
+ {
+  "id": "8baeb47e-15dc-4326-a07a-78297ed6e85a",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "name": "LopunnyMew2",
+  "cards": [
+   {
+    "id": "JTG-120",
+    "name": "Insolourdo",
+    "count": 2,
+    "category": "poke"
+   },
+   {
+    "id": "ASC-62",
+    "name": "Limonde",
+    "count": 1,
+    "category": "poke"
+   },
+   {
+    "id": "ASC-250",
+    "name": "Motisma Hélice",
+    "count": 1,
+    "category": "poke"
+   },
+   {
+    "id": "PRE-79",
+    "name": "Insolourdo",
+    "count": 1,
+    "category": "poke"
+   },
+   {
+    "id": "PFL-83",
+    "name": "Laporeille",
+    "count": 3,
+    "category": "poke"
+   },
+   {
+    "id": "PFL-14",
+    "name": "Sulfura",
+    "count": 1,
+    "category": "poke"
+   },
+   {
+    "id": "PFL-128",
+    "name": "Méga-Lockpin-ex",
+    "count": 3,
+    "category": "poke"
+   },
+   {
+    "id": "DRI-185",
+    "name": "Shaymin",
+    "count": 1,
+    "category": "poke"
+   },
+   {
+    "id": "ASC-280",
+    "name": "Mélofée-ex de Lilie",
+    "count": 1,
+    "category": "poke"
+   },
+   {
+    "id": "PRE-80",
+    "name": "Deusolourdo",
+    "count": 3,
+    "category": "poke"
+   },
+   {
+    "id": "UNB-182",
+    "name": "Pokématos 3.0",
+    "count": 2,
+    "category": "trainer"
+   },
+   {
+    "id": "PFL-116",
+    "name": "Cage de Combat",
+    "count": 2,
+    "category": "trainer"
+   },
+   {
+    "id": "ASC-264",
+    "name": "Hyper Ball",
+    "count": 3,
+    "category": "trainer"
+   },
+   {
+    "id": "MEG-173",
+    "name": "Civière Nocturne",
+    "count": 1,
+    "category": "trainer"
+   },
+   {
+    "id": "MEG-169",
+    "name": "Détermination de Lilie",
+    "count": 2,
+    "category": "trainer"
+   },
+   {
+    "id": "PAL-248",
+    "name": "Ordres du Boss",
+    "count": 3,
+    "category": "trainer"
+   },
+   {
+    "id": "MEG-166",
+    "name": "Ballon",
+    "count": 3,
+    "category": "trainer"
+   },
+   {
+    "id": "MEG-167",
+    "name": "Poffin Copain-Copain",
+    "count": 4,
+    "category": "trainer"
+   },
+   {
+    "id": "WHT-171",
+    "name": "Ludvina",
+    "count": 4,
+    "category": "trainer"
+   },
+   {
+    "id": "CRI-113",
+    "name": "Carton Rouge Spécial",
+    "count": 1,
+    "category": "trainer"
+   },
+   {
+    "id": "POR-113",
+    "name": "Poké Registre",
+    "count": 4,
+    "category": "trainer"
+   },
+   {
+    "id": "MEG-186",
+    "name": "Compassion de Timmy",
+    "count": 3,
+    "category": "trainer"
+   },
+   {
+    "id": "ASC-197",
+    "name": "Mine de Nuit",
+    "count": 1,
+    "category": "trainer"
+   },
+   {
+    "id": "TEF-161",
+    "name": "Énergie Brume",
+    "count": 4,
+    "category": "energy"
+   },
+   {
+    "id": "SSP-191",
+    "name": "Énergie Enrichissante",
+    "count": 1,
+    "category": "energy"
+   },
+   {
+    "id": "BLK-86",
+    "name": "Énergie Prisme",
+    "count": 3,
+    "category": "energy"
+   }
+  ],
+  "target_ids": [
+   "ASC-62",
+   "ASC-250",
+   "JTG-120",
+   "PRE-79",
+   "PFL-83",
+   "PFL-14",
+   "PFL-128",
+   "DRI-185",
+   "ASC-280",
+   "PRE-80",
+   "PAL-248",
+   "MEG-166",
+   "CRI-113",
+   "SSP-191",
+   "TEF-161",
+   "BLK-86"
+  ],
+  "created_at": "2026-09-25T09:05:48.59154+00:00",
+  "updated_at": "2026-09-25T09:08:02.741+00:00",
+  "pokemon_number": 428
+ }
+]

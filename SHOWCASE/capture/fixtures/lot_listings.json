@@ -1,0 +1,58 @@
+[
+ {
+  "lot_id": "518f45d3-e03b-421c-8d98-5018220a6a22",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "listed_at": "2026-07-22T16:28:55.920497+00:00",
+  "vinted_listing_id": "9153388122",
+  "vinted_posted_at": "2026-07-22T16:28:55.920497+00:00",
+  "repost_position": 355
+ },
+ {
+  "lot_id": "7b583f5f-55ee-413a-87d1-1ad5597cd65c",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "listed_at": "2026-07-22T16:27:08.341184+00:00",
+  "vinted_listing_id": "9507894237",
+  "vinted_posted_at": "2026-07-22T16:27:08.341184+00:00",
+  "repost_position": 354
+ },
+ {
+  "lot_id": "a3298aa9-571c-47e4-8f5c-1b7bbc588695",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "listed_at": "2026-07-13T08:18:38.433482+00:00",
+  "vinted_listing_id": "9259903971",
+  "vinted_posted_at": "2026-07-13T08:18:38.433482+00:00",
+  "repost_position": 342
+ },
+ {
+  "lot_id": "a3298aa9-571c-47e4-8f5c-1b7bbc588695",
+  "user_id": "a018a4ef-e02e-4a67-9732-9fafe3167e10",
+  "listed_at": "2026-07-16T09:04:48.308321+00:00",
+  "vinted_listing_id": "9324124139",
+  "vinted_posted_at": "2026-07-16T09:04:48.308321+00:00",
+  "repost_position": null
+ },
+ {
+  "lot_id": "cd7130f6-fe36-4e27-8f58-e09bd95b25ed",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "listed_at": "2026-07-13T08:36:30.541996+00:00",
+  "vinted_listing_id": "9116895587",
+  "vinted_posted_at": "2026-07-13T08:36:30.541996+00:00",
+  "repost_position": 346
+ },
+ {
+  "lot_id": "cd7130f6-fe36-4e27-8f58-e09bd95b25ed",
+  "user_id": "a018a4ef-e02e-4a67-9732-9fafe3167e10",
+  "listed_at": "2026-07-16T09:12:26.607817+00:00",
+  "vinted_listing_id": "9578074785",
+  "vinted_posted_at": "2026-07-16T09:12:26.607817+00:00",
+  "repost_position": null
+ },
+ {
+  "lot_id": "d9364a7f-08fc-47a9-a03d-e0c1a5780f3b",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "listed_at": "2026-07-22T16:30:45.792796+00:00",
+  "vinted_listing_id": "9780720750",
+  "vinted_posted_at": "2026-07-22T16:30:45.792796+00:00",
+  "repost_position": 356
+ }
+]

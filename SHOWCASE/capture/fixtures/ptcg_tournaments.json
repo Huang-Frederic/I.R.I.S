@@ -1,0 +1,72 @@
+[
+ {
+  "id": "1cae5891-aa1e-4df2-acae-bd58143933d0",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "name": "Loufoque ETB 30 ans",
+  "played_at": "2026-09-17",
+  "category": "locals",
+  "best_of": 1,
+  "placement": "top_8",
+  "my_archetype_dex": [
+   15
+  ],
+  "created_at": "2026-09-29T14:35:24.367536+00:00",
+  "updated_at": "2026-09-29T14:35:24.367536+00:00"
+ },
+ {
+  "id": "7451c152-4dd7-4e89-944e-cd0b913f5efd",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "name": "UltraJeux Oberkampf",
+  "played_at": "2026-09-26",
+  "category": "challenge",
+  "best_of": 3,
+  "placement": "winner",
+  "my_archetype_dex": [
+   10428
+  ],
+  "created_at": "2026-09-27T21:04:44.862753+00:00",
+  "updated_at": "2026-09-27T21:04:44.862753+00:00"
+ },
+ {
+  "id": "aba373b9-451b-4295-8661-9b58be4dfa25",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "name": "Meisia Cup",
+  "played_at": "2026-09-12",
+  "category": "challenge",
+  "best_of": 3,
+  "placement": "top_16",
+  "my_archetype_dex": [
+   15
+  ],
+  "created_at": "2026-09-17T09:52:33.564496+00:00",
+  "updated_at": "2026-09-17T09:52:33.564496+00:00"
+ },
+ {
+  "id": "ceb7cced-f36f-4990-99d0-82563dc003df",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "name": "Défi de Ligue Gentlemen",
+  "played_at": "2026-09-27",
+  "category": "challenge",
+  "best_of": 3,
+  "placement": "winner",
+  "my_archetype_dex": [
+   10428
+  ],
+  "created_at": "2026-09-27T21:06:34.356351+00:00",
+  "updated_at": "2026-09-27T21:07:31.172+00:00"
+ },
+ {
+  "id": "f46c520b-113e-4c43-8353-eed1b9bc7a47",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "name": "Cup Atmos Arena",
+  "played_at": "2026-10-03",
+  "category": "cup",
+  "best_of": 3,
+  "placement": "top_32",
+  "my_archetype_dex": [
+   10428
+  ],
+  "created_at": "2026-10-02T21:04:30.850788+00:00",
+  "updated_at": "2026-10-02T21:05:15.685+00:00"
+ }
+]

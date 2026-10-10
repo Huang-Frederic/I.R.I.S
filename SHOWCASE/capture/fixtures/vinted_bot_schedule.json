@@ -1,0 +1,86 @@
+[
+ {
+  "id": "09946311-af63-44df-a756-69daf1e53421",
+  "user_id": "a018a4ef-e02e-4a67-9732-9fafe3167e10",
+  "starts_at": "19:00:00",
+  "ends_at": "23:59:00",
+  "block": "weekday"
+ },
+ {
+  "id": "1f6c94cb-13a1-4906-858f-963e84085f47",
+  "user_id": "a018a4ef-e02e-4a67-9732-9fafe3167e10",
+  "starts_at": "16:00:00",
+  "ends_at": "17:30:00",
+  "block": "weekday"
+ },
+ {
+  "id": "431c1af0-fd40-425e-903e-c7cb9e92f2c2",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "starts_at": "09:00:00",
+  "ends_at": "13:00:00",
+  "block": "weekend"
+ },
+ {
+  "id": "52e12ed6-4e68-45d4-8978-d4f929ce4353",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "starts_at": "16:00:00",
+  "ends_at": "17:30:00",
+  "block": "weekday"
+ },
+ {
+  "id": "56eb4fb9-f5c8-485c-b4cb-a617f6d8d072",
+  "user_id": "a018a4ef-e02e-4a67-9732-9fafe3167e10",
+  "starts_at": "00:00:00",
+  "ends_at": "01:00:00",
+  "block": "weekday"
+ },
+ {
+  "id": "620f8109-516e-47e6-b29f-e999b479530a",
+  "user_id": "a018a4ef-e02e-4a67-9732-9fafe3167e10",
+  "starts_at": "11:00:00",
+  "ends_at": "13:30:00",
+  "block": "weekday"
+ },
+ {
+  "id": "7a13efc5-ccdc-415d-aeaa-6812c961692b",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "starts_at": "00:00:00",
+  "ends_at": "01:00:00",
+  "block": "weekday"
+ },
+ {
+  "id": "85ade78d-b1a5-424f-8222-334e216219d2",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "starts_at": "19:00:00",
+  "ends_at": "23:59:00",
+  "block": "weekday"
+ },
+ {
+  "id": "a35b5ac9-963a-48f2-b5dd-c52923a63489",
+  "user_id": "a018a4ef-e02e-4a67-9732-9fafe3167e10",
+  "starts_at": "09:00:00",
+  "ends_at": "13:00:00",
+  "block": "weekend"
+ },
+ {
+  "id": "ca6c3436-7295-4059-8ea0-90de5e79021e",
+  "user_id": "a018a4ef-e02e-4a67-9732-9fafe3167e10",
+  "starts_at": "15:00:00",
+  "ends_at": "18:00:00",
+  "block": "weekend"
+ },
+ {
+  "id": "d173715a-aee9-4bb7-a00e-dc8d1af99b04",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "starts_at": "08:00:00",
+  "ends_at": "13:30:00",
+  "block": "weekday"
+ },
+ {
+  "id": "e1545826-5203-4e24-8126-4dbe6b81e704",
+  "user_id": "35385d3c-5966-4a10-8568-8d92d1be47e7",
+  "starts_at": "15:00:00",
+  "ends_at": "18:00:00",
+  "block": "weekend"
+ }
+]

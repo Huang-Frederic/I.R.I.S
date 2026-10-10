@@ -1,0 +1,5 @@
+# Rebuilt by the project-showcase skill: the package for the portfolio bot,
+# and the capture script's own dependencies.
+*.zip
+capture/node_modules/
+capture/package-lock.json

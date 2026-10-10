@@ -1,0 +1,35 @@
+[
+ {
+  "card_name": "Psykokwak (コダック)",
+  "pokemon_name": "Psykokwak (コダック)",
+  "pokemon_number": 54,
+  "set_code": "sv2a",
+  "set_number": "175",
+  "language": "JP",
+  "rarity": "AR",
+  "cardmarket_id": "719628",
+  "photo": "scan/2139d60e.jpg"
+ },
+ {
+  "card_name": "Dracaufeu ex (リザードンex)",
+  "pokemon_name": "Dracaufeu (リザードン)",
+  "pokemon_number": 6,
+  "set_code": "sv2a",
+  "set_number": "185",
+  "language": "JP",
+  "rarity": "SR",
+  "cardmarket_id": "719638",
+  "photo": "scan/479e1e7d.jpg"
+ },
+ {
+  "card_name": "Métalosse ex de Pierre",
+  "pokemon_name": "Métalosse",
+  "pokemon_number": 376,
+  "set_code": "ASC",
+  "set_number": "289",
+  "language": "FR",
+  "rarity": "SAR",
+  "cardmarket_id": "869900",
+  "photo": "scan/d09a0040.jpg"
+ }
+]
