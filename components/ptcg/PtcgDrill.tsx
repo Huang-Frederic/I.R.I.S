@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { Flame, RotateCcw, Home, Timer, Layers } from 'lucide-react';
 import type { DrillCard } from '@/lib/types';
+import { drillImageSrc } from '@/lib/ptcg/drill-image';
 
 /** One physical copy in the shuffled pool. */
 interface Copy {
@@ -119,7 +120,7 @@ export default function PtcgDrill({ images, cards, targetIds }: PtcgDrillProps) 
               clearTimeout(timeout);
               finish(false);
             };
-            img.src = `${url}/low.webp`;
+            img.src = drillImageSrc(url);
           }),
       ),
     );
@@ -203,7 +204,7 @@ export default function PtcgDrill({ images, cards, targetIds }: PtcgDrillProps) 
     const url = images[c.id];
     return url && !broken.has(c.id) ? (
       <Image
-        src={`${url}/low.webp`}
+        src={drillImageSrc(url)}
         alt={c.name}
         width={small ? 60 : 86}
         height={small ? 84 : 120}
@@ -379,7 +380,7 @@ export default function PtcgDrill({ images, cards, targetIds }: PtcgDrillProps) 
                 >
                   {url && !broken.has(c.id) ? (
                     <Image
-                      src={`${url}/low.webp`}
+                      src={drillImageSrc(url)}
                       alt={c.name}
                       width={245}
                       height={337}
