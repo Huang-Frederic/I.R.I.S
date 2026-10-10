@@ -52,7 +52,8 @@ async function restoreTcgCatalog(): Promise<number> {
   // Try RPC first; fall back to DELETE
   const { error: truncErr } = await service.rpc('truncate_tcg_catalog');
   if (truncErr) {
-    const { error: delErr } = await service.from('tcg_catalog').delete().neq('id', 0);
+    // `id` is a uuid: match every row with a filter that never casts a literal.
+    const { error: delErr } = await service.from('tcg_catalog').delete().not('id', 'is', null);
     if (delErr) throw new Error(`truncate fallback failed: ${delErr.message}`);
   }
 
@@ -88,7 +89,8 @@ async function restoreRarityRanks(): Promise<number> {
   const rows = JSON.parse(
     readFileSync(path.join(BACKUPS_DIR, 'rarity_ranks.json'), 'utf-8'),
   ) as unknown[];
-  const { error: delErr } = await service.from('rarity_ranks').delete().neq('rarity', '');
+  // `rarity` is an enum: '' isn't a valid value, so match every row by non-null.
+  const { error: delErr } = await service.from('rarity_ranks').delete().not('rarity', 'is', null);
   if (delErr) throw new Error(`rarity_ranks delete failed: ${delErr.message}`);
   if (rows.length > 0) {
     const { error } = await service.from('rarity_ranks').insert(rows);
