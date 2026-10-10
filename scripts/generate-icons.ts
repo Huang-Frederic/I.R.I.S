@@ -1,5 +1,5 @@
 /**
- * Regenerate PWA icons from /logo.png.
+ * Regenerate PWA icons from public/logo.png.
  * Usage: npx tsx scripts/generate-icons.ts
  */
 
@@ -7,7 +7,7 @@ import sharp from 'sharp';
 import path from 'node:path';
 
 const ROOT = path.join(__dirname, '..');
-const SOURCE = path.join(ROOT, 'logo.png');
+const SOURCE = path.join(ROOT, 'public', 'logo.png');
 const OUT_DIR = path.join(ROOT, 'public', 'icons');
 
 const DARK_BG = { r: 0x11, g: 0x11, b: 0x10, alpha: 1 };
