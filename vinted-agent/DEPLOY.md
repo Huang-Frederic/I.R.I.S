@@ -1,66 +1,44 @@
-# Déployer le bot Vinted sur un VPS
+# Deploying the Vinted bot on a VPS
 
-## Contexte
+## Background
 
-Le bot (`vinted-agent/main.py`) tourne aujourd'hui sur la machine WSL de Fred,
-lancé via `./start.sh`, qui combine plusieurs choses en une seule fois :
-un proxy local (`pproxy` + tunnel `ngrok`) exposé pour CapSolver, un scraping
-des événements boutiques (`npm run scrape-events`), puis le bot lui-même.
+The bot (`vinted-agent/main.py`) runs on the owner's own machine, started by a launcher: `./start.sh` on WSL, `./start-mac.sh` on macOS or `start-windows.ps1` on Windows. A launcher starts a local proxy (`pproxy` behind an `ngrok` tunnel) that CapSolver can reach, exports its address as `VINTED_PROXY`, and then starts the bot. The launchers no longer scrape shop events: that job runs by itself on GitHub Actions, on a 30-minute schedule ([`.github/workflows/store-events.yml`](../.github/workflows/store-events.yml)).
 
-Ce document décrit comment faire tourner **uniquement le bot** — sans le
-proxy ni le scraping d'événements, qui restent des affaires de la machine
-de Fred — en tant que service systemd sur un VPS Linux, pour ne plus dépendre
-d'un PC allumé à la maison.
+This document describes how to run **only the bot**, without the proxy, as a systemd service on a Linux VPS, so that it no longer depends on a PC being switched on at home.
 
-## Ce qui change en le faisant tourner sur un VPS
+## What changes on a VPS
 
-- **Le proxy CapSolver (`VINTED_PROXY`) devient optionnel.** Il ne sert qu'à
-  résoudre automatiquement un CAPTCHA DataDome si Vinted en présente un et que
-  `CAPSOLVER_KEY` est configuré (`vinted_api.py::_solve_datadome_capsolver`).
-  Sans ces deux variables, le bot loggue juste un avertissement et continue
-  sans résolution automatique — ce n'est pas bloquant pour le fonctionnement
-  normal. Le scraping d'événements (`npm run scrape-events`) n'a rien à voir
-  avec Vinted et n'a pas besoin de tourner sur le VPS.
-- **Les cookies n'ont plus besoin d'être copiés à la main.** Depuis peu, la
-  table Supabase `vinted_sessions` est la source de vérité : avant chaque job,
-  `_sync_cookies_from_supabase` réécrit le fichier local `cookies_*.json` à
-  partir de cette table (`main.py::_sync_cookies_from_supabase`). Comme les
-  deux comptes (Fred et Gilly) ont déjà une session à jour dans Supabase, le
-  premier job sur le VPS créera lui-même les fichiers `cookies_*.json` — rien
-  à transférer.
-- **`vinted_users.json` doit être recréé sur le VPS** (il est gitignoré, donc
-  jamais poussé) — voir plus bas, il ne contient aucun secret.
-- **`.env` doit être recréé sur le VPS** avec les vraies valeurs — voir
-  `vinted-agent/.env.example` pour la liste des variables attendues. Jamais
-  commité, à copier à la main (scp, ou collé directement en SSH).
+- **The CapSolver proxy (`VINTED_PROXY`) becomes optional.** It is only used to solve a DataDome CAPTCHA automatically, when Vinted shows one and `CAPSOLVER_KEY` is set (`vinted_api.py::_solve_datadome_capsolver`). Without those two variables the solver is skipped with a warning, and a post that runs into a CAPTCHA fails ("DataDome bloqué"); the bot itself keeps running. Normal operation does not need it.
+- **There is no shop-events scrape to run.** It has nothing to do with Vinted and, as said above, it runs on GitHub Actions.
+- **Cookies no longer have to be copied by hand.** The Supabase table `vinted_sessions` is the source of truth. Before every job, `_sync_cookies_from_supabase` rewrites the local `cookies_*.json` file from that table, and after the job `_sync_cookies_to_supabase` pushes the refreshed token back (both in `main.py`). As long as both accounts have a session in Supabase, the first job on the VPS creates the `cookies_*.json` files itself: there is nothing to transfer.
+- **`vinted_users.json` must be recreated on the VPS.** It is gitignored, so it is never pushed. See step 5 below; it holds no secret.
+- **`.env` must be recreated on the VPS** with the real values. See `vinted-agent/.env.example` for the variables the bot expects. It is never committed: copy it by hand (scp, or paste it over SSH).
+- **Only one agent may run at a time.** At startup the bot puts every `processing` job of its accounts back to `pending`. A second agent running elsewhere (the home PC, say) would pick up the first one's job and post it twice. Stop the bot on every other machine before you start the service.
+- **Set the VPS timezone.** The bot compares the machine's local time (a naive `datetime.now()` in `_scheduling_loop`) with the posting windows saved in `vinted_bot_schedule`. A VPS usually runs on UTC, which shifts the windows by one or two hours from Paris time. Set the zone the windows were written for, for example `sudo timedatectl set-timezone Europe/Paris`.
 
-## Point de vigilance (pas bloquant)
+## One thing to watch (not blocking)
 
-Le VPS aura une IP de datacenter au lieu de l'IP résidentielle de la maison.
-Certains sites (dont potentiellement Vinted/DataDome) sont plus méfiants
-envers les IP de datacenter. Les délais aléatoires déjà en place entre les
-actions (45-90s entre jobs, 8-20s avant upload photo, etc. — voir
-`main.py::_dispatch_job`) réduisent ce risque, mais si des blocages ou
-CAPTCHA apparaissent plus souvent après le déploiement, c'est le premier
-suspect à vérifier.
+The VPS has a datacenter IP address instead of the home's residential one. Some sites, potentially Vinted and DataDome, are warier of datacenter addresses. The random delays already in the code between actions (45 to 90 s between jobs, 8 to 20 s before the photo upload, and so on; see `_dispatch_job` and the `process_*_job` functions in `main.py`) lower the risk, but if blocks or CAPTCHAs become more frequent after the move, this is the first suspect.
 
-## Étapes de déploiement
+## Deployment steps
 
-### 1. Prérequis sur le VPS
+### 1. Prerequisites on the VPS
 
 ```bash
 sudo apt update
 sudo apt install -y python3.12 python3.12-venv git
 ```
 
-### 2. Cloner (ou mettre à jour) le repo
+The bot needs Python 3.10 or newer; 3.12 is just what these commands install.
+
+### 2. Clone (or update) the repository
 
 ```bash
 git clone https://github.com/Huang-Frederic/I.R.I.S.git
 cd I.R.I.S/vinted-agent
 ```
 
-### 3. Environnement Python
+### 3. Python environment
 
 ```bash
 python3.12 -m venv env
@@ -68,61 +46,58 @@ source env/bin/activate
 pip install -r requirements.txt
 ```
 
+The virtual environment is called `env` here because the service file runs `env/bin/python3`. The macOS and Windows setup scripts (`setup-mac.sh`, `setup-windows.ps1`) create `.venv` instead. On a VPS you can use either name, as long as `ExecStart` in the service file points at the one you created.
+
 ### 4. Configuration (`.env`)
 
 ```bash
 cp .env.example .env
-nano .env   # remplis SUPABASE_URL et SUPABASE_KEY (service role, pas anon)
+nano .env   # fill in SUPABASE_URL and SUPABASE_KEY (the service role key, not the anon key)
 ```
 
 ### 5. `vinted_users.json`
 
-Ce fichier ne contient aucun secret (juste les UUID Supabase, un nom
-d'affichage, et le nom du fichier de cookies) — colle-le tel quel :
+This file holds no secret: only Supabase user ids, a display name and the name of a cookies file. The keys are the Supabase auth user ids of the accounts the bot serves (Supabase dashboard, Authentication, Users), the same ids that the app lists in `VINTED_USER_IDS`. Create the file with your own values:
 
 ```json
 {
-  "35385d3c-5966-4a10-8568-8d92d1be47e7": {"cookies": "cookies_fhuang5.json", "name": "Fred"},
-  "a018a4ef-e02e-4a67-9732-9fafe3167e10": {"cookies": "cookies_hilyna.json", "name": "Gilly"}
+  "<owner-user-id>": {"cookies": "cookies_<account>.json", "name": "<display name>"},
+  "<partner-user-id>": {"cookies": "cookies_<other-account>.json", "name": "<display name>"}
 }
 ```
 
-### 6. Service systemd
+`cookies_<account>.json` is where the bot keeps that account's Vinted session on disk; any name works, as long as it is the same here and wherever the file is written (`import_cookies.py --user <account>` writes `cookies_<account>.json`). `name` only appears in the logs.
+
+### 6. systemd service
 
 ```bash
-# Édite d'abord vinted-agent/deploy/vinted-agent.service :
-# remplace <TON_USER> et le chemin du repo par les vrais.
+# First edit vinted-agent/deploy/vinted-agent.service:
+# replace every <TON_USER> ("your user", in French) and the repository path with the real ones.
 sudo cp deploy/vinted-agent.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now vinted-agent
 ```
 
-### 7. Vérifier que ça tourne
+### 7. Check that it is running
 
 ```bash
 sudo systemctl status vinted-agent
-journalctl -u vinted-agent -f    # logs en direct, Ctrl+C pour quitter
+journalctl -u vinted-agent -f    # live logs, Ctrl+C to leave
 ```
 
-Tu devrais voir le battement de cœur (`♥ ...`) toutes les 30s, et les mêmes
-logs que côté dashboard `/vinted/bot`.
+You should see the startup line, then the heartbeat (`♥ ...`) every 30 seconds, and the same log lines as on the `/vinted/bot` dashboard.
 
-## Mettre à jour après un nouveau push
+## Updating after a new push
 
 ```bash
 cd I.R.I.S/vinted-agent
 git pull
-source env/bin/activate && pip install -r requirements.txt   # si requirements.txt a changé
+source env/bin/activate && pip install -r requirements.txt   # if requirements.txt changed
 sudo systemctl restart vinted-agent
 ```
 
-## Sécurité
+## Security
 
-- Aucun port entrant à ouvrir — le bot ne fait que des requêtes sortantes
-  (Vinted, Supabase).
-- `chmod 600 .env vinted_users.json` pour limiter la lecture à ton utilisateur.
-- Le bot tourne sur la même machine que le site pro — voir la discussion sur
-  le risque de mutualisation (automatisation Vinted vs hébergement du site)
-  échangée avant ce déploiement : risque jugé faible tant que le volume de
-  posts reste raisonnable, mais un VPS séparé reste l'option zéro-dépendance
-  si besoin plus tard.
+- No inbound port needs to be opened: the bot only makes outbound requests (to Vinted and to Supabase).
+- `chmod 600 .env vinted_users.json`, and the same for the `cookies_*.json` files once they exist (they hold live session tokens), to keep them readable by your user only.
+- If the VPS also hosts a website, the bot shares its IP address with it: should Vinted ever flag the bot's traffic, the site would sit on the same address. The risk is low while the posting volume stays reasonable. A separate VPS is the zero-dependency option if it ever becomes necessary.

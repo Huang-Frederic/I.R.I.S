@@ -13,7 +13,7 @@ Depuis une machine où tu as exporté tes envs dans un dossier `iris-mac-transfe
 ```bash
 cd vinted-agent
 ./setup-mac.sh        # une fois : place les envs + installe tout (venv, pproxy, npm, chromium)
-./start-mac.sh        # chaque soir : proxy + ngrok + scraping événements + agent
+./start-mac.sh        # chaque soir : proxy + ngrok + agent (les événements tournent sur GitHub Actions)
 ```
 
 **Windows** (PowerShell natif, sans WSL)
@@ -62,7 +62,7 @@ cd vinted-agent
 3. Trigger: "When the computer starts"
 4. Action: Start a program
    - Program: `C:\Windows\System32\wsl.exe`
-   - Arguments: `-e bash -c "cd /home/fhuang5/Developer/I.R.I.S/vinted-agent && python main.py >> agent.log 2>&1"`
+   - Arguments: `-e bash -c "cd /home/<utilisateur>/Developer/I.R.I.S/vinted-agent && python main.py >> agent.log 2>&1"`
 5. Check "Run whether user is logged on or not" → OK
 
 The agent runs silently in the background. Logs go to `vinted-agent/agent.log`.
@@ -75,6 +75,7 @@ token rafraîchi après le job. Rien à copier entre machines.
 
 Si une session expire (403, déconnexion) : exporte les cookies de vinted.fr
 depuis Chrome (Cookie-Editor), convertis l'export avec
-`python import_cookies.py <export.json> --user fhuang5` (ou `hilyna`), puis
+`python import_cookies.py <export.json> --user <compte>` (le nom du compte dans
+`vinted_users.json`), puis
 colle le contenu du `cookies_*.json` obtenu dans les réglages du suivi sur
 `/vinted/bot` — le formulaire refuse l'export brut de Cookie-Editor (tableau).

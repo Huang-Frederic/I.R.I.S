@@ -2,7 +2,7 @@
 
 You're looking at how `cardmarket_card_index` — the `(expansion, set_number) → id_product` map that powers the FAST PATH in [`lib/api/cardmarket-pricing.ts`](../lib/api/cardmarket-pricing.ts) — actually gets populated. The short answer (today): a **BrightData Web Unlocker scrape** of each expansion's Cardmarket gallery page, extracting the real tuples `(id_product, set_number, url_variant, url_path, set_prefix)` straight off the DOM. The long answer is the rest of this file, including the SQL-formula approach that came before, why it wasn't enough, and where it still earns its place as a rapid-prototyping fallback.
 
-For an overview of where this index fits in the pricing pipeline, see [ARCHITECTURE.md](ARCHITECTURE.md#data-flow-pricing-pipeline). For the operator click-path, see [SETUP.md §9](SETUP.md#9--build-the-cardmarket_card_index-brightdata-scraper).
+For an overview of where this index fits in the pricing pipeline, see [ARCHITECTURE.md](ARCHITECTURE.md#data-flow-pricing-pipeline). For the operator steps, see [SETUP.md](SETUP.md).
 
 ## Table of contents
 
@@ -35,7 +35,7 @@ So the index needs to be derived externally. I burned through three approaches b
 
 The scraper at [`scrapers/cardmarket/`](../scrapers/cardmarket/) hits each expansion's Cardmarket gallery page through **BrightData Web Unlocker**, which solves the captcha + bot fingerprinting in front of `cardmarket.com` natively (the proxy sits between you and Cardmarket and serves you a real-looking response). Each card on the page is parsed in [`scrapers/cardmarket/src/scrape.ts`](../scrapers/cardmarket/src/scrape.ts) into a `ScrapedCard` carrying the real `(id_product, set_number, url_variant, url_path, set_prefix)` tuple, and the per-card rows are upserted into `cardmarket_card_index` in [`scrapers/cardmarket/src/supabase.ts`](../scrapers/cardmarket/src/supabase.ts).
 
-**Coverage today:** 529 / 741 expansions (~71 %). The 212 NULL-prefix expansions are mostly very old sets, FR localisations of EN sets (so duplicates), or rare JP promos. Re-scraping is mechanical — see [SETUP.md §9](SETUP.md#9--build-the-cardmarket_card_index-brightdata-scraper) for the click-path or [COMMANDS.md → generate-rescrape-input.ts](COMMANDS.md#generate-rescrape-inputts).
+**Coverage after the 2026-05-10 rescrape:** 529 / 741 expansions (~71 %). The 212 NULL-prefix expansions are mostly very old sets, FR localisations of EN sets (so duplicates), or rare JP promos. Re-scraping is mechanical — see [SETUP.md](SETUP.md) for the steps or [COMMANDS.md](COMMANDS.md) for `generate-rescrape-input.ts`.
 
 **Cost:** ~$4.50 per full backfill (741 expansions × ~4 pages each at $1.50 / CPM). The BrightData free tier ($5 credit) covers one full pass.
 
@@ -163,7 +163,9 @@ Name patterns that often indicate wheel sets: `Battle Party *`, `Promo Pack *`, 
 
 ## 🔄 When to re-run
 
-**BrightData scrape** — re-run when new expansions ship (Cardmarket adds them roughly monthly). Workflow:
+**A newly released set** — `npm run update-expansions` ([`scripts/update-cardmarket-expansions.ts`](../scripts/update-cardmarket-expansions.ts)) does the whole job in one run: it reads Cardmarket's expansion lists through BrightData, adds the new ids to the committed `cardmarket_expansions.json` (commit it, or the nightly dump upload keeps dropping the set's products), upserts the expansions, imports the new sets' products and prices from the dumps, then runs the gallery scraper for them so `set_prefix` and the index rows exist. `-- --dry-run` reports without writing; `-- --no-scrape` skips the gallery step. It needs a valid BrightData token: the current one expired on 2026-10-05 (see [TECH_DEBT.md](TECH_DEBT.md)).
+
+**BrightData scrape by hand** — to re-scrape expansions that are still missing a prefix:
 
 ```bash
 npx tsx scripts/generate-rescrape-input.ts          # builds RESCRAPE_INPUT.json from NULL-prefix expansions
