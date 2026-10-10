@@ -53,7 +53,7 @@ function fillRequiredFields() {
   fireEvent.change(screen.getByLabelText('nameLabel'), {
     target: { value: 'Robot Aspirateur Midea S8+' },
   });
-  fireEvent.change(screen.getByRole('textbox', { name: 'categoryLabel' }), {
+  fireEvent.change(screen.getByRole('combobox', { name: 'categoryLabel' }), {
     target: { value: 'aspirateurs' },
   });
   fireEvent.click(screen.getByText('Électronique > Aspirateurs'));

@@ -34,7 +34,6 @@ function mockSupabase(overrides: Record<string, unknown> = {}) {
           eq: () => ({ eq: async () => { calls.push({ table, op: 'delete' }); return { error: null }; } }),
         }),
       };
-      // eslint-disable-next-line no-unreachable
     },
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -13,7 +13,7 @@ vi.mock('@/lib/data/vinted-categories.json', () => ({
 describe('<CategoryPicker>', () => {
   it('filters the list as the user types', () => {
     render(<CategoryPicker value={null} onChange={() => {}} />);
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'bijoux' } });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'bijoux' } });
     expect(screen.getByText('Femmes > Accessoires > Bijoux > Colliers')).toBeInTheDocument();
     expect(screen.getByText('Femmes > Accessoires > Bijoux > Bagues')).toBeInTheDocument();
     expect(screen.queryByText('Électronique')).toBeNull();
@@ -22,7 +22,7 @@ describe('<CategoryPicker>', () => {
   it('calls onChange with the id and path when a result is picked', () => {
     const onChange = vi.fn();
     render(<CategoryPicker value={null} onChange={onChange} />);
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'colliers' } });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'colliers' } });
     fireEvent.click(screen.getByText('Femmes > Accessoires > Bijoux > Colliers'));
     expect(onChange).toHaveBeenCalledWith({
       id: 164,
@@ -37,7 +37,7 @@ describe('<CategoryPicker>', () => {
 
   it('closes the list once a result is picked, and keeps it closed when the field gets focus back', () => {
     render(<CategoryPicker value={null} onChange={() => {}} />);
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('combobox');
     fireEvent.change(input, { target: { value: 'colliers' } });
     fireEvent.click(screen.getByText('Femmes > Accessoires > Bijoux > Colliers'));
     expect(screen.queryByRole('listbox')).toBeNull();
@@ -47,7 +47,7 @@ describe('<CategoryPicker>', () => {
 
   it('closes the list when the field loses focus (a click elsewhere)', () => {
     render(<CategoryPicker value={null} onChange={() => {}} />);
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('combobox');
     fireEvent.change(input, { target: { value: 'bijoux' } });
     expect(screen.getByRole('listbox')).toBeInTheDocument();
     fireEvent.blur(input);
@@ -56,7 +56,7 @@ describe('<CategoryPicker>', () => {
 
   it('closes the list on Escape', () => {
     render(<CategoryPicker value={null} onChange={() => {}} />);
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('combobox');
     fireEvent.change(input, { target: { value: 'bijoux' } });
     fireEvent.keyDown(input, { key: 'Escape' });
     expect(screen.queryByRole('listbox')).toBeNull();
@@ -70,7 +70,7 @@ describe('<CategoryPicker>', () => {
         <CategoryPicker value={null} onChange={onChange} />
       </form>,
     );
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('combobox');
     fireEvent.change(input, { target: { value: 'bijoux' } });
     fireEvent.keyDown(input, { key: 'ArrowDown' });
     fireEvent.keyDown(input, { key: 'Enter' });

@@ -75,7 +75,7 @@ export default function CategoryPicker({ value, onChange, labelledBy }: Props) {
     <div className="relative mt-1">
       <input
         type="text"
-        role="textbox"
+        role="combobox"
         aria-labelledby={labelledBy}
         aria-expanded={showList}
         aria-controls={listId}

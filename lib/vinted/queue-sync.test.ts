@@ -48,8 +48,8 @@ function makeSupabaseMock({
     }
     if (table === 'vinted_queue') {
       return {
-        select: (cols: string) => ({
-          eq: (col: string, val: string) => {
+        select: (_cols: string) => ({
+          eq: (col: string, _val: string) => {
             if (col === 'card_id') {
               return Promise.resolve({
                 data: existingQueueUserIds.map((user_id) => ({ user_id })),
