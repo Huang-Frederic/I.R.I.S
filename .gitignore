@@ -75,6 +75,15 @@ cardmarket_expansions.html
 cardmarket-probe-*.html
 cardmarket-input.json
 
+# Fallback Cardmarket scraper (scripts/scrape-cardmarket-cards.ts): its 403
+# diagnostics, its run log, and the bad-slug list it keeps between runs.
+/scripts/data/403-*.png
+/scripts/data/cardmarket-bad-slugs.json
+/scrape.log
+
+# Local copies of old PTCG Live logs: they name other players, never commit them.
+/scripts/data/wipe-backup/
+
 # Generated scraper input from scripts/generate-rescrape-input.ts.
 scrapers/cardmarket/.actor/RESCRAPE_INPUT.json
 
