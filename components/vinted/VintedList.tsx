@@ -155,7 +155,9 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
 
   const onListingsChanged = () => router.refresh();
 
-  const [soldTarget, setSoldTarget] = useState<SoldEntity | null>(null);
+  const [soldTarget, setSoldTarget] = useState<Exclude<SoldEntity, { kind: 'other_item' }> | null>(null);
+  // Items have none of the cards'/lots' restock, promote or partner-cleanup follow-ups.
+  const [soldItemTarget, setSoldItemTarget] = useState<OtherItemWithListings | null>(null);
   const [restockAlert, setRestockAlert] = useState<RestockAlert | null>(null);
   const [promoteCandidate, setPromoteCandidate] = useState<PromoteCandidate | null>(null);
   /**
@@ -805,6 +807,7 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
                 myUserId={myUserId}
                 onPriceSaved={updateOtherItemPrice}
                 onAnnonceClick={(item) => setOtherItemAnnonceTarget(item)}
+                onSoldClick={(item) => setSoldItemTarget(item)}
               />
             ),
           )}
@@ -947,7 +950,19 @@ export default function VintedList({ cards: initial, lots: initialLots, collecti
         <SoldModal
           entity={soldTarget}
           onClose={() => setSoldTarget(null)}
-          onSold={handleSold}
+          onSold={(info) => {
+            if (info.kind !== 'other_item') handleSold({ ...info, kind: info.kind });
+          }}
+        />
+      )}
+      {soldItemTarget && (
+        <SoldModal
+          entity={{ kind: 'other_item', item: soldItemTarget }}
+          onClose={() => setSoldItemTarget(null)}
+          onSold={({ soldId }) => {
+            setOtherItems((prev) => prev.filter((i) => i.id !== soldId));
+            setSoldItemTarget(null);
+          }}
         />
       )}
       {restockAlert && <RestockToast alert={restockAlert} onDismiss={() => setRestockAlert(null)} />}

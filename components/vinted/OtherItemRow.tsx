@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Package, Globe, GlobeLock, Tag } from 'lucide-react';
+import { Package, Globe, GlobeLock, Tag, CircleDollarSign } from 'lucide-react';
 import type { OtherItemWithListings } from '@/lib/types';
 import EditablePriceCell from '@/components/vinted/EditablePriceCell';
 
@@ -11,10 +11,12 @@ interface Props {
   myUserId: string;
   onPriceSaved: (itemId: string, newPrice: number | null) => void;
   onAnnonceClick: (item: OtherItemWithListings) => void;
+  onSoldClick: (item: OtherItemWithListings) => void;
 }
 
-export default function OtherItemRow({ item, storagePublicUrl, myUserId, onPriceSaved, onAnnonceClick }: Props) {
+export default function OtherItemRow({ item, storagePublicUrl, myUserId, onPriceSaved, onAnnonceClick, onSoldClick }: Props) {
   const t = useTranslations('otherItemAnnonce');
+  const tVinted = useTranslations('vinted');
   const myListing = item.listings.find((l) => l.user_id === myUserId) ?? null;
   const isOnline = myListing?.vinted_listing_id != null;
   const thumb = item.photo_urls.length > 0 ? storagePublicUrl(item.photo_urls[0]) : null;
@@ -86,6 +88,15 @@ export default function OtherItemRow({ item, storagePublicUrl, myUserId, onPrice
         >
           <Tag className="mr-1 inline h-3.5 w-3.5" />
           {t('annonceButton')}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onSoldClick(item)}
+          className="bg-surface-2 hover:bg-surface-off border-border shrink-0 rounded border px-3 py-1.5 text-xs"
+        >
+          <CircleDollarSign className="mr-1 inline h-3.5 w-3.5" />
+          {tVinted('rowSoldButton')}
         </button>
       </div>
     </li>

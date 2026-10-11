@@ -20,6 +20,11 @@ vi.mock('@/lib/vinted/other-item-queue-sync', () => ({
   clearOtherItemQueueFailure: queueSync.clearOtherItemQueueFailure,
 }));
 
+const serviceClient = { tag: 'service' };
+vi.mock('@/lib/supabase/service', () => ({ createServiceClient: () => serviceClient }));
+const crossUser = vi.hoisted(() => ({ enqueueOtherItemCrossUserDeleteJobs: vi.fn() }));
+vi.mock('@/lib/vinted/cross-user-sync', () => crossUser);
+
 afterEach(() => {
   vi.clearAllMocks();
 });
@@ -39,6 +44,52 @@ function deleteRequest(): Request {
 }
 
 describe('PATCH /api/other-items/[id]', () => {
+  /** Item update + the seller's listing row, for the sold path. */
+  function mockSoldTables(updated: Record<string, unknown>) {
+    const updateSingle = vi.fn().mockResolvedValue({ data: updated, error: null });
+    const update = vi.fn((_payload: Record<string, unknown>) => ({
+      eq: vi.fn(() => ({ select: vi.fn(() => ({ single: updateSingle })) })),
+    }));
+    const listingDeletes: string[][] = [];
+    const listingDelete = vi.fn(() => ({
+      eq: (c1: string, v1: string) => ({
+        eq: (c2: string, v2: string) => {
+          listingDeletes.push([c1, v1, c2, v2]);
+          return Promise.resolve({ error: null });
+        },
+      }),
+    }));
+    supabaseMock.from.mockImplementation((table: string) =>
+      table === 'other_item_listings' ? { delete: listingDelete } : { update },
+    );
+    return { update, listingDeletes };
+  }
+
+  it('marks an item sold with its sale price and date, drops my consumed listing and deletes the other accounts\' ads', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: FRED_USER_ID } } });
+    const { update, listingDeletes } = mockSoldTables({ id: 'abc', name: 'Sacoche', status: 'sold', price: 40 });
+    const res = await PATCH(patchRequest({ status: 'sold', sold_price: 35 }), ctx('abc'));
+    expect(res.status).toBe(200);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'sold', sold_price: 35, date_sold: expect.any(String) }),
+    );
+    expect(listingDeletes).toEqual([['other_item_id', 'abc', 'user_id', FRED_USER_ID]]);
+    expect(crossUser.enqueueOtherItemCrossUserDeleteJobs).toHaveBeenCalledWith(serviceClient, 'abc', FRED_USER_ID);
+  });
+
+  it('keeps an explicit sale date', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: FRED_USER_ID } } });
+    const { update } = mockSoldTables({ id: 'abc', status: 'sold' });
+    await PATCH(patchRequest({ status: 'sold', date_sold: '2026-10-10T12:00:00.000Z' }), ctx('abc'));
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ date_sold: '2026-10-10T12:00:00.000Z' }));
+  });
+
+  it('rejects a negative sale price', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: FRED_USER_ID } } });
+    const res = await PATCH(patchRequest({ status: 'sold', sold_price: -3 }), ctx('abc'));
+    expect(res.status).toBe(400);
+  });
+
   it('returns 401 when not authenticated', async () => {
     supabaseMock.auth.getUser.mockResolvedValue({ data: { user: null } });
     const res = await PATCH(patchRequest({ price: 30 }), ctx('abc'));
@@ -76,6 +127,7 @@ describe('PATCH /api/other-items/[id]', () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.item.price).toBe(30);
+    expect(crossUser.enqueueOtherItemCrossUserDeleteJobs).not.toHaveBeenCalled();
   });
 
   it('accepts the collection status (move to stock)', async () => {

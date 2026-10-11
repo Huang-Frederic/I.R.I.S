@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
-import type { Card, Lot } from '@/lib/types';
+import type { Card, Lot, OtherItem } from '@/lib/types';
 import type { RestockAlert } from '@/lib/utils/restock-detection';
 import type { PromoteCandidate } from '@/lib/utils/promote-detection';
 import { displayCardName } from '@/lib/utils/format-name';
@@ -11,14 +11,15 @@ import { translateErrorCode } from '@/lib/utils/translate-error';
 
 export type SoldEntity =
   | { kind: 'card'; card: Card }
-  | { kind: 'lot'; lot: Lot };
+  | { kind: 'lot'; lot: Lot }
+  | { kind: 'other_item'; item: OtherItem };
 
 interface Props {
   entity: SoldEntity;
   onClose: () => void;
   onSold: (info: {
     soldId: string;
-    kind: 'card' | 'lot';
+    kind: SoldEntity['kind'];
     restock: RestockAlert | null;
     promote: PromoteCandidate | null;
     /** Lot with quantity>1: the server split off a sold clone and decremented
@@ -50,9 +51,15 @@ export default function SoldModal({ entity, onClose, onSold }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [submitting, onClose]);
 
-  const displayName = entity.kind === 'card' ? displayCardName(entity.card) : entity.lot.name;
-  const targetId = entity.kind === 'card' ? entity.card.id : entity.lot.id;
-  const endpoint = entity.kind === 'card' ? `/api/cards/${targetId}` : `/api/lots/${targetId}`;
+  const displayName =
+    entity.kind === 'card' ? displayCardName(entity.card) : entity.kind === 'lot' ? entity.lot.name : entity.item.name;
+  const targetId = entity.kind === 'card' ? entity.card.id : entity.kind === 'lot' ? entity.lot.id : entity.item.id;
+  const endpoint =
+    entity.kind === 'card'
+      ? `/api/cards/${targetId}`
+      : entity.kind === 'lot'
+        ? `/api/lots/${targetId}`
+        : `/api/other-items/${targetId}`;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

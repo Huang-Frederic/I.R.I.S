@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { enqueueCrossUserDeleteJobs, enqueueLotCrossUserDeleteJobs } from './cross-user-sync';
+import { enqueueCrossUserDeleteJobs, enqueueLotCrossUserDeleteJobs, enqueueOtherItemCrossUserDeleteJobs } from './cross-user-sync';
 
 describe('enqueueCrossUserDeleteJobs', () => {
   it('enqueues a delete job for a sibling active listing by a different user', async () => {
@@ -92,5 +92,35 @@ describe('enqueueLotCrossUserDeleteJobs', () => {
     await enqueueLotCrossUserDeleteJobs(supabase as never, 'lot-1', 'selling-user');
 
     expect(inserted).toHaveLength(0);
+  });
+});
+
+describe('enqueueOtherItemCrossUserDeleteJobs', () => {
+  it('enqueues a delete job for another account\'s live ad of a sold item', async () => {
+    const inserted: unknown[] = [];
+    const tables: string[] = [];
+    const supabase = {
+      from: vi.fn((table: string) => {
+        tables.push(table);
+        return {
+          select: () => ({
+            eq: () => ({
+              neq: () => ({
+                not: () => Promise.resolve({ data: [{ user_id: 'other-user', vinted_listing_id: 'v1' }], error: null }),
+              }),
+            }),
+          }),
+          insert: (row: unknown) => {
+            inserted.push(row);
+            return Promise.resolve({ error: null });
+          },
+        };
+      }),
+    };
+
+    await enqueueOtherItemCrossUserDeleteJobs(supabase as never, 'item-1', 'seller');
+
+    expect(tables[0]).toBe('other_item_listings');
+    expect(inserted).toEqual([{ other_item_id: 'item-1', user_id: 'other-user', job_type: 'delete', status: 'pending' }]);
   });
 });

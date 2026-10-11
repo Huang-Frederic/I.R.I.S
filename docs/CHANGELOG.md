@@ -6,6 +6,16 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-10-11 — v1.3.4: les Items se marquent vendus
+
+Un Item n'avait aucune action « Vendu » sur `/vinted`, seulement l'annonce et le prix : la sacoche Lacoste vendue restait en vente.
+
+- **Bouton « Vendu » sur les Items** — `OtherItemRow` ouvre la même modale que les cartes et les lots (`SoldModal`, qui accepte désormais un Item), avec prix et date de vente ; l'Item quitte la liste, sans les suites propres aux cartes et aux lots (réassort, promotion, rappel au partenaire).
+- **`PATCH /api/other-items/[id]` enregistre la vente** — `sold_price` et `date_sold` (le jour même par défaut) ; l'Item sort de la file, la ligne d'annonce du vendeur est retirée (son annonce est celle qui a été achetée) et `enqueueOtherItemCrossUserDeleteJobs` demande au bot de supprimer l'annonce d'un autre compte. Les Items ne partent aujourd'hui que sur le compte de Fred : cette suppression croisée ne trouve rien, elle évite seulement une seconde annonce restée en ligne si ça change.
+- 158 fichiers de tests / 1407 tests Vitest, typecheck et lint propres.
+
+---
+
 ## 2026-10-10 — v1.3.3: audit du dépôt et refonte de la vitrine — migrations rejouables, Drill et lint remis d'aplomb, documentation réécrite contre le code, README refait avec des captures reproductibles
 
 Sur la branche `showcase-refresh`, un audit complet du dépôt — code, base de données, documentation — puis la refonte de sa vitrine. L'audit corrige ce qui cassait ou traînait et consigne le reste dans [TECH_DEBT.md](TECH_DEBT.md) ; la documentation est relue contre le code ; le README devient la vitrine du projet, avec des visuels qu'un script sait refaire.

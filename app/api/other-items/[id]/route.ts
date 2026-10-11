@@ -4,6 +4,8 @@ import { apiError, unauthorizedResponse, validationResponse, notFoundResponse } 
 import { auditLog } from '@/lib/utils/audit-log';
 import { clearOtherItemQueueFailure, FRED_USER_ID, syncOtherItemQueueMembership } from '@/lib/vinted/other-item-queue-sync';
 import { parseColorIds } from '@/lib/vinted/other-item-attributes';
+import { createServiceClient } from '@/lib/supabase/service';
+import { enqueueOtherItemCrossUserDeleteJobs } from '@/lib/vinted/cross-user-sync';
 
 export const runtime = 'nodejs';
 
@@ -17,6 +19,8 @@ interface PatchBody {
   vinted_size_id?: number | null;
   size?: string | null;
   vinted_color_ids?: number[];
+  sold_price?: number | null;
+  date_sold?: string | null;
 }
 
 function isPositiveInteger(value: unknown): value is number {
@@ -62,7 +66,16 @@ export async function PATCH(
       return apiError('invalid_status', { status: 400, message: 'invalid status' });
     }
     update.status = body.status;
+    if (body.status === 'sold' && body.date_sold === undefined) update.date_sold = new Date().toISOString();
   }
+
+  if (body.sold_price !== undefined) {
+    if (body.sold_price !== null && (typeof body.sold_price !== 'number' || !Number.isFinite(body.sold_price) || body.sold_price < 0)) {
+      return apiError('invalid_number', { status: 400, message: 'sold_price must be a positive number' });
+    }
+    update.sold_price = body.sold_price;
+  }
+  if (body.date_sold !== undefined) update.date_sold = body.date_sold;
 
   if (body.vinted_condition_id !== undefined) {
     if (!isPositiveInteger(body.vinted_condition_id)) {
@@ -104,6 +117,19 @@ export async function PATCH(
 
   await clearOtherItemQueueFailure(supabase, id);
   await syncOtherItemQueueMembership(supabase, id);
+
+  if (body.status === 'sold') {
+    // My ad was the one bought: drop its listing row (the cards' sold flow
+    // does the same client-side), and have the bot take down any other
+    // account's ad for the same item. Awaited — on Vercel nothing runs after
+    // the response — and caught so it never changes the response.
+    try {
+      await supabase.from('other_item_listings').delete().eq('other_item_id', id).eq('user_id', user.id);
+      await enqueueOtherItemCrossUserDeleteJobs(createServiceClient(), id, user.id);
+    } catch (err) {
+      console.error('Sold item listing cleanup / cross-user delete failed:', err);
+    }
+  }
 
   void auditLog({
     actor_type: 'user',

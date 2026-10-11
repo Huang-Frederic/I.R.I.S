@@ -68,3 +68,38 @@ export async function enqueueLotCrossUserDeleteJobs(
     }
   }
 }
+
+/**
+ * Same as enqueueLotCrossUserDeleteJobs, for a sold item: any other
+ * account's live ad gets a 'delete' job (process_other_item_job resolves it
+ * through other_item_listings). Items only go online on Fred's account today,
+ * so this finds nothing — it's what keeps a sale from leaving a second ad up
+ * if they ever go out on another account.
+ */
+export async function enqueueOtherItemCrossUserDeleteJobs(
+  supabase: SupabaseClient,
+  otherItemId: string,
+  soldByUserId: string,
+): Promise<void> {
+  const { data: siblingListings, error: siblingListingsError } = await supabase
+    .from('other_item_listings')
+    .select('user_id, vinted_listing_id')
+    .eq('other_item_id', otherItemId)
+    .neq('user_id', soldByUserId)
+    .not('vinted_listing_id', 'is', null);
+  if (siblingListingsError) {
+    console.error('enqueueOtherItemCrossUserDeleteJobs: failed to fetch sibling listings:', siblingListingsError);
+  }
+
+  for (const listing of siblingListings ?? []) {
+    const { error: insertError } = await supabase.from('vinted_post_jobs').insert({
+      other_item_id: otherItemId,
+      user_id: listing.user_id,
+      job_type: 'delete',
+      status: 'pending',
+    });
+    if (insertError) {
+      console.error('enqueueOtherItemCrossUserDeleteJobs: failed to insert delete job:', insertError);
+    }
+  }
+}
