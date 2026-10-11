@@ -26,6 +26,20 @@ def _current_window_end(now: datetime, schedule_rows: list[dict]) -> time | None
     return None
 
 
+def _window_seconds_left_today(now: datetime, schedule_rows: list[dict]) -> float:
+    """Seconds of posting time left today: the rest of the current window
+    plus every later window of today's block."""
+    total = 0.0
+    for row in schedule_rows:
+        if row["block"] != _block_for(now):
+            continue
+        starts = datetime.combine(now.date(), time.fromisoformat(row["starts_at"]))
+        ends = datetime.combine(now.date(), time.fromisoformat(row["ends_at"]))
+        if ends > now:
+            total += (ends - max(starts, now)).total_seconds()
+    return total
+
+
 def sort_repost_candidates(candidates: list[dict]) -> list[dict]:
     """Sorts repost candidates by their manual `repost_position` override
     first (missing/None sorts last), falling back to `vinted_posted_at`
@@ -60,10 +74,13 @@ def decide_next_action(
     function. Left as None (the default), a decision fires the moment it's
     available — every test above this section relies on that. When the
     caller passes a real draw, firing is gated by a probability of
-    `poll_interval_seconds / time_left_in_window`, so the same daily quota
-    gets spread across the whole window instead of always bursting out in
-    the first few ticks after it opens — the probability climbs to 1.0 as
-    the window's close approaches, so the day's quota still isn't missed.
+    `posts_left_today x poll_interval_seconds / window_time_left_today`, so
+    the quota left is spread over all of today's remaining window time
+    instead of bursting out right after a window opens — an expected
+    `posts_left_today` posts by the end of the day. It used to be
+    `poll_interval_seconds / time_left_in_this_window`, sized for a single
+    post per window: whatever the quota, a window gave ~4 posts plus a burst
+    in its last ticks (11 of 20 on 2026-10-10, 7 of them in the last hour).
     """
     window_end = _current_window_end(now, schedule_rows)
     if window_end is None:
@@ -90,8 +107,9 @@ def decide_next_action(
         return None
 
     if jitter is not None:
-        seconds_left = (datetime.combine(now.date(), window_end) - now).total_seconds()
-        fire_probability = min(1.0, poll_interval_seconds / max(seconds_left, 1.0))
+        seconds_left = _window_seconds_left_today(now, schedule_rows)
+        posts_left = daily_quota - jobs_today_count
+        fire_probability = min(1.0, posts_left * poll_interval_seconds / max(seconds_left, 1.0))
         if jitter > fire_probability:
             return None
     return action

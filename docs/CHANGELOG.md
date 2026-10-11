@@ -6,6 +6,15 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-10-11 — v1.3.5: le bot remplit son quota
+
+Le quota quotidien n'était jamais atteint : 11 posts sur 20 le 10/10, dont 7 dans la dernière heure.
+
+- **Étalement proportionnel au quota restant** (`scheduler.decide_next_action`) — à chaque passage (toutes les 5 minutes), le bot publiait avec une probabilité `300 s / temps restant dans la fenêtre`, calibrée pour un seul post par fenêtre : environ 4 posts par fenêtre plus une rafale à sa fermeture, quel que soit le quota. La probabilité devient `posts restants du jour × 300 s / temps de fenêtre restant aujourd'hui` (toutes les fenêtres du jour, `_window_seconds_left_today`) : le quota restant s'étale sur la journée et se remplit. Simulé sur les fenêtres d'un lundi : 20 posts sur 20, 40 sur 40.
+- 153+ tests pytest propres.
+
+---
+
 ## 2026-10-11 — v1.3.4: les Items se marquent vendus
 
 Un Item n'avait aucune action « Vendu » sur `/vinted`, seulement l'annonce et le prix : la sacoche Lacoste vendue restait en vente.

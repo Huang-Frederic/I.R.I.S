@@ -1,5 +1,5 @@
 # vinted-agent/scheduler_test.py
-from datetime import datetime
+from datetime import datetime, timedelta
 from scheduler import decide_next_action, pick_queue_front, queue_group_key, sort_repost_candidates
 
 MONDAY_NOON = datetime(2026, 9, 21, 12, 0)  # a Monday
@@ -90,14 +90,53 @@ def test_without_jitter_param_fires_immediately_like_before():
 
 
 def test_with_jitter_defers_when_plenty_of_window_time_remains():
-    # 11:00 window open, 1h left until 13:00 close, polling every 300s ->
-    # fire probability = 300/3600 ~= 0.083. A draw above that must defer.
+    # 1 post left for the day, 1h left in the 11-13 window, polling every
+    # 300s -> fire probability = 1 x 300/3600 ~= 0.083. A draw above defers.
     just_after_open = datetime(2026, 9, 21, 12, 0)  # 1h left in the 11-13 window
     result = decide_next_action(
-        just_after_open, WIDE_WINDOW, 0, 8, QUEUE_ONE_CARD, NO_REPOSTS,
+        just_after_open, WIDE_WINDOW, 7, 8, QUEUE_ONE_CARD, NO_REPOSTS,
         poll_interval_seconds=300, jitter=0.5,
     )
     assert result is None
+
+
+def test_with_jitter_scales_with_the_quota_left():
+    # 8 posts left in the last hour of the day's windows -> 8 x 300/3600 ~= 0.67:
+    # the old one-post-per-window odds (0.083) left most of the quota unused.
+    result = decide_next_action(
+        datetime(2026, 9, 21, 12, 0), WIDE_WINDOW, 0, 8, QUEUE_ONE_CARD, NO_REPOSTS,
+        poll_interval_seconds=300, jitter=0.5,
+    )
+    assert result is not None
+
+
+def test_with_jitter_keeps_room_for_the_days_later_windows():
+    # 1h left in 11-13 plus the whole 19-23 window -> 5h for 8 posts:
+    # 8 x 300/18000 ~= 0.13, so a 0.5 draw waits.
+    two_windows = WIDE_WINDOW + [{"block": "weekday", "starts_at": "19:00:00", "ends_at": "23:00:00"}]
+    result = decide_next_action(
+        datetime(2026, 9, 21, 12, 0), two_windows, 0, 8, QUEUE_ONE_CARD, NO_REPOSTS,
+        poll_interval_seconds=300, jitter=0.5,
+    )
+    assert result is None
+
+
+def test_with_jitter_a_full_day_of_ticks_uses_about_the_whole_quota():
+    import random
+    day = [
+        {"block": "weekday", "starts_at": "08:00:00", "ends_at": "13:30:00"},
+        {"block": "weekday", "starts_at": "16:00:00", "ends_at": "17:30:00"},
+        {"block": "weekday", "starts_at": "19:00:00", "ends_at": "23:59:00"},
+    ]
+    rng = random.Random(7)
+    for quota in (10, 20, 40):
+        posted, t = 0, datetime(2026, 9, 21, 0, 0)
+        while t.day == 21:
+            if decide_next_action(t, day, posted, quota, QUEUE_ONE_CARD, NO_REPOSTS,
+                                  poll_interval_seconds=300, jitter=rng.random()):
+                posted += 1
+            t += timedelta(minutes=5)
+        assert quota * 0.8 <= posted <= quota, (quota, posted)
 
 
 def test_with_jitter_fires_when_the_draw_is_under_the_fire_probability():
