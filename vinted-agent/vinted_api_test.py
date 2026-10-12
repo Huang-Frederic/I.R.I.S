@@ -213,14 +213,14 @@ def test_get_package_sizes_reads_the_categorys_formats_through_the_gateway():
     client._session.get = MagicMock(return_value=client._session.post.return_value)
     assert client.get_package_sizes(3543) == [{"id": 11, "code": "BULKY_SMALL"}]
     url = client._session.get.call_args.args[0]
-    assert url.endswith("/web/gateway/shipping-estimation/external/catalogs/3543/package_sizes")
+    assert url == "https://api.vinted.fr/shipping-estimation/external/catalogs/3543/package_sizes"  # moved off /web/gateway (404 since 2026-10-12)
 
 def test_suggest_package_size_returns_vinteds_preselected_format():
     client = _client_with_response(200, {"package_size_id": 11})
     assert client.suggest_package_size(catalog_id=3543, title="Robot", description="d", price=150.0,
                                        color_ids=[1], item_attributes=[{"code": "condition", "ids": [1]}]) == 11
     url = client._session.post.call_args.args[0]
-    assert url.endswith("/web/gateway/shipping-estimation/external/package_sizes/suggestion")
+    assert url == "https://api.vinted.fr/shipping-estimation/external/package_sizes/suggestion"
     assert client._session.post.call_args.kwargs["json"]["catalog_id"] == 3543
 
 def test_suggest_package_size_returns_none_when_vinted_has_no_suggestion():

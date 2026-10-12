@@ -173,10 +173,14 @@ def choose_package_size(preferred: int | None, offered: list[dict], suggest) -> 
     colis". Order: the item's own choice if offered, then Petit if offered
     (what the bot always sent), then Vinted's own suggestion — what its upload
     form preselects — if offered. `suggest` is only called when needed. Unknown
-    formats (lookup failed) fall back to Petit; None = nothing usable."""
+    formats (lookup failed): the item's own choice, else Vinted's suggestion,
+    else Petit — a blind Petit was refused for consoles and laptops, which
+    only take heavy formats (8-10). None = nothing usable."""
     offered_ids = {p.get("id") for p in offered}
     if not offered_ids:
-        return PETIT_PACKAGE_SIZE_ID
+        if preferred is not None:
+            return preferred
+        return suggest() or PETIT_PACKAGE_SIZE_ID
     if preferred in offered_ids:
         return preferred
     if PETIT_PACKAGE_SIZE_ID in offered_ids:

@@ -209,6 +209,12 @@ def test_package_size_falls_back_to_petit_when_the_formats_are_unknown():
     assert choose_package_size(None, [], suggest=lambda: None) == 1
 
 
+def test_unknown_formats_take_vinteds_suggestion_before_petit():
+    # A console only takes heavy formats (8-10): blind Petit was refused.
+    assert choose_package_size(None, [], suggest=lambda: 9) == 9
+    assert choose_package_size(10, [], suggest=lambda: 9) == 10  # the item's own choice still wins
+
+
 # A laptop category asks for more than size/color/condition (refused on
 # 2026-10-12: "Sélectionne une capacité de stockage / de RAM / si le chargeur
 # est inclus"). The codes and titles here are illustrative — the parser keeps

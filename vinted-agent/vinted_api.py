@@ -13,6 +13,9 @@ from curl_cffi import requests as curl_requests
 from PIL import Image
 
 VINTED_BASE = "https://www.vinted.fr"
+# Shipping estimation (parcel formats) moved off www.vinted.fr/web/gateway,
+# which answers 404 since 2026-10-12 — the upload form now calls api.vinted.fr.
+SHIPPING_API = "https://api.vinted.fr/shipping-estimation/external"
 # Bump this whenever the real browser's Chrome updates significantly — a
 # stale version here is exactly what caused the 2026-09-23 session-invalidation
 # loop (User-Agent/sec-ch-ua claimed Chrome 131 while curl_cffi's TLS
@@ -543,16 +546,16 @@ class VintedClient:
         return r.json().get("attributes") or []
 
     def _gateway_headers(self) -> dict:
-        # Vinted's "API gateway" (shipping estimation…) lives under /web/gateway
-        # and expects the web app's platform headers.
-        return {**self._headers(), "Platform": "web", "x-next-app": "marketplace-web"}
+        # Shipping estimation is served from api.vinted.fr (SHIPPING_API), a
+        # sibling of www.vinted.fr — same cookies, same-site fetch.
+        return {**self._headers(), "Platform": "web", "x-next-app": "marketplace-web", "sec-fetch-site": "same-site"}
 
     def get_package_sizes(self, catalog_id: int) -> list:
         """The parcel formats Vinted offers in a category — what its upload
         form lists. Petit/Moyen/Grand (1/2/3) for clothes and cards, 5-30 kg
         bulky formats (11-14) for vacuums, etc."""
         r = self._session.get(
-            f"{VINTED_BASE}/web/gateway/shipping-estimation/external/catalogs/{catalog_id}/package_sizes",
+            f"{SHIPPING_API}/catalogs/{catalog_id}/package_sizes",
             headers=self._gateway_headers(), timeout=20,
         )
         self._sync_datadome(r)
@@ -564,7 +567,7 @@ class VintedClient:
         """The format Vinted's upload form would preselect for this listing,
         or None when it has no suggestion."""
         r = self._session.post(
-            f"{VINTED_BASE}/web/gateway/shipping-estimation/external/package_sizes/suggestion",
+            f"{SHIPPING_API}/package_sizes/suggestion",
             json={"catalog_id": catalog_id, "upload_session_id": str(uuid.uuid4()), "brand_id": None, "size_id": None,
                   "title": title, "description": description, "price": price, "color_ids": color_ids,
                   "item_attributes": item_attributes},
