@@ -7,6 +7,7 @@ vi.mock('@/lib/data/vinted-categories.json', () => ({
     { id: 164, path: 'Femmes > Accessoires > Bijoux > Colliers' },
     { id: 2994, path: 'Électronique' },
     { id: 553, path: 'Femmes > Accessoires > Bijoux > Bagues' },
+    { id: 21, path: 'Femmes > Accessoires > Bijoux' },
   ],
 }));
 
@@ -77,5 +78,12 @@ describe('<CategoryPicker>', () => {
     expect(onChange).toHaveBeenCalledWith({ id: 553, path: 'Femmes > Accessoires > Bijoux > Bagues' });
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it("never offers a category that has sub-categories — Vinted refuses it (\"Choisis une sous-catégorie\")", () => {
+    render(<CategoryPicker value={null} onChange={() => {}} />);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'bijoux' } });
+    expect(screen.queryByText('Femmes > Accessoires > Bijoux')).toBeNull();
+    expect(screen.getByText('Femmes > Accessoires > Bijoux > Bagues')).toBeInTheDocument();
   });
 });

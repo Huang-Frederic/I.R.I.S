@@ -87,7 +87,9 @@ CONDITION_MAP = {
     "EX": 2,
     "GD": 3,
     "PL": 4,
-    "PO": 5,
+    # Vinted has no 5: its lowest condition is 4 (Satisfaisant). The card's real
+    # grade still reads "Mauvais état (Poor)" in the description.
+    "PO": 4,
 }
 
 CARDS_CATALOG_ID = 4875       # Cartes à collectionner (unité)

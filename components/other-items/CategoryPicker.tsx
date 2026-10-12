@@ -16,7 +16,11 @@ interface Props {
   labelledBy?: string;
 }
 
-const ALL = categories as VintedCategory[];
+const EVERY = categories as VintedCategory[];
+/** Only categories without sub-categories: Vinted refuses a listing filed
+ *  under a parent ("Choisis une sous-catégorie") — 420 of the 2,920 are. */
+const PARENT_PATHS = new Set(EVERY.map((c) => c.path.slice(0, Math.max(0, c.path.lastIndexOf(' > ')))));
+const ALL = EVERY.filter((c) => !PARENT_PATHS.has(c.path));
 const MAX_RESULTS = 30;
 
 function norm(s: string): string {

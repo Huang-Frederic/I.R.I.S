@@ -85,6 +85,14 @@ def test_build_listing_payload_raw_condition_id_overrides_the_card_grade_map():
     item = _payload(condition=None, condition_id=6)
     assert item["item_attributes"][0] == {"code": "condition", "ids": [6]}
 
+def test_card_grades_map_to_condition_ids_vinted_actually_has():
+    # Vinted's conditions are 6, 1, 2, 3, 4 — a Poor card was sent as 5 and
+    # refused ("Merci de saisir un condition valide", Kyogre EX on 2026-10-07).
+    valid = {6, 1, 2, 3, 4}
+    for grade in ("NM", "EX", "GD", "PL", "PO"):
+        assert _payload(condition=grade)["item_attributes"][0]["ids"][0] in valid, grade
+    assert _payload(condition="PO")["item_attributes"][0] == {"code": "condition", "ids": [4]}
+
 def test_format_validation_errors_joins_vinteds_messages():
     body = {"code": 99, "message": "Erreurs trouvées", "message_code": "validation_error", "errors": [
         {"field": "size", "value": "Le champ Taille doit être renseigné"},
