@@ -285,6 +285,8 @@
     "conditionSatisfactory": "Satisfactory",
     "sizeLabel": "Size",
     "sizeSelectPlaceholder": "Choose a size",
+    "extraSelectPlaceholder": "Choose…",
+    "errorExtraAttribute": "{title}: required",
     "colorLabel": "Color (2 max)",
     "attributesLoading": "Loading this category's Vinted options…",
     "attributesWaitingBot": "Waiting for the bot: it must be running to load this category's sizes. You can also pick them later from the item sheet.",

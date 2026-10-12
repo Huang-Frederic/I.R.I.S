@@ -37,11 +37,36 @@ def _size_groups(options: list[dict]) -> list[dict]:
     return groups
 
 
+# Handled on their own: size/condition above, color by its global list,
+# brand and category set by the bot itself.
+_OWN_CODES = {"size", "condition", "color", "brand", "category"}
+
+
+def _extra_attributes(attributes: list[dict]) -> list[dict]:
+    """Every other attribute that takes values from a list — a laptop's
+    storage, RAM and "charger included", a console's platform, a material:
+    whatever the category configures, in Vinted's order."""
+    extras = []
+    for attribute in attributes:
+        config = attribute.get("configuration") or {}
+        if attribute.get("code") in _OWN_CODES or not config.get("options"):
+            continue
+        extras.append({
+            "code": attribute["code"],
+            "title": config.get("title") or attribute["code"],
+            "required": bool(config.get("required")),
+            "multiple": config.get("selection_type") not in (None, "single"),
+            "options": _leaf_options(config["options"]),
+        })
+    return extras
+
+
 def parse_catalog_attributes(attributes: list[dict]) -> dict:
     """Reduces the raw attribute list to what posting and the form need —
     the shape stored in the vinted_catalog_attributes table:
     `size_options` (grouped, None when the category has no size at all),
-    `size_required`, `condition_options` (flat) and `has_color`."""
+    `size_required`, `condition_options` (flat), `has_color` and
+    `extra_attributes` (every other configured attribute)."""
     by_code = {a.get("code"): a for a in attributes}
 
     size_config = (by_code.get("size") or {}).get("configuration") or {}
@@ -55,6 +80,7 @@ def parse_catalog_attributes(attributes: list[dict]) -> dict:
         "size_required": bool(size_options) and bool(size_config.get("required")),
         "condition_options": condition_options,
         "has_color": "color" in by_code,
+        "extra_attributes": _extra_attributes(attributes),
     }
 
 
@@ -81,7 +107,28 @@ def listing_attribute_problems(item: dict, parsed: dict) -> list[str]:
     if valid_conditions and item.get("vinted_condition_id") not in valid_conditions:
         problems.append("État non accepté pour cette catégorie")
 
+    chosen = item.get("vinted_extra_attributes") or {}
+    for extra in parsed.get("extra_attributes") or []:
+        ids = chosen.get(extra["code"]) or []
+        valid = {option["id"] for option in extra["options"]}
+        if any(i not in valid for i in ids) or (len(ids) > 1 and not extra["multiple"]):
+            problems.append(f"{extra['title']} invalide")
+        elif not ids and extra["required"]:
+            problems.append(f"{extra['title']} à choisir")
+
     return problems
+
+
+def extra_item_attributes(item: dict, parsed: dict) -> list[dict]:
+    """The item's extra attribute values to post, as Vinted's item_attributes
+    entries — only for codes the category offers (a value left over from a
+    previous category would be refused)."""
+    chosen = item.get("vinted_extra_attributes") or {}
+    return [
+        {"code": extra["code"], "ids": list(chosen[extra["code"]])}
+        for extra in parsed.get("extra_attributes") or []
+        if chosen.get(extra["code"])
+    ]
 
 
 def _normalize_size_label(label: str) -> str:

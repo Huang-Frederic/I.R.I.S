@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { apiError, unauthorizedResponse, validationResponse, notFoundResponse } from '@/lib/utils/api-response';
 import { auditLog } from '@/lib/utils/audit-log';
 import { clearOtherItemQueueFailure, FRED_USER_ID, syncOtherItemQueueMembership } from '@/lib/vinted/other-item-queue-sync';
-import { parseColorIds } from '@/lib/vinted/other-item-attributes';
+import { parseColorIds, parseExtraAttributes } from '@/lib/vinted/other-item-attributes';
 import { createServiceClient } from '@/lib/supabase/service';
 import { enqueueOtherItemCrossUserDeleteJobs } from '@/lib/vinted/cross-user-sync';
 
@@ -19,6 +19,8 @@ interface PatchBody {
   vinted_size_id?: number | null;
   size?: string | null;
   vinted_color_ids?: number[];
+  /** {code: [ids]} for the category's extra attributes (platform, storage…). */
+  vinted_extra_attributes?: Record<string, unknown>;
   sold_price?: number | null;
   date_sold?: string | null;
 }
@@ -98,6 +100,14 @@ export async function PATCH(
       return apiError('invalid_colors', { status: 400, message: 'vinted_color_ids must hold at most 2 known Vinted color ids' });
     }
     update.vinted_color_ids = colorIds;
+  }
+
+  if (body.vinted_extra_attributes !== undefined) {
+    const extras = parseExtraAttributes(body.vinted_extra_attributes);
+    if (extras === null) {
+      return apiError('invalid_attributes', { status: 400, message: 'vinted_extra_attributes must be {code: [ids]}' });
+    }
+    update.vinted_extra_attributes = extras;
   }
 
   if (Object.keys(update).length === 0) {

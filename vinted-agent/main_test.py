@@ -1174,3 +1174,37 @@ def test_process_other_item_job_refuses_an_item_without_a_price():
     vinted.create_listing.assert_not_called()
     assert jobs_update_fn.call_args.args[0]["error"] == "À compléter dans la fiche : Prix manquant"
     assert requeue.await_args.args[3] is True  # flagged until Fred sets a price
+
+
+# ---------------------------------------------------------------------------
+# Extra category attributes (a console's platform, a laptop's storage/RAM…)
+# ---------------------------------------------------------------------------
+CONSOLE_ATTRIBUTES = PERFUME_ATTRIBUTES + [
+    {"id": 990, "code": "platform", "configuration": {"title": "Plateforme", "required": True,
+     "selection_type": "single", "options": [_attr_option(77, "Steam Deck"), _attr_option(78, "PlayStation 5")]}},
+]
+
+
+def test_process_other_item_job_posts_the_categorys_extra_attributes():
+    item = _puffer_item(vinted_catalog_id=3025, vinted_size_id=None, size=None, vinted_color_ids=[],
+                        vinted_condition_id=6, vinted_extra_attributes={"platform": [77]})
+    supabase, _, _ = _mock_supabase_for_post_other_item(item)
+    vinted = _vinted(CONSOLE_ATTRIBUTES)
+
+    with _fast_and_isolated():
+        asyncio.run(process_other_item_job(supabase, vinted, _post_job()))
+
+    assert vinted.create_listing.call_args.kwargs["extra_attributes"] == [{"code": "platform", "ids": [77]}]
+
+
+def test_process_other_item_job_flags_a_missing_required_extra_before_uploading():
+    item = _puffer_item(vinted_catalog_id=3025, vinted_size_id=None, size=None, vinted_color_ids=[], vinted_condition_id=6)
+    supabase, _, jobs_update_fn = _mock_supabase_for_post_other_item(item)
+    vinted = _vinted(CONSOLE_ATTRIBUTES)
+
+    with _fast_and_isolated() as requeue:
+        asyncio.run(process_other_item_job(supabase, vinted, _post_job()))
+
+    vinted.upload_photo.assert_not_called()
+    assert jobs_update_fn.call_args.args[0]["error"] == "À compléter dans la fiche : Plateforme à choisir"
+    assert requeue.await_args.args[3] is True

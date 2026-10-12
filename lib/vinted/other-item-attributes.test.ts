@@ -6,6 +6,8 @@ import {
   findSizeOption,
   missingAttributes,
   parseColorIds,
+  parseExtraAttributes,
+  pruneExtraAttributes,
   resolveSizeOption,
   type CatalogAttributes,
 } from './other-item-attributes';
@@ -142,5 +144,62 @@ describe('resolveSizeOption', () => {
     expect(resolveSizeOption(ambiguous, 999, '38')).toBeNull();
     expect(resolveSizeOption(PARKAS, 209, null)).toBeNull();
     expect(resolveSizeOption(PERFUME, 209, 'L')).toBeNull();
+  });
+});
+
+const CONSOLE: CatalogAttributes = {
+  catalog_id: 3025,
+  status: 'ready',
+  size_options: null,
+  size_required: false,
+  condition_options: [{ id: 2, title: 'Très bon état' }],
+  has_color: false,
+  extra_attributes: [
+    { code: 'platform', title: 'Plateforme', required: true, multiple: false, options: [{ id: 77, title: 'Steam Deck' }, { id: 78, title: 'PS5' }] },
+    { code: 'material', title: 'Matière', required: false, multiple: true, options: [{ id: 468, title: 'Acier' }] },
+  ],
+  error: null,
+};
+
+describe('missingAttributes — extra category attributes', () => {
+  it('flags a required extra attribute that has no value', () => {
+    expect(missingAttributes(CONSOLE, { sizeId: null, colorIds: [], conditionId: 2, extraAttributes: {} })).toEqual(['extra:platform']);
+  });
+
+  it('accepts a valid value and ignores optional extras', () => {
+    expect(missingAttributes(CONSOLE, { sizeId: null, colorIds: [], conditionId: 2, extraAttributes: { platform: [77] } })).toEqual([]);
+  });
+
+  it('flags a value the category does not offer', () => {
+    expect(missingAttributes(CONSOLE, { sizeId: null, colorIds: [], conditionId: 2, extraAttributes: { platform: [1] } })).toEqual(['extra:platform']);
+  });
+
+  it('copes with a cached row from before extra attributes existed', () => {
+    const old = { ...CONSOLE, extra_attributes: undefined } as unknown as CatalogAttributes;
+    expect(missingAttributes(old, { sizeId: null, colorIds: [], conditionId: 2 })).toEqual([]);
+  });
+});
+
+describe('parseExtraAttributes', () => {
+  it('accepts {code: ids} with numeric strings', () => {
+    expect(parseExtraAttributes({ platform: ['77'], storage_capacity: [902] })).toEqual({ platform: [77], storage_capacity: [902] });
+  });
+
+  it('drops codes left empty', () => {
+    expect(parseExtraAttributes({ platform: [] })).toEqual({});
+  });
+
+  it('rejects anything else', () => {
+    expect(parseExtraAttributes(null)).toBeNull();
+    expect(parseExtraAttributes([77])).toBeNull();
+    expect(parseExtraAttributes({ platform: 77 })).toBeNull();
+    expect(parseExtraAttributes({ platform: [-1] })).toBeNull();
+    expect(parseExtraAttributes({ 'bad code!': [1] })).toBeNull();
+  });
+});
+
+describe('pruneExtraAttributes', () => {
+  it('keeps only the codes and values the category offers', () => {
+    expect(pruneExtraAttributes(CONSOLE, { platform: [77, 99], size_hint: [1] })).toEqual({ platform: [77] });
   });
 });

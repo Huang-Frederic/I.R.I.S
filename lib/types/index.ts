@@ -629,6 +629,9 @@ export interface OtherItem {
   vinted_size_id: number | null;
   /** Up to 2 of Vinted's color ids (lib/data/vinted-colors.json). */
   vinted_color_ids: number[];
+  /** Values for the category's extra attributes (a console's platform, a
+   *  laptop's storage…), {code: [ids]}. */
+  vinted_extra_attributes: Record<string, number[]>;
   status: 'for_sale' | 'collection' | 'sold';
   date_sold: string | null;
   sold_price: number | null;

@@ -29,6 +29,21 @@ export interface ConditionOption {
   title: string;
 }
 
+/** Any other attribute a category configures — a laptop's storage capacity,
+ *  RAM and "charger included", a console's platform, a material — parsed by
+ *  the bot (vinted-agent/catalog_attributes.py, _extra_attributes). */
+export interface ExtraAttribute {
+  code: string;
+  title: string;
+  required: boolean;
+  /** Several values allowed (Vinted's selection_type other than "single"). */
+  multiple: boolean;
+  options: { id: number; title: string }[];
+}
+
+/** The values picked for a category's extra attributes, {code: [ids]}. */
+export type ExtraAttributeValues = Record<string, number[]>;
+
 /** A vinted_catalog_attributes row — a category's listing attributes, filled
  *  by the bot (supabase/migrations/20261005120200_vinted_catalog_attributes.sql). */
 export interface CatalogAttributes {
@@ -39,6 +54,8 @@ export interface CatalogAttributes {
   size_required: boolean;
   condition_options: ConditionOption[];
   has_color: boolean;
+  /** Absent on rows cached before 20261012120000_vinted_extra_attributes.sql. */
+  extra_attributes?: ExtraAttribute[];
   error: string | null;
 }
 
@@ -72,7 +89,7 @@ export function conditionIdsFor(attributes: CatalogAttributes | null): readonly 
   return attributes ? attributes.condition_options.map((c) => c.id) : DEFAULT_CONDITION_IDS;
 }
 
-export type MissingAttribute = 'size' | 'color' | 'condition';
+export type MissingAttribute = 'size' | 'color' | 'condition' | `extra:${string}`;
 
 /** What the category asks for that the item lacks — the same checks the bot
  *  runs before posting (vinted-agent/catalog_attributes.py,
@@ -80,7 +97,7 @@ export type MissingAttribute = 'size' | 'color' | 'condition';
  *  checks again against live attributes anyway. */
 export function missingAttributes(
   attributes: CatalogAttributes | null,
-  values: { sizeId: number | null; colorIds: number[]; conditionId: number },
+  values: { sizeId: number | null; colorIds: number[]; conditionId: number; extraAttributes?: ExtraAttributeValues },
 ): MissingAttribute[] {
   if (!attributes) return [];
   const missing: MissingAttribute[] = [];
@@ -91,7 +108,46 @@ export function missingAttributes(
   if (attributes.has_color && values.colorIds.length === 0) missing.push('color');
   const conditions = conditionIdsFor(attributes);
   if (conditions.length > 0 && !conditions.includes(values.conditionId)) missing.push('condition');
+  for (const extra of attributes.extra_attributes ?? []) {
+    const ids = values.extraAttributes?.[extra.code] ?? [];
+    const offered = new Set(extra.options.map((o) => o.id));
+    const invalid = ids.some((id) => !offered.has(id)) || (ids.length > 1 && !extra.multiple);
+    if (invalid || (ids.length === 0 && extra.required)) missing.push(`extra:${extra.code}`);
+  }
   return missing;
+}
+
+const EXTRA_CODE = /^[a-z0-9_]{1,64}$/;
+
+/** {code: [ids]} with positive integer ids (numbers or numeric strings),
+ *  empty codes dropped — or null when the input is anything else. */
+export function parseExtraAttributes(raw: unknown): ExtraAttributeValues | null {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const entries = Object.entries(raw as Record<string, unknown>);
+  if (entries.length > 30) return null;
+  const parsed: ExtraAttributeValues = {};
+  for (const [code, value] of entries) {
+    if (!EXTRA_CODE.test(code) || !Array.isArray(value) || value.length > 20) return null;
+    const ids = value.map((v) => (typeof v === 'string' && /^\d+$/.test(v) ? Number(v) : v));
+    if (!ids.every((id): id is number => typeof id === 'number' && Number.isInteger(id) && id > 0)) return null;
+    if (ids.length > 0) parsed[code] = ids;
+  }
+  return parsed;
+}
+
+/** Only the codes and values the category offers — a value left over from a
+ *  previous category would be refused by Vinted. */
+export function pruneExtraAttributes(
+  attributes: CatalogAttributes,
+  values: ExtraAttributeValues,
+): ExtraAttributeValues {
+  const pruned: ExtraAttributeValues = {};
+  for (const extra of attributes.extra_attributes ?? []) {
+    const offered = new Set(extra.options.map((o) => o.id));
+    const ids = (values[extra.code] ?? []).filter((id) => offered.has(id));
+    if (ids.length > 0) pruned[extra.code] = extra.multiple ? ids : ids.slice(0, 1);
+  }
+  return pruned;
 }
 
 function normalizeSizeLabel(label: string): string {

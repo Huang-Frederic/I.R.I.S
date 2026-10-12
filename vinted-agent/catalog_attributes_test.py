@@ -1,5 +1,5 @@
 # vinted-agent/catalog_attributes_test.py
-from catalog_attributes import listing_attribute_problems, parse_catalog_attributes
+from catalog_attributes import extra_item_attributes, listing_attribute_problems, parse_catalog_attributes
 
 
 def _option(id_, title):
@@ -207,3 +207,62 @@ def test_package_size_ignores_a_choice_or_suggestion_the_category_does_not_offer
 
 def test_package_size_falls_back_to_petit_when_the_formats_are_unknown():
     assert choose_package_size(None, [], suggest=lambda: None) == 1
+
+
+# A laptop category asks for more than size/color/condition (refused on
+# 2026-10-12: "Sélectionne une capacité de stockage / de RAM / si le chargeur
+# est inclus"). The codes and titles here are illustrative — the parser keeps
+# whatever configured attribute Vinted returns.
+def _titled(code, title, options, required=True, selection="single", id_=1):
+    attr = _configured(code, options, required=required, id_=id_)
+    attr["configuration"]["title"] = title
+    attr["configuration"]["selection_type"] = selection
+    return attr
+
+
+LAPTOPS = [
+    {"code": "brand", "value_ids": None, "value": None, "configuration": None},
+    _configured("condition", CONDITION_GROUP, id_=431),
+    _titled("storage_capacity", "Capacité de stockage", [_group(1, "Stockage", [_option(901, "256 Go"), _option(902, "1 To")])]),
+    _titled("ram", "Capacité de RAM", [_option(911, "8 Go"), _option(912, "16 Go")]),
+    _titled("charger_included", "Chargeur inclus", [_option(921, "Oui"), _option(922, "Non")]),
+    _titled("material", "Matière", [_option(468, "Acier")], required=False, selection="multi"),
+]
+
+
+def test_parse_keeps_every_other_configured_attribute_as_an_extra():
+    extras = parse_catalog_attributes(LAPTOPS)["extra_attributes"]
+    assert [e["code"] for e in extras] == ["storage_capacity", "ram", "charger_included", "material"]
+    assert extras[0] == {
+        "code": "storage_capacity", "title": "Capacité de stockage", "required": True, "multiple": False,
+        "options": [{"id": 901, "title": "256 Go"}, {"id": 902, "title": "1 To"}],
+    }
+    assert extras[3]["required"] is False and extras[3]["multiple"] is True
+
+
+def test_parse_has_no_extras_for_a_plain_category():
+    assert parse_catalog_attributes(PERFUME)["extra_attributes"] == []
+
+
+def _laptop(**extras):
+    return {"vinted_condition_id": 2, "vinted_extra_attributes": extras}
+
+
+def test_problems_name_each_required_extra_that_is_missing():
+    problems = listing_attribute_problems(_laptop(ram=[912]), parse_catalog_attributes(LAPTOPS))
+    assert problems == ["Capacité de stockage à choisir", "Chargeur inclus à choisir"]
+
+
+def test_problems_flag_an_extra_value_the_category_does_not_offer():
+    item = _laptop(storage_capacity=[999], ram=[911], charger_included=[921])
+    assert listing_attribute_problems(item, parse_catalog_attributes(LAPTOPS)) == ["Capacité de stockage invalide"]
+
+
+def test_a_fully_filled_laptop_has_no_problem_and_sends_its_extras():
+    item = _laptop(storage_capacity=[902], ram=[912], charger_included=[921], color=[1])
+    parsed = parse_catalog_attributes(LAPTOPS)
+    assert listing_attribute_problems(item, parsed) == []
+    # Only codes the category offers go out.
+    assert extra_item_attributes(item, parsed) == [
+        {"code": "storage_capacity", "ids": [902]}, {"code": "ram", "ids": [912]}, {"code": "charger_included", "ids": [921]},
+    ]

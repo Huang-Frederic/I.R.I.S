@@ -168,6 +168,7 @@ const OTHER_ITEM_DEFAULTS: OtherItem = {
   size: null,
   vinted_size_id: null,
   vinted_color_ids: [],
+  vinted_extra_attributes: {},
   status: 'for_sale',
   date_sold: null,
   sold_price: null,

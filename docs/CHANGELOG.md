@@ -6,6 +6,17 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-10-12 — v1.3.6: annonces refusées débloquées — attributs propres à chaque catégorie, catégories finales seulement, état « Poor » valide
+
+Cinq annonces étaient bloquées en file avec un refus de Vinted.
+
+- **Attributs propres à la catégorie** (migration `20261012120000_vinted_extra_attributes`) — un ordinateur portable demande une capacité de stockage, une capacité de RAM et « chargeur inclus », une console sa plateforme. Le bot garde désormais, en plus de la taille, de l'état et de la couleur, tout autre attribut configuré par la catégorie (`catalog_attributes._extra_attributes` → `vinted_catalog_attributes.extra_attributes`) ; le formulaire Items et la fiche affichent ceux qui sont obligatoires en listes déroulantes (`OtherItemVintedFields`), l'Item les garde dans `other_items.vinted_extra_attributes` (`{code: [ids]}`) et le bot les envoie dans `item_attributes`. Il bloque avant tout envoi de photo un Item à qui il en manque un (« Plateforme à choisir »). La migration renvoie au bot les catégories déjà en cache, lues sans ces attributs. Le format de colis retenu et ceux proposés passent dans les logs, pour comprendre le refus « Sélectionne le format de ton colis » s'il revient.
+- **Catégories finales seulement** (`9aa617f`) — Vinted refuse une annonce rangée dans une catégorie qui a des sous-catégories (« Choisis une sous-catégorie ») : 420 des 2 920 catégories du sélecteur l'étaient. `CategoryPicker` n'en propose plus ; 17 Items ont été déplacés dans une sous-catégorie finale.
+- **Carte « Poor »** (`9aa617f`) — envoyée avec l'état 5, qui n'existe pas chez Vinted (6, 1, 2, 3, 4) ; elle part désormais en 4 (« Satisfaisant »).
+- 158 fichiers de tests / 1425 tests Vitest et 165 tests pytest, typecheck et lint propres.
+
+---
+
 ## 2026-10-11 — v1.3.5: le bot remplit son quota
 
 Le quota quotidien n'était jamais atteint : 11 posts sur 20 le 10/10, dont 7 dans la dernière heure.

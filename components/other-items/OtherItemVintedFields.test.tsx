@@ -128,4 +128,39 @@ describe('<OtherItemVintedFields>', () => {
     expect(screen.getByText('errorSize')).toBeInTheDocument();
     expect(screen.getByText('errorColor')).toBeInTheDocument();
   });
+
+  describe('extra category attributes', () => {
+    const LAPTOP: CatalogAttributes = {
+      ...PERFUME,
+      catalog_id: 3580,
+      extra_attributes: [
+        { code: 'storage_capacity', title: 'Capacité de stockage', required: true, multiple: false, options: [{ id: 901, title: '256 Go' }, { id: 902, title: '1 To' }] },
+        { code: 'ports', title: 'Ports', required: true, multiple: true, options: [{ id: 31, title: 'USB-C' }, { id: 32, title: 'HDMI' }] },
+        { code: 'material', title: 'Matière', required: false, multiple: false, options: [{ id: 468, title: 'Acier' }] },
+      ],
+    };
+
+    it('asks for each required one, under its Vinted title', () => {
+      const props = renderFields({ attributes: { status: 'ready', attributes: LAPTOP }, extraAttributes: {} });
+      fireEvent.change(screen.getByLabelText('Capacité de stockage'), { target: { value: '902' } });
+      expect(props.onChange).toHaveBeenCalledWith({ extraAttributes: { storage_capacity: [902] } });
+      expect(screen.queryByLabelText('Matière')).toBeNull();
+    });
+
+    it('lets several values be picked when Vinted allows it', () => {
+      const props = renderFields({ attributes: { status: 'ready', attributes: LAPTOP }, extraAttributes: { ports: [31] } });
+      fireEvent.click(screen.getByRole('button', { name: 'HDMI' }));
+      expect(props.onChange).toHaveBeenCalledWith({ extraAttributes: { ports: [31, 32] } });
+    });
+
+    it('flags a missing one after a submit attempt', () => {
+      renderFields({ attributes: { status: 'ready', attributes: LAPTOP }, extraAttributes: {}, missing: ['extra:storage_capacity'] });
+      expect(screen.getByText('errorExtraAttribute')).toBeInTheDocument();
+    });
+
+    it('drops values the category does not offer', () => {
+      const props = renderFields({ attributes: { status: 'ready', attributes: LAPTOP }, extraAttributes: { storage_capacity: [902], platform: [77] } });
+      expect(props.onChange).toHaveBeenCalledWith({ extraAttributes: { storage_capacity: [902] } });
+    });
+  });
 });

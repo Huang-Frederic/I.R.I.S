@@ -368,6 +368,7 @@ class VintedClient:
         color_ids: Optional[list] = None,
         condition_id: Optional[int] = None,
         package_size_id: int = PACKAGE_SIZE_ID,
+        extra_attributes: Optional[list] = None,
     ) -> dict:
         # `condition` is the cards/lots letter grade; other_items pass
         # Vinted's own id straight through `condition_id` instead (6 = neuf
@@ -378,6 +379,8 @@ class VintedClient:
         ]
         if size_id is not None:
             item_attributes.append({"code": "size", "ids": [size_id]})
+        # A laptop's storage/RAM, a console's platform… (catalog_attributes.extra_item_attributes).
+        item_attributes.extend(extra_attributes or [])
         return {
             "item": {
                 "id": None,
@@ -423,6 +426,7 @@ class VintedClient:
         color_ids: Optional[list] = None,
         condition_id: Optional[int] = None,
         package_size_id: int = PACKAGE_SIZE_ID,
+        extra_attributes: Optional[list] = None,
     ) -> str:
         if not self._csrf:
             self.refresh_csrf()
@@ -450,6 +454,7 @@ class VintedClient:
             color_ids=color_ids,
             condition_id=condition_id,
             package_size_id=package_size_id,
+            extra_attributes=extra_attributes,
         )
 
         h = {**self._headers(), "content-type": "application/json", "x-upload-form": "true"}

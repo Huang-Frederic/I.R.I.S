@@ -85,6 +85,10 @@ def test_build_listing_payload_raw_condition_id_overrides_the_card_grade_map():
     item = _payload(condition=None, condition_id=6)
     assert item["item_attributes"][0] == {"code": "condition", "ids": [6]}
 
+def test_build_listing_payload_adds_the_categorys_extra_attributes():
+    item = _payload(condition=None, condition_id=2, extra_attributes=[{"code": "platform", "ids": [77]}])
+    assert item["item_attributes"] == [{"code": "condition", "ids": [2]}, {"code": "platform", "ids": [77]}]
+
 def test_card_grades_map_to_condition_ids_vinted_actually_has():
     # Vinted's conditions are 6, 1, 2, 3, 4 — a Poor card was sent as 5 and
     # refused ("Merci de saisir un condition valide", Kyogre EX on 2026-10-07).

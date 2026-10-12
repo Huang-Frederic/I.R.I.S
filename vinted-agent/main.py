@@ -14,7 +14,8 @@ from realtime.types import RealtimeSubscribeStates
 from vinted_api import VintedClient, ListingGoneError, VintedValidationError
 from vinted_api import CONDITION_MAP, CARD_LOTS_CATALOG_ID, POKEMON_BRAND_ID, SANS_MARQUE_BRAND_ID
 from audit_log import audit_log
-from catalog_attributes import choose_package_size, listing_attribute_problems, parse_catalog_attributes, resolve_size_id
+from catalog_attributes import (choose_package_size, extra_item_attributes, listing_attribute_problems,
+                                parse_catalog_attributes, resolve_size_id)
 from titles import vinted_title
 from scheduler import decide_next_action, pick_queue_front, should_requeue, sort_repost_candidates
 
@@ -835,7 +836,8 @@ async def process_lot_job(supabase: AsyncClient, vinted: VintedClient, job: dict
 async def get_other_item(supabase: AsyncClient, other_item_id: str) -> dict | None:
     res = await supabase.table("other_items").select(
         "id,name,description,price,photo_urls,vinted_catalog_id,vinted_catalog_path,"
-        "brand_name,vinted_condition_id,size,vinted_size_id,vinted_color_ids,vinted_package_size_id,status"
+        "brand_name,vinted_condition_id,size,vinted_size_id,vinted_color_ids,vinted_package_size_id,"
+        "vinted_extra_attributes,status"
     ).eq("id", other_item_id).single().execute()
     return res.data
 
@@ -975,6 +977,7 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
     title = build_other_item_title(item)
     description = build_other_item_description(item)
     color_ids = (item.get("vinted_color_ids") or []) if attributes["has_color"] else []
+    extra_attributes = extra_item_attributes(item, attributes)
 
     # Parcel formats depend on the category (vacuums only take 5-30 kg bulky
     # formats, so the "Petit" every listing used to get was refused).
@@ -988,7 +991,8 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
         try:
             return vinted.suggest_package_size(
                 catalog_id=item["vinted_catalog_id"], title=title, description=description, price=price,
-                color_ids=color_ids, item_attributes=[{"code": "condition", "ids": [item["vinted_condition_id"]]}],
+                color_ids=color_ids,
+                item_attributes=[{"code": "condition", "ids": [item["vinted_condition_id"]]}, *extra_attributes],
             )
         except Exception:
             return None
@@ -996,6 +1000,8 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
     package_size_id = await loop.run_in_executor(
         None, lambda: choose_package_size(item.get("vinted_package_size_id"), offered, suggest)
     )
+    await _log(supabase, user_id, "info", "📦  %s format de colis #%s (proposés : %s)", tag, package_size_id,
+               ", ".join(str(p.get("id")) for p in offered) or "inconnus")
     if package_size_id is None:
         await _fail_job(supabase, job_id, other_item_id,
                         "Format de colis à choisir : aucun format proposé par Vinted ne convient pour cette catégorie",
@@ -1032,6 +1038,7 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
                 size_id=item.get("vinted_size_id") if attributes["size_options"] else None,
                 color_ids=color_ids,
                 package_size_id=package_size_id,
+                extra_attributes=extra_attributes,
                 image_urls=image_urls,
                 photo_ids=photo_ids,
                 catalog_id=item["vinted_catalog_id"],

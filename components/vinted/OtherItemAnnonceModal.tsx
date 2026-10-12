@@ -28,6 +28,7 @@ interface VintedDraft {
   sizeId: number | null;
   sizeLabel: string | null;
   colorIds: number[];
+  extraAttributes: Record<string, number[]>;
 }
 
 export default function OtherItemAnnonceModal({ item, storagePublicUrl, onClose, onPriceSaved, onItemDeleted, onMovedToStock, onItemSaved }: Props) {
@@ -63,6 +64,7 @@ export default function OtherItemAnnonceModal({ item, storagePublicUrl, onClose,
     sizeId: item.vinted_size_id,
     sizeLabel: item.size,
     colorIds: item.vinted_color_ids ?? [],
+    extraAttributes: item.vinted_extra_attributes ?? {},
   });
   const [vintedDraft, setVintedDraft] = useState<VintedDraft>(saved);
   const [vintedSave, setVintedSave] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -74,6 +76,7 @@ export default function OtherItemAnnonceModal({ item, storagePublicUrl, onClose,
       sizeId: patch.sizeId !== undefined ? patch.sizeId : d.sizeId,
       sizeLabel: patch.sizeLabel !== undefined ? patch.sizeLabel : d.sizeLabel,
       colorIds: patch.colorIds ?? d.colorIds,
+      extraAttributes: patch.extraAttributes ?? d.extraAttributes,
     }));
     setVintedSave('idle');
   }, []);
@@ -143,6 +146,7 @@ export default function OtherItemAnnonceModal({ item, storagePublicUrl, onClose,
           vinted_size_id: vintedDraft.sizeId,
           size: vintedDraft.sizeLabel,
           vinted_color_ids: vintedDraft.colorIds,
+          vinted_extra_attributes: vintedDraft.extraAttributes,
         }),
       });
       if (!res.ok) throw new Error(`PATCH /api/other-items/${item.id} failed (${res.status})`);
@@ -386,6 +390,7 @@ export default function OtherItemAnnonceModal({ item, storagePublicUrl, onClose,
                 sizeId={vintedDraft.sizeId}
                 sizeLabel={vintedDraft.sizeLabel}
                 colorIds={vintedDraft.colorIds}
+                extraAttributes={vintedDraft.extraAttributes}
                 onChange={applyVintedFields}
                 missing={missing}
               />

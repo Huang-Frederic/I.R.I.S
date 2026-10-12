@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { resizeImage } from '@/lib/utils/resize-image';
-import { DEFAULT_CONDITION_ID, missingAttributes } from '@/lib/vinted/other-item-attributes';
+import { DEFAULT_CONDITION_ID, missingAttributes, type ExtraAttributeValues } from '@/lib/vinted/other-item-attributes';
 import PhotoDropzone from '../submit/PhotoDropzone';
 import CategoryPicker, { type VintedCategory } from './CategoryPicker';
 import OtherItemVintedFields, { type VintedFieldsPatch } from './OtherItemVintedFields';
@@ -24,6 +24,7 @@ export default function OtherItemForm() {
   const [sizeId, setSizeId] = useState<number | null>(null);
   const [sizeLabel, setSizeLabel] = useState<string | null>(null);
   const [colorIds, setColorIds] = useState<number[]>([]);
+  const [extraAttributes, setExtraAttributes] = useState<ExtraAttributeValues>({});
   const [showMissing, setShowMissing] = useState(false);
   const { state: attributes, retry: retryAttributes } = useCatalogAttributes(category?.id ?? null);
   const [dest, setDest] = useState<'for_sale' | 'collection'>('for_sale');
@@ -51,6 +52,7 @@ export default function OtherItemForm() {
     sizeId,
     colorIds,
     conditionId: condition,
+    extraAttributes,
   });
 
   const applyVintedFields = useCallback((patch: VintedFieldsPatch) => {
@@ -58,6 +60,7 @@ export default function OtherItemForm() {
     if (patch.sizeId !== undefined) setSizeId(patch.sizeId);
     if (patch.sizeLabel !== undefined) setSizeLabel(patch.sizeLabel);
     if (patch.colorIds !== undefined) setColorIds(patch.colorIds);
+    if (patch.extraAttributes !== undefined) setExtraAttributes(patch.extraAttributes);
   }, []);
 
   // Updates photosRef synchronously (plain assignment, not dependent on
@@ -146,6 +149,7 @@ export default function OtherItemForm() {
       if (sizeId !== null) fd.set('vinted_size_id', String(sizeId));
       if (sizeLabel) fd.set('size', sizeLabel);
       for (const id of colorIds) fd.append('vinted_color_ids', String(id));
+      fd.set('vinted_extra_attributes', JSON.stringify(extraAttributes));
       fd.set('status', dest);
       for (const p of photosRef.current) fd.append('photos', p);
 
@@ -162,6 +166,7 @@ export default function OtherItemForm() {
       setSizeId(null);
       setSizeLabel(null);
       setColorIds([]);
+      setExtraAttributes({});
       setShowMissing(false);
       updatePhotos(() => []);
       setSubmitting(false);
@@ -243,6 +248,7 @@ export default function OtherItemForm() {
         sizeId={sizeId}
         sizeLabel={sizeLabel}
         colorIds={colorIds}
+        extraAttributes={extraAttributes}
         onChange={applyVintedFields}
         missing={showMissing ? missing : []}
       />

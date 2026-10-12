@@ -9,7 +9,7 @@ export const POLL_INTERVAL_MS = 2_000;
 export const WAITING_BOT_AFTER_MS = 15_000;
 const GIVE_UP_AFTER_MS = 180_000;
 
-const COLUMNS = 'catalog_id, status, size_options, size_required, condition_options, has_color, error';
+const COLUMNS = 'catalog_id, status, size_options, size_required, condition_options, has_color, extra_attributes, error';
 
 export type CatalogAttributesState =
   | { status: 'idle' }

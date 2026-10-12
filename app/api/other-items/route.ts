@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { apiError, unauthorizedResponse, validationResponse } from '@/lib/utils/api-response';
 import { auditLog } from '@/lib/utils/audit-log';
 import { FRED_USER_ID, syncOtherItemQueueMembership } from '@/lib/vinted/other-item-queue-sync';
-import { parseColorIds } from '@/lib/vinted/other-item-attributes';
+import { parseColorIds, parseExtraAttributes } from '@/lib/vinted/other-item-attributes';
 
 export const runtime = 'nodejs';
 
@@ -65,6 +65,18 @@ export async function POST(request: Request): Promise<NextResponse> {
     return validationResponse('Field "vinted_color_ids" must hold at most 2 known Vinted color ids');
   }
 
+  // A laptop's storage/RAM, a console's platform… as JSON {code: [ids]}.
+  const extraRaw = (formData.get('vinted_extra_attributes') as string | null)?.trim() || '{}';
+  let vinted_extra_attributes;
+  try {
+    vinted_extra_attributes = parseExtraAttributes(JSON.parse(extraRaw));
+  } catch {
+    vinted_extra_attributes = null;
+  }
+  if (vinted_extra_attributes === null) {
+    return validationResponse('Field "vinted_extra_attributes" must be a JSON object of {code: [ids]}');
+  }
+
   const statusRaw = (formData.get('status') as string | null) ?? 'for_sale';
   if (statusRaw !== 'for_sale' && statusRaw !== 'collection') {
     return validationResponse('Field "status" must be for_sale or collection');
@@ -87,6 +99,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       size,
       vinted_size_id,
       vinted_color_ids,
+      vinted_extra_attributes,
       status: statusRaw,
     })
     .select('id')

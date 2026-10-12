@@ -92,7 +92,7 @@ Notes on `cards`:
 |---|---|---|---|
 | `card_listings` | Which user has which card live on their own Vinted account. Primary key `(card_id, user_id)`; `listed_at`, `vinted_listing_id`, `vinted_posted_at`, `repost_position`. | All | Own |
 | `lot_listings` | Same shape for lots. Primary key `(lot_id, user_id)`. | All | Own |
-| `other_items` | Non-card Vinted products (clothes, electronics). `name`, `description`, `price`, `photo_urls`, `vinted_catalog_id`, `vinted_catalog_path`, `brand_name`, `vinted_condition_id`, `size`, `vinted_size_id`, `vinted_color_ids` (at most 2), `vinted_package_size_id`, `status` (`for_sale`, `collection`, `sold`). | Owner | Owner |
+| `other_items` | Non-card Vinted products (clothes, electronics). `name`, `description`, `price`, `photo_urls`, `vinted_catalog_id`, `vinted_catalog_path`, `brand_name`, `vinted_condition_id`, `size`, `vinted_size_id`, `vinted_color_ids` (at most 2), `vinted_extra_attributes` (the category's other attributes — platform, storage… — as `{code: [ids]}`), `vinted_package_size_id`, `status` (`for_sale`, `collection`, `sold`). | Owner | Owner |
 | `other_item_listings` | Listing state for `other_items`; same shape as `card_listings`. | Owner | Owner (and `user_id` must be the caller) |
 
 ### Catalog and pricing
@@ -119,7 +119,7 @@ How the Cardmarket tables fit together is described in [CARDMARKET_MAPPING.md](C
 | `vinted_sessions` | Vinted cookies per user (`cookies` jsonb); the source of truth the agent syncs to its local files. | Own | Own (no delete); pasting a partner's cookies goes through `POST /api/vinted/sessions` with the service role |
 | `vinted_agent_logs` | Mirror of the agent's log for the monitoring page. `level` (`info`, `warn`, `error`), `message`. | All | Service |
 | `agent_heartbeats` | Agent liveness. `user_id` (primary key), `last_seen_at`. The agent upserts every 30 seconds; the UI polls and treats a heartbeat under 90 seconds old as online. | All | Service |
-| `vinted_catalog_attributes` | Per-category Vinted attributes (sizes, accepted conditions, colour) used by the Items form. The app inserts a `pending` row; the bot, which holds the Vinted session, fills it. `catalog_id` (primary key), `status`, `size_options`, `size_required`, `condition_options`, `has_color`. | Owner | Owner (no delete); the bot writes with the service role |
+| `vinted_catalog_attributes` | Per-category Vinted attributes (sizes, accepted conditions, colour) used by the Items form. The app inserts a `pending` row; the bot, which holds the Vinted session, fills it. `catalog_id` (primary key), `status`, `size_options`, `size_required`, `condition_options`, `has_color`, `extra_attributes` (every other attribute the category configures, `[{code, title, required, multiple, options}]`). | Owner | Owner (no delete); the bot writes with the service role |
 
 ### PTCG game analysis
 

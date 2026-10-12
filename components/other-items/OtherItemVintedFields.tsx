@@ -8,7 +8,9 @@ import {
   VINTED_COLORS,
   conditionIdsFor,
   findSizeOption,
+  pruneExtraAttributes,
   resolveSizeOption,
+  type ExtraAttributeValues,
   type MissingAttribute,
 } from '@/lib/vinted/other-item-attributes';
 import type { CatalogAttributesState } from './hooks/useCatalogAttributes';
@@ -19,6 +21,7 @@ export interface VintedFieldsPatch {
   /** The picked size option's label, stored as `other_items.size` for the description. */
   sizeLabel?: string | null;
   colorIds?: number[];
+  extraAttributes?: ExtraAttributeValues;
 }
 
 export interface VintedFieldsProps {
@@ -29,6 +32,8 @@ export interface VintedFieldsProps {
   /** The stored size label — lets a size Vinted renumbered be found again. */
   sizeLabel?: string | null;
   colorIds: number[];
+  /** Values for the category's extra attributes (platform, storage…). */
+  extraAttributes?: ExtraAttributeValues;
   onChange: (patch: VintedFieldsPatch) => void;
   /** Fields to flag as still missing (shown after a submit attempt). */
   missing?: MissingAttribute[];
@@ -44,6 +49,8 @@ const CONDITION_LABEL_KEYS: Record<
   3: 'conditionGood',
   4: 'conditionSatisfactory',
 };
+
+const NO_EXTRAS: ExtraAttributeValues = {};
 
 const FIELD_CLASSES =
   'bg-surface-2 border-border focus:border-red mt-1 w-full rounded border px-3 py-2 text-sm outline-none';
@@ -62,12 +69,14 @@ export default function OtherItemVintedFields({
   sizeId,
   sizeLabel = null,
   colorIds,
+  extraAttributes = NO_EXTRAS,
   onChange,
   missing = [],
 }: VintedFieldsProps) {
   const t = useTranslations('otherItems');
   const conditionSelectId = useId();
   const sizeSelectId = useId();
+  const extraIdBase = useId();
   const ready = attributes.status === 'ready' ? attributes.attributes : null;
   const conditionIds = conditionIdsFor(ready);
 
@@ -90,6 +99,23 @@ export default function OtherItemVintedFields({
   useEffect(() => {
     if (ready && !ready.has_color && colorIds.length > 0) onChange({ colorIds: [] });
   }, [ready, colorIds, onChange]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const pruned = pruneExtraAttributes(ready, extraAttributes);
+    if (JSON.stringify(pruned) !== JSON.stringify(extraAttributes)) onChange({ extraAttributes: pruned });
+  }, [ready, extraAttributes, onChange]);
+
+  function setExtra(code: string, ids: number[]) {
+    const next = { ...extraAttributes };
+    if (ids.length > 0) next[code] = ids;
+    else delete next[code];
+    onChange({ extraAttributes: next });
+  }
+
+  // Only what the category requires: optional ones (a material…) would bury
+  // the form, and Vinted takes the listing without them.
+  const requiredExtras = (ready?.extra_attributes ?? []).filter((e) => e.required);
 
   function conditionLabel(id: number): string {
     const key = CONDITION_LABEL_KEYS[id];
@@ -163,6 +189,61 @@ export default function OtherItemVintedFields({
           </div>
         )}
       </div>
+
+      {requiredExtras.length > 0 && (
+        <div className="grid grid-cols-2 gap-3">
+          {requiredExtras.map((extra) => {
+            const id = `${extraIdBase}-${extra.code}`;
+            const chosen = extraAttributes[extra.code] ?? [];
+            const flagged = missing.includes(`extra:${extra.code}`);
+            return (
+              <div key={extra.code} className={extra.multiple ? 'col-span-2' : undefined}>
+                {extra.multiple ? (
+                  <>
+                    <span className="text-text-muted text-xs">{extra.title}</span>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {extra.options.map((o) => {
+                        const selected = chosen.includes(o.id);
+                        return (
+                          <button
+                            key={o.id}
+                            type="button"
+                            aria-pressed={selected}
+                            onClick={() => setExtra(extra.code, selected ? chosen.filter((c) => c !== o.id) : [...chosen, o.id])}
+                            className={`rounded border px-2 py-1 text-xs ${selected ? 'border-red bg-red/10 text-text' : 'border-border text-text-muted'}`}
+                          >
+                            {o.title}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <label htmlFor={id} className="text-text-muted text-xs">
+                      {extra.title}
+                    </label>
+                    <select
+                      id={id}
+                      value={chosen[0] ?? ''}
+                      onChange={(e) => setExtra(extra.code, e.target.value === '' ? [] : [Number(e.target.value)])}
+                      className={`${FIELD_CLASSES} ${flagged ? 'border-red' : ''}`}
+                    >
+                      <option value="">{t('extraSelectPlaceholder')}</option>
+                      {extra.options.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.title}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
+                {flagged && <p className="text-red mt-1 text-xs">{t('errorExtraAttribute', { title: extra.title })}</p>}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {attributes.status === 'loading' && <p className="text-text-muted text-xs">{t('attributesLoading')}</p>}
       {attributes.status === 'waiting_bot' && <p className="text-text-muted text-xs">{t('attributesWaitingBot')}</p>}

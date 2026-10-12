@@ -68,7 +68,7 @@ describe('<OtherItemAnnonceModal> Vinted attributes', () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('/api/other-items/item-1');
     expect(init.method).toBe('PATCH');
-    expect(JSON.parse(init.body)).toEqual({ vinted_condition_id: 2, vinted_size_id: 1740, size: 'L', vinted_color_ids: [1] });
+    expect(JSON.parse(init.body)).toEqual({ vinted_condition_id: 2, vinted_size_id: 1740, size: 'L', vinted_color_ids: [1], vinted_extra_attributes: {} });
     expect(onItemSaved.mock.calls[0][0]).toMatchObject({ id: 'item-1', vinted_size_id: 1740, size: 'L', vinted_color_ids: [1] });
     expect(screen.getByDisplayValue(/📏 Taille : L/)).toBeInTheDocument();
     expect(screen.getByText('vintedFieldsSaved')).toBeInTheDocument();

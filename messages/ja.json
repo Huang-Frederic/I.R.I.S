@@ -285,6 +285,8 @@
     "conditionSatisfactory": "許容範囲",
     "sizeLabel": "サイズ",
     "sizeSelectPlaceholder": "サイズを選択",
+    "extraSelectPlaceholder": "選択…",
+    "errorExtraAttribute": "{title}を選択してください",
     "colorLabel": "カラー（最大2色）",
     "attributesLoading": "このカテゴリーのVintedオプションを読み込み中…",
     "attributesWaitingBot": "ボット待ち：このカテゴリーのサイズを読み込むにはボットが起動している必要があります。サイズは後で商品シートからも選べます。",

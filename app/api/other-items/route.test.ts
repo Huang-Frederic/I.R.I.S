@@ -165,4 +165,17 @@ describe('POST /api/other-items', () => {
     for (const id of ['1', '3', '12']) three.append('vinted_color_ids', id);
     expect((await POST(new Request('http://x', { method: 'POST', body: three }))).status).toBe(400);
   });
+
+  it("stores the category's extra attributes (a console's platform…)", async () => {
+    successfulInsert();
+    const fd = formDataWithPhoto({ ...BASE_FIELDS, vinted_condition_id: '2', vinted_extra_attributes: JSON.stringify({ platform: [77] }) });
+    const res = await POST(new Request('http://x', { method: 'POST', body: fd }));
+    expect(res.status).toBe(200);
+    expect(mocks.insert).toHaveBeenCalledWith('other_items', expect.objectContaining({ vinted_extra_attributes: { platform: [77] } }));
+  });
+
+  it('rejects malformed extra attributes', async () => {
+    const fd = formDataWithPhoto({ ...BASE_FIELDS, vinted_condition_id: '2', vinted_extra_attributes: '{"platform": "x"' });
+    expect((await POST(new Request('http://x', { method: 'POST', body: fd }))).status).toBe(400);
+  });
 });

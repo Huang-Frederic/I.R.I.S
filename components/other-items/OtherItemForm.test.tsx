@@ -153,6 +153,30 @@ describe('<OtherItemForm>', () => {
     expect(body.getAll('vinted_color_ids')).toEqual(['1']);
   });
 
+  it("asks for the category's required extra attributes and sends them", async () => {
+    attributesHook.state = {
+      status: 'ready',
+      attributes: {
+        catalog_id: 2994, status: 'ready', size_options: null, size_required: false, has_color: false, error: null,
+        condition_options: [{ id: 2, title: 'Très bon état' }],
+        extra_attributes: [{ code: 'platform', title: 'Plateforme', required: true, multiple: false, options: [{ id: 77, title: 'Steam Deck' }] }],
+      },
+    };
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ item: { id: '1' } }) });
+    render(<OtherItemForm />);
+    fillRequiredFields();
+    addPhoto();
+    fireEvent.click(screen.getByText('submit'));
+    expect(screen.getByText('errorExtraAttribute')).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('Plateforme'), { target: { value: '77' } });
+    fireEvent.click(screen.getByText('submit'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = fetchMock.mock.calls[0][1].body as FormData;
+    expect(JSON.parse(body.get('vinted_extra_attributes') as string)).toEqual({ platform: [77] });
+  });
+
   it('blocks submission until the size and color the category asks for are chosen', () => {
     attributesHook.state = READY_PUFFER;
     render(<OtherItemForm />);

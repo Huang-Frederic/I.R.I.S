@@ -84,6 +84,22 @@ describe('PATCH /api/other-items/[id]', () => {
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ date_sold: '2026-10-10T12:00:00.000Z' }));
   });
 
+  it("saves the category's extra attributes", async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: FRED_USER_ID } } });
+    const updateSingle = vi.fn().mockResolvedValue({ data: { id: 'abc', status: 'for_sale' }, error: null });
+    const update = vi.fn((_payload: Record<string, unknown>) => ({ eq: vi.fn(() => ({ select: vi.fn(() => ({ single: updateSingle })) })) }));
+    supabaseMock.from.mockReturnValue({ update });
+    const res = await PATCH(patchRequest({ vinted_extra_attributes: { storage_capacity: [902], ram: ['912'] } }), ctx('abc'));
+    expect(res.status).toBe(200);
+    expect(update).toHaveBeenCalledWith({ vinted_extra_attributes: { storage_capacity: [902], ram: [912] } });
+  });
+
+  it('rejects malformed extra attributes', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: FRED_USER_ID } } });
+    const res = await PATCH(patchRequest({ vinted_extra_attributes: { ram: 'beaucoup' } }), ctx('abc'));
+    expect(res.status).toBe(400);
+  });
+
   it('rejects a negative sale price', async () => {
     supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: FRED_USER_ID } } });
     const res = await PATCH(patchRequest({ status: 'sold', sold_price: -3 }), ctx('abc'));

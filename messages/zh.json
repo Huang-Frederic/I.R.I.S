@@ -285,6 +285,8 @@
     "conditionSatisfactory": "一般",
     "sizeLabel": "尺码",
     "sizeSelectPlaceholder": "选择尺码",
+    "extraSelectPlaceholder": "请选择…",
+    "errorExtraAttribute": "请选择{title}",
     "colorLabel": "颜色（最多 2 种）",
     "attributesLoading": "正在加载该类目的 Vinted 选项…",
     "attributesWaitingBot": "等待机器人：需要机器人运行才能加载该类目的尺码。你也可以稍后在商品详情中选择。",

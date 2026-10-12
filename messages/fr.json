@@ -285,6 +285,8 @@
     "conditionSatisfactory": "Satisfaisant",
     "sizeLabel": "Taille",
     "sizeSelectPlaceholder": "Choisis une taille",
+    "extraSelectPlaceholder": "Choisir…",
+    "errorExtraAttribute": "{title} : à choisir",
     "colorLabel": "Couleur (2 max)",
     "attributesLoading": "Chargement des options Vinted de cette catégorie…",
     "attributesWaitingBot": "En attente du bot : il doit tourner pour charger les tailles de cette catégorie. Tu pourras aussi les choisir plus tard dans la fiche.",
