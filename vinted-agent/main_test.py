@@ -825,6 +825,10 @@ class _FakeQuery:
         self.filters[f"{col} is"] = value
         return self
 
+    def in_(self, col, values):
+        self.filters[f"{col} in"] = list(values)
+        return self
+
     def order(self, *args, **kwargs):
         return self
 
@@ -1209,3 +1213,52 @@ def test_process_other_item_job_flags_a_missing_required_extra_before_uploading(
     vinted.upload_photo.assert_not_called()
     assert jobs_update_fn.call_args.args[0]["error"] == "À compléter dans la fiche : Plateforme à choisir"
     assert requeue.await_args.args[3] is True
+
+
+# ---------------------------------------------------------------------------
+# Picking up pending jobs without Realtime
+# ---------------------------------------------------------------------------
+from unittest.mock import patch
+import main
+from main import _dispatch_job, _pick_up_pending_jobs
+
+
+def test_dispatch_job_runs_a_job_handed_over_twice_only_once():
+    # The Realtime event and the pending-jobs poll can both hand over the same job.
+    async def scenario():
+        release = asyncio.Event()
+        calls = []
+
+        async def run_job(supabase, record):
+            calls.append(record["id"])
+            await release.wait()
+
+        with patch("main._run_job", new=run_job):
+            first = asyncio.create_task(_dispatch_job(None, {"id": "job-1"}))
+            await asyncio.sleep(0)
+            await _dispatch_job(None, {"id": "job-1"})  # returns at once: already held
+            assert "job-1" in main._inflight_jobs
+            release.set()
+            await first
+        return calls
+
+    assert asyncio.run(scenario()) == ["job-1"]
+    assert "job-1" not in main._inflight_jobs
+
+
+def test_pick_up_pending_jobs_dispatches_only_jobs_no_task_holds():
+    db = _FakeDb({("vinted_post_jobs", "select", "*"): [
+        {"id": "held", "user_id": FRED, "status": "pending"},
+        {"id": "missed", "user_id": FRED, "status": "pending"},
+    ]})
+    dispatch = AsyncMock()
+
+    async def scenario():
+        with patch("main._dispatch_job", new=dispatch), patch.object(main, "_inflight_jobs", {"held"}):
+            await _pick_up_pending_jobs(db)
+            await asyncio.sleep(0)
+
+    asyncio.run(scenario())
+    assert [c.args[1]["id"] for c in dispatch.await_args_list] == ["missed"]
+    [(_, _, _, filters, _)] = db.calls
+    assert filters["status"] == "pending"

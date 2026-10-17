@@ -92,6 +92,10 @@ def _utag(user_id: str) -> str:
 # Prevents DataDome from seeing concurrent requests from the same IP.
 _global_vinted_lock: asyncio.Lock | None = None
 _user_locks: dict[str, asyncio.Lock] = {}
+# Jobs a _dispatch_job task already holds (queued behind the locks or running).
+# The Realtime event, the start-up drain and _pending_jobs_loop can all hand
+# over the same job: only the first one gets a task.
+_inflight_jobs: set[str] = set()
 
 
 def _global_lock() -> asyncio.Lock:
@@ -1296,6 +1300,17 @@ async def _sync_cookies_to_supabase(supabase: AsyncClient, user_id: str, cookies
 
 
 async def _dispatch_job(supabase: AsyncClient, record: dict) -> None:
+    job_id = record["id"]
+    if job_id in _inflight_jobs:
+        return
+    _inflight_jobs.add(job_id)
+    try:
+        await _run_job(supabase, record)
+    finally:
+        _inflight_jobs.discard(job_id)
+
+
+async def _run_job(supabase: AsyncClient, record: dict) -> None:
     user_id = record.get("user_id")
     cookies_file = VINTED_USERS.get(user_id)
     if not cookies_file:
@@ -1426,6 +1441,37 @@ async def _heartbeat_loop(supabase: AsyncClient) -> None:
         except Exception as e:
             log.warning("⚠  Heartbeat — %s", e)
         await asyncio.sleep(30)
+
+
+PENDING_JOBS_POLL_SECONDS = 60
+
+
+async def _pick_up_pending_jobs(supabase: AsyncClient) -> None:
+    """Gives every pending job of the bot's accounts that no task holds yet
+    to _dispatch_job — one pass of _pending_jobs_loop."""
+    res = await supabase.table("vinted_post_jobs").select("*") \
+        .eq("status", "pending").in_("user_id", list(VINTED_USERS)).order("created_at").execute()
+    for job in res.data or []:
+        if job["id"] in _inflight_jobs:
+            continue
+        log.info("⟳  %s job %s repris sans Realtime", _utag(job.get("user_id") or ""), job["id"][:8])
+        asyncio.create_task(_dispatch_job(supabase, job))
+
+
+async def _pending_jobs_loop(supabase: AsyncClient) -> None:
+    """Safety net for the Realtime INSERT subscription, which can stop
+    delivering without any error: on 2026-10-17 two scheduled jobs stayed
+    'pending' while the channel still read as subscribed, and only a
+    restart's drain would have picked them up. A missed job now waits a
+    minute at most."""
+    if not VINTED_USERS:
+        return
+    while True:
+        await asyncio.sleep(PENDING_JOBS_POLL_SECONDS)
+        try:
+            await _pick_up_pending_jobs(supabase)
+        except Exception as e:
+            log.warning("⚠  relevé des jobs en attente — %s", e)
 
 
 SCHEDULING_POLL_SECONDS = 300  # 5 minutes
@@ -1599,6 +1645,7 @@ async def main() -> None:
     asyncio.create_task(_heartbeat_loop(supabase))
     asyncio.create_task(_scheduling_loop(supabase))
     asyncio.create_task(_attribute_requests_loop(supabase))
+    asyncio.create_task(_pending_jobs_loop(supabase))
 
     log.info("⚡  En écoute… Ctrl+C pour arrêter")
     try:
