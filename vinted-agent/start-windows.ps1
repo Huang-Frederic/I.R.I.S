@@ -5,20 +5,6 @@
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-# Some terminals (Warp) hand over the profile variables mis-encoded when the
-# Windows user name has an accent: LOCALAPPDATA = C:\Users\FrÃ©dÃ©ric\...
-# ngrok then can't find its ngrok.yml, so it has no authtoken and quits
-# (ERR_NGROK_4018). Rebuild them from the profile folder Windows itself
-# reports, which doesn't go through the environment.
-if (-not (Test-Path $env:LOCALAPPDATA)) {
-    $UserHome = [Environment]::GetFolderPath("UserProfile")
-    if ($UserHome) {
-        $env:USERPROFILE  = $UserHome
-        $env:LOCALAPPDATA = Join-Path $UserHome "AppData\Local"
-        $env:APPDATA      = Join-Path $UserHome "AppData\Roaming"
-    }
-}
-
 # Prefer the venv from setup-windows.ps1; fall back to global tools.
 $PyBin     = if (Test-Path ".\.venv\Scripts\python.exe") { ".\.venv\Scripts\python.exe" } else { "python" }
 $PproxyBin = if (Test-Path ".\.venv\Scripts\pproxy.exe") { ".\.venv\Scripts\pproxy.exe" } else { "pproxy" }
@@ -48,8 +34,13 @@ try {
         } catch { }
     }
     if (-not $NgrokUrl) {
+        # ngrok's own reason (ERR_NGROK_4018 = no authtoken: its ngrok.yml is
+        # missing from %LOCALAPPDATA%\ngrok) says more than any guess here.
+        $reason = Get-Content "$env:TEMP\ngrok-vinted.log" -Encoding UTF8 -ErrorAction SilentlyContinue |
+                  Where-Object { $_ -match "lvl=(eror|crit)" } | Select-Object -Last 1
         throw "ngrok n'a pas demarre. Verifie ton authtoken (ngrok config add-authtoken <token>), " +
-              "et que Defender ne l'a pas mis en quarantaine (teste : ngrok version)."
+              "et que Defender ne l'a pas mis en quarantaine (teste : ngrok version).`n" +
+              "Log ngrok ($env:TEMP\ngrok-vinted.log) : $reason"
     }
     Write-Host "OK  Proxy pret : $NgrokUrl"
     $env:VINTED_PROXY = $NgrokUrl
