@@ -31,7 +31,8 @@
     "ptcg-digest": "tsx scripts/ptcg-digest.ts",
     "ptcg-bundle": "tsx scripts/ptcg-bundle.ts",
     "skill-zip": "tsx scripts/skill-zip.ts",
-    "generate-icons": "tsx scripts/generate-icons.ts"
+    "generate-icons": "tsx scripts/generate-icons.ts",
+    "bot": "powershell -NoProfile -ExecutionPolicy Bypass -File vinted-agent/start-windows.ps1"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
