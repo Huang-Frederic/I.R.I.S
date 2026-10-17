@@ -517,6 +517,7 @@ def test_process_other_item_job_posts_and_upserts_listing():
     kwargs = vinted.create_listing.call_args.kwargs
     assert kwargs["catalog_id"] == 2994
     assert kwargs["condition_id"] == 6  # Vinted's own id, sent as-is
+    assert kwargs["draft"] is True  # Fred publishes Items by hand
     upsert_payload = upsert_fn.call_args.args[0]
     assert upsert_payload["vinted_listing_id"] == "999"
     assert upsert_payload["other_item_id"] == "item-1"

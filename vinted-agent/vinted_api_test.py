@@ -3,7 +3,7 @@ import logging
 import pytest
 from unittest.mock import MagicMock, patch, mock_open
 from vinted_api import (
-    VintedClient, VintedValidationError, CONDITION_MAP, _parse_csrf, _log_request_failure,
+    VintedClient, VintedValidationError, ListingGoneError, CONDITION_MAP, _parse_csrf, _log_request_failure,
     format_validation_errors,
 )
 
@@ -207,6 +207,68 @@ def test_create_listing_gives_up_after_one_softened_retry():
     with pytest.raises(VintedValidationError, match="majuscules"):
         client.create_listing(title="Carte EX GX [FR]", description="d", price=1.0, condition="NM", image_urls=[], photo_ids=[1])
     assert client._session.post.call_count == 2
+
+def test_create_listing_as_a_draft_saves_it_the_way_vinteds_draft_button_does():
+    client = _client_with_responses((200, {"draft": {"id": 77}}))
+    draft_id = client.create_listing(title="Robot aspirateur", description="d", price=90.0, condition=None,
+                                     condition_id=6, image_urls=[], photo_ids=[1], draft=True)
+    assert draft_id == "77"
+    call = client._session.post.call_args
+    assert call.args[0] == "https://www.vinted.fr/api/v2/item_upload/drafts"
+    sent = call.kwargs["json"]
+    assert set(sent) == {"draft", "parcel", "upload_session_id"}  # no push_up: that's the publish call
+    assert sent["draft"]["title"] == "Robot aspirateur"
+    assert sent["draft"]["assigned_photos"] == [{"id": 1, "orientation": 0}]
+    assert "x-upload-form" not in call.kwargs["headers"]
+
+def test_create_listing_publishes_by_default():
+    client = _client_with_responses((200, {"item": {"id": 42}}))
+    client.create_listing(title="t", description="d", price=1.0, condition="NM", image_urls=[], photo_ids=[1])
+    call = client._session.post.call_args
+    assert call.args[0] == "https://www.vinted.fr/api/v2/item_upload/items"
+    assert "item" in call.kwargs["json"]
+    assert call.kwargs["headers"]["x-upload-form"] == "true"
+
+def test_create_listing_softens_a_drafts_capitals_too():
+    client = _client_with_responses((400, CAPS_REJECTION), (200, {"draft": {"id": 77}}))
+    assert client.create_listing(title="Console PS Vita", description="d", price=1.0, condition=None,
+                                 condition_id=2, image_urls=[], photo_ids=[1], draft=True) == "77"
+    retried = client._session.post.call_args.kwargs["json"]
+    assert retried["draft"]["title"] == "Console Ps Vita"
+    assert "item" not in retried
+
+def _response(status_code, content_type="application/json"):
+    r = MagicMock(status_code=status_code, ok=200 <= status_code < 300, text="")
+    r.headers = {"content-type": content_type}
+    if status_code >= 400:
+        r.raise_for_status.side_effect = Exception(f"HTTP Error {status_code}: ")
+    return r
+
+def _client_for_deletes(post_status, delete_status):
+    client = VintedClient.__new__(VintedClient)
+    client._csrf = "csrf"
+    client._cookies = {}
+    client._session = MagicMock()
+    client._session.post.return_value = _response(post_status)
+    client._session.delete.return_value = _response(delete_status)
+    client._sync_datadome = MagicMock()
+    return client
+
+def test_delete_listing_or_draft_deletes_a_published_listing_as_an_item():
+    client = _client_for_deletes(200, 200)
+    client.delete_listing_or_draft("77")
+    assert client._session.post.call_args.args[0] == "https://www.vinted.fr/api/v2/items/77/delete"
+    client._session.delete.assert_not_called()
+
+def test_delete_listing_or_draft_deletes_a_never_published_draft():
+    client = _client_for_deletes(404, 200)
+    client.delete_listing_or_draft("77")
+    assert client._session.delete.call_args.args[0] == "https://www.vinted.fr/api/v2/item_upload/drafts/77"
+
+def test_delete_listing_or_draft_reports_an_ad_gone_from_both():
+    client = _client_for_deletes(404, 404)
+    with pytest.raises(ListingGoneError):
+        client.delete_listing_or_draft("77")
 
 def test_get_package_sizes_reads_the_categorys_formats_through_the_gateway():
     client = _client_with_response(200, {"package_sizes": [{"id": 11, "code": "BULKY_SMALL"}]})

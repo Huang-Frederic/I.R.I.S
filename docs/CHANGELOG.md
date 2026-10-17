@@ -6,6 +6,18 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-10-17 — v1.3.7: les Items partent en brouillon, Fred les publie lui-même
+
+Le compte Vinted a été suspendu deux jours, quelques jours après que le bot a commencé à publier les Items lui-même.
+
+- **Brouillon au lieu d'annonce** — `process_other_item_job` appelle `create_listing(draft=True)`, qui envoie la même annonce à `POST /api/v2/item_upload/drafts` (sous `draft`, sans `push_up` ni `X-Upload-Form`), l'appel du bouton « Sauvegarder le brouillon » de Vinted, relevé dans son code (`createItemDraft`). Le brouillon attend dans la garde-robe ; Fred le publie depuis Vinted, et il garde le même id une fois publié : la ligne `other_item_listings` reste juste. Log « 📝 brouillon créé, à publier sur Vinted → vinted.fr/items/<id>/edit », audit `listing.drafted`. Les cartes et les lots sont toujours publiés par le bot.
+- **Plus de republication automatique des Items** — elle supprimerait l'annonce publiée à la main pour la remplacer par un brouillon : le scheduler ne les propose plus, la grille de republication du monitoring non plus.
+- **Suppression d'un brouillon** — `delete_listing_or_draft` : la suppression d'article, puis `DELETE /api/v2/item_upload/drafts/<id>` si l'annonce n'a jamais été publiée.
+- Le badge des Items passe de « En ligne » à « Sur Vinted » (brouillon ou publié).
+- 158 fichiers de tests / 1425 tests Vitest et 172 tests pytest, typecheck et lint propres.
+
+---
+
 ## 2026-10-12 — v1.3.6: annonces refusées débloquées — attributs propres à chaque catégorie, catégories finales seulement, état « Poor » valide
 
 Cinq annonces étaient bloquées en file avec un refus de Vinted.

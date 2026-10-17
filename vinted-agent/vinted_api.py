@@ -83,6 +83,19 @@ def format_validation_errors(body: object) -> Optional[str]:
     return "Vinted a refusé l'annonce : " + " · ".join(parts)
 
 
+def _draft_body(payload: dict) -> dict:
+    """A listing payload turned into what Vinted's « Sauvegarder le brouillon »
+    sends to POST /item_upload/drafts: the same item under `draft`, without
+    push_up/feedback_id (createItemDraft in its upload form)."""
+    return {"draft": payload["item"], "parcel": payload["parcel"], "upload_session_id": payload["upload_session_id"]}
+
+
+def _created_id(body: dict) -> str:
+    """The new listing's id — under `item` for a published listing, `draft`
+    for a draft (the draft keeps that id once it's published)."""
+    return str((body.get("item") or body.get("draft"))["id"])
+
+
 from titles import is_caps_rejection, soften_caps, vinted_title
 
 CONDITION_MAP = {
@@ -430,7 +443,11 @@ class VintedClient:
         condition_id: Optional[int] = None,
         package_size_id: int = PACKAGE_SIZE_ID,
         extra_attributes: Optional[list] = None,
+        draft: bool = False,
     ) -> str:
+        """Publishes the listing, or with `draft` saves it as a draft that
+        stays unpublished in the account's wardrobe until published by hand
+        on Vinted. Returns its id either way."""
         if not self._csrf:
             self.refresh_csrf()
 
@@ -459,13 +476,22 @@ class VintedClient:
             package_size_id=package_size_id,
             extra_attributes=extra_attributes,
         )
+        # Vinted's upload form only sends X-Upload-Form when publishing.
+        if draft:
+            payload = _draft_body(payload)
+            url = f"{VINTED_BASE}/api/v2/item_upload/drafts"
+            extra_headers = {"content-type": "application/json"}
+        else:
+            url = f"{VINTED_BASE}/api/v2/item_upload/items"
+            extra_headers = {"content-type": "application/json", "x-upload-form": "true"}
+        item_key = "draft" if draft else "item"
 
-        h = {**self._headers(), "content-type": "application/json", "x-upload-form": "true"}
+        h = {**self._headers(), **extra_headers}
         log = logging.getLogger(__name__)
         import json as _json
         log.debug("Listing payload: %s", _json.dumps(payload, indent=2))
         r = self._session.post(
-            f"{VINTED_BASE}/api/v2/item_upload/items",
+            url,
             json=payload,
             headers=h,
             timeout=30,
@@ -490,13 +516,10 @@ class VintedClient:
                         log.info("DataDome CAPTCHA — tentative CapSolver…")
                         if self._solve_datadome_capsolver(captcha_url):
                             self.refresh_csrf()
-                            h2 = {**self._headers(), "content-type": "application/json", "x-upload-form": "true"}
-                            r2 = self._session.post(
-                                f"{VINTED_BASE}/api/v2/item_upload/items",
-                                json=payload, headers=h2, timeout=30,
-                            )
+                            h2 = {**self._headers(), **extra_headers}
+                            r2 = self._session.post(url, json=payload, headers=h2, timeout=30)
                             if r2.ok:
-                                return str(r2.json()["item"]["id"])
+                                return _created_id(r2.json())
                             log.error("CapSolver retry échoué (%s) : %s", r2.status_code, r2.text[:300])
                         raise RuntimeError(
                             "DataDome bloqué — relance: python login.py ou vérifie CAPSOLVER_KEY"
@@ -513,11 +536,11 @@ class VintedClient:
                     # Vinted counted too many capitals even after vinted_title():
                     # resend once with softer ones — same uploaded photos.
                     log.info("Titre refusé (majuscules) — nouvel essai : %s", softer)
-                    softer_payload = {**payload, "item": {**payload["item"], "title": softer}}
-                    r = self._session.post(f"{VINTED_BASE}/api/v2/item_upload/items", json=softer_payload, headers=h, timeout=30)
+                    softer_payload = {**payload, item_key: {**payload[item_key], "title": softer}}
+                    r = self._session.post(url, json=softer_payload, headers=h, timeout=30)
                     self._sync_datadome(r)
                     if r.ok:
-                        return str(r.json()["item"]["id"])
+                        return _created_id(r.json())
                     try:
                         body = r.json()
                     except ValueError:
@@ -526,7 +549,7 @@ class VintedClient:
                 if message:
                     raise VintedValidationError(message)
         r.raise_for_status()
-        return str(r.json()["item"]["id"])
+        return _created_id(r.json())
 
     def get_catalog_attributes(self, catalog_id: int) -> list:
         """The listing attributes Vinted asks for in one category (size
@@ -706,3 +729,28 @@ class VintedClient:
                 f"DataDome blocked POST .../delete listing {listing_id} (HTTP 200 non-JSON, ct={ct!r}) — run login.py"
             )
         r.raise_for_status()
+
+    def delete_draft(self, draft_id: str) -> None:
+        """Deletes a draft that was never published — Vinted's wardrobe does it
+        with DELETE .../item_upload/drafts/{id}, not the item delete above."""
+        log = logging.getLogger(__name__)
+        r = self._session.delete(
+            f"{VINTED_BASE}/api/v2/item_upload/drafts/{draft_id}",
+            headers=self._headers(),
+            timeout=15,
+            allow_redirects=False,
+        )
+        self._sync_datadome(r)
+        if not r.ok:
+            log.warning("DELETE .../drafts/%s → HTTP %s : %s", draft_id, r.status_code, r.text[:120])
+        if r.status_code == 404:
+            raise ListingGoneError(f"Brouillon {draft_id} introuvable sur Vinted (404) — supprimé externalement.")
+        r.raise_for_status()
+
+    def delete_listing_or_draft(self, listing_id: str) -> None:
+        """For an ad the bot saved as a draft (other_items): it's a live
+        listing once published by hand, still a draft otherwise."""
+        try:
+            self.delete_listing(listing_id)
+        except ListingGoneError:
+            self.delete_draft(listing_id)

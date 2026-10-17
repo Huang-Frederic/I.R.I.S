@@ -866,7 +866,7 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
             return
         try:
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, vinted.delete_listing, old_listing_id)
+            await loop.run_in_executor(None, vinted.delete_listing_or_draft, old_listing_id)
             await audit_log(supabase, user_id, "listing.deleted",
                             entity_type="other_item", entity_id=other_item_id,
                             details={"vinted_listing_id": old_listing_id, "reason": "cross_user_sync"})
@@ -890,7 +890,7 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
         if old_listing_id:
             try:
                 loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None, vinted.delete_listing, old_listing_id)
+                await loop.run_in_executor(None, vinted.delete_listing_or_draft, old_listing_id)
             except ListingGoneError:
                 pass
             except Exception as e:
@@ -1014,7 +1014,7 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
     # 20260918141259_vinted_monitoring_read_policies.sql) with no structured
     # column RLS could filter other_item rows out of, so the message content
     # itself must not carry data that's meant to be Fred-only.
-    await _log(supabase, user_id, "info", "📋  %s préparation de la publication…", tag)
+    await _log(supabase, user_id, "info", "📋  %s préparation du brouillon…", tag)
 
     try:
         await asyncio.sleep(random.uniform(8, 20))
@@ -1044,6 +1044,10 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
                 catalog_id=item["vinted_catalog_id"],
                 brand_id=SANS_MARQUE_BRAND_ID,
                 brand=item.get("brand_name") or "",
+                # Saved as a draft that Fred publishes by hand on Vinted: the
+                # account got a two-day suspension in mid-October 2026, a few
+                # days after the bot started publishing Items itself.
+                draft=True,
             )
         )
     except Exception as e:
@@ -1065,8 +1069,8 @@ async def process_other_item_job(supabase: AsyncClient, vinted: VintedClient, jo
     await supabase.table("vinted_post_jobs").update({
         "status": "done", "processed_at": now,
     }).eq("id", job_id).execute()
-    await _log(supabase, user_id, "info", "✅  %s publié → vinted.fr/items/%s", tag, listing_id)
-    await audit_log(supabase, user_id, "listing.posted",
+    await _log(supabase, user_id, "info", "📝  %s brouillon créé, à publier sur Vinted → vinted.fr/items/%s/edit", tag, listing_id)
+    await audit_log(supabase, user_id, "listing.drafted",
                     entity_type="other_item", entity_id=other_item_id,
                     details={"vinted_listing_id": listing_id, "title": title, "price": price})
 
@@ -1537,12 +1541,9 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                     .lt("vinted_posted_at", repost_cutoff) \
                     .not_.is_("vinted_listing_id", "null") \
                     .execute()
-                other_item_repost_res = await supabase.table("other_item_listings") \
-                    .select("other_item_id, vinted_posted_at, repost_position, other_items!inner(status)") \
-                    .eq("user_id", user_id).eq("other_items.status", "for_sale") \
-                    .lt("vinted_posted_at", repost_cutoff) \
-                    .not_.is_("vinted_listing_id", "null") \
-                    .execute()
+                # No Items: the bot only saves them as drafts that Fred
+                # publishes by hand, so a repost would take his live ad down
+                # and leave a draft in its place.
 
                 candidates = (
                     [{"card_id": r["card_id"], "lot_id": None, "other_item_id": None, "vinted_posted_at": r["vinted_posted_at"],
@@ -1551,9 +1552,6 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                     + [{"card_id": None, "lot_id": r["lot_id"], "other_item_id": None, "vinted_posted_at": r["vinted_posted_at"],
                         "repost_position": r.get("repost_position")}
                        for r in (lot_repost_res.data or [])]
-                    + [{"card_id": None, "lot_id": None, "other_item_id": r["other_item_id"], "vinted_posted_at": r["vinted_posted_at"],
-                        "repost_position": r.get("repost_position")}
-                       for r in (other_item_repost_res.data or [])]
                 )
                 repost_candidates = sort_repost_candidates(candidates)
 

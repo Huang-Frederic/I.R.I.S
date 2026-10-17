@@ -67,7 +67,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [queueRes, scheduleRes, configRes, logsRes, jobsRes, cardListingsRes, lotListingsRes, otherItemListingsRes] = await Promise.all([
+    const [queueRes, scheduleRes, configRes, logsRes, jobsRes, cardListingsRes, lotListingsRes] = await Promise.all([
       supabase.from('vinted_queue').select('id, card_id, lot_id, other_item_id, position, last_error, failed_at').eq('user_id', viewedUserId).order('position'),
       supabase.from('vinted_bot_schedule').select('block, starts_at, ends_at').eq('user_id', viewedUserId),
       supabase.from('vinted_bot_config').select('daily_quota, repost_after_days, group_priority').eq('user_id', viewedUserId).maybeSingle(),
@@ -94,11 +94,8 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
         .select('lot_id, vinted_listing_id, vinted_posted_at, repost_position, lots(name, price, photo_urls, brand_id, language, status)')
         .eq('user_id', viewedUserId)
         .not('vinted_listing_id', 'is', null),
-      supabase
-        .from('other_item_listings')
-        .select('other_item_id, vinted_listing_id, vinted_posted_at, repost_position, other_items(name, price, photo_urls, status)')
-        .eq('user_id', viewedUserId)
-        .not('vinted_listing_id', 'is', null),
+      // No Items: the bot only saves them as drafts that Fred publishes by
+      // hand, and never reposts them (vinted-agent _scheduling_loop).
     ]);
 
     const cardIds = (queueRes.data ?? []).filter((r) => r.card_id).map((r) => r.card_id as string);
@@ -219,31 +216,7 @@ export function useMonitoringData(viewedUserId: string): MonitoringData {
       })
       .filter((x): x is RepostPoolItem => x !== null);
 
-    const otherItemRepostCandidates: RepostPoolItem[] = (otherItemListingsRes.data ?? [])
-      .map((row): RepostPoolItem | null => {
-        const item = Array.isArray(row.other_items) ? row.other_items[0] : row.other_items;
-        if (!item) return null;
-        const eligible = isRepostEligible(
-          { vintedListingId: row.vinted_listing_id, vintedPostedAt: row.vinted_posted_at, status: item.status },
-          config.repost_after_days,
-          now,
-        );
-        if (!eligible) return null;
-        return {
-          cardId: null,
-          lotId: null,
-          otherItemId: row.other_item_id,
-          name: item.name,
-          price: item.price,
-          imageUrl: otherItemImageUrl(item.photo_urls),
-          vintedPostedAt: row.vinted_posted_at as string,
-          groupKey: 'other-items',
-          repostPosition: row.repost_position ?? null,
-        };
-      })
-      .filter((x): x is RepostPoolItem => x !== null);
-
-    const repostCandidates: RepostPoolItem[] = [...cardRepostCandidates, ...lotRepostCandidates, ...otherItemRepostCandidates].sort((a, b) => {
+    const repostCandidates: RepostPoolItem[] = [...cardRepostCandidates, ...lotRepostCandidates].sort((a, b) => {
       const aNull = a.repostPosition === null;
       const bNull = b.repostPosition === null;
       if (aNull !== bNull) return aNull ? 1 : -1;
