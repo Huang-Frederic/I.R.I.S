@@ -1601,10 +1601,16 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                 )
                 repost_candidates = sort_repost_candidates(candidates)
 
+                # No jitter: Fred doesn't leave the bot open all day, so
+                # spreading the day's quota over the day's remaining window
+                # time (the jitter path) mostly throttles him down to one
+                # post every 20-30+ minutes depending on what time he opens
+                # it. Firing the moment a decision is available (jitter=None)
+                # burns through daily_quota as fast as the poll tick allows
+                # instead — the quota is still the ceiling either way.
                 decision = decide_next_action(
                     now, schedule_res.data or [], len(jobs_today_res.data or []), daily_quota,
                     queue_rows, repost_candidates,
-                    poll_interval_seconds=SCHEDULING_POLL_SECONDS, jitter=random.random(),
                 )
                 if decision:
                     await supabase.table("vinted_post_jobs").insert({
@@ -1627,7 +1633,10 @@ async def _scheduling_loop(supabase: AsyncClient) -> None:
                             .eq("user_id", user_id).eq("other_item_id", decision["other_item_id"]).execute()
             except Exception as e:
                 await _log(supabase, user_id, "warning", "⚠  Scheduling loop — %s (%s)", e, _utag(user_id))
-        await asyncio.sleep(SCHEDULING_POLL_SECONDS)
+        # Randomized around SCHEDULING_POLL_SECONDS rather than a fixed tick —
+        # "un peu en random" per Fred, and it keeps every bot run from hitting
+        # Vinted on the exact same second-of-5-minutes as the last one.
+        await asyncio.sleep(random.uniform(SCHEDULING_POLL_SECONDS * 0.8, SCHEDULING_POLL_SECONDS * 1.2))
 
 
 async def main() -> None:
