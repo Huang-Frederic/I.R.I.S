@@ -1,5 +1,7 @@
 cookies_*.json
 export-other-items/
+export-items-leboncoin/
+items-leboncoin.zip
 vinted_users.json
 .env
 __pycache__/
