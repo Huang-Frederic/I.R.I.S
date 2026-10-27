@@ -6,6 +6,16 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-10-27 — v1.3.8: Règne Delta dans la bibliothèque de cartes, sans BrightData
+
+Règne Delta (ME06, sortie le 6 novembre) n'était nulle part : ni dans TCGdex, ni dans les tables Cardmarket. Le compte BrightData qui lisait la liste des extensions de Cardmarket a été désactivé.
+
+- **`npm run add-expansion`** ([`scripts/add-expansion-from-dump.ts`](../scripts/add-expansion-from-dump.ts)) — ajoute une extension depuis les dumps S3 publics de Cardmarket seuls. Le nom et le code imprimé sont donnés à la main ; le numéro vient de l'ordre de création des produits (le produit n est la carte n), vérifié contre l'index scrapé : exact sur MEG, PFL, POR, CRI et PBL. Le script n'écrit rien si le nombre de produits diffère du nombre officiel de cartes, et ne fusionne pas deux produits consécutifs de même nom (les Stades Légendaires sont des paires de cartes).
+- **Règne Delta (6704, `DLR`)** — 141 cartes, numéros vérifiés un par un contre Bulbapedia, avec leurs prix. La recherche du scan (`DLR` + numéro) retrouve la carte. `cardmarket_expansions.json` le liste, donc la mise à jour nocturne garde ses prix à jour ; snapshot de l'index refait (48 840 lignes). Les images Cardmarket ne sont pas encore en ligne.
+- 160 fichiers de tests / 1436 tests Vitest, typecheck et lint propres.
+
+---
+
 ## 2026-10-17 — v1.3.7: les Items partent en brouillon, Fred les publie lui-même
 
 Le compte Vinted a été suspendu deux jours, quelques jours après que le bot a commencé à publier les Items lui-même.

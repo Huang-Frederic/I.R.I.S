@@ -53,7 +53,8 @@ All 26 scripts of [`package.json`](../package.json), with what each one runs.
 | `restore-cardmarket-index` | `tsx scripts/restore-cardmarket-index.ts` | Occasional | [`restore-cardmarket-index`](#restore-cardmarket-index) |
 | `restore-cardmarket-expansions` | `tsx scripts/restore-cardmarket-expansions.ts` | Occasional | [`restore-cardmarket-expansions`](#restore-cardmarket-expansions) |
 | `upload-cardmarket-dumps` | `tsx scripts/upload-cardmarket-dumps.ts` | Recurring | [`upload-cardmarket-dumps`](#upload-cardmarket-dumps) |
-| `update-expansions` | `tsx scripts/update-cardmarket-expansions.ts` | Recurring, when a set is released | [`update-expansions`](#update-expansions) |
+| `update-expansions` | `tsx scripts/update-cardmarket-expansions.ts` | Recurring, when a set is released (blocked: needs BrightData) | [`update-expansions`](#update-expansions) |
+| `add-expansion` | `tsx scripts/add-expansion-from-dump.ts` | Occasional, once per new set | [`add-expansion`](#add-expansion) |
 | `build-cardmarket-input` | `tsx scripts/build-cardmarket-input.ts` | Occasional | [`build-cardmarket-input`](#build-cardmarket-input) |
 | `scrape-cm-expansion-names` | `tsx scripts/scrape-cardmarket-expansion-names.ts` | Legacy | [`scrape-cm-expansion-names`](#scrape-cm-expansion-names) |
 | `scrape-cardmarket` | `tsx scripts/scrape-cardmarket-cards.ts` | Legacy | [`scrape-cardmarket`](#scrape-cardmarket) |
@@ -231,7 +232,7 @@ npm run reenrich-cards
 How the pieces fit together is in [CARDMARKET_MAPPING.md](CARDMARKET_MAPPING.md) and [ARCHITECTURE.md](ARCHITECTURE.md#data-flow-pricing-pipeline). The committed `cardmarket_expansions.json` (741 entries, id to French name) gates the nightly import: products of an expansion that is not in it are dropped. Which command for which situation:
 
 - Prices stale: nothing to do, the nightly workflow runs [`upload-cardmarket-dumps`](#upload-cardmarket-dumps). Run it by hand to refresh now.
-- A set was just released: [`update-expansions`](#update-expansions).
+- A set was just released: [`add-expansion`](#add-expansion) (`update-expansions` needs BrightData).
 - Some expansions have no index rows or no `set_prefix`: `update-expansions -- --rescrape-missing`, or [`generate-rescrape-input.ts`](#generate-rescrape-inputts) and the [scraper](#the-cardmarket-scraper).
 - Collector numbers of a wheel-type promo set are wrong: [`scrape-cardmarket`](#scrape-cardmarket).
 
@@ -272,7 +273,21 @@ A new set has no expansion row, no products, no prices and no `set_prefix` until
 6. Writes `scrapers/cardmarket/storage/key_value_stores/default/INPUT.json` (French-localised duplicates and sealed-product wrappers skipped) and runs [the scraper](#the-cardmarket-scraper) on it, which fills `cardmarket_card_index` and `set_prefix`. It runs the scraper only if `scrapers/cardmarket/node_modules` exists, so run `npm install` there first.
 7. Prints a check per new set (prefix present, index rows) and the next steps: commit the JSON, `npm run snapshot-cardmarket-index`, and `npm run reenrich-cards` if cards of the set were scanned before.
 
-Needs `BRIGHTDATA_TOKEN` (and `BRIGHTDATA_ZONE`, default `iris`); `--dry-run` needs it too, because it still reads the expansion lists. **As of 2026-10-11 it is blocked**: the BrightData token expired on 2026-10-05 ([TECH_DEBT.md](TECH_DEBT.md#new-sets-arent-imported-the-brightdata-token-expired), [scrapers/cardmarket/README.md](../scrapers/cardmarket/README.md#brightdata-token)). Without a new set, the command still refreshes the names of every expansion.
+Needs `BRIGHTDATA_TOKEN` (and `BRIGHTDATA_ZONE`, default `iris`); `--dry-run` needs it too, because it still reads the expansion lists. **It is blocked**: the BrightData token expired on 2026-10-05 and the account was deactivated ([TECH_DEBT.md](TECH_DEBT.md#new-sets-arent-imported-automatically-brightdata-is-gone), [scrapers/cardmarket/README.md](../scrapers/cardmarket/README.md#brightdata-token)). Use [`add-expansion`](#add-expansion) instead.
+
+### `add-expansion`
+
+Kind: **Occasional**, once per new set. Adds one set without BrightData, from Cardmarket's public S3 dumps ([`scripts/add-expansion-from-dump.ts`](../scripts/add-expansion-from-dump.ts)).
+
+```bash
+npm run add-expansion -- --id=6704 --name="Règne Delta" --name-en="Delta Reign" --prefix=DLR --cards=141 --dry-run
+```
+
+- `--id` is the Cardmarket expansion id: look for the set's cards in `products_singles_6.json` among the ids missing from `cardmarket_expansions.json`. `--name` is the French name the JSON and the nightly import keep, `--prefix` the code printed on the cards (Cardmarket's `set_prefix` for every recent set), `--cards` the official card count, secret rares included.
+- The dumps have no collector numbers. Sorted by `idProduct`, product n is card n: exact on MEG, PFL, POR, CRI and PBL, a few swapped secret rares on ASC ([CARDMARKET_MAPPING.md](CARDMARKET_MAPPING.md#-the-fallback-path-sql-formula)). That only holds with one product per card, so the script writes nothing when the product count differs from `--cards`. It doesn't merge consecutive same-name products, unlike the SQL formula: Delta Reign's Legendary Stadiums are two cards each.
+- `--dry-run` prints the numbered list (`DLR084  918912  Mega Rayquaza ex …`): check it against the official card list (Bulbapedia's set page) before writing.
+- Without `--dry-run` it adds the id to `cardmarket_expansions.json` (**commit it**), upserts the expansion row (names and `set_prefix`), the products, their prices and one `cardmarket_card_index` row per card (`url_path` NULL). Then run `npm run snapshot-cardmarket-index` and commit `backups/`.
+- Needs `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Card images only show once Cardmarket uploads them under that prefix, usually around the release.
 
 ### `build-cardmarket-input`
 
