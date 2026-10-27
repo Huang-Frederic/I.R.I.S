@@ -6,6 +6,16 @@ Every phase here is a coherent feature increment that ended on a green test suit
 
 ---
 
+## 2026-10-27 — v1.3.9: Storm Emeralda, le 30ᵉ Anniversaire, Chaos Ascendant et Nuit Noire rattrapés
+
+- **Chaos Ascendant (6517) et Nuit Noire (6569)** — scrapées avant la panne de BrightData mais absentes de `cardmarket_expansions.json` : la mise à jour nocturne ne rafraîchissait plus leurs prix. Remises dans le JSON avec leurs noms FR ; leur index scrapé reste intact.
+- **Storm Emeralda (6636, `m6`)** — la version japonaise de Règne Delta, 113 cartes. L'ordre des produits suit la liste Bulbapedia sauf Custom Vest 099 et Pokémon Catcher 098, inversés : corrigé, et vérifié sur les images des cartes, comme les quatre Méga-Rayquaza-ex.
+- **30ᵉ Anniversaire (6601, `30C`)** — 158 cartes, les trois Mew R/G/B et la Collection Classique de 30 cartes. Cardmarket a créé Feunard 010 après l'Hyper Ball 128 et quatre secrètes en fin de liste : numéros relus sur les images (Mewtwo-ex 151 et 157, Mew-ex 152 et 158). La Collection Classique imprime ses numéros d'origine (4/102) sans le code 30C : produits et prix, mais pas d'index, pour ne pas entrer en collision avec les cartes du set.
+- **`add-expansion --numbers=<fichier>`** — une numérotation explicite `idProduct → numéro` (`null` = pas d'index) quand l'ordre des produits ne suit pas les cartes : vérifié sur les extensions japonaises déjà scrapées, il est exact sur Mega Brave mais pas sur Inferno X ni Ninja Spinner. Le code est désormais gardé tel quel (`m6`, pas `M6` : les dossiers d'images de Cardmarket sont sensibles à la casse).
+- Snapshot de l'index refait (49 114 lignes). 160 fichiers de tests / 1438 tests Vitest, typecheck et lint propres.
+
+---
+
 ## 2026-10-27 — v1.3.8: Règne Delta dans la bibliothèque de cartes, sans BrightData
 
 Règne Delta (ME06, sortie le 6 novembre) n'était nulle part : ni dans TCGdex, ni dans les tables Cardmarket. Le compte BrightData qui lisait la liste des extensions de Cardmarket a été désactivé.

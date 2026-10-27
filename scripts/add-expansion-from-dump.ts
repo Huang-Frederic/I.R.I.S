@@ -22,7 +22,14 @@
  * [Left]" 96 and "[Right]" 97).
  *
  * Check the numbered list a --dry-run prints against the official card list
- * (Bulbapedia's set page) before writing.
+ * (Bulbapedia's set page) before writing. The order is not reliable on
+ * Japanese sets (exact on Mega Brave, 15/116 on Inferno X) nor where
+ * Cardmarket added cards late (30th Celebration's Ninetales 010 sits after
+ * Ultra Ball 128): pass the numbers explicitly with --numbers=<file.json>,
+ * { "<idProduct>": "<printed number>" | null }, null leaving a product out of
+ * the index. Read the number off the card image when names don't settle it:
+ * product-images.s3.cardmarket.com/51/{prefix}/{id}/{id}.jpg with the
+ * Referer /api/cm-img sends.
  *
  * What a run writes: the id in cardmarket_expansions.json (commit it — the
  * nightly upload drops the products of unknown expansions), the expansion
@@ -62,7 +69,8 @@ export interface DumpProduct {
 }
 
 export interface NumberedProduct {
-  setNumber: number;
+  /** As printed ("84", "R"), or null for a product that gets no index row. */
+  setNumber: string | null;
   product: DumpProduct;
 }
 
@@ -88,7 +96,28 @@ export function numberProducts(products: DumpProduct[], idExpansion: number, car
         'only works with one product per card. Nothing written.',
     );
   }
-  return own.map((product, i) => ({ setNumber: i + 1, product }));
+  return own.map((product, i) => ({ setNumber: String(i + 1), product }));
+}
+
+/**
+ * Replaces the order-based numbers with an explicit idProduct → number map,
+ * for a set whose product order isn't its card order (a Japanese set, a
+ * secret rare Cardmarket added late, lettered cards). It must cover every
+ * product of the expansion and nothing else; null leaves a product out of
+ * the index (it still gets its product and price rows).
+ */
+export function applyNumberMap(numbered: NumberedProduct[], map: Record<string, string | null>): NumberedProduct[] {
+  const own = new Set(numbered.map(({ product }) => String(product.idProduct)));
+  const unknown = Object.keys(map).filter((id) => !own.has(id));
+  const missing = [...own].filter((id) => !Object.hasOwn(map, id));
+  if (unknown.length > 0 || missing.length > 0) {
+    throw new Error(
+      `--numbers must cover exactly the expansion's products: ${missing.length} missing` +
+        `${missing.length ? ` (${missing.slice(0, 5).join(', ')})` : ''}, ${unknown.length} not in the expansion` +
+        `${unknown.length ? ` (${unknown.slice(0, 5).join(', ')})` : ''}.`,
+    );
+  }
+  return numbered.map(({ product }) => ({ setNumber: map[String(product.idProduct)], product }));
 }
 
 export function parseArgs(argv: string[]): Record<string, string> {
@@ -127,20 +156,25 @@ async function main(): Promise<void> {
   const idExpansion = Number(args.id);
   const cards = Number(args.cards);
   const name = args.name;
-  const prefix = args.prefix?.toUpperCase();
+  // As given: Cardmarket's image folders are case-sensitive (Japanese sets are lowercase, m6, sv2a).
+  const prefix = args.prefix;
   if (!Number.isInteger(idExpansion) || !Number.isInteger(cards) || !name || !prefix) {
     throw new Error(
       'Usage: npm run add-expansion -- --id=<idExpansion> --name="<nom FR>" [--name-en="<EN name>"] ' +
-        '--prefix=<printed code> --cards=<official card count> [--dry-run]',
+        '--prefix=<printed code> --cards=<official card count> [--numbers=<file.json>] [--dry-run]',
     );
   }
   const dryRun = args['dry-run'] === 'true';
 
   console.log('[1/4] Loading the singles dump...');
   const catalog = await fetchJson<{ products: DumpProduct[] }>(URL_SINGLES, 'singles catalog');
-  const numbered = numberProducts(catalog.products, idExpansion, cards);
+  let numbered = numberProducts(catalog.products, idExpansion, cards);
+  if (args.numbers) {
+    numbered = applyNumberMap(numbered, JSON.parse(readFileSync(args.numbers, 'utf-8')) as Record<string, string | null>);
+  }
   for (const { setNumber, product } of numbered) {
-    console.log(`  ${prefix}${String(setNumber).padStart(3, '0')}  ${product.idProduct}  ${product.name}`);
+    const shown = setNumber === null ? '(no index)' : `${prefix}${/^\d+$/.test(setNumber) ? setNumber.padStart(3, '0') : setNumber}`;
+    console.log(`  ${shown.padEnd(10)}  ${product.idProduct}  ${product.name}`);
   }
   if (dryRun) {
     console.log('\n--dry-run: check these numbers against the official card list, then run without --dry-run.');
@@ -200,10 +234,11 @@ async function main(): Promise<void> {
     })), 'id_product');
 
   console.log('\n[4/4] cardmarket_card_index...');
-  await uploadInChunks(supabase, 'cardmarket_card_index', numbered.map(({ setNumber, product }) => ({
+  const indexed = numbered.filter((n): n is NumberedProduct & { setNumber: string } => n.setNumber !== null);
+  await uploadInChunks(supabase, 'cardmarket_card_index', indexed.map(({ setNumber, product }) => ({
     id_product: product.idProduct,
     id_expansion: idExpansion,
-    set_number: String(setNumber),
+    set_number: setNumber,
     url_variant: null,
     language: 'fr',
     url_path: null,
@@ -213,7 +248,7 @@ async function main(): Promise<void> {
     .from('cardmarket_card_index')
     .select('id_product', { count: 'exact', head: true })
     .eq('id_expansion', idExpansion);
-  console.log(`\nVerification: ${count ?? 0}/${cards} index rows for ${idExpansion} (${prefix}).`);
+  console.log(`\nVerification: ${count ?? 0}/${indexed.length} index rows for ${idExpansion} (${prefix}).`);
   console.log('\nNext steps:');
   console.log('  - git add cardmarket_expansions.json && commit (else the nightly upload drops the products)');
   console.log('  - npm run snapshot-cardmarket-index');

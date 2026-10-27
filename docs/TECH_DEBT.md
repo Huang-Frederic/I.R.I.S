@@ -178,9 +178,9 @@ Some `other_item` tests in `vinted-agent/main_test.py` don't mock `asyncio.sleep
 
 ### New sets aren't imported automatically: BrightData is gone
 
-`npm run update-expansions` needs BrightData to read Cardmarket's expansion list and gallery pages; the token expired on 2026-10-05 and the account has since been deactivated. Cardmarket answers anything else with a Cloudflare challenge. [`cardmarket_expansions.json`](../cardmarket_expansions.json) therefore only gains a set by hand: the nightly import still logs about 45 unknown expansion ids and drops their products, including the 30th Celebration. Chaos Rising (6517, `CRI`) and Pitch Black (6569, `PBL`) have expansion and index rows from an earlier scrape but are missing from the JSON, so their prices are no longer refreshed.
+`npm run update-expansions` needs BrightData to read Cardmarket's expansion list and gallery pages; the token expired on 2026-10-05 and the account has since been deactivated. Cardmarket answers anything else with a Cloudflare challenge. [`cardmarket_expansions.json`](../cardmarket_expansions.json) therefore only gains a set by hand: the nightly import still logs 42 unknown expansion ids and drops their 5,342 products — mostly Japanese and Asian prints (the Japanese, Chinese and Thai 30th Celebration, 6602-6604), extras such as live-code cards, and old promos.
 
-**Workaround:** `npm run add-expansion` ([COMMANDS.md](COMMANDS.md#add-expansion)) adds one set from the public dumps, with its name and printed code given by hand and the numbers checked against the official card list. Règne Delta (6704, `DLR`) went in that way on 2026-10-27.
+**Workaround:** `npm run add-expansion` ([COMMANDS.md](COMMANDS.md#add-expansion)) adds one set from the public dumps, with its name and printed code given by hand and the numbers checked against the official card list. On 2026-10-27: Règne Delta (6704, `DLR`), Storm Emeralda (6636, `m6`) and the 30th Celebration with its Classic Collection (6601, `30C`; the 30 Classic Collection cards have prices but no index rows). Chaos Ascendant (6517, `CRI`) and Nuit Noire (6569, `PBL`), scraped before but missing from the JSON, were put back in it so their prices refresh again.
 
 ### The scraped index covers about 71 % of expansions
 

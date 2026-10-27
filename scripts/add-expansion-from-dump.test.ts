@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardPrefix, numberProducts, parseArgs, type DumpProduct } from './add-expansion-from-dump';
+import { applyNumberMap, cardPrefix, numberProducts, parseArgs, type DumpProduct } from './add-expansion-from-dump';
 
 const product = (idProduct: number, name: string, idExpansion = 6704): DumpProduct => ({
   idProduct,
@@ -16,8 +16,8 @@ describe('numberProducts', () => {
       2,
     );
     expect(numbered.map((n) => [n.setNumber, n.product.idProduct])).toEqual([
-      [1, 918810],
-      [2, 918811],
+      ['1', 918810],
+      ['2', 918811],
     ]);
   });
 
@@ -27,7 +27,7 @@ describe('numberProducts', () => {
       6704,
       2,
     );
-    expect(numbered.map((n) => n.setNumber)).toEqual([1, 2]);
+    expect(numbered.map((n) => n.setNumber)).toEqual(['1', '2']);
   });
 
   it('refuses when the product count is not the official card count', () => {
@@ -36,6 +36,32 @@ describe('numberProducts', () => {
 
   it('refuses an expansion the dump does not have', () => {
     expect(() => numberProducts([product(1, 'A')], 9999, 1)).toThrow(/No product of expansion 9999/);
+  });
+});
+
+describe('applyNumberMap', () => {
+  const numbered = numberProducts(
+    [
+      product(907735, 'Ultra Ball', 6601),
+      product(907736, 'Ninetales [Flame Tail | 30]', 6601),
+      product(909509, 'Mew [Psychic | 30C]', 6601),
+      product(907940, 'Charizard', 6601),
+    ],
+    6601,
+    4,
+  );
+
+  it('takes the numbers from the map, letters and unindexed products included', () => {
+    const mapped = applyNumberMap(numbered, { 907735: '128', 907736: '10', 909509: 'R', 907940: null });
+    // In idProduct order: Charizard 907940 comes before Mew 909509.
+    expect(mapped.map((n) => n.setNumber)).toEqual(['128', '10', null, 'R']);
+  });
+
+  it('refuses a map that misses a product or names one from elsewhere', () => {
+    expect(() => applyNumberMap(numbered, { 907735: '128', 907736: '10', 909509: 'R' })).toThrow(/1 missing \(907940\)/);
+    expect(() => applyNumberMap(numbered, { 907735: '128', 907736: '10', 909509: 'R', 907940: null, 1: '1' })).toThrow(
+      /1 not in the expansion \(1\)/,
+    );
   });
 });
 

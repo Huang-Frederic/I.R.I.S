@@ -167,6 +167,8 @@ Name patterns that often indicate wheel sets: `Battle Party *`, `Promo Pack *`, 
 
 **A newly released set, without BrightData** — `npm run add-expansion` ([`scripts/add-expansion-from-dump.ts`](../scripts/add-expansion-from-dump.ts), [COMMANDS.md](COMMANDS.md#add-expansion)) applies the ordering above one product per card, with the names and printed code given by hand. Checked on 2026-10-27 against the scraped index: 188/188 on Mega Evolution, 130/130 Phantasmal Flames, 124/124 Perfect Order, 122/122 Chaos Rising, 120/120 Pitch Black, 274/295 Ascended Heroes (swapped secret rares). It refuses a set whose product count isn't its card count, and doesn't merge consecutive same-name products: Delta Reign's Legendary Stadium halves ("Legendary Summit [Left]" / "[Right]") are two numbers. Delta Reign went in this way, its 141 numbers matched one by one against Bulbapedia.
 
+The order fails on some sets, so check every list: Japanese sets (92/92 on Mega Brave and 264/264 on Brilliant Fantasy, but 15/116 on Inferno X and 22/120 on Ninja Spinner), and cards Cardmarket created late — 30th Celebration's Ninetales 010 comes after Ultra Ball 128, four of its secret rares after the Classic Collection. For those, `--numbers` takes an explicit `idProduct → number` map. Where names can't decide (two Mewtwo ex at 151 and 157, Storm Emeralda's Custom Vest 099 and Pokémon Catcher 098 in swapped order), the product image on Cardmarket's S3 shows the printed number.
+
 **BrightData scrape by hand** — to re-scrape expansions that are still missing a prefix:
 
 ```bash
